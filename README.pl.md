@@ -16,9 +16,9 @@ Stan: wczesna wersja.
 |---|---|---|
 | ![Światło](docs/screenshots/pl/light.png) | ![Termostat](docs/screenshots/pl/thermostat.png) | ![Tablet](docs/screenshots/pl/tablet.png) |
 
-| Odtwarzacz | Muzyka | Media | Energia |
+| Pogoda | Odtwarzacz | Muzyka | Media |
 |---|---|---|---|
-| ![Odtwarzacz](docs/screenshots/pl/player.png) | ![Muzyka](docs/screenshots/pl/music.png) | ![Media](docs/screenshots/pl/media.png) | ![Energia](docs/screenshots/pl/energy.png) |
+| ![Pogoda](docs/screenshots/pl/weather.png) | ![Odtwarzacz](docs/screenshots/pl/player.png) | ![Muzyka](docs/screenshots/pl/music.png) | ![Media](docs/screenshots/pl/media.png) |
 
 | Mapa | Menu | Wybór obszaru | Odkurzacz |
 |---|---|---|---|
@@ -28,9 +28,9 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Roleta](docs/screenshots/pl/blind.png) | ![Przełącznik](docs/screenshots/pl/switch.png) | ![Tło ekranu](docs/screenshots/pl/background.png) | ![Mój układ](docs/screenshots/pl/layout.png) |
 
-| Dostęp użytkowników |
-|---|
-| ![Dostęp użytkowników](docs/screenshots/pl/access.png) |
+| Dostęp użytkowników | Energia |
+|---|---|
+| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) |
 
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
@@ -43,7 +43,7 @@ kolejny blok w `www/app/i18n.js`. Test pilnuje, żeby miał wszystkie teksty.
 
 ## Instalacja
 
-1. W HACS otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
+1. W HACS (od Home Assistant 2026.11 to Marketplace) otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
    `https://github.com/witold-gren/home-assistant-dashboard` jako **Integrację**, pobierz **Home Dashboard**
    i uruchom ponownie Home Assistant. Bez HACS skopiuj `custom_components/home_dashboard`.
 2. Ustawienia → Urządzenia oraz usługi → Dodaj integrację → **Home Dashboard**.
@@ -123,6 +123,22 @@ pokazywać kartę (`auto_card: true`), zostawiać kartę administratorom (`admin
 widzą `frame`) i nazywać przycisk karty przez `card_label` i `card_icon`. `tone` wybiera kolor ikony (green, purple,
 teal, pink), a bez niego kolory idą po kolei. Akcja może wywołać usługę
 swojej encji: `{name: Start, entity: vacuum.robot, service: vacuum.start}`.
+
+### Pogoda
+
+Pierwszy chip na stronie głównej pokazuje temperaturę i otwiera ekran z bieżącymi odczytami oraz prognozą
+godzinową i dzienną. Pojawia się sam, gdy Home Assistant ma encję `weather`. Chip używa pierwszej z nich, a prognoza
+pochodzi z pierwszej, która ją ma, więc stacja domowa może działać razem z usługą pogody:
+
+```yaml
+strategy:
+  type: custom:home-dashboard
+  weather:
+    entity: weather.home_station
+    forecast: weather.forecast_home
+```
+
+`weather: false` usuwa chip.
 
 ### Sceny
 

@@ -16,9 +16,9 @@ Status: early version.
 |---|---|---|
 | ![Light](docs/screenshots/en/light.png) | ![Thermostat](docs/screenshots/en/thermostat.png) | ![Tablet](docs/screenshots/en/tablet.png) |
 
-| Player | Music | Media | Energy |
+| Weather | Player | Music | Media |
 |---|---|---|---|
-| ![Player](docs/screenshots/en/player.png) | ![Music](docs/screenshots/en/music.png) | ![Media](docs/screenshots/en/media.png) | ![Energy](docs/screenshots/en/energy.png) |
+| ![Weather](docs/screenshots/en/weather.png) | ![Player](docs/screenshots/en/player.png) | ![Music](docs/screenshots/en/music.png) | ![Media](docs/screenshots/en/media.png) |
 
 | Map | Menu | Choosing an area | Vacuum |
 |---|---|---|---|
@@ -28,9 +28,9 @@ Status: early version.
 |---|---|---|---|
 | ![Blind](docs/screenshots/en/blind.png) | ![Switch](docs/screenshots/en/switch.png) | ![Screen background](docs/screenshots/en/background.png) | ![My layout](docs/screenshots/en/layout.png) |
 
-| User access |
-|---|
-| ![User access](docs/screenshots/en/access.png) |
+| User access | Energy |
+|---|---|
+| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) |
 
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
@@ -43,7 +43,7 @@ language is one more block in `www/app/i18n.js`, and a test checks that it has e
 
 ## Installation
 
-1. In HACS open the three dots → **Custom repositories**, add
+1. In HACS (Marketplace from Home Assistant 2026.11) open the three dots → **Custom repositories**, add
    `https://github.com/witold-gren/home-assistant-dashboard` as an **Integration**, download
    **Home Dashboard** and restart Home Assistant. Without HACS, copy `custom_components/home_dashboard`.
 2. Settings → Devices & services → Add integration → **Home Dashboard**.
@@ -123,6 +123,22 @@ with `auto_card: true`, keep the card for administrators with `admin_card: true`
 the others), and name the card's button with `card_label` and `card_icon`. `tone` picks the icon colour (green, purple,
 teal, pink); without it the colours follow the order. An action can call a service
 of its entity: `{name: Start, entity: vacuum.robot, service: vacuum.start}`.
+
+### Weather
+
+The first chip on Home shows the temperature and opens a screen with the current readings and the hourly
+and daily forecast. It appears by itself when Home Assistant has a `weather` entity. The chip uses the first
+one, and the forecast comes from the first one that has it, so a home station can work with a weather service:
+
+```yaml
+strategy:
+  type: custom:home-dashboard
+  weather:
+    entity: weather.home_station
+    forecast: weather.forecast_home
+```
+
+`weather: false` removes the chip.
 
 ### Scenes
 

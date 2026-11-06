@@ -30,7 +30,8 @@ customElements.define(
       const name = this._icon?.replace("mdi:", "");
       if (!name) return;
       const svg = await (await fetch(`/mdi/${name}.svg`)).text();
-      this.innerHTML = svg.replace("<svg", '<svg width="24" height="24" fill="currentColor" style="display:block"');
+      const size = getComputedStyle(this).getPropertyValue("--mdc-icon-size").trim() || "24px";
+      this.innerHTML = svg.replace("<svg", `<svg width="${size}" height="${size}" fill="currentColor" style="display:block"`);
       this.style.display = "inline-block";
     }
   },
@@ -98,6 +99,25 @@ function buildHass() {
     device_class: "blind",
   });
   add("lock.front", "hall", "locked", { friendly_name: say("Front door", "Drzwi wejściowe") });
+  states["weather.home"] = {
+    entity_id: "weather.home",
+    state: "partlycloudy",
+    attributes: {
+      friendly_name: say("Home", "Dom"),
+      temperature: 12.4,
+      temperature_unit: "°C",
+      apparent_temperature: 10.8,
+      humidity: 64,
+      pressure: 1018,
+      pressure_unit: "hPa",
+      wind_speed: 14,
+      wind_speed_unit: "km/h",
+      cloud_coverage: 40,
+      dew_point: 5.9,
+      uv_index: 2,
+      supported_features: 3,
+    },
+  };
   add("switch.coffee", "kitchen", "on", { friendly_name: say("Coffee machine", "Ekspres") });
   add("media_player.living_homepod", "living", "playing", {
     friendly_name: say("Living room speaker", "Głośnik w salonie"),
@@ -153,7 +173,7 @@ function buildHass() {
     themes: {},
     localize: (key) => key,
     formatEntityState: (stateObj) =>
-      ({ on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane") })[stateObj.state] ?? stateObj.state,
+      ({ on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[stateObj.state] ?? stateObj.state,
     formatEntityAttributeValue: (stateObj, attribute) => stateObj.attributes[attribute],
     hassUrl: (path) => path,
     callService: async () => {},
@@ -172,8 +192,31 @@ function buildHass() {
           ],
         },
       })[message.type] ?? null,
-    connection: { subscribeMessage: async (callback) => callback({ color_mode: "auto" }) },
+    connection: {
+      subscribeMessage: async (callback, message) =>
+        callback(message.type === "weather/subscribe_forecast" ? { forecast: demoForecast(message.forecast_type) } : { color_mode: "auto" }),
+    },
   };
+}
+
+function demoForecast(type) {
+  const now = Date.now();
+  const conditions = ["partlycloudy", "partlycloudy", "cloudy", "rainy", "rainy", "cloudy", "sunny", "sunny"];
+  if (type === "hourly") {
+    return Array.from({ length: 24 }, (_, hour) => ({
+      datetime: new Date(Math.ceil(now / 3600000) * 3600000 + hour * 3600000).toISOString(),
+      condition: conditions[Math.floor(hour / 3)],
+      temperature: 12 - Math.abs(hour - 4) / 3,
+      precipitation: conditions[Math.floor(hour / 3)] === "rainy" ? 0.8 : 0,
+    }));
+  }
+  return [13, 11, 9, 10, 14, 15, 12].map((temperature, day) => ({
+    datetime: new Date(now + day * 86400000).toISOString(),
+    condition: conditions[day + 1],
+    temperature,
+    templow: temperature - 6 - (day % 3),
+    precipitation: conditions[day + 1] === "rainy" ? 3.5 : 0,
+  }));
 }
 
 const tile = (entity, name, extra = {}) => ({ entity, ...(name ? { name } : {}), ...extra });

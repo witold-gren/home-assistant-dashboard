@@ -9,6 +9,25 @@ export const DEFAULT_MEDIA_PATTERNS = ["^(.+)_homepod(_muzyka)?$"];
 export const OTHER_ROOM_ID = "__other__";
 
 const DEFAULT_IDLE_SECONDS = 180;
+export const FORECAST_DAILY = 1;
+export const FORECAST_HOURLY = 2;
+const WEATHER_ICONS = {
+  "clear-night": "mdi:weather-night",
+  cloudy: "mdi:weather-cloudy",
+  exceptional: "mdi:alert-circle-outline",
+  fog: "mdi:weather-fog",
+  hail: "mdi:weather-hail",
+  lightning: "mdi:weather-lightning",
+  "lightning-rainy": "mdi:weather-lightning-rainy",
+  partlycloudy: "mdi:weather-partly-cloudy",
+  pouring: "mdi:weather-pouring",
+  rainy: "mdi:weather-rainy",
+  snowy: "mdi:weather-snowy",
+  "snowy-rainy": "mdi:weather-snowy-rainy",
+  sunny: "mdi:weather-sunny",
+  windy: "mdi:weather-windy",
+  "windy-variant": "mdi:weather-windy-variant",
+};
 // The scenes have a page of their own, opened like a room. Two underscores keep it apart from areas.
 export const SCENES_ROOM = "__scenes";
 const SNAPSHOT_IMAGE = /_last_(screen|snapshot)$/;
@@ -100,6 +119,7 @@ export function normalizeConfig(config = {}) {
     scenes: config.scenes ?? [],
     scenes_layout: config.scenes_layout ?? null,
     music: config.music ?? null,
+    weather: config.weather === false ? null : { entity: null, forecast: null, ...config.weather },
     background: config.background ?? null,
     backgrounds: config.backgrounds ?? {},
     access: config.access ?? {},
@@ -626,7 +646,8 @@ export function accessChoices(hass, raw) {
     ...(room.sections ?? []).flatMap((section) => section.tiles),
   ]);
   const names = new Map(items.filter((item) => item.entity && item.name).map((item) => [item.entity, item.name]));
-  const entities = [...new Set([...selection.entityIds, ...items.map((item) => item.entity).filter(Boolean)])]
+  const listed = [...selection.entityIds, ...items.map((item) => item.entity).filter(Boolean), ...weatherEntities(hass)];
+  const entities = [...new Set(listed)]
     .filter((id) => hass.states[id] && !ACCESS_ELSEWHERE.has(domainOf(id)))
     .map((id) => ({ ...named(id), name: names.get(id) ?? named(id).name }));
   const group = (domains) => entities.filter(({ id }) => domains.has(domainOf(id)));
@@ -768,6 +789,34 @@ export function buildChips(hass, selection) {
   ];
 }
 
+export const weatherIcon = (condition) => WEATHER_ICONS[condition] ?? "mdi:weather-cloudy";
+
+function weatherEntities(hass) {
+  return Object.keys(hass.states)
+    .filter((id) => domainOf(id) === "weather" && !hass.entities[id]?.hidden && !hass.states[id].attributes?.restored)
+    .sort();
+}
+
+// A home station measures the present and a weather service knows the future, so the chip and the
+// forecast can come from two entities. Nothing configured: the first one, and the first that forecasts.
+export function buildWeather(hass, config) {
+  if (!config.weather) return null;
+  const found = weatherEntities(hass);
+  const entity = config.weather.entity ?? found[0];
+  const stateObj = hass.states[entity];
+  if (!stateObj || config.denied?.includes(entity)) return null;
+  const forecasts = (id) => (hass.states[id]?.attributes?.supported_features ?? 0) & (FORECAST_DAILY | FORECAST_HOURLY);
+  const { temperature } = stateObj.attributes;
+  return {
+    entity,
+    forecast: config.weather.forecast ?? [entity, ...found].find(forecasts) ?? null,
+    icon: weatherIcon(stateObj.state),
+    tone: stateObj.state === "sunny" ? "light" : "media",
+    label: translate(hass.language, "chip_weather"),
+    value: typeof temperature === "number" ? `${temperature.toFixed(1)}°` : translate(hass.language, "no_data"),
+  };
+}
+
 export function greeting(hass, now = new Date()) {
   const hour = now.getHours();
   const part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
@@ -811,6 +860,7 @@ export function buildHomeModel(hass, config, selection, layout = "phone", now = 
   return {
     title: greeting(hass, now),
     chips: buildChips(hass, selection),
+    weather: buildWeather(hass, config),
     cameras: buildCameras(hass, config),
     favorites: config.favorites
       .map((id) => {
@@ -1064,6 +1114,8 @@ export function watchedEntityIds(hass, config, selection, areas = []) {
   const fixed = config.layout.flatMap((room) => room.status ?? []).flatMap((group) => group.entities);
   return new Set([
     ...selection.entityIds,
+    ...weatherEntities(hass),
+    config.weather?.entity,
     ...config.favorites,
     ...selection.mediaGroups.flat(),
     ...cameras,

@@ -13,7 +13,7 @@ Home Assistant's settings, in the dashboard itself, or in its YAML editor.
 
 You need Home Assistant 2026.10 or newer. On a phone or tablet use the Companion app.
 
-1. In HACS open the three dots → **Custom repositories**, add
+1. In HACS (Marketplace from Home Assistant 2026.11) open the three dots → **Custom repositories**, add
    `https://github.com/witold-gren/home-assistant-dashboard` as an **Integration**, download
    **Home Dashboard** and restart Home Assistant. Without HACS, copy `custom_components/home_dashboard` into
    the `custom_components` folder of your configuration and restart.
@@ -109,13 +109,33 @@ Rooms appear in the order of `layout`, and the areas it does not cover come afte
 
 ## 4. Home
 
-From the top: the greeting, the chips, your shortcuts, cameras, scenes, favorites and rooms.
+From the top: the greeting, the weather, the chips, your shortcuts, cameras, scenes, favorites and rooms.
 
 - **Chips** count what is on and filter the page: climate, lights, security and media.
 - **Rooms** show the tiles from the Home page tab of each room. Set a short list there: the room's own page
   has the rest.
 - **Favorites** go above the rooms: `favorites: [climate.living_room, lock.front_door]`.
 - **Shortcuts** sit in the row of chips, see [Shortcuts and blocks](#7-shortcuts-and-blocks).
+
+### Weather
+
+The first chip shows the temperature and opens a screen with the current readings and the forecast for
+the next hours and days. It appears by itself when Home Assistant has a `weather` entity. Add a service such
+as **Met.no** under **Settings → Devices & services** if there is none.
+
+By default the chip uses the first weather entity, and the forecast comes from the first one that has it. A home
+station usually has no forecast, so the two can differ. Missing readings, such as wind, come from the forecast
+entity too.
+
+```yaml
+weather:
+  entity: weather.home_station
+  forecast: weather.forecast_home
+```
+
+`weather: false` removes the chip. **User access** hides it from one person, under **Other**.
+
+![Weather](screenshots/en/weather.png)
 
 ## 5. Cameras
 

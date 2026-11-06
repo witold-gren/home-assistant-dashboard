@@ -106,6 +106,10 @@ def make(browser, base: str, language: str) -> None:
     take(page, folder, "switch")
 
     page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-weather]")
+    take(page, folder, "weather")
+
+    page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-chrome .mini-open")
     take(page, folder, "player")
 

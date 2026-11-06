@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Weather: the first chip on Home shows the temperature and opens a screen with the current readings and
+  the hourly and daily forecast. `weather.entity` and `weather.forecast` choose the entities, `weather: false`
+  turns it off.
+
 ## 0.1.1 (2026-11-06)
 
 - A step-by-step guide in English and Polish, with screenshots of every screen.

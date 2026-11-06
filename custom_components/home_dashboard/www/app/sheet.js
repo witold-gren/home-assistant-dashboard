@@ -1360,6 +1360,13 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  _renderWeather() {
+    return html`
+      ${this._renderHeader(this.sheet.item.label, false, false)}
+      <home-dashboard-weather .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-weather>
+    `;
+  }
+
   // Layout editor ---------------------------------------------------------------------------
 
   _pickTile(entityId) {
@@ -2032,6 +2039,7 @@ export class HomeDashboardSheet extends LitElement {
       "tile-picker": this._renderTilePicker,
       background: this._renderBackground,
       school: this._renderSchool,
+      weather: this._renderWeather,
       host: this._renderHost,
       page: this._renderPage,
       pin: this._renderPin,

@@ -13,7 +13,7 @@ Home Assistant, w samym dashboardzie albo w jego edytorze YAML.
 
 Potrzebujesz Home Assistant 2026.10 lub nowszego. Na telefonie i tablecie użyj aplikacji Companion.
 
-1. W HACS otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
+1. W HACS (od Home Assistant 2026.11 to Marketplace) otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
    `https://github.com/witold-gren/home-assistant-dashboard` jako **Integrację**, pobierz **Home Dashboard**
    i uruchom ponownie Home Assistant. Bez HACS skopiuj `custom_components/home_dashboard` do folderu
    `custom_components` w konfiguracji i uruchom ponownie.
@@ -109,13 +109,32 @@ kolejność i ukrywają pokój bez jego opisywania.
 
 ## 4. Strona główna
 
-Od góry: powitanie, chipy, Twoje skróty, kamery, sceny, ulubione i pokoje.
+Od góry: powitanie, pogoda, chipy, Twoje skróty, kamery, sceny, ulubione i pokoje.
 
 - **Chipy** liczą to, co włączone, i filtrują stronę: klimat, światła, ochrona i media.
 - **Pokoje** pokazują kafelki z zakładki Strona główna każdego pokoju. Ustaw tam krótką listę, a resztę zostaw
   na stronie pokoju.
 - **Ulubione** są nad pokojami: `favorites: [climate.living_room, lock.front_door]`.
 - **Skróty** są w rzędzie chipów, patrz [Skróty i bloki](#7-skróty-i-bloki).
+
+### Pogoda
+
+Pierwszy chip pokazuje temperaturę i otwiera ekran z bieżącymi odczytami oraz prognozą na najbliższe godziny
+i dni. Pojawia się sam, gdy Home Assistant ma encję `weather`. Jeśli jej nie ma, dodaj usługę, np. **Met.no**, w
+**Ustawienia → Urządzenia oraz usługi**.
+
+Domyślnie chip używa pierwszej encji pogody, a prognoza pochodzi z pierwszej, która ją ma. Stacja domowa zwykle
+nie ma prognozy, więc mogą to być dwie różne encje. Brakujące odczyty, np. wiatr, też pochodzą z encji prognozy.
+
+```yaml
+weather:
+  entity: weather.home_station
+  forecast: weather.forecast_home
+```
+
+`weather: false` usuwa chip. **Dostęp użytkowników** ukrywa go przed jedną osobą, w zakładce **Inne**.
+
+![Pogoda](screenshots/pl/weather.png)
 
 ## 5. Kamery
 

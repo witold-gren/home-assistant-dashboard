@@ -509,6 +509,20 @@ export class HomeDashboardPage extends LitElement {
     openSheet(this, { kind: item.kind, entityId: item.entity, item });
   }
 
+  _renderWeather(weather) {
+    if (!weather) return nothing;
+    return html`
+      <button
+        class="chip"
+        data-weather
+        @click=${() => openSheet(this, { kind: "weather", entityId: weather.entity, item: weather })}
+      >
+        <ha-icon class=${weather.tone} .icon=${weather.icon}></ha-icon>
+        <span><small>${weather.label}</small><strong>${weather.value}</strong></span>
+      </button>
+    `;
+  }
+
   _renderShortcuts() {
     return shownShortcuts(this._hass, this._config).map(
       (item, index) => html`
@@ -606,7 +620,7 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _renderHome() {
-    const { title, chips, filter } = this._model;
+    const { title, chips, filter, weather } = this._model;
     const old = this._leavingModel;
     return html`
       <div class="home-title">
@@ -616,6 +630,7 @@ export class HomeDashboardPage extends LitElement {
         ${this._renderHomeActions()}
       </div>
       <div class="chips">
+        ${this._renderWeather(weather)}
         ${chips.map(
           (chip) => html`
             <button
