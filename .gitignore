@@ -12,3 +12,4 @@ docs/reference/
 scripts/import_overview.py
 tests/test_import_overview.py
 .demo-icons/
+.demo-tiles/

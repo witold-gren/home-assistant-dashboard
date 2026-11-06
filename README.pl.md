@@ -16,16 +16,36 @@ Stan: wczesna wersja.
 |---|---|---|
 | ![Światło](docs/screenshots/pl/light.png) | ![Termostat](docs/screenshots/pl/thermostat.png) | ![Tablet](docs/screenshots/pl/tablet.png) |
 
+| Odtwarzacz | Muzyka | Media | Energia |
+|---|---|---|---|
+| ![Odtwarzacz](docs/screenshots/pl/player.png) | ![Muzyka](docs/screenshots/pl/music.png) | ![Media](docs/screenshots/pl/media.png) | ![Energia](docs/screenshots/pl/energy.png) |
+
+| Mapa | Menu | Wybór obszaru | Odkurzacz |
+|---|---|---|---|
+| ![Mapa](docs/screenshots/pl/map.png) | ![Menu](docs/screenshots/pl/menu.png) | ![Wybór obszaru](docs/screenshots/pl/rooms.png) | ![Odkurzacz](docs/screenshots/pl/vacuum.png) |
+
+| Roleta | Przełącznik | Tło ekranu | Mój układ |
+|---|---|---|---|
+| ![Roleta](docs/screenshots/pl/blind.png) | ![Przełącznik](docs/screenshots/pl/switch.png) | ![Tło ekranu](docs/screenshots/pl/background.png) | ![Mój układ](docs/screenshots/pl/layout.png) |
+
+| Dostęp użytkowników |
+|---|
+| ![Dostęp użytkowników](docs/screenshots/pl/access.png) |
+
+**[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
+
 Zrzuty pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
-([źródła](dev/demo-pictures/CREDITS.md)). `make screenshots` tworzy je od nowa.
+([źródła](dev/demo-pictures/CREDITS.md)). Muzyka, Energia i Mapa używają zastępczej aplikacji muzycznej
+i kart z wymyślonymi liczbami. `make screenshots` tworzy je od nowa.
 
 Dashboard mówi językiem użytkownika Home Assistant. W zestawie są angielski i polski, a nowy język to
 kolejny blok w `www/app/i18n.js`. Test pilnuje, żeby miał wszystkie teksty.
 
 ## Instalacja
 
-1. Uruchom `make deploy` (albo skopiuj `custom_components/home_dashboard`) i uruchom ponownie Home Assistant.
-   Repozytorium jest prywatne, więc nie zainstalujesz go przez HACS.
+1. W HACS otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
+   `https://github.com/witold-gren/home-assistant-dashboard` jako **Integrację**, pobierz **Home Dashboard**
+   i uruchom ponownie Home Assistant. Bez HACS skopiuj `custom_components/home_dashboard`.
 2. Ustawienia → Urządzenia oraz usługi → Dodaj integrację → **Home Dashboard**.
 3. Ustawienia → Dashboardy → Dodaj dashboard → **Nowy dashboard od podstaw**.
 4. Otwórz go, wybierz **Edytuj** → **Edytor konfiguracji** i wklej:
@@ -269,8 +289,6 @@ na stronie pokoju przycisk w nagłówku, który mówi tylko w tym pokoju, a na e
 pokoju tej kamery. Nagrywanie wymaga HTTPS i konta administratora; w pozostałych przypadkach jest pole
 tekstowe, w którym działa dyktowanie z klawiatury.
 
-Ikona obszarów w nagłówku każdej strony pokazuje listę obszarów i otwiera wybrany.
-
 ## Tryb ciemny
 
 Ustawienia → Urządzenia i usługi → Home Dashboard → **Konfiguruj** pozwala wybrać tryb Automatyczny,
@@ -431,6 +449,11 @@ z niej obrazu. Sprawdź kamerę, a gdy wróci, obraz pojawi się sam.
 
 **Chcę ukryć kamery z sypialni na tablecie** — podaj listę kamer w `cameras.hero` i `cameras.tiles`.
 Wtedy strona pokazuje tylko je.
+
+## Pochodzenie
+
+Ten dashboard powstał jako koncepcja dla Home Assistant w projekcie Figma
+[Future concept](https://www.figma.com/proto/ZPRTON7huEj9kyXzPNxNgK/Future-concept?node-id=263-7391&comments-enabled=1&starting-point-node-id=263%3A7391).
 
 ## Licencja
 

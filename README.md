@@ -16,16 +16,36 @@ Status: early version.
 |---|---|---|
 | ![Light](docs/screenshots/en/light.png) | ![Thermostat](docs/screenshots/en/thermostat.png) | ![Tablet](docs/screenshots/en/tablet.png) |
 
+| Player | Music | Media | Energy |
+|---|---|---|---|
+| ![Player](docs/screenshots/en/player.png) | ![Music](docs/screenshots/en/music.png) | ![Media](docs/screenshots/en/media.png) | ![Energy](docs/screenshots/en/energy.png) |
+
+| Map | Menu | Choosing an area | Vacuum |
+|---|---|---|---|
+| ![Map](docs/screenshots/en/map.png) | ![Menu](docs/screenshots/en/menu.png) | ![Choosing an area](docs/screenshots/en/rooms.png) | ![Vacuum](docs/screenshots/en/vacuum.png) |
+
+| Blind | Switch | Screen background | My layout |
+|---|---|---|---|
+| ![Blind](docs/screenshots/en/blind.png) | ![Switch](docs/screenshots/en/switch.png) | ![Screen background](docs/screenshots/en/background.png) | ![My layout](docs/screenshots/en/layout.png) |
+
+| User access |
+|---|
+| ![User access](docs/screenshots/en/access.png) |
+
+**[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
+
 The screenshots show a made-up home from `dev/demo.js`, and the camera pictures are free CC0 photos of
-other homes ([credits](dev/demo-pictures/CREDITS.md)). Run `make screenshots` to make them again.
+other homes ([credits](dev/demo-pictures/CREDITS.md)). The Music, Energy and Map pictures use stand-ins
+for your music app and Home Assistant's cards, with made-up numbers. Run `make screenshots` to make them again.
 
 The dashboard speaks the language of the Home Assistant user. English and Polish are included; a new
 language is one more block in `www/app/i18n.js`, and a test checks that it has every text.
 
 ## Installation
 
-1. Run `make deploy` (or copy `custom_components/home_dashboard`) and restart Home Assistant. The repository
-   is private, so it cannot be installed through HACS.
+1. In HACS open the three dots → **Custom repositories**, add
+   `https://github.com/witold-gren/home-assistant-dashboard` as an **Integration**, download
+   **Home Dashboard** and restart Home Assistant. Without HACS, copy `custom_components/home_dashboard`.
 2. Settings → Devices & services → Add integration → **Home Dashboard**.
 3. Settings → Dashboards → Add dashboard → **New dashboard from scratch**.
 4. Open it, choose **Edit** → **Raw configuration editor**, and paste:
@@ -271,8 +291,6 @@ page has one in its header that speaks only in that room, and the camera screen 
 camera's room. Recording needs HTTPS and an administrator account; otherwise a text field opens, where
 keyboard dictation works.
 
-The room icon in the header of every page lists the rooms and opens the chosen one.
-
 ## Dark mode
 
 Settings → Devices & services → Home Dashboard → **Configure** offers Automatic, Light and Dark. The
@@ -431,6 +449,11 @@ and cannot be opened, and it is gone from Home and the security filter.
 **Home Assistant dialogs are dark on a light dashboard** — the page is an older version. The dashboard
 switches the Home Assistant theme to light only while it is open, without saving, so your theme comes
 back when you leave.
+
+## Origin
+
+This dashboard began as a concept for Home Assistant in the Figma project
+[Future concept](https://www.figma.com/proto/ZPRTON7huEj9kyXzPNxNgK/Future-concept?node-id=263-7391&comments-enabled=1&starting-point-node-id=263%3A7391).
 
 ## License
 

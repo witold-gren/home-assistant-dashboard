@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 (2026-11-06)
+
+- A step-by-step guide in English and Polish, with screenshots of every screen.
+- The repository is public and installs through HACS.
+
 ## 0.1.0 (2026-11-06)
 
 - Dashboard strategy `custom:home-dashboard` with Home, Media, Energy and Map views.

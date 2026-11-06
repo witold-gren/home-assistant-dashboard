@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "docs" / "screenshots"
 ICONS = ROOT / ".demo-icons"
 ICON_URL = "https://cdn.jsdelivr.net/npm/@mdi/svg/svg/{}.svg"
+TILES = ROOT / ".demo-tiles"
+TILE_URL = "https://tile.openstreetmap.org/{}.png"
+USER_AGENT = "home-dashboard-screenshots/0.1"
 PHONE = {"width": 402, "height": 874}
 TABLET = {"width": 1180, "height": 820}
 SHEET = "home-dashboard-sheet"
@@ -36,12 +39,24 @@ def serve_icon(route: Route) -> None:
     route.fulfill(body=path.read_bytes(), content_type="image/svg+xml")
 
 
+def serve_tile(route: Route) -> None:
+    tile = re.sub(r"[^0-9/]", "", route.request.url.split("/osm/", 1)[1].removesuffix(".png"))
+    path = TILES / f"{tile.replace('/', '_')}.png"
+    if not path.exists():
+        TILES.mkdir(exist_ok=True)
+        request = urllib.request.Request(TILE_URL.format(tile), headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            path.write_bytes(response.read())
+    route.fulfill(body=path.read_bytes(), content_type="image/png")
+
+
 def open_page(
     browser, base: str, language: str, viewport: dict, scheme: str = "light", query: str = ""
 ) -> Page:
     context = browser.new_context(viewport=viewport, device_scale_factor=1.5, color_scheme=scheme)
     page = context.new_page()
     page.route("**/mdi/*.svg", serve_icon)
+    page.route("**/osm/**", serve_tile)
     page.goto(f"{base}/dev/demo.html?language={language}{query}")
     page.wait_for_function("window.demoReady === true")
     page.wait_for_timeout(1200)
@@ -81,6 +96,39 @@ def make(browser, base: str, language: str) -> None:
     tap(page, "home-dashboard-page [data-rooms]")
     tap(page, f"{SHEET} [data-sheet-edit]")
     take(page, folder, "editor")
+
+    page = open_page(browser, base, language, PHONE, query=room)
+    tap(page, "home-dashboard-page [data-entity='cover.living'] .text")
+    take(page, folder, "blind")
+
+    page = open_page(browser, base, language, PHONE, query="&page=room&room=kitchen")
+    tap(page, "home-dashboard-page [data-entity='switch.coffee'] .text")
+    take(page, folder, "switch")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-chrome .mini-open")
+    take(page, folder, "player")
+
+    for name in ("music", "energy", "map"):
+        take(open_page(browser, base, language, PHONE, query=f"&page={name}"), folder, name)
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page .top-bar button")
+    take(page, folder, "menu")
+
+    for name, shortcut in (("vacuum", 1), ("media", 0)):
+        page = open_page(browser, base, language, PHONE)
+        button = page.locator("home-dashboard-page [data-shortcut]").nth(shortcut)
+        button.evaluate("(button) => button.click()")
+        take(page, folder, name)
+
+    rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
+    for name, row in rows:
+        page = open_page(browser, base, language, PHONE)
+        tap(page, "home-dashboard-page [data-rooms]")
+        if row:
+            tap(page, f"{SHEET} [data-sheet-{row}]")
+        take(page, folder, name)
 
 
 def main() -> None:
