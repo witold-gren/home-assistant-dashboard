@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>Home Dashboard harness</title><style>body { margin: 0 }</style></head>
+  <body>
+    <script type="module">
+      import * as model from "/custom_components/home_dashboard/www/app/model.js";
+      import * as chrome from "/custom_components/home_dashboard/www/app/chrome.js";
+      import { generateDashboard } from "/custom_components/home_dashboard/www/app/main.js";
+      import { createHass, withState } from "/tests/js/mock-hass.js";
+
+      customElements.define("ha-icon", class extends HTMLElement {});
+      // Stands in for Home Assistant's card helpers and records which cards were created.
+      window.createdCards = [];
+      window.loadCardHelpers = async () => ({
+        createCardElement(config) {
+          window.createdCards.push(config);
+          const card = document.createElement("div");
+          card.dataset.card = config.type;
+          return card;
+        },
+      });
+      const snapshot = await (await fetch("/tests/fixtures/registry_snapshot.json")).json();
+      window.dashboard = {
+        model,
+        chrome,
+        generateDashboard,
+        snapshot,
+        withState,
+        hass: (overrides) => createHass(snapshot, overrides),
+        async mount(hass, dashboard = {}, page = "home", parent = document.body) {
+          const card = document.createElement("home-dashboard-page");
+          card.setConfig({ page, dashboard });
+          card.hass = hass;
+          parent.appendChild(card);
+          await card.updateComplete;
+          return card;
+        },
+      };
+      window.dashboardReady = true;
+    </script>
+  </body>
+</html>

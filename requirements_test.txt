@@ -1,0 +1,6 @@
+pytest-homeassistant-custom-component==0.13.375
+# The version required by the Home Assistant that the line above pins
+home-assistant-frontend==20260930.5
+playwright
+pillow
+ruff

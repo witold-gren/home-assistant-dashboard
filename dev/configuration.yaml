@@ -1,0 +1,23 @@
+# Throwaway Home Assistant used by `make ui`: the real frontend with demo entities, no Zigbee.
+homeassistant:
+  name: Home Dashboard Dev
+  latitude: 51.1
+  longitude: 17.0
+  unit_system: metric
+  time_zone: Europe/Warsaw
+  country: PL
+  language: pl
+http:
+  server_host: 127.0.0.1
+  server_port: 8124
+frontend:
+  themes:
+    busy_test_theme:
+      lovelace-background: "center / cover no-repeat url('/static/images/card_media_player_bg.png')"
+      primary-color: "#ff00ff"
+config:
+onboarding:
+lovelace:
+demo:
+logger:
+  default: warning

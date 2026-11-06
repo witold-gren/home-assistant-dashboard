@@ -1,0 +1,14 @@
+.venv/
+.venv-dev/
+.dev-config/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+tests/browser/output/
+# Third-party artwork from the Figma prototype: local reference only
+docs/reference/
+# Tied to one home: kept next to the repository, never in it
+scripts/import_overview.py
+tests/test_import_overview.py
+.demo-icons/

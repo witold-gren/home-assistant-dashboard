@@ -1,0 +1,9 @@
+# The throwaway Home Assistant of `make ui`, on the same version as the real server.
+# Separate from .venv: pytest-homeassistant-custom-component pins an older Home Assistant.
+homeassistant==2026.11.0
+home-assistant-frontend==20261028.4
+# Needed by the demo integration
+PyTurboJPEG
+mutagen
+gTTS
+ha-ffmpeg

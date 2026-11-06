@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Dashboard",
+        "description": "Adds the Home Dashboard dashboard strategy. After this step create a new dashboard and set its strategy to `custom:home-dashboard`."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Home Dashboard is already installed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Colours",
+        "description": "Applies to every dashboard and device, at once.",
+        "data": {
+          "color_mode": "Colour mode"
+        }
+      }
+    }
+  },
+  "selector": {
+    "color_mode": {
+      "options": {
+        "auto": "Automatic (follows the system)",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    }
+  }
+}
