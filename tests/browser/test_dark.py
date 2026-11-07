@@ -9,6 +9,7 @@ import pytest
 
 from .conftest import PHONE, TABLET
 from .test_page import mount
+from .test_shortcuts import SHEET, mount_admin, open_background
 
 CONTRAST_TEXT = 4.5
 CONTRAST_ICON = 3
@@ -251,3 +252,47 @@ def test_the_map_follows_the_system(dark):
     }""")
     dark.wait_for_function("window.createdCards.length > 0")
     assert dark.evaluate("window.createdCards[0].theme_mode") == "dark"
+
+
+def open_look(page) -> None:
+    mount_admin(page, {})
+    open_background(page)
+    page.wait_for_selector(f"{SHEET} [data-color-modes]")
+
+
+def test_someone_chooses_a_dark_look_for_themselves(phone):
+    open_look(phone)
+    phone.locator(f"{SHEET} [data-color-mode='dark']").click()
+    phone.wait_for_function("window.saved.some((m) => m.type === 'frontend/set_user_data')")
+    assert phone.evaluate("window.saved.at(-1).value.color_mode") == "dark"
+    assert token(phone, "--hd-background") == "#121316"
+    assert "on" in phone.locator(f"{SHEET} [data-color-mode='dark']").get_attribute("class")
+
+
+def test_a_personal_look_beats_the_option_of_the_integration(phone):
+    open_look(phone)
+    phone.locator(f"{SHEET} [data-color-mode='dark']").click()
+    push_mode(phone, "light")
+    assert token(phone, "--hd-background") == "#121316"
+
+
+def test_the_system_look_can_be_chosen_back(phone):
+    open_look(phone)
+    phone.locator(f"{SHEET} [data-color-mode='dark']").click()
+    phone.locator(f"{SHEET} [data-color-mode='auto']").click()
+    assert phone.evaluate("window.saved.at(-1).value.color_mode") == "auto"
+    assert token(phone, "--hd-background") != "#121316"
+
+
+def test_without_a_choice_the_option_of_the_integration_holds(phone):
+    open_look(phone)
+    push_mode(phone, "dark")
+    assert token(phone, "--hd-background") == "#121316"
+
+
+def test_the_three_looks_stand_in_one_row(phone):
+    open_look(phone)
+    tops = phone.locator(f"{SHEET} [data-color-mode]").evaluate_all(
+        "(items) => items.map((item) => Math.round(item.getBoundingClientRect().top))"
+    )
+    assert len(set(tops)) == 1

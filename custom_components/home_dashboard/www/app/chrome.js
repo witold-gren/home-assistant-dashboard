@@ -11,6 +11,7 @@ import {
   buildRoomList,
   normalizeConfig,
   nowPlaying,
+  MENU_LINKS,
   menuGroups,
   personalize,
   renameBlockRules,
@@ -36,13 +37,7 @@ const PAGES = [
 const MUSIC_PAGE = { key: "music", icon: "mdi:music", path: "music" };
 // Pages of Home Assistant that have a window here, so that nobody has to leave the dashboard for them.
 const WINDOWS = { "/history": "history", "/logbook": "logbook" };
-const LINKS = [
-  { key: "history", icon: "mdi:chart-box-outline", path: "/history" },
-  { key: "logbook", icon: "mdi:format-list-bulleted", path: "/logbook" },
-  { key: "devices", icon: "mdi:devices", path: "/config/devices/dashboard", admin: true },
-  { key: "automations", icon: "mdi:robot-outline", path: "/config/automation/dashboard", admin: true },
-  { key: "home_assistant", icon: "mdi:view-dashboard-outline", path: "/lovelace" },
-];
+const LINKS = MENU_LINKS;
 
 const CAMERA_BAND = "#17181a";
 const BAND_REPEAT_MS = 800;
@@ -237,6 +232,7 @@ export class HomeDashboardChrome extends LitElement {
 
   _onPrefs = () => {
     this._selectionRaw = null;
+    this._useColorMode();
     this.requestUpdate();
   };
 
@@ -263,6 +259,15 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   _applySettings({ color_mode: mode }) {
+    this._sharedMode = mode;
+    this._useColorMode();
+  }
+
+  // What someone chose for themselves beats the option of the integration.
+  _useColorMode() {
+    const mode = personalPrefs().color_mode ?? this._sharedMode;
+    if (!mode || mode === this._usedMode) return;
+    this._usedMode = mode;
     applyColorMode(mode);
     const style = this.root?.shadowRoot?.getElementById(STYLE_ID);
     if (style) style.textContent = rootStyle();
@@ -534,6 +539,12 @@ export class HomeDashboardChrome extends LitElement {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, media } } });
   }
 
+  _saveLayout(event) {
+    const { rooms, favorites } = event.detail;
+    const dashboard = { ...this.raw, rooms: { ...this.raw.rooms, ...rooms }, favorites };
+    return this._saveSettings({ detail: { dashboard } });
+  }
+
   _saveAccess(event) {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, access: event.detail.access } } });
   }
@@ -725,6 +736,7 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-home=${this._pickHome}
       @sheet-edit=${this._editScreen}
       @sheet-access=${this._saveAccess}
+      @sheet-layout=${this._saveLayout}
       @sheet-shortcuts=${this._saveShortcuts}
       @sheet-media=${this._saveMedia}
       @sheet-link=${(event) => this._pickLink(event.detail.path)}

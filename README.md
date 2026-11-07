@@ -44,9 +44,9 @@ Status: early version.
 |---|---|---|---|
 | ![Menu editor](docs/screenshots/en/menu-editor.png) | ![Media categories](docs/screenshots/en/media-editor.png) | ![Logbook](docs/screenshots/en/logbook.png) | ![History](docs/screenshots/en/history.png) |
 
-| News |
-|---|
-| ![News](docs/screenshots/en/news.png) |
+| News | My view of a room | My scenes |
+|---|---|---|
+| ![News](docs/screenshots/en/news.png) | ![My view of a room](docs/screenshots/en/my-view.png) | ![My scenes](docs/screenshots/en/my-scenes.png) |
 
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
@@ -197,7 +197,8 @@ a window or a problem sensor reports on.
 
 Three dots → **My layout**: everyone orders and hides cameras and areas for themselves. The layout is
 kept with their Home Assistant account, so it is the same on all their devices, and it needs no
-administrator. The list of cameras applies to Home, rooms and the security filter.
+administrator. The list of cameras applies to Home, rooms and the security filter. On the Areas and Favorites tabs an
+administrator ticks **For everyone** to set the shared order of areas, which are hidden, and the shared favorites.
 
 Three dots on Home → **My layout** (everyone): the order of cameras, areas and the chips of Home, and what to hide.
 
@@ -239,7 +240,7 @@ in `layout`.
 ### Backgrounds
 
 Three dots → **Background of this screen** sets the background of Home or a room: a gradient, a colour or an
-uploaded picture, separately for the light and the dark look. An administrator ticks **For everyone** next to
+uploaded picture, separately for the light and the dark look and for upright (phone) and wide (tablet on its side, laptop) screens, with the part of the picture that stays when it is cropped. An administrator ticks **For everyone** next to
 either, which saves it in `backgrounds`. Without it the background stays with that account and beats the shared one. The page
 keeps a layer of the theme colour over it, so headings stay readable in light and dark mode. The
 background stays put while the page scrolls.
@@ -310,7 +311,7 @@ is off) and `sound_mode: true`.
 
 Under the room name there is one row of icons that scrolls sideways: temperature, humidity, air
 quality, brightness, climate, lights and switches that are on, open blinds, windows and doors,
-motion, presence, alarms, scenes and scripts. Tapping an icon lists the devices in that group.
+motion, presence and alarms. Tapping an icon lists the devices in that group. The scenes and scripts of a room stand in their own **Scenes** row under the cameras, laid out like the scenes on Home.
 
 ## Intercom
 
@@ -335,7 +336,7 @@ keyboard dictation works.
 
 Settings → Devices & services → Home Dashboard → **Configure** offers Automatic, Light and Dark. The
 choice applies to every device at once, without a reload. Automatic follows the system, so an iPad set
-to Automatic turns dark at dusk. The map picks its colours when it opens.
+to Automatic turns dark at dusk. The map picks its colours when it opens. Each person can choose differently for themselves in **Background of this screen** (System, Light, Dark), and that choice stays with their account.
 
 ## Return to Home on a tablet
 

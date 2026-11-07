@@ -309,3 +309,62 @@ def test_the_page_does_not_scroll_sideways_while_editing(device, request):
     page = request.getfixturevalue(device)
     open_editor(page)
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+# Scenes of a room -------------------------------------------------------------------------------
+
+def add_scene(page, entity_id: str, name: str) -> None:
+    page.evaluate(
+        """({ id, name }) => {
+            window.dashboard.snapshot.states[id] = { entity_id: id, state: "2026-01-01", attributes: { friendly_name: name } };
+            window.dashboard.snapshot.entities[id] = { entity_id: id, platform: "x" };
+        }""",
+        {"id": entity_id, "name": name},
+    )
+
+
+def test_the_room_editor_has_a_tab_for_its_scenes(phone):
+    open_editor(phone)
+    phone.locator("[data-edit-tab='scenes']").click()
+    assert phone.locator("[data-edit-list='0'] [data-add-tile]").count() == 1
+
+
+def test_a_scene_chosen_for_a_room_is_saved_with_it(phone):
+    add_scene(phone, "scene.film", "Film")
+    open_editor(phone)
+    phone.locator("[data-edit-tab='scenes']").click()
+    phone.locator("[data-edit-list='0'] [data-add-tile]").click()
+    phone.locator("[data-pick-search]").fill("scene.film")
+    phone.locator("[data-pick='scene.film']").click()
+    room = saved_room(phone)
+    assert room["scenes"] == [{"entity": "scene.film"}]
+    assert room["sections"][0]["title"] == "Jeden"
+
+
+def test_the_scene_tab_offers_only_scenes_and_scripts(phone):
+    add_scene(phone, "scene.film", "Film")
+    open_editor(phone)
+    phone.locator("[data-edit-tab='scenes']").click()
+    phone.locator("[data-edit-list='0'] [data-add-tile]").click()
+    (light,) = ids(phone, "light.", 1)
+    phone.locator("[data-pick-search]").fill(light)
+    assert phone.locator(f"[data-pick='{light}']").count() == 0
+
+
+def test_the_chosen_scenes_replace_those_of_the_areas(phone):
+    add_scene(phone, "scene.film", "Film")
+    add_scene(phone, "scene.relax", "Relaks")
+    dashboard = layout_with(phone)
+    dashboard["layout"][0]["scenes"] = [{"entity": "scene.relax", "name": "Odpoczynek"}, {"entity": "scene.film"}]
+    phone.evaluate(MOUNT_ADMIN, {"dashboard": dashboard, "room": "r"})
+    section = phone.locator("home-dashboard-page [data-room-scenes]")
+    section.wait_for()
+    assert section.locator(".tile strong").all_inner_texts() == ["Odpoczynek", "Film"]
+
+
+def test_an_empty_choice_leaves_the_room_without_scenes(phone):
+    dashboard = layout_with(phone)
+    dashboard["layout"][0]["scenes"] = []
+    phone.evaluate(MOUNT_ADMIN, {"dashboard": dashboard, "room": "r"})
+    phone.wait_for_selector("home-dashboard-page [data-section]")
+    assert phone.locator("home-dashboard-page [data-room-scenes]").count() == 0

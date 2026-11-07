@@ -974,7 +974,7 @@ def test_the_tabs_of_access_fit_in_one_scrolling_row(phone):
     tops = phone.locator(f"{SHEET} [data-tab]").evaluate_all(
         "(tabs) => tabs.map((tab) => Math.round(tab.getBoundingClientRect().top))"
     )
-    assert len(tops) == 8
+    assert len(tops) == 9
     assert len(set(tops)) == 1
 
 

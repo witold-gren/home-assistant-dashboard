@@ -139,6 +139,8 @@ export function applyColorMode(mode) {
   }
 }
 
+export const currentColorMode = () => colorMode;
+
 export const DARK_SCHEME = DARK_QUERY;
 
 export const isDark = () => colorMode === "dark" || (colorMode === "auto" && window.matchMedia(DARK_QUERY).matches);
@@ -147,10 +149,17 @@ export const pageColour = () => (isDark() ? DARK_BACKGROUND : LIGHT_BACKGROUND);
 
 // A background is a colour, a gradient or the address of a picture. The value ends up in a style
 // attribute, so anything that could end the declaration is removed.
-export function backgroundStyle(value) {
+export function backgroundStyle(value, position = "center") {
   const clean = String(value).replace(/[";{}<>]/g, "");
-  return /^(\/|https?:)/.test(clean) ? `background-image: url("${clean}")` : `background: ${clean}`;
+  const part = ["top", "bottom"].includes(position) ? position : "center";
+  return /^(\/|https?:)/.test(clean)
+    ? `background-image: url("${clean}"); background-position: center ${part}`
+    : `background: ${clean}`;
 }
+
+// A phone or a tablet held upright is tall; a tablet on its side and a laptop are wide.
+export const WIDE_QUERY = "(min-aspect-ratio: 1/1)";
+export const screenShape = () => (window.matchMedia(WIDE_QUERY).matches ? "wide" : "tall");
 
 const paint = (() => {
   let context;

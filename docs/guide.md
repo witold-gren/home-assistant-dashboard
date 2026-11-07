@@ -114,7 +114,7 @@ From the top: the greeting, the weather, the chips, your shortcuts, cameras, sce
 - **Chips** count what is on and filter the page: climate, lights, security and media.
 - **Rooms** show the tiles from the Home page tab of each room. Set a short list there: the room's own page
   has the rest.
-- **Favorites** go above the rooms: `favorites: [climate.living_room, lock.front_door]`.
+- **Favorites** go above the rooms: `favorites: [climate.living_room, lock.front_door]`, or My layout → Favorites → **For everyone**.
 - **Shortcuts** sit in the row of chips, see [Shortcuts and blocks](#7-shortcuts-and-blocks).
 
 ### Weather
@@ -200,7 +200,7 @@ While `guest` is on, these cameras leave Home and Security, and stay on their ro
 ## 6. Scenes
 
 `scenes` is the section under the cameras. Tap its heading, then three dots → **Edit this screen**: the list
-offers scenes and scripts. The arrows button lays them out in one row that scrolls sideways.
+offers scenes and scripts. The arrows button lays them out in one row that scrolls sideways. A room shows its own scenes and scripts under its cameras in the same layout. You choose them in the room editor, in the **Scenes** tab (`scenes` of the room). Until you save them, the room shows the scenes and scripts assigned to its area in Home Assistant.
 
 ## 7. Shortcuts and blocks
 
@@ -547,19 +547,75 @@ media:
 
 ## 9. People
 
+### Three dots on Home
+
+The three dots menu ends with four entries. Two change the dashboard for you alone, two for the household:
+
+| Entry | Who sees it | What it sets | For whom, and where it is kept | Where the change shows |
+|---|---|---|---|---|
+| **My layout** | everyone | order and hiding of cameras, areas, chips and scenes, your own favorites, hidden menu entries, the start of the dashboard | for you, with your HA account, so on all your devices; on Areas and Favorites an administrator can tick **For everyone** | Home, rooms, the menu, Security (cameras) |
+| **Blocks** | administrators | the list of shortcuts (blocks): adding one, their order, editing in a form, media categories | for everyone, in the dashboard configuration | shortcuts on Home, in the menu and in rooms; categories on the Music page |
+| **User access** | administrators | what to take away from one person or from everyone but you: cameras, areas, sections of rooms, chips, lights, media, security, scenes and more | for that person, in the dashboard configuration (`access`); they cannot bring it back | everywhere in this dashboard, for that person |
+| **Background of this screen** | everyone | the background of the page you are on, for the light and the dark look separately, and your look: System, Light, Dark | for you, with your account; with **For everyone** (administrators) as the default, in the configuration | only this page: Home or the room you are in |
+
+What wins: first **User access** (what is taken away no layout brings back), then the **For everyone** settings, and
+last a person's **My layout** and own background. Each entry is described below, and **Blocks** in
+[The block editor](#the-block-editor).
+
 | Background | My layout | User access |
 |---|---|---|
 | ![Background](screenshots/en/background.png) | ![My layout](screenshots/en/layout.png) | ![User access](screenshots/en/access.png) |
 
-**My layout** (three dots on Home, for everyone): the order of cameras, areas and the chips of Home, and what to hide. It is kept with
-the account, so it follows the person to all their devices.
+**My layout** (three dots on Home, for everyone): the order and hiding of cameras, areas, chips and scenes, your own
+**Favorites** (they start from the shared ones, and you add more by search) and hiding entries of the **Menu**. At the
+bottom, **Open this dashboard at start on my devices** is kept with the account, and every device takes it over once it
+connects to Home Assistant.
+
+On the **Areas** and **Favorites** tabs an administrator ticks **For everyone** and then sets the shared order of areas,
+which are hidden, and the shared favorites everyone starts from. **Save for everyone** saves them. An area hidden for
+everyone stays on that list, so it can be shown again. This is the only place for these settings: the **Dashboard
+settings** window keeps just the return after idle time, the start on this device and the configuration editor.
+
+**My view** (three dots in a room, for everyone): hides a whole section or a single tile for you, the **Scenes** group
+included. A hidden tile leaves the room and its place on Home. **Show everything in this room** brings it all back.
+What an administrator took away is not on the list and cannot be brought back. It is kept with the
+account, so it follows the person to all their devices.
+
+| My view of a room | My scenes |
+|---|---|
+| ![My view of a room](screenshots/en/my-view.png) | ![My scenes](screenshots/en/my-scenes.png) |
 
 **Background of this screen** (three dots, for everyone): a gradient, a colour or a picture for Home or a room,
-separately for the light and dark look. **For everyone** appears for administrators and makes it the default.
+separately for the light and dark look; a look without its own background shows the plain page. At the top of this window you also choose the look of the whole dashboard for yourself: System, Light or Dark. **For everyone** appears for administrators and makes it the default.
 Without it the background stays with that account. A person's own background beats the default.
 
+Upright and wide screens can have different pictures, because an upright picture is cropped hard on a laptop:
+
+| Shape | When | Key in the configuration |
+|---|---|---|
+| **Upright** | a phone, a tablet held upright, any window taller than wide | `light`, `dark` |
+| **Wide** | a tablet on its side, a laptop, any window wider than tall | `light_wide`, `dark_wide` |
+
+The **Upright / Wide** switch in the background window chooses which shape you edit; it starts on the shape of your
+screen. A shape without a picture of its own takes the other shape of the same look. Its preview is then dimmed and
+labelled **As upright** or **As wide**, so one picture is still enough for both. Turning a tablet changes the background
+at once.
+
+**Part of a picture to keep when the screen crops it** (Top, Middle, Bottom) keeps that part in view. For a picture
+with a house at the top, choose **Top**. It applies to pictures, not to gradients or colours. In the configuration it is
+`position: top`; middle is the default and is not saved.
+
+```yaml
+backgrounds:
+  home:
+    light: /api/image/serve/<id>/original       # upright
+    light_wide: /api/image/serve/<id>/original  # wide
+    dark: "#121316"
+    position: top
+```
+
 **User access** (three dots, administrators): choose a person and hide areas, cameras, lights, media, security,
-scenes, scripts, other entities and blocks. The **Chips** tab holds the weather, the chips and the shortcuts, and a
+scenes, scripts, other entities and blocks, and in the **Sections** tab whole sections of rooms. The **Chips** tab holds the weather, the chips and the shortcuts, and a
 hidden shortcut also leaves that person's menu and **My layout**. **Everyone but me** hides something from all other
 accounts at once, such as administrative blocks. It covers the accounts that exist when you save it, so set it
 separately for a new user.

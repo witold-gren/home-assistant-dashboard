@@ -1,12 +1,11 @@
 // Dashboard settings for admins. Changes go to the dashboard's own strategy block, so there is one
-// source of truth and a YAML-free way to curate what the dashboard shows.
+// source of truth. Rooms and favorites are arranged for everyone in My layout.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
-import { domainOf, effectiveArea, isPrimary, moveInList, normalizeConfig, toggleInList } from "./model.js";
+import { normalizeConfig } from "./model.js";
 import { tokens } from "./styles.js";
 
-const MAX_RESULTS = 30;
 const IDLE_MINUTES = [0, 1, 3, 5, 10];
 const PREVIOUS_CONFIG_KEY = "home_dashboard_previous_config";
 const MAPPINGS = ["rooms", "cameras", "intercom", "entities", "media", "menu", "lights", "security", "idle"];
@@ -77,6 +76,15 @@ function startPath() {
   }
 }
 
+// The address of Home of this dashboard, where a person can choose to start.
+export function dashboardStart() {
+  return `/${dashboardSegment()}/home`;
+}
+
+export function setDashboardStart(path) {
+  setStartPath(path);
+}
+
 export function setStartPath(path) {
   try {
     if (path) localStorage.setItem(START_KEY, path);
@@ -101,31 +109,13 @@ export function rememberConfig(text) {
     // Too large or private browsing: saving matters more than the way back.
   }
 }
-const OPTIONAL_DOMAINS = new Set(["switch", "scene", "fan", "vacuum", "input_boolean"]);
-
 const dashboardSegment = () => window.location.pathname.split("/").filter(Boolean)[0] ?? "";
-
-export function applyInclude(raw, hass, entityId) {
-  const area = effectiveArea(hass, entityId, normalizeConfig(raw));
-  const include = { ...raw.entities?.include };
-  if (!area) return raw;
-  const list = include[area] ?? [];
-  include[area] = toggleInList(list, entityId);
-  if (!include[area].length) delete include[area];
-  return { ...raw, entities: { ...raw.entities, include } };
-}
-
-export function roomOrder(hass, raw) {
-  const order = raw.rooms?.order ?? [];
-  return [...order, ...Object.keys(hass.areas).filter((id) => !order.includes(id))];
-}
 
 export class HomeDashboardSettings extends LitElement {
   static properties = {
     hass: { attribute: false },
     raw: { attribute: false },
     _draft: { state: true },
-    _query: { state: true },
     _saving: { state: true },
     _editor: { state: true },
   };
@@ -140,59 +130,6 @@ export class HomeDashboardSettings extends LitElement {
 
   _update(change) {
     this._draft = { ...this._draft, ...change };
-  }
-
-  _moveRoom(id, delta) {
-    const order = moveInList(roomOrder(this.hass, this._draft), id, delta);
-    this._update({ rooms: { ...this._draft.rooms, order } });
-  }
-
-  _toggleRoom(id) {
-    const hidden = toggleInList(this._draft.rooms?.hidden ?? [], id);
-    this._update({ rooms: { ...this._draft.rooms, hidden } });
-  }
-
-  _matches() {
-    const query = (this._query ?? "").trim().toLowerCase();
-    if (!query) return [];
-    return Object.keys(this.hass.entities)
-      .filter((id) => isPrimary(this.hass.entities[id]) && this.hass.states[id])
-      .filter((id) => {
-        const name = this.hass.states[id].attributes.friendly_name ?? "";
-        return id.includes(query) || name.toLowerCase().includes(query);
-      })
-      .slice(0, MAX_RESULTS);
-  }
-
-  _renderEntity(id) {
-    const favorite = (this._draft.favorites ?? []).includes(id);
-    const area = effectiveArea(this.hass, id, normalizeConfig(this._draft));
-    const included = Object.values(this._draft.entities?.include ?? {}).flat().includes(id);
-    return html`
-      <li data-entity=${id}>
-        <span>${this.hass.states[id].attributes.friendly_name ?? id}<small>${this.hass.areas[area]?.name ?? ""}</small></span>
-        ${OPTIONAL_DOMAINS.has(domainOf(id)) && area
-          ? html`<button
-              class=${included ? "active" : ""}
-              aria-label=${this._t("rooms")}
-              data-include
-              @click=${() => {
-                this._draft = applyInclude(this._draft, this.hass, id);
-              }}
-            >
-              <ha-icon icon="mdi:view-grid-plus-outline"></ha-icon>
-            </button>`
-          : nothing}
-        <button
-          class=${favorite ? "active" : ""}
-          aria-label=${this._t("favorites")}
-          data-favorite
-          @click=${() => this._update({ favorites: toggleInList(this._draft.favorites ?? [], id) })}
-        >
-          <ha-icon .icon=${favorite ? "mdi:star" : "mdi:star-outline"}></ha-icon>
-        </button>
-      </li>
-    `;
   }
 
   async _openEditor() {
@@ -280,8 +217,6 @@ export class HomeDashboardSettings extends LitElement {
   render() {
     if (!this.hass || !this._draft) return nothing;
     if (this._editor) return this._renderEditor();
-    const hidden = this._draft.rooms?.hidden ?? [];
-    const order = roomOrder(this.hass, this._draft);
     const idleSeconds = normalizeConfig(this._draft).idle.return_after;
     return html`
       <div class="scrim" @click=${() => this.dispatchEvent(new CustomEvent("settings-close"))}></div>
@@ -319,34 +254,6 @@ export class HomeDashboardSettings extends LitElement {
           <button class="restore" data-editor @click=${this._openEditor}>
             <ha-icon icon="mdi:code-braces"></ha-icon>${this._t("yaml_open")}
           </button>
-          <h3>${this._t("favorites")}</h3>
-          <input
-            type="search"
-            placeholder=${this._t("search")}
-            @input=${(event) => {
-              this._query = event.target.value;
-            }}
-          />
-          <ul>${this._matches().map((id) => this._renderEntity(id))}</ul>
-          <h3>${this._t("rooms")}</h3>
-          <ul>
-            ${order.map(
-              (id) => html`
-                <li data-room=${id}>
-                  <span class=${hidden.includes(id) ? "muted" : ""}>${this.hass.areas[id]?.name ?? id}</span>
-                  <button aria-label=${this._t("hide_room")} data-hide @click=${() => this._toggleRoom(id)}>
-                    <ha-icon .icon=${hidden.includes(id) ? "mdi:eye-off-outline" : "mdi:eye-outline"}></ha-icon>
-                  </button>
-                  <button aria-label=${this._t("move_up")} data-up @click=${() => this._moveRoom(id, -1)}>
-                    <ha-icon icon="mdi:chevron-up"></ha-icon>
-                  </button>
-                  <button aria-label=${this._t("move_down")} data-down @click=${() => this._moveRoom(id, 1)}>
-                    <ha-icon icon="mdi:chevron-down"></ha-icon>
-                  </button>
-                </li>
-              `,
-            )}
-          </ul>
         </div>
       </section>
     `;
@@ -472,41 +379,6 @@ export class HomeDashboardSettings extends LitElement {
         font: inherit;
         color: inherit;
         background: var(--hd-surface);
-      }
-      ul {
-        margin: 8px 0 0;
-        padding: 0;
-        list-style: none;
-      }
-      li {
-        display: flex;
-        align-items: center;
-        min-height: 52px;
-        border-bottom: 1px solid var(--hd-outline);
-      }
-      li span {
-        flex: 1;
-        min-width: 0;
-      }
-      li small {
-        display: block;
-        font-size: 12px;
-        color: var(--hd-text-muted);
-      }
-      li .muted {
-        color: var(--hd-text-muted);
-        text-decoration: line-through;
-      }
-      li button {
-        display: grid;
-        flex: none;
-        place-items: center;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-      }
-      li button.active {
-        color: var(--hd-star);
       }
       @media (min-width: 900px) {
         .panel.editor {

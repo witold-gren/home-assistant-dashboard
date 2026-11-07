@@ -114,7 +114,7 @@ Od góry: powitanie, pogoda, chipy, Twoje skróty, kamery, sceny, ulubione i pok
 - **Chipy** liczą to, co włączone, i filtrują stronę: klimat, światła, ochrona i media.
 - **Pokoje** pokazują kafelki z zakładki Strona główna każdego pokoju. Ustaw tam krótką listę, a resztę zostaw
   na stronie pokoju.
-- **Ulubione** są nad pokojami: `favorites: [climate.living_room, lock.front_door]`.
+- **Ulubione** są nad pokojami: `favorites: [climate.living_room, lock.front_door]` albo Mój układ → Ulubione → **Dla wszystkich**.
 - **Skróty** są w rzędzie chipów, patrz [Skróty i bloki](#7-skróty-i-bloki).
 
 ### Pogoda
@@ -198,7 +198,7 @@ Gdy włączony jest przełącznik z `private`, kamera znika ze wszystkich stron.
 ## 6. Sceny
 
 `scenes` to sekcja pod kamerami. Dotknij jej nagłówka, potem trzy kropki → **Edytuj ten ekran**: lista oferuje
-sceny i skrypty. Przycisk ze strzałkami układa je w jeden rząd przewijany w bok.
+sceny i skrypty. Przycisk ze strzałkami układa je w jeden rząd przewijany w bok. Pokój pokazuje pod kamerami swoje sceny i skrypty w takim samym układzie. Wybierasz je w edycji pokoju, w zakładce **Sceny** (`scenes` pokoju). Dopóki ich nie zapiszesz, pokój pokazuje sceny i skrypty przypisane w Home Assistant do jego obszaru.
 
 ## 7. Skróty i bloki
 
@@ -331,7 +331,7 @@ entities:
 
 ### Edytor bloków
 
-Trzy kropki na stronie głównej → **Bloki** (administratorzy) pokazuje wszystkie skróty. Tu dodasz nowy blok, ustawisz ich
+Trzy kropki na stronie głównej → **Bloki** (administratorzy) pokazuje wszystkie skróty i dotyczy wszystkich osób. Tu dodasz nowy blok, ustawisz ich
 kolejność, a ołówek otwiera formularz. Formularz mają Status, Odjazdy, Maszyny (`kind: host`), Blok (`kind: panel`), Strona i
 Rok szkolny, razem z sekcjami, wierszami i przyciskami. Encje podpowiadają się same, a kartę Home Assistant wpisujesz jako
 YAML w jej polu. Blok stojący w pokoju otworzysz z edycji pokoju: kafelek → **Edytuj blok**. Skrót może mieć `label`, czyli mały tekst nad nazwą.
@@ -543,19 +543,75 @@ media:
 
 ## 9. Osoby
 
+### Trzy kropki na stronie głównej
+
+Na dole menu trzech kropek są cztery pozycje. Dwie zmieniają dashboard tylko dla Ciebie, dwie dla domowników:
+
+| Pozycja | Kto ją widzi | Co ustawia | Dla kogo i gdzie się zapisuje | Gdzie widać zmianę |
+|---|---|---|---|---|
+| **Mój układ** | każdy | kolejność i ukrycie kamer, obszarów, plakietek i scen, własne ulubione, ukryte wpisy menu, start dashboardu | dla Ciebie, na koncie HA, czyli na wszystkich Twoich urządzeniach; administrator w Obszarach i Ulubionych może zaznaczyć **Dla wszystkich** | strona główna, pokoje, menu, Ochrona (kamery) |
+| **Bloki** | administratorzy | lista skrótów (bloków): dodanie nowego, kolejność, edycja w formularzu, kategorie mediów | dla wszystkich, w konfiguracji dashboardu | skróty na stronie głównej, w menu i w pokojach; kategorie na stronie Muzyka |
+| **Dostęp użytkowników** | administratorzy | co zabrać wybranej osobie albo wszystkim oprócz Ciebie: kamery, obszary, sekcje pokoi, plakietki, światła, media, ochronę, sceny i inne | dla tej osoby, w konfiguracji dashboardu (`access`); ona nie może tego przywrócić | wszędzie w tym dashboardzie, u tej osoby |
+| **Tło tego ekranu** | każdy | tło strony, na której jesteś, osobno dla jasnego i ciemnego wyglądu, oraz Twój wygląd: Systemowy, Jasny, Ciemny | dla Ciebie na koncie; z **Dla wszystkich** (administratorzy) jako tło domyślne w konfiguracji | tylko ta strona: główna albo pokój, w którym jesteś |
+
+Kolejność ważności: najpierw **Dostęp użytkowników** (czego nie ma, tego nie przywróci żaden układ), potem ustawienia
+**Dla wszystkich**, na końcu **Mój układ** i własne tło danej osoby. Szczegóły każdej pozycji są niżej, a **Bloki**
+w części [Edytor bloków](#edytor-bloków).
+
 | Tło | Mój układ | Dostęp użytkowników |
 |---|---|---|
 | ![Tło](screenshots/pl/background.png) | ![Mój układ](screenshots/pl/layout.png) | ![Dostęp użytkowników](screenshots/pl/access.png) |
 
-**Mój układ** (trzy kropki na stronie głównej, dla każdego): kolejność kamer, obszarów i plakietek na stronie głównej oraz to, co ukryć. Zapisuje się na koncie, więc
+**Mój układ** (trzy kropki na stronie głównej, dla każdego): kolejność i ukrywanie kamer, obszarów, plakietek i scen,
+własne **Ulubione** (startują od wspólnych, kolejne dodajesz wyszukiwarką) oraz ukrywanie wpisów **Menu**. Na dole jest
+**Otwieraj ten dashboard przy starcie na moich urządzeniach**: wybór zapisuje się na koncie, a każde urządzenie przejmuje
+go po połączeniu z Home Assistant.
+
+Administrator w zakładkach **Obszary** i **Ulubione** zaznacza **Dla wszystkich** i ustawia wtedy wspólną kolejność
+obszarów, ich ukrycie oraz wspólne ulubione, od których zaczyna każdy. Zmiany zapisuje **Zapisz dla wszystkich**. Obszar
+ukryty dla wszystkich zostaje na tej liście, więc da się go przywrócić. To jedyne miejsce tych ustawień: okno
+**Ustawienia dashboardu** ma już tylko powrót po bezczynności, start na tym urządzeniu i edytor konfiguracji.
+
+**Mój widok** (trzy kropki w pokoju, dla każdego): ukrywa dla Ciebie całą sekcję albo pojedynczy kafelek, także grupę
+**Sceny**. Ukryty kafelek znika z pokoju i z jego miejsca na stronie głównej. **Pokaż wszystko w tym pokoju** przywraca
+całość. To, co zabrał administrator, nie pojawia się na liście i nie da się tego przywrócić. Zapisuje się na koncie, więc
 działa na wszystkich urządzeniach tej osoby.
 
+| Mój widok pokoju | Moje sceny |
+|---|---|
+| ![Mój widok pokoju](screenshots/pl/my-view.png) | ![Moje sceny](screenshots/pl/my-scenes.png) |
+
 **Tło tego ekranu** (trzy kropki, dla każdego): gradient, kolor lub zdjęcie dla strony głównej albo pokoju, osobno dla
-jasnego i ciemnego wyglądu. **Dla wszystkich** widzą administratorzy i ustawia ono tło domyślne. Bez tego tło zostaje
+jasnego i ciemnego wyglądu; wygląd bez własnego tła pokazuje zwykłą stronę. Na górze tego okna wybierasz też dla siebie wygląd całego dashboardu: Systemowy, Jasny albo Ciemny. **Dla wszystkich** widzą administratorzy i ustawia ono tło domyślne. Bez tego tło zostaje
 na koncie tej osoby. Własne tło wygrywa z domyślnym.
 
+Ekran pionowy i poziomy mogą mieć różne zdjęcia, bo pionowe zdjęcie na laptopie zostaje mocno przycięte:
+
+| Kształt | Kiedy | Klucz w konfiguracji |
+|---|---|---|
+| **Pionowy** | telefon, tablet trzymany pionowo, każde okno wyższe niż szersze | `light`, `dark` |
+| **Poziomy** | tablet obrócony, laptop, każde okno szersze niż wyższe | `light_wide`, `dark_wide` |
+
+Przełącznik **Pionowy / Poziomy** w oknie tła wybiera, który kształt edytujesz; na starcie jest kształt Twojego ekranu.
+Gdy kształt nie ma własnego zdjęcia, bierze zdjęcie drugiego kształtu tego samego wyglądu. Podgląd jest wtedy
+przygaszony i podpisany **Jak pionowy** albo **Jak poziomy**, więc jedno zdjęcie dalej wystarcza na oba. Obrót tabletu
+zmienia tło od razu.
+
+**Część zdjęcia, która zostaje** (Góra, Środek, Dół) mówi, co zostaje, gdy ekran przycina zdjęcie. Przy zdjęciu z
+domem u góry wybierz **Góra**. Dotyczy zdjęć, nie gradientów i kolorów. W konfiguracji to `position: top`; środek jest
+domyślny i się nie zapisuje.
+
+```yaml
+backgrounds:
+  home:
+    light: /api/image/serve/<id>/original       # pionowy
+    light_wide: /api/image/serve/<id>/original  # poziomy
+    dark: "#121316"
+    position: top
+```
+
 **Dostęp użytkowników** (trzy kropki, administratorzy): wybierz osobę i ukryj jej obszary, kamery, światła, media,
-ochronę, sceny, skrypty, inne encje i bloki. Zakładka **Plakietki** zawiera pogodę, chipy i skróty, a ukryty skrót znika
+ochronę, sceny, skrypty, inne encje i bloki, a w zakładce **Sekcje** także całe sekcje pokoi. Zakładka **Plakietki** zawiera pogodę, chipy i skróty, a ukryty skrót znika
 też z menu i z **Mojego układu** tej osoby. Opcja **Wszyscy oprócz mnie** ukrywa coś od razu wszystkim innym kontom, na
 przykład bloki administracyjne. Dotyczy kont istniejących w chwili zapisu, więc nowemu użytkownikowi ustaw to osobno.
 

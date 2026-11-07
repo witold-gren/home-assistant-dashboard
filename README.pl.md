@@ -44,9 +44,9 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Edycja menu](docs/screenshots/pl/menu-editor.png) | ![Kategorie mediów](docs/screenshots/pl/media-editor.png) | ![Dziennik](docs/screenshots/pl/logbook.png) | ![Historia](docs/screenshots/pl/history.png) |
 
-| Wiadomości |
-|---|
-| ![Wiadomości](docs/screenshots/pl/news.png) |
+| Wiadomości | Mój widok pokoju | Moje sceny |
+|---|---|---|
+| ![Wiadomości](docs/screenshots/pl/news.png) | ![Mój widok pokoju](docs/screenshots/pl/my-view.png) | ![Moje sceny](docs/screenshots/pl/my-scenes.png) |
 
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
@@ -196,7 +196,8 @@ drzwi, okno albo czujnik problemu zgłasza stan włączony.
 
 Trzy kropki → **Mój układ**: każdy ustawia kolejność i ukrywa kamery oraz obszary dla siebie. Układ
 zapisuje się na koncie w Home Assistant, więc jest taki sam na każdym urządzeniu tej osoby, i nie
-wymaga konta administratora. Lista kamer dotyczy strony głównej, pokoi i Ochrony.
+wymaga konta administratora. Lista kamer dotyczy strony głównej, pokoi i Ochrony. Administrator w zakładkach Obszary
+i Ulubione zaznacza **Dla wszystkich** i ustawia wspólną kolejność obszarów, ich ukrycie i wspólne ulubione.
 
 Trzy kropki na stronie głównej → **Mój układ** (każdy): kolejność i ukrywanie kamer, obszarów i plakietek strony głównej.
 
@@ -238,7 +239,7 @@ w `layout`.
 ### Tła
 
 Trzy kropki → **Tło tego ekranu** ustawia tło strony głównej lub pokoju: gradient, kolor albo wgrane zdjęcie,
-osobno dla jasnego i ciemnego wyglądu. Administrator przy każdym z nich zaznacza **Dla wszystkich** i wtedy
+osobno dla jasnego i ciemnego wyglądu oraz dla ekranu pionowego (telefon) i poziomego (tablet obrócony, laptop), z wyborem części zdjęcia, która zostaje po przycięciu. Administrator przy każdym z nich zaznacza **Dla wszystkich** i wtedy
 zapisuje się ono w `backgrounds`. Bez zaznaczenia tło zostaje na koncie tej osoby i wygrywa ze wspólnym. Strona trzyma nad tłem warstwę w kolorze
 motywu, więc nagłówki są czytelne w trybie jasnym i ciemnym. Tło stoi w miejscu, gdy strona się przewija.
 
@@ -308,7 +309,7 @@ telewizora) i `sound_mode: true`.
 
 Pod nazwą pokoju jest jeden rząd ikon przewijany w bok: temperatura, wilgotność, jakość powietrza,
 jasność, klimat, włączone światła i przełączniki, otwarte rolety, okna i drzwi, ruch, obecność,
-alarmy, sceny i skrypty. Dotknięcie ikony otwiera listę urządzeń z tej grupy.
+alarmy. Dotknięcie ikony otwiera listę urządzeń z tej grupy. Sceny i skrypty pokoju stoją w osobnym rzędzie **Sceny** pod kamerami, ułożone tak jak sceny na stronie głównej.
 
 ## Intercom
 
@@ -332,7 +333,8 @@ tekstowe, w którym działa dyktowanie z klawiatury.
 ## Tryb ciemny
 
 Ustawienia → Urządzenia i usługi → Home Dashboard → **Konfiguruj** pozwala wybrać tryb Automatyczny,
-Jasny albo Ciemny. Wybór działa od razu na wszystkich urządzeniach, bez odświeżania. Automatyczny idzie
+Jasny albo Ciemny. Wybór działa od razu na wszystkich urządzeniach, bez odświeżania. Każdy może wybrać coś innego dla
+siebie w **Tło tego ekranu** (Systemowy, Jasny, Ciemny), a ten wybór zostaje na jego koncie. Automatyczny idzie
 za systemem, więc iPad ustawiony na Automatycznie ściemnia się o zmierzchu. Mapa dobiera kolory przy
 otwarciu.
 

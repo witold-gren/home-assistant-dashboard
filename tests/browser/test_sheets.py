@@ -690,41 +690,15 @@ def open_settings(page, dashboard: dict) -> None:
     page.wait_for_selector("home-dashboard-settings .panel")
 
 
-def test_settings_save_favorites_and_rooms(phone):
-    dashboard = {"rooms": {"hidden": []}}
-    open_settings(phone, dashboard)
-    light = find_id(phone, "light.")
-    name = phone.evaluate("(id) => window.hass.states[id].attributes.friendly_name", light)
-    phone.locator("home-dashboard-settings input[type='search']").fill(name)
-    phone.locator(f"home-dashboard-settings li[data-entity='{light}'] [data-favorite]").click()
-    room = phone.locator("home-dashboard-settings li[data-room]").nth(1)
-    room_id = room.get_attribute("data-room")
-    room.locator("[data-up]").click()
-    phone.locator(f"home-dashboard-settings li[data-room='{room_id}'] [data-hide]").click()
+def test_settings_leave_rooms_and_favorites_to_my_layout(phone):
+    open_settings(phone, {})
+    assert phone.locator("home-dashboard-settings input[type='search']").count() == 0
+    assert phone.locator("home-dashboard-settings li[data-room]").count() == 0
     phone.evaluate(f"{CHROME}._reload = () => {{}}")
     phone.locator("[data-save]").click()
     phone.wait_for_function("window.saved.length === 1")
-    strategy = phone.evaluate("window.saved[0].config.strategy")
-    assert strategy["type"] == "custom:home-dashboard"
-    assert strategy["favorites"] == [light]
-    assert strategy["rooms"]["order"][0] == room_id
-    assert strategy["rooms"]["hidden"] == [room_id]
+    assert phone.evaluate("window.saved[0].config.strategy.type") == "custom:home-dashboard"
     assert phone.evaluate("window.saved[0].url_path") == "tests"
-
-
-def test_settings_add_a_switch_to_its_room(phone):
-    result = phone.evaluate("""async () => {
-        const { applyInclude } = await import("/custom_components/home_dashboard/www/app/settings.js");
-        const { model, hass } = window.dashboard;
-        const instance = hass();
-        const id = Object.keys(instance.entities).find((key) => key.startsWith("switch.")
-            && model.isPrimary(instance.entities[key])
-            && model.effectiveArea(instance, key, model.normalizeConfig({})));
-        const added = applyInclude({}, instance, id);
-        const area = Object.keys(added.entities.include)[0];
-        return [added.entities.include[area].includes(id), applyInclude(added, instance, id).entities.include[area]];
-    }""")
-    assert result == [True, None]
 
 
 def test_list_helpers(phone):

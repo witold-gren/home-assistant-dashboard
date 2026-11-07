@@ -25,10 +25,13 @@ function domainRank(entityId) {
   return rank < 0 ? COMMON_DOMAINS.length : rank;
 }
 
-const listsOf = (room, tab) => (tab === "home" ? [{ tiles: room.home }] : room.sections);
+// Home and the scenes of a room are single lists; the room page is a list of sections.
+const SINGLE_LISTS = { home: "home", scenes: "scenes" };
+
+const listsOf = (room, tab) => (SINGLE_LISTS[tab] ? [{ tiles: room[SINGLE_LISTS[tab]] ?? [] }] : room.sections);
 
 function withLists(room, tab, lists) {
-  return tab === "home" ? { ...room, home: lists[0].tiles } : { ...room, sections: lists };
+  return SINGLE_LISTS[tab] ? { ...room, [SINGLE_LISTS[tab]]: lists[0].tiles } : { ...room, sections: lists };
 }
 
 function changeLists(room, tab, change) {

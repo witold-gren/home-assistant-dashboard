@@ -200,6 +200,17 @@ def make(browser, base: str, language: str) -> None:
     page.locator(f"{SHEET} home-dashboard-block-editor summary").first.click()
     take(page, folder, "menu-editor")
 
+    page = open_page(browser, base, language, PHONE, query="&page=room&room=kitchen")
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-room-view]")
+    take(page, folder, "my-view")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-personal]")
+    tap(page, f"{SHEET} [data-tab='scenes']")
+    take(page, folder, "my-scenes")
+
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
         page = open_page(browser, base, language, PHONE)

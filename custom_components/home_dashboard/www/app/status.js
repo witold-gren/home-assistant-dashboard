@@ -1,7 +1,7 @@
 // The row of round icons at the top of a room: what the room reports, without opening anything.
 
 import { countLabel, translate } from "./i18n.js";
-import { domainOf, effectiveArea, isPrimary } from "./model.js";
+import { buildTile, domainOf, effectiveArea, isPrimary, layoutEntry, layoutTile } from "./model.js";
 
 // These report on a machine, not on the room: a server in the hallway is not the hallway at 40°.
 const SKIPPED_PLATFORMS = new Set([
@@ -175,11 +175,31 @@ export function buildRoomStatus(hass, config, areas, fixed = []) {
     }
   });
 
-  const scenes = sceneIds(hass, config, areas);
-  if (scenes.length) add("scenes", "mdi:palette-outline", t("status_scenes"), countLabel(language, "scenes", scenes.length), scenes, "media");
-  const scripts = scriptIds(hass, config, areas);
-  if (scripts.length) add("scripts", "mdi:script-text-play-outline", t("status_scripts"), countLabel(language, "scripts", scripts.length), scripts, "media");
   return pills;
+}
+
+// The scenes chosen in the editor, or else those Home Assistant puts in the areas of the room; minus what
+// this person hid there.
+export function roomActions(hass, config, model, layout) {
+  const hidden = config.roomHidden?.tiles?.[model.id] ?? [];
+  const chosen = layoutEntry(config, model.id)?.scenes;
+  if (chosen) {
+    return chosen
+      .filter((item) => !hidden.includes(item.entity))
+      .map((item) => layoutTile(hass, item, model.title, config, layout))
+      .filter(Boolean);
+  }
+  const laidOut = new Set(model.sections.flatMap((section) => section.tiles.map((tile) => tile.entityId)));
+  return roomActionIds(hass, config, model.areas)
+    .filter((id) => !laidOut.has(id) && !hidden.includes(id))
+    .map((id) => buildTile(hass, id, model.title, config, layout))
+    .filter(Boolean)
+    .sort((first, second) => first.name.localeCompare(second.name, hass.language));
+}
+
+// The scenes and scripts of a room have their own row under the cameras.
+export function roomActionIds(hass, config, areas) {
+  return [...sceneIds(hass, config, areas), ...scriptIds(hass, config, areas)];
 }
 
 function sceneIds(hass, config, areas) {

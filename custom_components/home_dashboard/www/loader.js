@@ -9,6 +9,7 @@
 const STRATEGY_TAG = "ll-strategy-dashboard-home-dashboard";
 const START_KEY = "home_dashboard_start";
 const STARTED_KEY = "home_dashboard_started";
+const PREFS_KEY = "home_dashboard";
 const DEFAULT_PATHS = /^\/(lovelace(\/.*)?|home)?$/;
 const POLL_INTERVAL_MS = 50;
 const MAX_POLLS = 600;
@@ -20,6 +21,37 @@ export function startTarget(location, local, session) {
   if (!target || session.getItem(STARTED_KEY)) return null;
   session.setItem(STARTED_KEY, "1");
   return DEFAULT_PATHS.test(location.pathname) ? `${target}${location.search}` : null;
+}
+
+// A person can choose to start here on all of their devices. The account says so only once the
+// frontend is connected; a device learns it then and remembers it for the next start.
+export function accountStart(value, location, local, session) {
+  if (value === false) {
+    local.removeItem(START_KEY);
+    return null;
+  }
+  if (typeof value !== "string") return null;
+  local.setItem(START_KEY, value);
+  if (session.getItem(STARTED_KEY)) return null;
+  session.setItem(STARTED_KEY, "1");
+  return DEFAULT_PATHS.test(location.pathname) ? `${value}${location.search}` : null;
+}
+
+async function followAccountStart(attempt) {
+  const hass = document.querySelector("home-assistant")?.hass;
+  if (!hass?.connection) {
+    if (attempt < MAX_POLLS) setTimeout(() => followAccountStart(attempt + 1), POLL_INTERVAL_MS);
+    return;
+  }
+  try {
+    const answer = await hass.callWS({ type: "frontend/get_user_data", key: PREFS_KEY });
+    const target = accountStart(answer?.value?.start, window.location, window.localStorage, window.sessionStorage);
+    if (!target) return;
+    window.history.replaceState(null, "", target);
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: true } }));
+  } catch {
+    // No account data or no storage: the device keeps its own choice.
+  }
 }
 
 function openStartPage() {
@@ -63,6 +95,7 @@ function registerStrategy() {
 }
 
 openStartPage();
+followAccountStart(0);
 
 (function waitForFrontend(attempt) {
   if (window.customElements.get("home-assistant") || attempt >= MAX_POLLS) {

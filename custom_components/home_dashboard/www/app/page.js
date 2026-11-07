@@ -40,6 +40,7 @@ import {
   visibilityRule,
   withVisibility,
   pickBackground,
+  pickBackgroundPosition,
   sharedBackground,
   pictureAge,
   playableSources,
@@ -69,8 +70,8 @@ import {
   scenesDraft,
 } from "./room-editor.js";
 import { rememberConfig } from "./settings.js";
-import { buildRoomStatus } from "./status.js";
-import { backgroundStyle, isDark, tokens } from "./styles.js";
+import { buildRoomStatus, roomActions } from "./status.js";
+import { backgroundStyle, isDark, screenShape, tokens, WIDE_QUERY } from "./styles.js";
 
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
 const MEDIA_BROWSER_PATH = "/media-browser/browser";
@@ -136,6 +137,9 @@ export class HomeDashboardPage extends LitElement {
     super.connectedCallback();
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
+    // Turning a tablet changes the shape of the screen, and with it the background.
+    this._shapeQuery = window.matchMedia(WIDE_QUERY);
+    this._shapeQuery.addEventListener("change", this._onShape);
     this._pictureTimer = setInterval(this._refreshPictures, PICTURE_REFRESH_MS);
     // Home Assistant keeps a page it has shown and puts the same one back on the way in.
     if (this.hasUpdated) this._watchMusic();
@@ -155,6 +159,7 @@ export class HomeDashboardPage extends LitElement {
     window.removeEventListener("message", this._onFrameMessage);
     clearTimeout(this._ranTimer);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
+    this._shapeQuery?.removeEventListener("change", this._onShape);
     if (this._page === "music") tuckNavigation(this, false);
     window.removeEventListener("location-changed", this._onLocation);
     window.removeEventListener("popstate", this._onLocation);
@@ -205,6 +210,8 @@ export class HomeDashboardPage extends LitElement {
     this._selection = null;
     if (this._hass) this.hass = this._hass;
   };
+
+  _onShape = () => this.requestUpdate();
 
   _onLocation = () => {
     const room = new URLSearchParams(window.location.search).get("room");
@@ -277,7 +284,8 @@ export class HomeDashboardPage extends LitElement {
     if (this._page === "room") {
       this._room ??= new URLSearchParams(window.location.search).get("room");
       const model = buildRoomModel(this._hass, this._config, this._selection, this._room, layout);
-      this._model = { ...model, status: buildRoomStatus(this._hass, this._config, model.areas, model.fixedStatus) };
+      const actions = roomActions(this._hass, this._config, model, layout);
+      this._model = { ...model, actions, status: buildRoomStatus(this._hass, this._config, model.areas, model.fixedStatus) };
     } else if (this._page === "media") {
       this._model = {
         speakers: buildSpeakers(this._hass, this._config, this._selection, layout),
@@ -551,6 +559,7 @@ export class HomeDashboardPage extends LitElement {
             kind: "rooms",
             rooms,
             personal: this._page === "home",
+            roomView: this._page === "room" && this._room !== SCENES_ROOM ? this._room : null,
             onEdit: this._screenEditor,
             onBackground: this._backgroundEditor,
           })}
@@ -700,7 +709,7 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _startSceneEdit() {
-    const room = scenesDraft(this._config, translate(this._hass.language, "section_scenes"));
+    const room = scenesDraft(this._fullConfig, translate(this._hass.language, "section_scenes"));
     this._edit = {
       room,
       tab: "home",
@@ -777,7 +786,12 @@ export class HomeDashboardPage extends LitElement {
 
   get _background() {
     const key = this._backgroundKey;
-    return key ? pickBackground(this._config, key, this._legacyBackground, isDark() ? "dark" : "light") : null;
+    return key ? pickBackground(this._config, key, this._legacyBackground, isDark() ? "dark" : "light", screenShape()) : null;
+  }
+
+  get _backgroundPosition() {
+    const key = this._backgroundKey;
+    return key ? pickBackgroundPosition(this._config, key, this._legacyBackground) : "center";
   }
 
   // Editing ------------------------------------------------------------------------------------
@@ -797,6 +811,8 @@ export class HomeDashboardPage extends LitElement {
       return;
     }
     const room = roomDraft(this._hass, this._fullConfig, this._selection, this._room);
+    // The editor starts from what the page shows, so saving keeps the same scenes.
+    room.scenes ??= (this._model.actions ?? []).map((tile) => ({ entity: tile.entityId }));
     this._edit = { room, tab: "room", ...this._rulesDraft };
   }
 
@@ -826,7 +842,7 @@ export class HomeDashboardPage extends LitElement {
       config: this._fullConfig,
       room,
       tab,
-      domains: scenes ? SCENE_DOMAINS : null,
+      domains: scenes || tab === "scenes" ? SCENE_DOMAINS : null,
       onPick: (entity) => {
         const { room: current, tab: currentTab } = this._edit;
         this._updateRoom(addTile(current, currentTab, list, entity));
@@ -1001,6 +1017,7 @@ export class HomeDashboardPage extends LitElement {
     const lists = editableLists(room, tab);
     const tabs = [
       ["room", "edit_tab_room"],
+      ["scenes", "section_scenes"],
       ["home", "edit_tab_home"],
     ];
     return html`
@@ -1045,7 +1062,7 @@ export class HomeDashboardPage extends LitElement {
 
   _renderRoom() {
     if (this._edit) return this._renderRoomEditor();
-    const { title, areas, cameras, sections, status } = this._model;
+    const { title, areas, cameras, sections, status, actions = [] } = this._model;
     const language = this._hass.language;
     const speakers = this._roomSpeakers(areas);
     return html`
@@ -1073,6 +1090,16 @@ export class HomeDashboardPage extends LitElement {
       </div>
       ${this._renderStatus(status)}
       ${this._renderCameras(cameras)}
+      ${actions.length
+        ? html`
+            <section data-room-scenes>
+              <h2>${translate(language, "section_scenes")}</h2>
+              <div class="tiles ${this._config.scenes_layout === "row" ? "row" : ""}">
+                ${actions.map((tile) => this._renderTile(tile, false))}
+              </div>
+            </section>
+          `
+        : nothing}
       ${sections.map(
         (section) => html`
           <section data-section=${section.key}>
@@ -1083,7 +1110,7 @@ export class HomeDashboardPage extends LitElement {
           </section>
         `,
       )}
-      ${sections.length ? nothing : html`<p class="soon">${translate(language, "room_empty")}</p>`}
+      ${sections.length || actions.length ? nothing : html`<p class="soon">${translate(language, "room_empty")}</p>`}
     `;
   }
 
@@ -1353,7 +1380,7 @@ export class HomeDashboardPage extends LitElement {
           ${this._embedded ? "embedded" : ""}"
       >
         ${background
-          ? html`<div class="backdrop-rail"><div class="backdrop" style=${backgroundStyle(background)}></div></div>`
+          ? html`<div class="backdrop-rail"><div class="backdrop" style=${backgroundStyle(background, this._backgroundPosition)}></div></div>`
           : nothing}
         ${this._page === "music" || this._embedded ? nothing : this._renderTopBar()} ${pages[this._page].call(this)}
       </div>

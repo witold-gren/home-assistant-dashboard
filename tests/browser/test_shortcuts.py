@@ -446,7 +446,7 @@ def test_no_background_no_layer(phone):
     ("value", "expected"),
     [
         ("#223344", "background: #223344"),
-        ("/api/image/serve/x/original", 'background-image: url("/api/image/serve/x/original")'),
+        ("/api/image/serve/x/original", 'background-image: url("/api/image/serve/x/original"); background-position: center center'),
         ('red; } </style>"', "background: red  /style"),
     ],
 )
@@ -561,7 +561,9 @@ def test_someone_else_has_no_checkbox_and_saves_only_for_themselves(phone):
     ("shared", "own", "mode", "expected"),
     [
         ({"light": "#111111", "dark": "#222222"}, None, "dark", "#222222"),
-        ({"light": "#111111", "dark": None}, None, "dark", "#111111"),
+        ({"light": "#111111", "dark": None}, None, "dark", None),
+        ({"light": "#111111"}, None, "dark", None),
+        ({"dark": "#222222"}, None, "light", None),
         ({"light": "#111111"}, {"light": "#333333"}, "light", "#333333"),
         ({"light": "#111111"}, {"light": None}, "light", None),
         ({"light": "#111111"}, {"dark": "#333333"}, "light", "#111111"),
@@ -578,6 +580,74 @@ def test_what_a_person_sees(phone, shared, own, mode, expected):
         }""",
         {"shared": shared, "own": own, "mode": mode},
     ) == expected
+
+
+@pytest.mark.parametrize(
+    ("shared", "own", "mode", "shape", "expected"),
+    [
+        ({"light": "#111111", "light_wide": "#222222"}, None, "light", "wide", "#222222"),
+        ({"light": "#111111", "light_wide": "#222222"}, None, "light", "tall", "#111111"),
+        ({"light": "#111111"}, None, "light", "wide", "#111111"),
+        ({"light_wide": "#222222"}, None, "light", "tall", "#222222"),
+        ({"light_wide": "#222222"}, None, "dark", "wide", None),
+        ({"light_wide": "#222222"}, {"light": "#333333"}, "light", "wide", "#333333"),
+        ({"light": "#111111"}, {"light": None}, "light", "wide", None),
+        ("#444444", None, "dark", "wide", "#444444"),
+    ],
+)
+def test_each_shape_of_screen_has_its_background(phone, shared, own, mode, shape, expected):
+    assert phone.evaluate(
+        """({ shared, own, mode, shape }) => {
+            const { model } = window.dashboard;
+            const config = model.normalizeConfig({ backgrounds: { home: shared } });
+            const mine = model.personalize(config, "a", own ? { backgrounds: { home: own } } : {});
+            return model.pickBackground(mine, "home", null, mode, shape);
+        }""",
+        {"shared": shared, "own": own, "mode": mode, "shape": shape},
+    ) == expected
+
+
+def test_the_part_of_the_picture_to_keep(phone):
+    assert phone.evaluate(
+        """() => {
+            const { model } = window.dashboard;
+            const pick = (shared, own) => {
+                const config = model.normalizeConfig({ backgrounds: { home: shared } });
+                return model.pickBackgroundPosition(model.personalize(config, "a", { backgrounds: { home: own } }), "home", null);
+            };
+            return [pick({ light: "x", position: "top" }, undefined), pick({ position: "top" }, { position: "bottom" }),
+                    pick("#123456", undefined), pick({ position: "sideways" }, undefined)];
+        }"""
+    ) == ["top", "bottom", "center", "center"]
+    assert phone.evaluate(
+        """async () => (await import("/custom_components/home_dashboard/www/app/styles.js")).backgroundStyle("/a.png", "x; color: red")"""
+    ) == 'background-image: url("/a.png"); background-position: center center'
+
+
+def test_a_wide_background_and_its_part_are_saved_for_everyone(phone):
+    mount_admin(phone, {"backgrounds": {"home": {"light": "#101010"}}})
+    open_background(phone)
+    assert phone.locator(f"{SHEET} [data-group='bg-shape'] [data-choice='tall'].on").count() == 1
+    phone.locator(f"{SHEET} [data-group='bg-shape'] [data-choice='wide']").click()
+    assert phone.locator(f"{SHEET} [data-look='light'] .look-preview.borrowed").count() == 1
+    phone.locator("[data-swatch]").first.click()
+    phone.locator(f"{SHEET} [data-group='bg-position'] [data-choice='top']").click()
+    save_background(phone)
+    phone.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
+    shared = shared_saves(phone)[0]["config"]["strategy"]["backgrounds"]["home"]
+    assert shared["light"] == "#101010"
+    assert "gradient" in shared["light_wide"]
+    assert "dark_wide" not in shared
+    assert shared["position"] == "top"
+
+
+def test_turning_the_screen_changes_the_background(phone):
+    mount_admin(phone, {"backgrounds": {"home": {"light": "#101010", "light_wide": "#202020", "position": "top"}}})
+    phone.wait_for_selector("home-dashboard-page .backdrop")
+    style = "() => document.querySelector('home-dashboard-page').shadowRoot.querySelector('.backdrop').getAttribute('style')"
+    assert "#101010" in phone.evaluate(style)
+    phone.set_viewport_size({"width": 900, "height": 600})
+    phone.wait_for_function(f"({style})().includes('#202020')")
 
 
 def test_only_an_administrator_edits_the_screen(phone):

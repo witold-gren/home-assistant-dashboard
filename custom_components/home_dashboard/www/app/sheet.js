@@ -28,7 +28,13 @@ import {
   buildTile,
   canUnlock,
   personalChoices,
+  sharedLayoutChoices,
+  backgroundSlot,
+  BACKGROUND_POSITIONS,
   accessChoices,
+  favoriteCandidates,
+  roomViewChoices,
+  ROOM_SCENES_ID,
   entityIcon,
   effectiveArea,
   intercomAreas,
@@ -51,7 +57,9 @@ import {
   tvStatus,
 } from "./panel.js";
 import { tileCandidates } from "./room-editor.js";
-import { backgroundStyle, isDark, tokens } from "./styles.js";
+import { dashboardStart, setDashboardStart } from "./settings.js";
+import { roomActions } from "./status.js";
+import { backgroundStyle, currentColorMode, isDark, screenShape, tokens } from "./styles.js";
 
 const COMMIT_DELAY_MS = 500;
 const COVER_SET_POSITION = 4;
@@ -149,6 +157,7 @@ const ENTITY_FREE_KINDS = new Set([
   "panel",
   "personal",
   "pin",
+  "room-view",
   "rooms",
   "school",
   "overview",
@@ -176,7 +185,9 @@ export class HomeDashboardSheet extends LitElement {
     _rule: { state: true },
     _bg: { state: true },
     _bgMode: { state: true },
+    _bgShape: { state: true },
     _bgEveryone: { state: true },
+    _shared: { state: true },
     _access: { state: true },
     _accessUser: { state: true },
     _users: { state: true },
@@ -218,6 +229,7 @@ export class HomeDashboardSheet extends LitElement {
       this._pin = "";
       this._pinState = null;
       this._tab = "cameras";
+      this._shared = null;
       this._access = null;
       if (["access", "block-edit", "tile-edit"].includes(this.sheet?.kind)) this._loadUsers();
       if (this.sheet?.kind === "tile-edit") this._startRule();
@@ -1034,6 +1046,14 @@ export class HomeDashboardSheet extends LitElement {
           `,
         )}
         <hr />
+        ${this.sheet.roomView
+          ? html`
+              <button class="row off" data-sheet-room-view @click=${() => this._change({ kind: "room-view", room: this.sheet.roomView })}>
+                <span class="row-icon"><ha-icon icon="mdi:eye-settings-outline"></ha-icon></span>
+                <span class="row-text"><strong>${this._t("room_view_title")}</strong></span>
+              </button>
+            `
+          : nothing}
         ${this.sheet.personal
           ? html`
               <button class="row off" data-sheet-personal @click=${() => this._change({ kind: "personal" })}>
@@ -1094,15 +1114,38 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  // An administrator arranges rooms and favorites for everyone here too, so there is one place for both.
+  _toggleShared(on) {
+    const config = this.raw ?? {};
+    this._shared = on
+      ? { order: [...(config.rooms?.order ?? [])], hidden: [...(config.rooms?.hidden ?? [])], favorites: [...(config.favorites ?? [])] }
+      : null;
+    this._query = "";
+  }
+
+  _saveShared() {
+    const { order, hidden, favorites } = this._shared;
+    this.dispatchEvent(new CustomEvent("sheet-layout", { detail: { rooms: { order, hidden }, favorites } }));
+  }
+
   _movePersonal(list, index, delta) {
     const order = list.map((item) => item.id);
     const [moved] = order.splice(index, 1);
     order.splice(index + delta, 0, moved);
+    if (this._sharedTab) {
+      this._shared = { ...this._shared, [this._tab === "rooms" ? "order" : "favorites"]: order };
+      return;
+    }
     savePrefs(this.hass, { ...personalPrefs(), [this._tab]: order });
     this.requestUpdate();
   }
 
   _togglePersonal(id) {
+    if (this._sharedTab) {
+      const { hidden } = this._shared;
+      this._shared = { ...this._shared, hidden: hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id] };
+      return;
+    }
     const key = `hidden_${this._tab}`;
     const prefs = personalPrefs();
     const hidden = prefs[key] ?? [];
@@ -1111,9 +1154,79 @@ export class HomeDashboardSheet extends LitElement {
     this.requestUpdate();
   }
 
+  _setFavorites(ids) {
+    this._query = "";
+    if (this._sharedTab) {
+      this._shared = { ...this._shared, favorites: ids };
+      return;
+    }
+    savePrefs(this.hass, { ...personalPrefs(), favorites: ids });
+    this.requestUpdate();
+  }
+
+  _renderFavorites(list) {
+    const ids = list.map((item) => item.id);
+    const matches = favoriteCandidates(this.hass, this.raw, this.hass.user?.id, ids, this._query ?? "");
+    return html`
+      <input
+        class="search"
+        type="search"
+        placeholder=${this._t("favorites_add")}
+        data-favorite-search
+        .value=${this._query ?? ""}
+        @input=${(event) => (this._query = event.target.value)}
+      />
+      ${matches.map(
+        ({ id, name }) => html`
+          <button class="row off" data-favorite-match=${id} @click=${() => this._setFavorites([...ids, id])}>
+            <span class="row-icon"><ha-icon icon="mdi:plus"></ha-icon></span>
+            <span class="row-text"><strong>${name}</strong><small>${id}</small></span>
+          </button>
+        `,
+      )}
+      ${list.map(
+        (item, index) => html`
+          <div class="order-row" data-order=${item.id}>
+            <span>${item.name}</span>
+            <button aria-label=${this._t("personal_remove")} data-personal="remove" @click=${() => this._setFavorites(ids.filter((id) => id !== item.id))}>
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>
+            <button aria-label=${this._t("personal_up")} data-personal="up" ?disabled=${index === 0} @click=${() => this._movePersonal(list, index, -1)}>
+              <ha-icon icon="mdi:arrow-up"></ha-icon>
+            </button>
+            <button
+              aria-label=${this._t("personal_down")}
+              data-personal="down"
+              ?disabled=${index === list.length - 1}
+              @click=${() => this._movePersonal(list, index, 1)}
+            >
+              <ha-icon icon="mdi:arrow-down"></ha-icon>
+            </button>
+          </div>
+        `,
+      )}
+    `;
+  }
+
+  // Kept with the account, so every device of the person opens here; the device remembers it too.
+  _toggleStart(on) {
+    const start = on ? dashboardStart() : false;
+    savePrefs(this.hass, { ...personalPrefs(), start });
+    setDashboardStart(on ? start : null);
+    this.requestUpdate();
+  }
+
+  get _sharedTab() {
+    return Boolean(this._shared) && ["rooms", "favorites"].includes(this._tab);
+  }
+
   _renderPersonal() {
-    const choices = personalChoices(this.hass, this.raw, this.hass.user?.id, personalPrefs());
+    const choices = this._sharedTab
+      ? sharedLayoutChoices(this.hass, this.raw, this._shared)
+      : personalChoices(this.hass, this.raw, this.hass.user?.id, personalPrefs());
     const list = choices[this._tab];
+    const canShare = this.hass.user?.is_admin && ["rooms", "favorites"].includes(this._tab);
+    const orderable = this._tab !== "menu";
     const button = (key, icon, disabled, onTap, data) => html`
       <button aria-label=${this._t(key)} data-personal=${data} ?disabled=${disabled} @click=${onTap}>
         <ha-icon .icon=${icon}></ha-icon>
@@ -1126,20 +1239,41 @@ export class HomeDashboardSheet extends LitElement {
           ["cameras", this._t("personal_cameras")],
           ["rooms", this._t("personal_rooms")],
           ["chips", this._t("personal_chips")],
+          ["scenes", this._t("personal_scenes")],
+          ["favorites", this._t("personal_favorites")],
+          ["menu", this._t("personal_menu")],
         ])}
-        ${list.map(
-          (item, index) => html`
-            <div class="order-row ${item.hidden ? "muted" : ""}" data-order=${item.id}>
-              <span>${item.name}</span>
-              ${button("personal_hide", item.hidden ? "mdi:eye-off-outline" : "mdi:eye-outline", false, () => this._togglePersonal(item.id), "hide")}
-              ${button("personal_up", "mdi:arrow-up", index === 0, () => this._movePersonal(list, index, -1), "up")}
-              ${button("personal_down", "mdi:arrow-down", index === list.length - 1, () => this._movePersonal(list, index, 1), "down")}
-            </div>
-          `,
-        )}
-        <button class="block-action" data-personal-reset @click=${() => this._resetPersonal()}>
-          <span>${this._t("personal_reset")}</span>
-        </button>
+        ${canShare
+          ? html`<label class="field" data-layout-everyone>
+              <span>${this._t("layout_everyone")}</span>
+              <input type="checkbox" .checked=${Boolean(this._shared)} @change=${(event) => this._toggleShared(event.target.checked)} />
+            </label>`
+          : nothing}
+        ${this._tab === "favorites"
+          ? this._renderFavorites(list)
+          : list.map(
+              (item, index) => html`
+                <div class="order-row ${item.hidden ? "muted" : ""}" data-order=${item.id}>
+                  <span>${item.name}</span>
+                  ${button("personal_hide", item.hidden ? "mdi:eye-off-outline" : "mdi:eye-outline", false, () => this._togglePersonal(item.id), "hide")}
+                  ${orderable ? button("personal_up", "mdi:arrow-up", index === 0, () => this._movePersonal(list, index, -1), "up") : nothing}
+                  ${orderable
+                    ? button("personal_down", "mdi:arrow-down", index === list.length - 1, () => this._movePersonal(list, index, 1), "down")
+                    : nothing}
+                </div>
+              `,
+            )}
+        ${this._sharedTab
+          ? html`<button class="block-action on" data-layout-save @click=${() => this._saveShared()}>
+              <span>${this._t("layout_save_everyone")}</span>
+            </button>`
+          : html`<label class="field" data-start-mine>
+                <span>${this._t("start_mine")}</span>
+                <input type="checkbox" .checked=${Boolean(personalPrefs().start)} @change=${(event) => this._toggleStart(event.target.checked)} />
+              </label>
+              <button class="block-action" data-personal-reset @click=${() => this._resetPersonal()}>
+                <span>${this._t("personal_reset")}</span>
+              </button>`}
       </div>
     `;
   }
@@ -1147,6 +1281,64 @@ export class HomeDashboardSheet extends LitElement {
   _resetPersonal() {
     savePrefs(this.hass, {});
     this.requestUpdate();
+  }
+
+  // My view of a room ---------------------------------------------------------------------
+
+  _toggleRoomHidden(kind, key) {
+    const prefs = personalPrefs();
+    const { room } = this.sheet;
+    const all = prefs[kind] ?? {};
+    const list = all[room] ?? [];
+    const next = list.includes(key) ? list.filter((item) => item !== key) : [...list, key];
+    savePrefs(this.hass, { ...prefs, [kind]: { ...all, [room]: next } });
+    this.requestUpdate();
+  }
+
+  _restoreRoom() {
+    const prefs = personalPrefs();
+    const { room } = this.sheet;
+    const without = (kind) => Object.fromEntries(Object.entries(prefs[kind] ?? {}).filter(([key]) => key !== room));
+    savePrefs(this.hass, { ...prefs, hidden_tiles: without("hidden_tiles"), hidden_sections: without("hidden_sections") });
+    this.requestUpdate();
+  }
+
+  _renderRoomView() {
+    const prefs = personalPrefs();
+    const actionsOf = (config, model) => roomActions(this.hass, config, model, "phone");
+    const sections = roomViewChoices(this.hass, this.raw, this.hass.user?.id, prefs, this.sheet.room, actionsOf);
+    const eye = (hidden, label, onTap, data) => html`
+      <button aria-label=${this._t("personal_hide")} data-view=${data} @click=${onTap}>
+        <ha-icon .icon=${hidden ? "mdi:eye-off-outline" : "mdi:eye-outline"}></ha-icon>
+      </button>
+    `;
+    return html`
+      ${this._renderHeader(this._t("room_view_title"), false, false)}
+      <div class="rows">
+        <p class="hint">${this._t("room_view_hint")}</p>
+        ${sections.map(
+          (section) => html`
+            <div class="order-row view-section ${section.hidden ? "muted" : ""}" data-view-section=${section.id}>
+              <span><strong>${section.title}</strong></span>
+              ${section.whole ? eye(section.hidden, section.title, () => this._toggleRoomHidden("hidden_sections", section.id), "section") : nothing}
+            </div>
+            ${section.hidden
+              ? nothing
+              : section.tiles.map(
+                  (tile) => html`
+                    <div class="order-row view-tile ${tile.hidden ? "muted" : ""}" data-view-tile=${tile.key}>
+                      <span>${tile.name}</span>
+                      ${eye(tile.hidden, tile.name, () => this._toggleRoomHidden("hidden_tiles", tile.key), "tile")}
+                    </div>
+                  `,
+                )}
+          `,
+        )}
+        <button class="block-action" data-view-restore @click=${() => this._restoreRoom()}>
+          <span>${this._t("room_view_restore")}</span>
+        </button>
+      </div>
+    `;
   }
 
   // Access ----------------------------------------------------------------------------------
@@ -1186,7 +1378,7 @@ export class HomeDashboardSheet extends LitElement {
 
   _renderAccess() {
     const choices = accessChoices(this.hass, this.raw);
-    const key = this._tab === "rooms" ? "rooms" : "hide";
+    const key = { rooms: "rooms", sections: "sections" }[this._tab] ?? "hide";
     const query = this._query.toLowerCase();
     const list = (choices[this._tab] ?? []).filter((item) => item.name.toLowerCase().includes(query));
     const shut = this._accessHidden(key);
@@ -1206,6 +1398,7 @@ export class HomeDashboardSheet extends LitElement {
         ${this._renderTabs([
           ["cameras", this._t("access_cameras")],
           ["rooms", this._t("access_rooms")],
+          ["sections", this._t("access_sections")],
           ["chips", this._t("personal_chips")],
           ["lights", this._t("access_lights")],
           ["media", this._t("access_media")],
@@ -1221,7 +1414,9 @@ export class HomeDashboardSheet extends LitElement {
           .value=${this._query}
           @input=${(event) => (this._query = event.target.value)}
         />
-        <small>${this._t("access_hidden", { count: this._accessHidden("hide").length + this._accessHidden("rooms").length })}</small>
+        <small>${this._t("access_hidden", {
+          count: ["hide", "rooms", "sections"].reduce((sum, key) => sum + this._accessHidden(key).length, 0),
+        })}</small>
         ${[...list]
           .sort((a, b) => Number(hidden(b.id)) - Number(hidden(a.id)))
           .map(
@@ -1258,14 +1453,22 @@ export class HomeDashboardSheet extends LitElement {
   _startBackground() {
     const { shared, own } = this.sheet;
     const admin = Boolean(this.hass.user?.is_admin);
-    const value = (mode) => (mode in own ? own[mode] : shared[mode]);
-    this._bg = { light: value("light"), dark: value("dark") };
+    const mine = (mode) => mode in own || `${mode}_wide` in own;
+    const value = (mode, slot) => (mine(mode) ? (own[slot] ?? null) : shared[slot]);
+    this._bg = {
+      light: value("light", "light"),
+      dark: value("dark", "dark"),
+      light_wide: value("light", "light_wide"),
+      dark_wide: value("dark", "dark_wide"),
+      position: own.position ?? shared.position ?? "center",
+    };
     this._bgMode = isDark() ? "dark" : "light";
-    this._bgEveryone = { light: admin && !("light" in own), dark: admin && !("dark" in own) };
+    this._bgShape = screenShape();
+    this._bgEveryone = { light: admin && !mine("light"), dark: admin && !mine("dark") };
   }
 
   _pickBackground(value) {
-    this._bg = { ...this._bg, [this._bgMode]: value };
+    this._bg = { ...this._bg, [backgroundSlot(this._bgMode, this._bgShape)]: value };
   }
 
   async _uploadBackground(event) {
@@ -1291,8 +1494,15 @@ export class HomeDashboardSheet extends LitElement {
     const nextShared = { ...shared };
     const own = {};
     ["light", "dark"].forEach((mode) => {
-      if (this._bgEveryone[mode]) nextShared[mode] = this._bg[mode];
-      else own[mode] = this._bg[mode];
+      const place = this._bgEveryone[mode] ? nextShared : own;
+      place[mode] = this._bg[mode];
+      place[`${mode}_wide`] = this._bg[`${mode}_wide`];
+    });
+    // A wide picture or a part to keep that nobody chose is left out, so the configuration stays short.
+    [nextShared, own].forEach((place) => {
+      ["light_wide", "dark_wide"].forEach((slot) => place[slot] ?? delete place[slot]);
+      if (Object.keys(place).length) place.position = this._bg.position;
+      if (place.position === "center") delete place.position;
     });
     const backgrounds = { ...prefs.backgrounds, [target]: own };
     if (!Object.keys(own).length) delete backgrounds[target];
@@ -1312,12 +1522,19 @@ export class HomeDashboardSheet extends LitElement {
   }
 
   _renderBackgroundField(mode) {
-    const value = this._bg[mode];
+    const other = this._bgShape === "wide" ? "tall" : "wide";
+    const own = this._bg[backgroundSlot(mode, this._bgShape)];
+    const value = own ?? this._bg[backgroundSlot(mode, other)];
     const admin = this.hass.user?.is_admin;
+    const note = own ? nothing : html`<small>${this._t(value ? `background_as_${other}` : "background_none")}</small>`;
     return html`
       <div class="look ${this._bgMode === mode ? "on" : ""}" data-look=${mode}>
-        <button class="look-preview" style=${value ? backgroundStyle(value) : nothing} @click=${() => (this._bgMode = mode)}>
-          ${value ? nothing : html`<small>${this._t("background_none")}</small>`}
+        <button
+          class="look-preview ${own ? "" : "borrowed"}"
+          style=${value ? backgroundStyle(value, this._bg.position) : nothing}
+          @click=${() => (this._bgMode = mode)}
+        >
+          ${note}
         </button>
         <strong>${this._t(`background_${mode}`)}</strong>
         ${admin
@@ -1335,11 +1552,52 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  _pickColorMode(mode) {
+    savePrefs(this.hass, { ...personalPrefs(), color_mode: mode });
+    this._bgMode = isDark() ? "dark" : "light";
+    this.requestUpdate();
+  }
+
+  _renderBackgroundChoices(data, items, current, onPick) {
+    return html`
+      <div class="choices even" data-group=${data}>
+        ${items.map(
+          ([key, label]) => html`
+            <button class="choice ${key === current ? "on" : ""}" data-choice=${key} @click=${() => onPick(key)}>${label}</button>
+          `,
+        )}
+      </div>
+    `;
+  }
+
   _renderBackground() {
-    const current = this._bg[this._bgMode];
+    const current = this._bg[backgroundSlot(this._bgMode, this._bgShape)];
     return html`
       ${this._renderHeader(this._t("screen_background"), false, false)}
       <div class="rows">
+        <div class="choices" data-color-modes>
+          ${["auto", "light", "dark"].map(
+            (mode) => html`
+              <button
+                class="choice ${mode === (personalPrefs().color_mode ?? currentColorMode()) ? "on" : ""}"
+                data-color-mode=${mode}
+                @click=${() => this._pickColorMode(mode)}
+              >
+                ${this._t(`color_mode_${mode}`)}
+              </button>
+            `,
+          )}
+        </div>
+        <p class="hint">${this._t("background_shape_hint")}</p>
+        ${this._renderBackgroundChoices(
+          "bg-shape",
+          [
+            ["tall", this._t("background_tall")],
+            ["wide", this._t("background_wide")],
+          ],
+          this._bgShape,
+          (shape) => (this._bgShape = shape),
+        )}
         <div class="looks">${this._renderBackgroundField("light")}${this._renderBackgroundField("dark")}</div>
         <div class="swatches">
           ${BACKGROUNDS.map(
@@ -1361,6 +1619,13 @@ export class HomeDashboardSheet extends LitElement {
           <span>${this._t("background_picture")}</span>
           <input type="file" accept="image/*" data-picture @change=${this._uploadBackground} />
         </label>
+        <p class="hint">${this._t("background_position_hint")}</p>
+        ${this._renderBackgroundChoices(
+          "bg-position",
+          BACKGROUND_POSITIONS.map((position) => [position, this._t(`background_${position}`)]),
+          this._bg.position,
+          (position) => (this._bg = { ...this._bg, position }),
+        )}
         ${this._uploadProblem ? html`<p class="hint" data-upload-problem>${this._t("background_failed")}</p>` : nothing}
         ${current
           ? html`<button class="row off" data-background-clear @click=${() => this._pickBackground(null)}>
@@ -2275,6 +2540,7 @@ export class HomeDashboardSheet extends LitElement {
       page: this._renderPage,
       pin: this._renderPin,
       personal: this._renderPersonal,
+      "room-view": this._renderRoomView,
       access: this._renderAccess,
       light: this._renderLight,
       switch: this._renderSwitch,
@@ -2599,6 +2865,24 @@ export class HomeDashboardSheet extends LitElement {
       .sheet-tabs .choice {
         flex: 1 0 auto;
         padding: 8px 16px;
+      }
+      [data-color-modes],
+      .choices.even {
+        flex-wrap: nowrap;
+      }
+      .look-preview.borrowed {
+        opacity: 0.55;
+      }
+      [data-color-modes] .choice,
+      .choices.even .choice {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .view-section {
+        margin-top: 8px;
+      }
+      .view-tile {
+        margin-left: 16px;
       }
       .looks {
         display: grid;

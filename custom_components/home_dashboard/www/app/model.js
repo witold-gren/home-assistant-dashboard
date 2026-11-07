@@ -362,7 +362,7 @@ function serviceCall([domain, service], entityId) {
 
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
-function layoutTile(hass, item, roomName, config, layout) {
+export function layoutTile(hass, item, roomName, config, layout) {
   if (config.denied?.includes(tileKey(item))) return null;
   if (item.kind === "panel") return panelTile(hass, item);
   const tile = buildTile(hass, item.entity, roomName, config, layout);
@@ -474,7 +474,10 @@ function shownRooms(hass, config, selection, layout) {
     .map((room) => ({
       id: room.id,
       name: room.name,
-      tiles: (room.home ?? []).map((item) => layoutTile(hass, item, room.name, config, layout)).filter(Boolean),
+      tiles: (room.home ?? [])
+        .filter((item) => !hiddenInRoom(config, room.id).tiles.includes(tileKey(item)))
+        .map((item) => layoutTile(hass, item, room.name, config, layout))
+        .filter(Boolean),
     }));
   const rest = buildRooms(hass, config, selection, layout).filter((room) => !covered.has(room.id));
   return byConfiguredOrder([...laidOut, ...rest], config.rooms.order);
@@ -576,22 +579,58 @@ const ACCESS_LIGHTS = new Set(["light"]);
 const ACCESS_MEDIA = new Set(["media_player", "remote"]);
 const ACCESS_SECURITY = new Set(["alarm_control_panel", "lock"]);
 const ACCESS_GROUPED = new Set([...ACCESS_LIGHTS, ...ACCESS_MEDIA, ...ACCESS_SECURITY]);
-const otherMode = { light: "dark", dark: "light" };
 const inMode = (value, mode) => (typeof value === "string" ? value : value?.[mode]);
 
-// The background everyone gets, for each mode. A plain value is an older one, used in both.
+export const BACKGROUND_POSITIONS = ["top", "center", "bottom"];
+
+// The slot of a look for a shape of screen: a tall one is the plain mode, a wide one has its own.
+export const backgroundSlot = (mode, shape) => (shape === "wide" ? `${mode}_wide` : mode);
+const shapeSlots = (mode, shape) => [backgroundSlot(mode, shape), backgroundSlot(mode, shape === "wide" ? "tall" : "wide")];
+
+// The background everyone gets, for each mode and shape. A plain value is an older one, used everywhere.
 export function sharedBackground(config, key, legacy) {
   const value = config.backgrounds[key] ?? legacy;
-  return { light: inMode(value, "light") ?? null, dark: inMode(value, "dark") ?? null };
+  const slots = ["light", "dark", "light_wide", "dark_wide"].map((slot) => [slot, inMode(value, slot) ?? null]);
+  const position = typeof value === "string" ? null : (value?.position ?? null);
+  return { ...Object.fromEntries(slots), position };
 }
 
-// A person's own choice wins, even when it is no background at all. The shared one falls back on
-// the other mode, so one picture is enough for those who want the same in both.
-export function pickBackground(config, key, legacy, mode) {
+// A person's own choice wins, even when it is no background at all. A shape without its own picture
+// takes the other shape of the same mode; a mode without a background shows the plain page of that
+// mode, as the sheet says. Only an older plain value fills both modes.
+export function pickBackground(config, key, legacy, mode, shape = "tall") {
+  const [first, second] = shapeSlots(mode, shape);
   const own = config.personalBackgrounds?.[key];
-  if (own && mode in own) return own[mode];
+  if (own && (first in own || second in own)) return own[first] ?? own[second] ?? null;
   const shared = sharedBackground(config, key, legacy);
-  return shared[mode] ?? shared[otherMode[mode]];
+  return shared[first] ?? shared[second] ?? null;
+}
+
+// Which part of a picture stays when the screen crops it.
+export function pickBackgroundPosition(config, key, legacy) {
+  const position = config.personalBackgrounds?.[key]?.position ?? sharedBackground(config, key, legacy).position;
+  return BACKGROUND_POSITIONS.includes(position) ? position : "center";
+}
+
+function personalScenes(config, prefs) {
+  const hidden = prefs.hidden_scenes ?? [];
+  return inOrder(config.scenes.filter((item) => !hidden.includes(tileKey(item))), prefs.scenes ?? [], tileKey);
+}
+
+// A section is known by its title, so moving it in the editor keeps what someone hid; one without a
+// title falls back to its place.
+export const sectionId = (section, index) => (section.title ? `title:${section.title}` : `index:${index}`);
+
+// What this person does not want in a room, and what an administrator took away from them.
+function hiddenInRoom(config, roomId) {
+  const prefix = `${roomId}|`;
+  return {
+    tiles: config.roomHidden?.tiles?.[roomId] ?? [],
+    sections: [
+      ...(config.roomHidden?.sections?.[roomId] ?? []),
+      ...(config.deniedSections ?? []).filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length)),
+    ],
+  };
 }
 
 export function personalize(config, userId, prefs = {}) {
@@ -607,6 +646,11 @@ export function personalize(config, userId, prefs = {}) {
     denied,
     deniedAreas,
     personalBackgrounds: prefs.backgrounds ?? {},
+    scenes: personalScenes(config, prefs),
+    favorites: prefs.favorites ?? config.favorites,
+    menuHidden: prefs.hidden_menu ?? [],
+    roomHidden: { tiles: prefs.hidden_tiles ?? {}, sections: prefs.hidden_sections ?? {} },
+    deniedSections: rule.sections ?? [],
     chipLayout: { order: prefs.chips ?? [], hidden: [...denied, ...(prefs.hidden_chips ?? [])] },
     rooms: {
       ...config.rooms,
@@ -630,7 +674,20 @@ export function personalChoices(hass, raw, userId, prefs = {}) {
   const cameras = new Map(buildCameras(hass, allowed).map((camera) => [camera.entityId, camera]));
   const hiddenChips = prefs.hidden_chips ?? [];
   const chips = homeChips(hass, allowed).filter(({ id }) => !allowed.denied.includes(id));
+  const hiddenScenes = prefs.hidden_scenes ?? [];
+  const hiddenMenu = prefs.hidden_menu ?? [];
+  const sceneName = (item) => item.name ?? hass.states[item.entity]?.attributes.friendly_name ?? item.entity ?? "";
+  const scenes = allowed.scenes.filter((item) => !allowed.denied.includes(tileKey(item)));
+  const favorites = (prefs.favorites ?? allowed.favorites).filter((id) => hass.states[id] && !allowed.denied.includes(id));
+  const menu = shownMenu(hass, { ...allowed, menuHidden: [] }, MENU_LINKS).flatMap((group) => group.items);
   return {
+    scenes: inOrder(scenes, prefs.scenes ?? [], tileKey).map((item) => ({
+      id: tileKey(item),
+      name: sceneName(item),
+      hidden: hiddenScenes.includes(tileKey(item)),
+    })),
+    favorites: favorites.map((id) => ({ id, name: hass.states[id].attributes.friendly_name ?? id })),
+    menu: menu.map((item) => ({ id: menuKey(item), name: item.name, hidden: hiddenMenu.includes(menuKey(item)) })),
     chips: inOrder(chips, prefs.chips ?? [], ({ id }) => id).map((chip) => ({ ...chip, hidden: hiddenChips.includes(chip.id) })),
     cameras: inOrder([...cameras.keys()], prefs.cameras ?? []).map((id) => ({
       id,
@@ -638,6 +695,20 @@ export function personalChoices(hass, raw, userId, prefs = {}) {
       hidden: hiddenCameras.includes(id),
     })),
     rooms: byConfiguredOrder(rooms, prefs.rooms ?? []).map((room) => ({ ...room, hidden: hiddenRooms.includes(room.id) })),
+  };
+}
+
+// The rooms and favorites everyone starts from, as an administrator arranges them. Rooms hidden for
+// everyone stay on the list, so they can be shown again.
+export function sharedLayoutChoices(hass, raw, draft) {
+  const config = normalizeConfig(raw);
+  const open = { ...config, rooms: { ...config.rooms, hidden: [] } };
+  const rooms = buildRoomList(hass, open, selectEntities(hass, open));
+  return {
+    rooms: byConfiguredOrder(rooms, draft.order).map((room) => ({ ...room, hidden: draft.hidden.includes(room.id) })),
+    favorites: draft.favorites
+      .filter((id) => hass.states[id])
+      .map((id) => ({ id, name: hass.states[id].attributes.friendly_name ?? id })),
   };
 }
 
@@ -667,6 +738,12 @@ export function accessChoices(hass, raw) {
   const unique = [...new Map(blocks.map((block) => [block.id, block])).values()];
   return {
     chips: homeChips(hass, config),
+    sections: config.layout.flatMap((room) =>
+      (room.sections ?? []).map((section, index) => ({
+        id: `${room.id}|${sectionId(section, index)}`,
+        name: `${room.name} · ${section.title || `#${index + 1}`}`,
+      })),
+    ),
     rooms: buildRoomList(hass, config, selection),
     cameras: buildCameras(hass, config).map((camera) => ({ id: camera.entityId, name: camera.name })),
     actions: sorted([...of("scene"), ...of("script")]),
@@ -1139,11 +1216,28 @@ export function menuGroups(config, links, language) {
   ];
 }
 
+export const MENU_LINKS = [
+  { key: "history", icon: "mdi:chart-box-outline", path: "/history" },
+  { key: "logbook", icon: "mdi:format-list-bulleted", path: "/logbook" },
+  { key: "devices", icon: "mdi:devices", path: "/config/devices/dashboard", admin: true },
+  { key: "automations", icon: "mdi:robot-outline", path: "/config/automation/dashboard", admin: true },
+  { key: "home_assistant", icon: "mdi:view-dashboard-outline", path: "/lovelace" },
+];
+
+export function menuKey(item) {
+  if (item.shortcut) return `shortcut:${item.shortcut}`;
+  if (item.addon) return `app:${item.addon}`;
+  if (item.action) return `action:${item.action}`;
+  return `path:${item.path ?? item.name}`;
+}
+
 export function shownMenu(hass, config, links) {
   const shortcuts = shownShortcuts(hass, config);
   const guest = guestModeHolds(hass, config);
   const forThisPerson = (item) => !item.users?.length || item.users.includes(hass.user?.id);
-  const shown = (item) => (!item.admin || hass.user?.is_admin) && !(item.hide_for_guests && guest) && forThisPerson(item);
+  const mine = (item) => !config.menuHidden?.includes(menuKey(item));
+  const shown = (item) =>
+    (!item.admin || hass.user?.is_admin) && !(item.hide_for_guests && guest) && forThisPerson(item) && mine(item);
   const resolved = (item) => {
     if (!item.shortcut) return [item];
     const block = shortcuts.find(({ name }) => name === item.shortcut);
@@ -1173,12 +1267,22 @@ function roomCameras(hass, config, areas) {
 
 function laidOutRoomModel(hass, config, entry, layout) {
   const areas = entry.areas ?? [];
-  const sections = (entry.sections ?? []).map((section, index) => ({
-    key: `section-${index}`,
-    title: section.title,
-    layout: section.layout ?? null,
-    tiles: section.tiles.map((item) => layoutTile(hass, item, entry.name, config, layout)).filter(Boolean),
-  }));
+  const hidden = hiddenInRoom(config, entry.id);
+  const sections = (entry.sections ?? [])
+    .map((section, index) => ({
+      key: `section-${index}`,
+      id: sectionId(section, index),
+      title: section.title,
+      layout: section.layout ?? null,
+      tiles: section.tiles
+        .filter((item) => !hidden.tiles.includes(tileKey(item)))
+        .map((item) => {
+          const tile = layoutTile(hass, item, entry.name, config, layout);
+          return tile && { ...tile, key: tileKey(item) };
+        })
+        .filter(Boolean),
+    }))
+    .filter((section) => !hidden.sections.includes(section.id));
   return {
     id: entry.id,
     title: entry.name,
@@ -1209,15 +1313,19 @@ export function buildRoomModel(hass, config, selection, roomId, layout = "phone"
   const room = buildRooms(hass, config, selection, layout).find((item) => item.id === roomId);
   const tiles = room?.tiles ?? [];
   const known = new Set(ROOM_SECTIONS.flatMap((section) => section.domains));
+  const hidden = hiddenInRoom(config, roomId);
+  const kept = tiles.filter((tile) => !hidden.tiles.includes(tile.entityId)).map((tile) => ({ ...tile, key: tile.entityId }));
   const sections = ROOM_SECTIONS.map((section) => ({
     key: section.key,
+    id: section.key,
     title: translate(hass.language, section.title),
-    tiles: tiles.filter((tile) => section.domains.includes(tile.domain)),
+    tiles: kept.filter((tile) => section.domains.includes(tile.domain)),
   }));
   sections.push({
     key: "other",
+    id: "other",
     title: translate(hass.language, "section_other"),
-    tiles: tiles.filter((tile) => !known.has(tile.domain)),
+    tiles: kept.filter((tile) => !known.has(tile.domain)),
   });
   return {
     id: roomId,
@@ -1225,9 +1333,46 @@ export function buildRoomModel(hass, config, selection, roomId, layout = "phone"
     areas: [roomId],
     fixedStatus: [],
     cameras: roomCameras(hass, config, [roomId]),
-    sections: sections.filter((section) => section.tiles.length),
+    sections: sections.filter((section) => section.tiles.length && !hidden.sections.includes(section.id)),
   };
 }
+
+// Everything a room shows before someone hides anything, marked with what this person hid.
+export function roomViewChoices(hass, raw, userId, prefs, roomId, actionsOf) {
+  const config = personalize(normalizeConfig(raw), userId, { ...prefs, hidden_tiles: {}, hidden_sections: {} });
+  const model = buildRoomModel(hass, config, selectEntities(hass, config), roomId);
+  const hiddenTiles = prefs.hidden_tiles?.[roomId] ?? [];
+  const hiddenSections = prefs.hidden_sections?.[roomId] ?? [];
+  const tiles = (list) => list.map((tile) => ({ key: tile.key ?? tile.entityId, name: tile.name, hidden: hiddenTiles.includes(tile.key ?? tile.entityId) }));
+  const actions = actionsOf(config, model);
+  return [
+    ...(actions.length ? [{ id: ROOM_SCENES_ID, title: translate(hass.language, "section_scenes"), tiles: tiles(actions), whole: false }] : []),
+    ...model.sections.map((section) => ({
+      id: section.id,
+      title: section.title || translate(hass.language, "room_view_untitled"),
+      tiles: tiles(section.tiles),
+      whole: true,
+      hidden: hiddenSections.includes(section.id),
+    })),
+  ];
+}
+
+export const ROOM_SCENES_ID = "__scenes";
+
+// What someone may add to their favorites: the devices of the dashboard they are allowed to see.
+export function favoriteCandidates(hass, raw, userId, chosen, query) {
+  const wanted = query.trim().toLowerCase();
+  if (!wanted) return [];
+  const config = personalize(normalizeConfig(raw), userId);
+  const usable = (id) => !hass.entities[id] || isPrimary(hass.entities[id]);
+  return Object.keys(hass.states)
+    .filter((id) => usable(id) && !chosen.includes(id) && !config.denied.includes(id))
+    .map((id) => ({ id, name: hass.states[id]?.attributes.friendly_name ?? id }))
+    .filter(({ id, name }) => `${name} ${id}`.toLowerCase().includes(wanted))
+    .slice(0, MAX_FAVORITE_MATCHES);
+}
+
+const MAX_FAVORITE_MATCHES = 20;
 
 // The states this page depends on; a change anywhere else must not re-render it.
 export function watchedEntityIds(hass, config, selection, areas = []) {
@@ -1239,6 +1384,7 @@ export function watchedEntityIds(hass, config, selection, areas = []) {
     ...config.media.sections.flatMap((section) => section.tiles ?? []),
     ...config.layout.flatMap((room) => [
       ...(room.home ?? []),
+      ...(room.scenes ?? []),
       ...(room.sections ?? []).flatMap((section) => section.tiles),
     ]),
   ];

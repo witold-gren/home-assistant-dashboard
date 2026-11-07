@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.5 (2026-11-08)
+
+Each person arranges the shared dashboard for themselves:
+
+- My layout has Scenes (order and hide), Favorites (their own list, starting from the shared one, added by search)
+  and Menu (hide an entry). "Open this dashboard at start on my devices" is kept with the account, and a device learns
+  it once it connects.
+- My view in a room hides a section or a tile for oneself, on the room page and on Home, and shows everything again.
+- Background of this screen lets each person choose a system, light or dark look for themselves.
+- Background of this screen has a picture for upright screens (phones, a tablet held upright) and one for wide ones
+  (a tablet on its side, laptops), and the part of a picture that stays when the screen crops it: top, middle or
+  bottom. A shape without its own picture uses the other one, and turning a tablet switches at once.
+- An administrator ticks For everyone on the Areas and Favorites tabs of My layout to arrange them for everyone. Rooms
+  and favorites left Dashboard settings, so there is one place for them, and its room list shows the rooms of the
+  dashboard, not every area of Home Assistant. Adding a switch or a scene to the room of its area from there is gone:
+  the room editor does that.
+- User access has a Sections tab, so an administrator can take a section of a room away from someone. What an
+  administrator took away stays away: nobody adds it back for themselves.
+
+Rooms:
+
+- The scenes and scripts of a room stand in their own Scenes row under its cameras, not as icons of its status row.
+  The room editor has a Scenes tab to choose and order them; until then the room shows those of its areas.
+
+Fixes:
+
+- A mode without its own background shows the plain page of that mode, as Background of this screen says, instead of
+  the background of the other mode.
+- The scenes editor of Home shows every scene to an administrator, also those they hid for themselves.
+
 ## 0.1.4 (2026-11-07)
 
 New screens:

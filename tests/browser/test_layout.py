@@ -704,3 +704,53 @@ def test_turning_guest_mode_on_closes_an_open_camera(phone):
     }""")
     phone.wait_for_timeout(100)
     assert phone.locator(f"{SHEET} .picture").count() == 0
+
+
+# 8. Scenes of a room ------------------------------------------------------------------------------
+
+def scenes_room(page, dashboard: dict | None = None) -> str:
+    area = first_area(page)
+    page.evaluate(
+        """(area) => {
+            const { snapshot } = window.dashboard;
+            const add = (id, name) => {
+                snapshot.states[id] = { entity_id: id, state: "2026-01-01", attributes: { friendly_name: name } };
+                snapshot.entities[id] = { entity_id: id, area_id: area, platform: "x" };
+            };
+            add("scene.film", "Film");
+            add("scene.relax", "Relaks");
+            add("script.night", "Noc");
+        }""",
+        area,
+    )
+    open_room(page, dashboard or {}, area)
+    return area
+
+
+def test_scenes_and_scripts_of_a_room_stand_under_the_cameras(phone):
+    scenes_room(phone)
+    section = phone.locator("home-dashboard-page [data-room-scenes]")
+    assert section.locator("h2").inner_text() == "Sceny"
+    assert section.locator(".tile strong").all_inner_texts() == ["Film", "Noc", "Relaks"]
+    order = phone.locator("home-dashboard-page section").evaluate_all(
+        "(sections) => sections.map((section) => section.dataset.roomScenes !== undefined ? 'scenes' : section.className)"
+    )
+    assert order.index("scenes") < len(order)
+
+
+def test_the_status_row_has_no_scenes_or_scripts(phone):
+    scenes_room(phone)
+    assert phone.locator("home-dashboard-page [data-status='scenes']").count() == 0
+    assert phone.locator("home-dashboard-page [data-status='scripts']").count() == 0
+
+
+def test_a_scene_of_a_room_runs_when_tapped(phone):
+    scenes_room(phone)
+    phone.locator("home-dashboard-page [data-room-scenes] [data-entity='scene.film']").click()
+    sent = [(call["domain"], call["service"]) for call in phone.evaluate("window.hass.calls") if call["type"] == "service"]
+    assert ("scene", "turn_on") in sent
+
+
+def test_the_scenes_of_a_room_follow_the_row_of_home(phone):
+    scenes_room(phone, {"scenes_layout": "row"})
+    assert "row" in phone.locator("home-dashboard-page [data-room-scenes] .tiles").get_attribute("class")
