@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.3 (2026-11-07)
+
+Editing without YAML:
+
+- Blocks (three dots on Home, administrators): add, edit, order and remove shortcuts and blocks in a form. Status,
+  departures, machines, blocks, pages and the school year all have one, with their sections, rows and buttons. A block
+  in a room opens from its tile in the room editor. Options the form does not know stay in the block untouched.
+- A new name of a block reaches its rules in User access and Who sees this.
+- Edit the menu (bottom of the side menu, administrators): `menu` arranges the side menu in groups of pages of Home
+  Assistant, shortcuts, apps and the notifications. An entry can be for administrators only or hide itself in guest mode.
+- Media categories in Blocks: `media.sections` puts the media page in your own groups, with televisions, soundbars and
+  blocks beside the speakers. What they list also shows in the Media filter of Home, in its room.
+
+New windows:
+
+- Apps: an add-on with a web interface opens in a window of the dashboard, from the menu or as a shortcut (`kind: app`).
+  It keeps its own session, says when the add-on is off, and `frame` gives a fallback address.
+- Notifications open in a window of the dashboard, follow the server live and can be dismissed there.
+
+Smaller changes:
+
+- A shortcut can have a `label`, a small text above its name, like the chips before it.
+- The school screen knows weekends by the date, and English day names work too. The guide describes every sensor it
+  reads, so anyone can feed it from their own integration.
+
 ## 0.1.2 (2026-11-07)
 
 - The school screen shows the important events of today and tomorrow at the top, for all children, and the plan shows the events of each day. The calendar of a child adds them to the entries of the school.

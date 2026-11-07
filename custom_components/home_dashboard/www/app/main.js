@@ -8,7 +8,10 @@ import { HomeDashboardPage } from "./page.js";
 import { HomeDashboardSchool } from "./school.js";
 import { HomeDashboardSettings } from "./settings.js";
 import { HomeDashboardSheet } from "./sheet.js";
+import { HomeDashboardApp } from "./app-frame.js";
+import { HomeDashboardBlockEditor } from "./block-editor.js";
 import { HomeDashboardDepartures } from "./departures.js";
+import { HomeDashboardNotifications } from "./notifications.js";
 import { HomeDashboardOverview } from "./overview.js";
 import { HomeDashboardWeather } from "./weather.js";
 
@@ -27,6 +30,9 @@ define("home-dashboard-school", HomeDashboardSchool);
 define("home-dashboard-weather", HomeDashboardWeather);
 define("home-dashboard-departures", HomeDashboardDepartures);
 define("home-dashboard-overview", HomeDashboardOverview);
+define("home-dashboard-block-editor", HomeDashboardBlockEditor);
+define("home-dashboard-app", HomeDashboardApp);
+define("home-dashboard-notifications", HomeDashboardNotifications);
 define("home-dashboard-host", HomeDashboardHost);
 
 export function generateDashboard(config, hass) {

@@ -329,6 +329,147 @@ entities:
     cover.window_3: {area: bedroom, name: Roleta, icon: mdi:blinds}
 ```
 
+### Edytor bloków
+
+Trzy kropki na stronie głównej → **Bloki** (administratorzy) pokazuje wszystkie skróty. Tu dodasz nowy blok, ustawisz ich
+kolejność, a ołówek otwiera formularz. Formularz mają Status, Odjazdy, Maszyny (`kind: host`), Blok (`kind: panel`), Strona i
+Rok szkolny, razem z sekcjami, wierszami i przyciskami. Encje podpowiadają się same, a kartę Home Assistant wpisujesz jako
+YAML w jej polu. Blok stojący w pokoju otworzysz z edycji pokoju: kafelek → **Edytuj blok**. Skrót może mieć `label`, czyli mały tekst nad nazwą.
+Opcje, których formularz nie zna, zostają w bloku bez zmian. Po zmianie nazwy reguły **Dostępu użytkowników** idą za blokiem, a kolejność i ukrycie w
+czyimś **Moim układzie** trzeba ustawić od nowa.
+
+| Bloki | Formularz |
+|---|---|
+| ![Bloki](screenshots/pl/blocks.png) | ![Formularz](screenshots/pl/block-editor.png) |
+
+### Lewe menu
+
+Trzy kreski otwierają menu: strony, Twoje grupy, ustawienia i obszary. Administrator układa grupy przyciskiem **Edytuj menu**
+na samym dole. Grupa może mieć tytuł, a wpis to nazwa, ikona i jedno z trzech: **Adres** strony Home Assistant (podpowiada
+panele, np. `/config`), **Skrót** po nazwie albo **Akcja** `notifications`, która otwiera okno powiadomień z listą na żywo i odrzucaniem. **Tylko
+administratorzy** chowa wpis przed resztą, a **Ukryj w trybie gościa** chowa go, gdy tryb gościa obowiązuje na tym koncie:
+użyj tego przy kamerach, żeby wpis nie omijał blokady. Bez własnej konfiguracji menu pokazuje skróty i podstawowe linki.
+
+| Edycja menu | Powiadomienia |
+|---|---|
+| ![Edycja menu](screenshots/pl/menu-editor.png) | ![Powiadomienia](screenshots/pl/notifications.png) |
+
+```yaml
+menu:
+  groups:
+    - items:
+        - {shortcut: Status}
+        - {name: Kamery, icon: mdi:cctv, path: /my_camera_panel, hide_for_guests: true}
+        - {name: Powiadomienia, icon: mdi:bell-outline, action: notifications}
+    - title: System
+      items:
+        - {name: Ustawienia, icon: mdi:cog-outline, path: /config, admin: true}
+```
+
+### Aplikacje w oknie
+
+Dodatek z interfejsem WWW, np. Frigate, otworzy się w oknie dashboardu. W menu wpisz w polu **Aplikacja** jego identyfikator,
+pole podpowiada zainstalowane dodatki. Jako skrót na stronie głównej to **Bloki → Aplikacja**:
+
+```yaml
+shortcuts:
+  - {kind: app, name: Frigate, icon: mdi:cctv, addon: abcd1234_frigate}
+menu:
+  groups:
+    - items:
+        - {name: Frigate, icon: mdi:cctv, addon: abcd1234_frigate, hide_for_guests: true}
+```
+
+![Aplikacja w oknie](screenshots/pl/app.png)
+
+Gdy okno nie może się otworzyć, np. dodatek jest wyłączony, pojawia się informacja i przycisk otwierający go w Home
+Assistant. `frame: http://...` podaje adres zastępczy na takie sytuacje.
+
+### Rok szkolny z własnych danych
+
+`kind: school` czyta sensory i niczego nie zakłada o tym, skąd pochodzą, więc wystarczy własny dodatek albo szablon, który
+je wystawi. Nazwy encji zmienisz w `sources`. Dane leżą w atrybutach, a stan sensora nie ma znaczenia. Zakładka bez danych
+pokazuje tylko informację o ich braku.
+
+```yaml
+shortcuts:
+  - kind: school
+    name: Rok szkolny
+    icon: mdi:school-outline
+    children: [Lena, Kuba]            # kolejność; pozostałe dzieci idą na koniec
+    sources:
+      plan: sensor.my_timetable       # domyślnie sensor.rodzinnik_plan_lekcji
+      grades: sensor.my_grades        # sensor.rodzinnik_oceny
+      events: sensor.my_calendar      # sensor.rodzinnik_terminarz
+      meals: sensor.my_meals          # sensor.rodzinnik_obiady
+      duties: sensor.my_duties        # sensor.rodzinnik_obowiazki
+      jobs: sensor.my_jobs            # sensor.rodzinnik_prace
+      bank: sensor.my_bank            # sensor.rodzinnik_bank
+      librus: sensor.my_school_events # sensor.rodzinnik_librus
+```
+
+Dzieci i ich zakładki pochodzą z `plan`. Daty mają postać `2026-11-09`, a godziny `08:00`. Nazwy dni wyświetlają się tak,
+jak je podasz, w dowolnym języku, a weekend rozpoznawany jest po dacie.
+
+```yaml
+# plan: atrybut children
+children:
+  - child: Lena
+    days:
+      - date: "2026-11-09"
+        name: Monday
+        is_today: true
+        no_lessons: false              # true przekreśla lekcje tego dnia
+        events: [...]                  # jak niżej
+        lessons:
+          - {number: 1, start: "08:00", end: "08:45", subject: Maths, teacher: Anna Nowak, classroom: "12",
+             type: lesson, canceled: false, substitution: false, note: ""}   # type: extra to zajęcia dodatkowe
+
+# event: wydarzenie w days[].events oraz w librus
+- {date: "2026-11-09", title: School trip, start: "08:00", end: "15:00", place: Museum, description: "",
+   instead_of_lessons: false, important: true}
+
+# librus: atrybut children, ważne wydarzenia na Dzisiaj i Jutro oraz wydarzenia w terminarzu
+children:
+  - {child: Lena, events: [...]}
+
+# events: atrybut children, wpisy terminarza
+children:
+  - child: Lena
+    entries:
+      - {date: "2026-11-10", kind: Test, title: Maths, description: Fractions, start: "10:10"}
+
+# grades: atrybut children
+children:
+  - child: Lena
+    semester: 1
+    subjects:
+      - subject: Maths
+        averages: {semester_1: 4.5, year: 4.5}
+        grades: [{grade: "5", category: test, is_new: true, proposition: false}]
+
+# meals: atrybut variants
+variants:
+  - variant: school
+    label: School
+    available: true
+    days:
+      - {name: Monday, meals: [{meal: Lunch, items: [{name: Soup}, {name: Pasta}]}]}
+
+# duties: atrybuty week_start, week_end i children, opcjonalnie previous_week i next_week o tym samym kształcie
+children:
+  - {child: Lena, child_color: "#f5ec00", avatar: "https://...", set: Kitchen, color: "#77bb41", tasks: [Dishes], free_week: false}
+
+# jobs: atrybut jobs
+jobs:
+  - {name: Raking, description: Leaves, reward_label: "5 - 10 EUR", limit: {label: once a week}}
+
+# bank: atrybuty currency i children
+currency: EUR
+children:
+  - {child: Lena, balance: 65, savings: 10, debt: 0, allowance: {next_payment: "2026-11-09"}}
+```
+
 ## 8. Muzyka, Energia i Mapa
 
 | Muzyka | Energia | Mapa | Odtwarzacz |
@@ -356,6 +497,22 @@ na pozostałych stronach nad paskiem widać mini-odtwarzacz. Głośniki będące
 podrzędne, inaczej policzy się podwójnie.
 
 **Mapa** używa karty mapy z dashboardu o adresie `map`, a pod nią pokazuje listę osób.
+
+Stronę Media ułożysz we własne grupy przez `media.sections` albo w formularzu **Bloki → Kategorie mediów** (zrzut niżej). Kafelki wpisuje się jak w pokoju, także `kind: tv` i
+`kind: panel`. Te, które stoją też w układzie pokoju, pokazują się w filtrze Media na stronie głównej, w swoim pokoju:
+
+```yaml
+media:
+  sections:
+    - title: Głośniki
+      tiles:
+        - {entity: media_player.salon_homepod, name: Salon}
+    - title: Telewizory
+      tiles:
+        - {kind: tv, entity: media_player.tv, name: Telewizor}
+```
+
+![Kategorie mediów](screenshots/pl/media-editor.png)
 
 ## 9. Osoby
 

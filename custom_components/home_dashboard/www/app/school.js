@@ -20,6 +20,7 @@ const COMMON_TABS = ["meals", "duties", "jobs", "bank"];
 const WEEKS = { "-1": "previous_week", 1: "next_week" };
 const WEEK_LABELS = { "-1": "school_week_previous", 0: "school_week_current", 1: "school_week_next" };
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
+const WEEKEND_NAMES = ["Sobota", "Niedziela", "Saturday", "Sunday"];
 
 export function schoolChildren(hass, item) {
   const sources = { ...DEFAULT_SOURCES, ...item.sources };
@@ -33,8 +34,12 @@ export function currentDayIndex(days) {
   return today < 0 ? 0 : today;
 }
 
+// The date says it in any language, and the name is for sources that send no date.
+const isWeekend = (day) =>
+  day.date ? [0, 6].includes(new Date(`${day.date}T12:00:00`).getDay()) : WEEKEND_NAMES.includes(day.name);
+
 export function shownDays(days) {
-  return days.filter((day) => day.lessons?.length || day.events?.length || !["Sobota", "Niedziela"].includes(day.name));
+  return days.filter((day) => day.lessons?.length || day.events?.length || !isWeekend(day));
 }
 
 const isoDate = (date) =>

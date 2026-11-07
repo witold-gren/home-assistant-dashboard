@@ -25,6 +25,7 @@ import {
   buildPeople,
   buildRoomList,
   buildRoomModel,
+  buildMediaSections,
   buildSpeakers,
   cameraColumns,
   editableTile,
@@ -59,6 +60,7 @@ import {
   removeTile,
   renameSection,
   renameTile,
+  replaceTile,
   roomDraft,
   SCENE_DOMAINS,
   scenesDraft,
@@ -227,7 +229,10 @@ export class HomeDashboardPage extends LitElement {
       const model = buildRoomModel(this._hass, this._config, this._selection, this._room, layout);
       this._model = { ...model, status: buildRoomStatus(this._hass, this._config, model.areas, model.fixedStatus) };
     } else if (this._page === "media") {
-      this._model = { speakers: buildSpeakers(this._hass, this._config, this._selection, layout) };
+      this._model = {
+        speakers: buildSpeakers(this._hass, this._config, this._selection, layout),
+        sections: buildMediaSections(this._hass, this._config, layout),
+      };
     } else if (this._page === "map") {
       this._model = { people: buildPeople(this._hass) };
     } else if (this._page === "home") {
@@ -542,7 +547,7 @@ export class HomeDashboardPage extends LitElement {
           @click=${() => this._openShortcut(item)}
         >
           <ha-icon class=${item.tone ?? SHORTCUT_TONES[index % SHORTCUT_TONES.length]} .icon=${item.icon}></ha-icon>
-          <span><strong>${item.name}</strong></span>
+          <span>${item.label ? html`<small>${item.label}</small>` : nothing}<strong>${item.name}</strong></span>
         </button>
       `,
     }));
@@ -769,6 +774,7 @@ export class HomeDashboardPage extends LitElement {
         this._edit = { ...this._edit, ...withVisibility(this._edit, key, rule) };
       },
       onRename: (name) => this._updateRoom(renameTile(this._edit.room, tab, at, name)),
+      onBlock: (block) => this._updateRoom(replaceTile(this._edit.room, tab, at, block)),
       onRemove: () => this._updateRoom(removeTile(this._edit.room, tab, at)),
     });
   }
@@ -1012,20 +1018,23 @@ export class HomeDashboardPage extends LitElement {
 
   _renderMedia() {
     const language = this._hass.language;
-    const { speakers = [] } = this._model;
+    const { speakers = [], sections = [] } = this._model;
+    const groups = sections.length ? sections : [{ title: translate(language, "speakers"), tiles: speakers }];
     const sources = this._sources ?? [];
     return html`
       ${this._renderPageTitle(translate(language, "nav_media"))}
       <div class="columns">
         <div class="main">
-          ${speakers.length
-            ? html`
-                <section>
-                  <h2>${translate(language, "speakers")}</h2>
-                  <div class="tiles">${speakers.map((tile) => this._renderTile(tile, false))}</div>
+          ${groups
+            .filter(({ tiles }) => tiles.length)
+            .map(
+              ({ title, tiles }) => html`
+                <section data-media-section=${title}>
+                  <h2>${title}</h2>
+                  <div class="tiles">${tiles.map((tile) => this._renderTile(tile, false))}</div>
                 </section>
-              `
-            : nothing}
+              `,
+            )}
         </div>
         <aside class="side">
           <section>

@@ -79,6 +79,12 @@ export function renameTile(room, tab, at, name) {
   });
 }
 
+export function replaceTile(room, tab, at, item) {
+  return changeLists(room, tab, (lists) => {
+    lists[at.list].tiles[at.index] = item;
+  });
+}
+
 export function addTile(room, tab, list, entity) {
   return changeLists(room, tab, (lists) => {
     lists[list].tiles.push({ entity });

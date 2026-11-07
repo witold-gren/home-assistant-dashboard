@@ -136,7 +136,8 @@ export function normalizeConfig(config = {}) {
       ...config.intercom,
     },
     entities: { include: {}, exclude: [], overrides: {}, ...config.entities },
-    media: { group_patterns: DEFAULT_MEDIA_PATTERNS, ...config.media },
+    media: { group_patterns: DEFAULT_MEDIA_PATTERNS, sections: [], ...config.media },
+    menu: config.menu ?? null,
     lights: { prefer_groups: true, ...config.lights },
     security: { unlock_on_tablet: false, group: null, ...config.security },
     idle: { return_after: DEFAULT_IDLE_SECONDS, ...config.idle },
@@ -508,10 +509,14 @@ function isInDeniedArea(hass, entityId, config) {
   return Boolean(config.deniedAreas?.includes(effectiveArea(hass, entityId, config)));
 }
 
-function hiddenFromGuests(hass, entityId, config) {
+export function guestModeHolds(hass, config) {
   const { guest } = config.cameras;
-  if (!guest || hass.states[guest.entity]?.state !== "on" || !guest.hide.includes(entityId)) return false;
+  if (!guest || hass.states[guest.entity]?.state !== "on") return false;
   return !guest.users || guest.users.includes(hass.user?.id) || guest.users.includes(hass.user?.name);
+}
+
+function hiddenFromGuests(hass, entityId, config) {
+  return guestModeHolds(hass, config) && config.cameras.guest.hide.includes(entityId);
 }
 
 // A camera that stopped working keeps its place, so it is clear that something is wrong with it.
@@ -732,7 +737,7 @@ const FILTERS = {
     tile.domain === "lock" ||
     tile.domain === "alarm_control_panel" ||
     (tile.domain === "cover" && SECURITY_COVERS.has(tile.deviceClass)),
-  media: (tile) => tile.domain === "media_player",
+  media: (tile) => tile.domain === "media_player" || tile.media,
 };
 
 // Tiles the user keeps together at the top of the security filter, wherever their rooms are.
@@ -862,6 +867,26 @@ function alarmName(hass, tile) {
   return device?.name_by_user ?? device?.name ?? tile.name;
 }
 
+// Televisions, soundbars and the like live in the layout of their rooms, with what they need to work.
+function withMediaTiles(hass, config, rooms, layout) {
+  const listed = new Set(config.media.sections.flatMap((section) => section.tiles ?? []).map((item) => item.entity));
+  const result = [...rooms];
+  for (const room of config.layout.filter((entry) => entry.areas?.length)) {
+    const items = (room.sections ?? [])
+      .flatMap((section) => section.tiles)
+      .filter((item) => listed.has(item.entity) && mediaGroupKey(item.entity, config.media.group_patterns) === null);
+    const tiles = items
+      .map((item) => layoutTile(hass, { ...item, active_only: false }, room.name, config, layout))
+      .filter(Boolean)
+      .map((tile) => ({ ...tile, media: true }));
+    if (!tiles.length) continue;
+    const index = result.findIndex((entry) => entry.id === room.id);
+    if (index < 0) result.push({ id: room.id, name: room.name, tiles });
+    else result[index] = { ...result[index], tiles: [...result[index].tiles, ...tiles] };
+  }
+  return result;
+}
+
 // Alarm panels are not tiles by default, but the security filter must not leave them out. Names
 // given in the layout win over the long ones from the integrations.
 function filterRooms(hass, config, selection, layout) {
@@ -873,10 +898,11 @@ function filterRooms(hass, config, selection, layout) {
       .map((item) => [item.entity, item.name]),
   );
   const wider = { ...selection, entityIds: [...new Set([...selection.entityIds, ...alarms])] };
-  return buildRooms(hass, config, wider, layout).map((room) => ({
+  const rooms = buildRooms(hass, config, wider, layout).map((room) => ({
     ...room,
     tiles: room.tiles.map((tile) => ({ ...tile, name: names.get(tile.entityId) ?? alarmName(hass, tile) })),
   }));
+  return withMediaTiles(hass, config, rooms, layout);
 }
 
 export function buildHomeModel(hass, config, selection, layout = "phone", now = new Date()) {
@@ -946,6 +972,16 @@ export function nextRepeat(repeat) {
   return { off: "all", all: "one", one: "off" }[repeat] ?? "off";
 }
 
+// The media page in the user's own groups; without them it lists the speakers.
+export function buildMediaSections(hass, config, layout = "phone") {
+  return config.media.sections
+    .map(({ title, tiles }) => ({
+      title,
+      tiles: (tiles ?? []).map((item) => layoutTile(hass, item, null, config, layout)).filter(Boolean),
+    }))
+    .filter(({ tiles }) => tiles.length);
+}
+
 export function buildSpeakers(hass, config, selection, layout = "phone") {
   return selection.mediaGroups
     .map((members) => {
@@ -1010,6 +1046,22 @@ export function moveInList(list, id, delta) {
 // A block has no entity of its own to be hidden by.
 export const blockKey = (item) => `block:${item.name}`;
 
+// Rules refer to a block by its name, so a new name has to reach them.
+export function renameBlockRules(raw, from, to) {
+  if (from === to) return raw;
+  const [before, after] = [blockKey({ name: from }), blockKey({ name: to })];
+  const access = Object.entries(raw.access ?? {}).map(([user, rule]) => [
+    user,
+    rule.hide ? { ...rule, hide: rule.hide.map((id) => (id === before ? after : id)) } : rule,
+  ]);
+  const visibility = Object.entries(raw.visibility ?? {}).map(([key, rule]) => [key === before ? after : key, rule]);
+  return {
+    ...raw,
+    ...(raw.access ? { access: Object.fromEntries(access) } : {}),
+    ...(raw.visibility ? { visibility: Object.fromEntries(visibility) } : {}),
+  };
+}
+
 export const tileKey = (item) => item.entity ?? blockKey(item);
 
 // A rule belongs to what is shown, not to one tile of it: `only` names the people who see it, and
@@ -1044,6 +1096,29 @@ export function withVisibility({ visibility, access }, key, rule) {
   );
   const { [key]: previous, ...others } = visibility;
   return { access: cleaned, visibility: rule.only.length || rule.except.length ? { ...others, [key]: rule } : others };
+}
+
+// What the side menu shows between the pages and the areas. Without `menu` it is the shortcuts and links.
+export function menuGroups(config, links, language) {
+  if (config.menu?.groups) return config.menu.groups;
+  return [
+    { items: config.shortcuts.filter((item) => item.name).map((item) => ({ shortcut: item.name })) },
+    { items: links.map(({ key, icon, path, admin }) => ({ name: translate(language, key), icon, path, ...(admin ? { admin } : {}) })) },
+  ];
+}
+
+export function shownMenu(hass, config, links) {
+  const shortcuts = shownShortcuts(hass, config);
+  const guest = guestModeHolds(hass, config);
+  const shown = (item) => (!item.admin || hass.user?.is_admin) && !(item.hide_for_guests && guest);
+  const resolved = (item) => {
+    if (!item.shortcut) return [item];
+    const block = shortcuts.find(({ name }) => name === item.shortcut);
+    return block ? [{ ...item, name: item.name ?? block.name, icon: item.icon ?? block.icon, block }] : [];
+  };
+  return menuGroups(config, links, hass.language)
+    .map((group) => ({ ...group, items: (group.items ?? []).filter(shown).flatMap(resolved) }))
+    .filter(({ items }) => items.length);
 }
 
 export function shownShortcuts(hass, config) {
@@ -1128,6 +1203,7 @@ export function watchedEntityIds(hass, config, selection, areas = []) {
   const cameras = [...cameraCandidates(hass, config), hero, ...tiles, guest?.entity, ...privacy].filter(Boolean);
   const laidOut = [
     ...config.scenes,
+    ...config.media.sections.flatMap((section) => section.tiles ?? []),
     ...config.layout.flatMap((room) => [
       ...(room.home ?? []),
       ...(room.sections ?? []).flatMap((section) => section.tiles),

@@ -36,6 +36,14 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Status](docs/screenshots/pl/status.png) | ![Odjazdy](docs/screenshots/pl/departures.png) | ![Rok szkolny](docs/screenshots/pl/school.png) | ![Plakietki](docs/screenshots/pl/chips.png) |
 
+| Powiadomienia | Aplikacja w oknie | Bloki | Edycja bloku |
+|---|---|---|---|
+| ![Powiadomienia](docs/screenshots/pl/notifications.png) | ![Aplikacja w oknie](docs/screenshots/pl/app.png) | ![Bloki](docs/screenshots/pl/blocks.png) | ![Edycja bloku](docs/screenshots/pl/block-editor.png) |
+
+| Edycja menu | Kategorie mediów |
+|---|---|
+| ![Edycja menu](docs/screenshots/pl/menu-editor.png) | ![Kategorie mediów](docs/screenshots/pl/media-editor.png) |
+
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
 Zrzuty pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
@@ -69,6 +77,7 @@ sensory i sceny dodajesz tylko ręcznie.
 
 - Grupa świateł zastępuje swoje lampy. Ustaw `lights.prefer_groups: false`, aby pokazać każdą lampę.
 - Odtwarzacze będące tym samym głośnikiem scala `media.group_patterns`.
+- `media.sections` układa stronę Media we własne grupy kafelków, które trafiają też do filtra Media na stronie głównej.
 - Dotknięcie okrągłej ikony przełącza światło, a dotknięcie kafelka otwiera sterowanie.
 - Podsumowania filtrują stronę: klimat, światła, ochrona, media.
 - Menu prowadzi do wszystkich stron i, dla administratorów, do ustawień dashboardu. Pokój otwiera się
@@ -120,6 +129,8 @@ tego pokoju na stronie głównej. Nic nie trafia na serwer przed **Zapisz**, a z
 zmiany. Bloki można tu przenosić i usuwać, a dodawać w edytorze YAML.
 
 ### Skróty
+
+Administrator dodaje je i edytuje w formularzu: trzy kropki na stronie głównej → **Bloki**. Opis pól jest też niżej i w przewodniku.
 
 `shortcuts` dodaje przyciski za chipami na stronie głównej i w menu. Każdy to blok (`kind: panel`) albo
 ekran szkoły (`kind: school`), przegląd domu (`kind: overview`, opis w przewodniku) albo odjazdy (`kind: departures` z `entities`, encjami z atrybutem `list`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu

@@ -36,6 +36,14 @@ Status: early version.
 |---|---|---|---|
 | ![Status](docs/screenshots/en/status.png) | ![Departures](docs/screenshots/en/departures.png) | ![School year](docs/screenshots/en/school.png) | ![Chips](docs/screenshots/en/chips.png) |
 
+| Notifications | App in a window | Blocks | Block editor |
+|---|---|---|---|
+| ![Notifications](docs/screenshots/en/notifications.png) | ![App in a window](docs/screenshots/en/app.png) | ![Blocks](docs/screenshots/en/blocks.png) | ![Block editor](docs/screenshots/en/block-editor.png) |
+
+| Menu editor | Media categories |
+|---|---|
+| ![Menu editor](docs/screenshots/en/menu-editor.png) | ![Media categories](docs/screenshots/en/media-editor.png) |
+
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
 The screenshots show a made-up home from `dev/demo.js`, and the camera pictures are free CC0 photos of
@@ -69,6 +77,7 @@ scenes are added only by hand.
 
 - A light group replaces its member lights. Set `lights.prefer_groups: false` to show every lamp.
 - Media players that are the same speaker are merged with `media.group_patterns`.
+- `media.sections` puts the media page in your own groups of tiles, which also join the Media filter on Home.
 - Tapping the round icon toggles a light; tapping the tile opens its controls.
 - Summary chips filter the page: climate, lights, security, media.
 - The menu reaches every page and, for admins, the dashboard settings. A room opens on its own page,
@@ -120,6 +129,8 @@ room on Home. Nothing reaches the server before **Save**; closing the editor dro
 can be moved and removed here, and added in the YAML editor.
 
 ### Shortcuts
+
+Administrators add and edit them in a form: three dots on Home → **Blocks**. The options are also described below and in the guide.
 
 `shortcuts` adds buttons after the chips on Home and to the menu. Each is a block (`kind: panel`) or the
 school screen (`kind: school`), a home overview (`kind: overview`, see the guide) or departures (`kind: departures` with `entities` that keep a `list` attribute). A block can open fully with `fullscreen: true`, show its card at once

@@ -9,7 +9,7 @@ import { tokens } from "./styles.js";
 const MAX_RESULTS = 30;
 const IDLE_MINUTES = [0, 1, 3, 5, 10];
 const PREVIOUS_CONFIG_KEY = "home_dashboard_previous_config";
-const MAPPINGS = ["rooms", "cameras", "intercom", "entities", "media", "lights", "security", "idle"];
+const MAPPINGS = ["rooms", "cameras", "intercom", "entities", "media", "menu", "lights", "security", "idle"];
 const LISTS = ["favorites", "layout", "scenes", "shortcuts"];
 const START_KEY = "home_dashboard_start";
 

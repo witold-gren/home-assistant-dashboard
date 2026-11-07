@@ -19,6 +19,7 @@ import {
   stepTemperature,
 } from "./controls.js";
 import { translate } from "./i18n.js";
+import { NEW_BLOCK_ICONS } from "./block-editor.js";
 import { personalPrefs, savePrefs } from "./prefs.js";
 import { createRecorder } from "./intercom.js";
 import {
@@ -132,11 +133,15 @@ const BACKGROUNDS = [
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const ENTITY_FREE_KINDS = new Set([
   "access",
+  "app",
   "background",
+  "block-edit",
+  "blocks",
   "departures",
   "group",
   "host",
   "intercom",
+  "notifications",
   "page",
   "panel",
   "personal",
@@ -1034,6 +1039,14 @@ export class HomeDashboardSheet extends LitElement {
               </button>
             `
           : nothing}
+        ${this.hass.user?.is_admin && this.sheet.personal
+          ? html`
+              <button class="row off" data-sheet-blocks @click=${() => this._change({ kind: "blocks" })}>
+                <span class="row-icon"><ha-icon icon="mdi:view-grid-plus-outline"></ha-icon></span>
+                <span class="row-text"><strong>${this._t("block_title")}</strong></span>
+              </button>
+            `
+          : nothing}
         ${this.hass.user?.is_admin
           ? html`
               <button class="row off" data-sheet-access @click=${() => this._change({ kind: "access" })}>
@@ -1403,10 +1416,113 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  _renderApp() {
+    return html`
+      ${this._renderHeader(this.sheet.item.name, false, false)}
+      <home-dashboard-app .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-app>
+    `;
+  }
+
+  _renderNotifications() {
+    return html`
+      ${this._renderHeader(this._t("notifications_title"), false, false)}
+      <home-dashboard-notifications .hass=${this.hass}></home-dashboard-notifications>
+    `;
+  }
+
   _renderOverview() {
     return html`
       ${this._renderHeader(this.sheet.item.name, false, false)}
       <home-dashboard-overview .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-overview>
+    `;
+  }
+
+  _saveShortcuts(shortcuts, renamed) {
+    this.dispatchEvent(new CustomEvent("sheet-shortcuts", { detail: { shortcuts, renamed } }));
+  }
+
+  _renderBlocks() {
+    const shortcuts = this.raw?.shortcuts ?? [];
+    const move = (index, delta) => {
+      const next = [...shortcuts];
+      const [moved] = next.splice(index, 1);
+      next.splice(index + delta, 0, moved);
+      this._saveShortcuts(next);
+    };
+    return html`
+      ${this._renderHeader(this._t("block_title"), false, false)}
+      <div class="rows">
+        ${shortcuts.map(
+          (item, index) => html`
+            <div class="order-row" data-block=${item.name}>
+              <span>${item.name}</span>
+              <button aria-label=${this._t("block_edit")} data-block-edit @click=${() => this._change({ kind: "block-edit", item, index })}>
+                <ha-icon icon="mdi:pencil-outline"></ha-icon>
+              </button>
+              <button aria-label=${this._t("personal_up")} ?disabled=${index === 0} @click=${() => move(index, -1)}>
+                <ha-icon icon="mdi:arrow-up"></ha-icon>
+              </button>
+              <button aria-label=${this._t("personal_down")} ?disabled=${index === shortcuts.length - 1} @click=${() => move(index, 1)}>
+                <ha-icon icon="mdi:arrow-down"></ha-icon>
+              </button>
+            </div>
+          `,
+        )}
+        <button class="row off" data-block-media @click=${this._editMediaSections}>
+          <span class="row-icon"><ha-icon icon="mdi:play-box-multiple-outline"></ha-icon></span>
+          <span class="row-text"><strong>${this._t("block_kind_media")}</strong></span>
+        </button>
+        <h3>${this._t("block_add_title")}</h3>
+        <div class="block-actions">
+          ${Object.entries(NEW_BLOCK_ICONS).map(
+            ([kind, icon]) => html`
+              <button class="block-action" data-block-new=${kind} @click=${() => this._change({ kind: "block-edit", item: { kind, name: "", icon } })}>
+                <ha-icon .icon=${icon}></ha-icon>
+                <span>${this._t(`block_kind_${kind}`)}</span>
+              </button>
+            `,
+          )}
+        </div>
+      </div>
+    `;
+  }
+
+  _editMediaSections() {
+    const sections = this.raw?.media?.sections ?? [];
+    const onSave = (item) => this.dispatchEvent(new CustomEvent("sheet-media", { detail: { sections: item.sections ?? [] } }));
+    this._change({ kind: "block-edit", item: { kind: "media", sections }, onSave });
+  }
+
+  _blockSaved(item) {
+    const { onSave, index, item: before } = this.sheet;
+    if (onSave) {
+      onSave(item);
+      this._close();
+      return;
+    }
+    const shortcuts = [...(this.raw?.shortcuts ?? [])];
+    if (index === undefined) shortcuts.push(item);
+    else shortcuts[index] = item;
+    const renamed = before.name && before.name !== item.name ? { from: before.name, to: item.name } : null;
+    this._saveShortcuts(shortcuts, renamed);
+  }
+
+  _blockRemoved() {
+    this._saveShortcuts((this.raw?.shortcuts ?? []).filter((_, position) => position !== this.sheet.index));
+  }
+
+  _renderBlockEdit() {
+    const { item, index } = this.sheet;
+    return html`
+      ${this._renderHeader(item.name || this._t(`block_kind_${item.kind}`), false, false)}
+      <home-dashboard-block-editor
+        .hass=${this.hass}
+        .item=${item}
+        .shortcuts=${(this.raw?.shortcuts ?? []).map(({ name }) => name)}
+        ?removable=${index !== undefined}
+        @block-save=${(event) => this._blockSaved(event.detail.item)}
+        @block-remove=${this._blockRemoved}
+      ></home-dashboard-block-editor>
     `;
   }
 
@@ -1524,6 +1640,18 @@ export class HomeDashboardSheet extends LitElement {
           <span class="row-icon"><ha-icon icon="mdi:check"></ha-icon></span>
           <span class="row-text"><strong>${this._t("save")}</strong></span>
         </button>
+        ${this.sheet.onBlock && item.kind === "panel"
+          ? html`
+              <button
+                class="row off"
+                data-tile-block
+                @click=${() => this._change({ kind: "block-edit", item, onSave: this.sheet.onBlock })}
+              >
+                <span class="row-icon"><ha-icon icon="mdi:pencil-outline"></ha-icon></span>
+                <span class="row-text"><strong>${this._t("block_edit")}</strong></span>
+              </button>
+            `
+          : nothing}
         <button class="row off" data-tile-remove @click=${remove}>
           <span class="row-icon"><ha-icon icon="mdi:delete-outline"></ha-icon></span>
           <span class="row-text"><strong>${this._t("edit_remove_tile")}</strong></span>
@@ -2110,6 +2238,10 @@ export class HomeDashboardSheet extends LitElement {
       school: this._renderSchool,
       weather: this._renderWeather,
       departures: this._renderDepartures,
+      app: this._renderApp,
+      notifications: this._renderNotifications,
+      blocks: this._renderBlocks,
+      "block-edit": this._renderBlockEdit,
       overview: this._renderOverview,
       host: this._renderHost,
       page: this._renderPage,
@@ -2122,7 +2254,7 @@ export class HomeDashboardSheet extends LitElement {
     };
     const dark = this.sheet.kind === "camera";
     const { item } = this.sheet;
-    const whole = dark || ["host", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    const whole = dark || ["app", "block-edit", "blocks", "host", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     return html`
       <div class="scrim" @click=${this._close}></div>
       <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""}"></div>

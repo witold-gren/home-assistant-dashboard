@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>App</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        font-family: Roboto, Arial, sans-serif;
+        color: #e8e8ec;
+        background: #1c1d22;
+      }
+      h1 {
+        margin: 4px 0 12px;
+        font-size: 18px;
+        font-weight: 500;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Camera Manager</h1>
+    <div class="grid">
+      <img src="/dev/demo-pictures/driveway.jpg" alt="" />
+      <img src="/dev/demo-pictures/garden.jpg" alt="" />
+      <img src="/dev/demo-pictures/living.jpg" alt="" />
+      <img src="/dev/demo-pictures/hall.jpg" alt="" />
+    </div>
+  </body>
+</html>

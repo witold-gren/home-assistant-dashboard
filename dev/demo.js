@@ -195,6 +195,10 @@ function buildHass() {
   add("select.vacuum_power", null, "balanced", { friendly_name: say("Power", "Moc"), options: ["quiet", "balanced", "turbo"] });
   add("media_player.kitchen_homepod", "kitchen", "idle", { friendly_name: say("Kitchen speaker", "Głośnik w kuchni") });
   add("media_player.bedroom_homepod", "bedroom", "idle", { friendly_name: say("Bedroom speaker", "Głośnik w sypialni") });
+  add("media_player.soundbar", "living", "on", { friendly_name: say("Soundbar", "Soundbar") });
+  add("media_player.tv", "living", "off", { friendly_name: say("Television", "Telewizor"), device_class: "tv" });
+  add("media_player.projector", "bedroom", "off", { friendly_name: say("Projector", "Projektor"), device_class: "tv" });
+  add("media_player.streamer", "living", "idle", { friendly_name: say("Streaming box", "Odtwarzacz sieciowy") });
   const cameras = {
     driveway: ["hall", say("Driveway", "Podjazd")],
     garden: ["living", say("Garden", "Ogród")],
@@ -228,6 +232,7 @@ function buildHass() {
     hassUrl: (path) => path,
     callService: async () => {},
     callWS: async (message) =>
+      demoSupervisor(message) ??
       ({
         "config/auth/list": [
           { id: "demo", name: "Alex", is_active: true },
@@ -243,10 +248,47 @@ function buildHass() {
         },
       })[message.type] ?? null,
     connection: {
-      subscribeMessage: async (callback, message) =>
-        callback(message.type === "weather/subscribe_forecast" ? { forecast: demoForecast(message.forecast_type) } : { color_mode: "auto" }),
+      subscribeMessage: async (callback, message) => {
+        if (message.type === "persistent_notification/subscribe") {
+          callback({ type: "current", notifications: demoNotifications(say) });
+          return () => {};
+        }
+        callback(message.type === "weather/subscribe_forecast" ? { forecast: demoForecast(message.forecast_type) } : { color_mode: "auto" });
+        return () => {};
+      },
     },
   };
+}
+
+function demoSupervisor({ type, endpoint }) {
+  if (type !== "supervisor/api") return null;
+  if (endpoint === "/ingress/session") return { session: "demo" };
+  return endpoint.endsWith("/info") ? { ingress_url: "/dev/demo-app.html", state: "started" } : {};
+}
+
+function demoNotifications(say) {
+  const hoursAgo = (hours) => new Date(Date.now() - hours * 3600000).toISOString();
+  const items = [
+    {
+      notification_id: "update",
+      title: say("New version", "Nowa wersja"),
+      message: say("A new version is ready in **Settings**. See [what is new](/config).", "Nowa wersja czeka w **Ustawieniach**. Zobacz [co nowego](/config)."),
+      created_at: hoursAgo(1),
+    },
+    {
+      notification_id: "battery",
+      title: say("Low battery", "Słaba bateria"),
+      message: say("The door sensor has 8% left.", "Czujnik drzwi ma 8%."),
+      created_at: hoursAgo(5),
+    },
+    {
+      notification_id: "backup",
+      title: say("Backup", "Kopia zapasowa"),
+      message: say("The backup finished without problems.", "Kopia zakończyła się bez problemów."),
+      created_at: hoursAgo(26),
+    },
+  ];
+  return Object.fromEntries(items.map((item) => [item.notification_id, item]));
 }
 
 function demoForecast(type) {
@@ -277,7 +319,7 @@ const DASHBOARD = {
   scenes_layout: "row",
   music: { frame: `/dev/demo-music.html?language=${language}` },
   shortcuts: [
-    { kind: "page", name: say("Media", "Media"), icon: "mdi:play-box-multiple-outline", page: "media" },
+    { kind: "page", label: "Media", name: say("Sources", "Źródła"), icon: "mdi:play-box-multiple-outline", page: "media" },
     {
       kind: "panel",
       name: say("Vacuum", "Odkurzacz"),
@@ -348,6 +390,43 @@ const DASHBOARD = {
     { kind: "departures", name: say("Trams", "Tramwaje"), icon: "mdi:tram", entities: ["sensor.tram_4", "sensor.tram_11"] },
     { kind: "school", name: say("School year", "Rok szkolny"), icon: "mdi:school-outline" },
   ],
+  media: {
+    sections: [
+      {
+        title: say("Speakers", "Głośniki"),
+        tiles: [
+          { entity: "media_player.kitchen_homepod", name: say("Kitchen", "Kuchnia") },
+          { entity: "media_player.bedroom_homepod", name: say("Bedroom", "Sypialnia") },
+          { entity: "media_player.soundbar", name: "Soundbar", icon: "mdi:soundbar" },
+        ],
+      },
+      { title: say("Televisions", "Telewizory"), tiles: [{ entity: "media_player.tv", name: say("Television", "Telewizor"), icon: "mdi:television" }] },
+      { title: say("Projectors", "Projektory"), tiles: [{ entity: "media_player.projector", name: say("Projector", "Projektor"), icon: "mdi:projector" }] },
+      { title: say("Other", "Inne"), tiles: [{ entity: "media_player.streamer", name: say("Streaming box", "Odtwarzacz sieciowy") }] },
+    ],
+  },
+  menu: {
+    groups: [
+      {
+        items: [
+          { shortcut: say("Sources", "Źródła"), name: say("Media sources", "Media (Źródła)") },
+          { shortcut: say("Vacuum", "Odkurzacz") },
+          { shortcut: "Status" },
+          { shortcut: say("Trams", "Tramwaje") },
+          { shortcut: say("School year", "Rok szkolny") },
+          { name: "Camera Manager", icon: "mdi:cctv", addon: "demo_camera_manager", hide_for_guests: true },
+          { name: say("Notifications", "Powiadomienia"), icon: "mdi:bell-outline", action: "notifications" },
+        ],
+      },
+      {
+        items: [
+          { name: say("History", "Historia"), icon: "mdi:chart-box-outline", path: "/history" },
+          { name: say("Logbook", "Dziennik"), icon: "mdi:format-list-bulleted", path: "/logbook" },
+          { name: say("Settings", "Ustawienia"), icon: "mdi:cog-outline", path: "/config", admin: true },
+        ],
+      },
+    ],
+  },
   cameras: { snapshot_platforms: ["frigate"] },
   intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"] },
   visibility: { "light.shelf": { only: ["kid"] }, "switch.coffee": { except: ["kid"] } },

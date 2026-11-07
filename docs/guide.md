@@ -332,6 +332,148 @@ entities:
     cover.window_3: {area: bedroom, name: Blind, icon: mdi:blinds}
 ```
 
+### The block editor
+
+Three dots on Home → **Blocks** (administrators) lists all shortcuts. Here you add a new block and set their order, and
+the pencil opens a form. Status, Departures, Machines (`kind: host`), Block (`kind: panel`), Page and School year have
+one, with their sections, rows and buttons. Entities are suggested as you type, and a Home Assistant card goes in as
+YAML in its field. A block standing in a room opens from the room editor: tile → **Edit the block**. A shortcut can have a `label`, a small text above its
+name. Options the form does not know stay in the block untouched. After a rename the rules of **User access** follow the block, while the order
+and hiding in someone's **My layout** have to be set again.
+
+| Blocks | Form |
+|---|---|
+| ![Blocks](screenshots/en/blocks.png) | ![Form](screenshots/en/block-editor.png) |
+
+### The side menu
+
+The three bars open the menu: pages, your groups, settings and areas. Administrators arrange the groups with **Edit the
+menu** at the very bottom. A group can have a title, and an entry has a name, an icon and one of three: the **Address** of
+a Home Assistant page (it suggests panels such as `/config`), a **Shortcut** by name, or the **Action** `notifications`,
+which opens a window of notifications, live, where they can be dismissed. **Administrators only** hides an entry from the others, and **Hide in guest mode** hides
+it while guest mode holds for the account: use it for cameras, so the entry does not get around the block. With no menu
+of your own it shows the shortcuts and the basic links.
+
+| Menu editor | Notifications |
+|---|---|
+| ![Menu editor](screenshots/en/menu-editor.png) | ![Notifications](screenshots/en/notifications.png) |
+
+```yaml
+menu:
+  groups:
+    - items:
+        - {shortcut: Status}
+        - {name: Cameras, icon: mdi:cctv, path: /my_camera_panel, hide_for_guests: true}
+        - {name: Notifications, icon: mdi:bell-outline, action: notifications}
+    - title: System
+      items:
+        - {name: Settings, icon: mdi:cog-outline, path: /config, admin: true}
+```
+
+### Apps in a window
+
+An add-on with a web interface, such as Frigate, opens in a window of the dashboard. In the menu put its id in the **App**
+field, which suggests the installed add-ons. As a shortcut on Home it is **Blocks → App**:
+
+```yaml
+shortcuts:
+  - {kind: app, name: Frigate, icon: mdi:cctv, addon: abcd1234_frigate}
+menu:
+  groups:
+    - items:
+        - {name: Frigate, icon: mdi:cctv, addon: abcd1234_frigate, hide_for_guests: true}
+```
+
+![App in a window](screenshots/en/app.png)
+
+When the window cannot open, for example because the add-on is off, a message and a button that opens it in Home
+Assistant appear. `frame: http://...` gives a fallback address for such cases.
+
+### The school year from your own data
+
+`kind: school` reads sensors and assumes nothing about where they come from, so your own add-on or a template that
+provides them is enough. `sources` changes the entity names. The data lives in attributes, and the state of a sensor does
+not matter. A tab without data only says so.
+
+```yaml
+shortcuts:
+  - kind: school
+    name: School year
+    icon: mdi:school-outline
+    children: [Lena, Kuba]            # the order; other children go last
+    sources:
+      plan: sensor.my_timetable       # sensor.rodzinnik_plan_lekcji by default
+      grades: sensor.my_grades        # sensor.rodzinnik_oceny
+      events: sensor.my_calendar      # sensor.rodzinnik_terminarz
+      meals: sensor.my_meals          # sensor.rodzinnik_obiady
+      duties: sensor.my_duties        # sensor.rodzinnik_obowiazki
+      jobs: sensor.my_jobs            # sensor.rodzinnik_prace
+      bank: sensor.my_bank            # sensor.rodzinnik_bank
+      librus: sensor.my_school_events # sensor.rodzinnik_librus
+```
+
+The children and their tabs come from `plan`. Dates look like `2026-11-09` and times like `08:00`. Day names are shown
+as you send them, in any language, and a weekend is recognised by its date.
+
+```yaml
+# plan: the children attribute
+children:
+  - child: Lena
+    days:
+      - date: "2026-11-09"
+        name: Monday
+        is_today: true
+        no_lessons: false              # true crosses out the lessons of the day
+        events: [...]                  # as below
+        lessons:
+          - {number: 1, start: "08:00", end: "08:45", subject: Maths, teacher: Anna Nowak, classroom: "12",
+             type: lesson, canceled: false, substitution: false, note: ""}   # type: extra is an extra activity
+
+# event: an event in days[].events and in librus
+- {date: "2026-11-09", title: School trip, start: "08:00", end: "15:00", place: Museum, description: "",
+   instead_of_lessons: false, important: true}
+
+# librus: the children attribute, important events of Today and Tomorrow and the events of the calendar
+children:
+  - {child: Lena, events: [...]}
+
+# events: the children attribute, entries of the calendar
+children:
+  - child: Lena
+    entries:
+      - {date: "2026-11-10", kind: Test, title: Maths, description: Fractions, start: "10:10"}
+
+# grades: the children attribute
+children:
+  - child: Lena
+    semester: 1
+    subjects:
+      - subject: Maths
+        averages: {semester_1: 4.5, year: 4.5}
+        grades: [{grade: "5", category: test, is_new: true, proposition: false}]
+
+# meals: the variants attribute
+variants:
+  - variant: school
+    label: School
+    available: true
+    days:
+      - {name: Monday, meals: [{meal: Lunch, items: [{name: Soup}, {name: Pasta}]}]}
+
+# duties: the week_start, week_end and children attributes, optionally previous_week and next_week of the same shape
+children:
+  - {child: Lena, child_color: "#f5ec00", avatar: "https://...", set: Kitchen, color: "#77bb41", tasks: [Dishes], free_week: false}
+
+# jobs: the jobs attribute
+jobs:
+  - {name: Raking, description: Leaves, reward_label: "5 - 10 EUR", limit: {label: once a week}}
+
+# bank: the currency and children attributes
+currency: EUR
+children:
+  - {child: Lena, balance: 65, savings: 10, debt: 0, allowance: {next_payment: "2026-11-09"}}
+```
+
 ## 8. Music, Energy and Map
 
 | Music | Energy | Map | Player |
@@ -359,6 +501,22 @@ are merged with `media.group_patterns`.
 counts twice.
 
 **Map** uses the map card of a dashboard with the address `map`, and lists people below it.
+
+`media.sections`, or the form **Blocks → Media categories** (pictured below), puts the media page in your own groups. Tiles are written as in a room, `kind: tv` and `kind: panel`
+included. Those also standing in the layout of a room show in the Media filter on Home, in their room:
+
+```yaml
+media:
+  sections:
+    - title: Speakers
+      tiles:
+        - {entity: media_player.living_homepod, name: Living room}
+    - title: Televisions
+      tiles:
+        - {kind: tv, entity: media_player.tv, name: Television}
+```
+
+![Media categories](screenshots/en/media-editor.png)
 
 ## 9. People
 

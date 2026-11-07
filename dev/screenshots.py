@@ -149,6 +149,39 @@ def make(browser, base: str, language: str) -> None:
         button.evaluate("(button) => button.click()")
         take(page, folder, name)
 
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-blocks]")
+    take(page, folder, "blocks")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-blocks]")
+    tap(page, f"{SHEET} [data-block='Status'] [data-block-edit]")
+    page.wait_for_selector(f"{SHEET} home-dashboard-block-editor [data-block-save]")
+    take(page, folder, "block-editor")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-blocks]")
+    tap(page, f"{SHEET} [data-block-media]")
+    page.wait_for_selector(f"{SHEET} home-dashboard-block-editor [data-block-save]")
+    take(page, folder, "media-editor")
+
+    for name, target in (("notifications", "[data-menu-action='notifications']"), ("app", "[data-menu-app]")):
+        page = open_page(browser, base, language, PHONE)
+        tap(page, "home-dashboard-page .top-bar button")
+        page.locator(target).evaluate("(button) => button.click()")
+        page.wait_for_timeout(1000)
+        take(page, folder, name)
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page .top-bar button")
+    page.locator("[data-menu-edit]").evaluate("(button) => button.click()")
+    page.wait_for_selector(f"{SHEET} home-dashboard-block-editor [data-block-save]")
+    page.locator(f"{SHEET} home-dashboard-block-editor summary").first.click()
+    take(page, folder, "menu-editor")
+
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
         page = open_page(browser, base, language, PHONE)

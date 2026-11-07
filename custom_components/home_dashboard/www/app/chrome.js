@@ -11,9 +11,11 @@ import {
   buildRoomList,
   normalizeConfig,
   nowPlaying,
+  menuGroups,
   personalize,
+  renameBlockRules,
   selectEntities,
-  shownShortcuts,
+  shownMenu,
 } from "./model.js";
 import { loadPrefs, PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { stopWatchingPresses, watchPresses } from "./press.js";
@@ -160,7 +162,8 @@ export function openDrawer(card) {
 // What someone may be using without touching this page: a form, a recording, a frame or a robot.
 export function holdsScreen(overlay) {
   const sheet = overlay?.sheet;
-  return overlay?.type === "settings" || sheet?.kind === "intercom" || Boolean(sheet?.item?.frame || sheet?.item?.card);
+  const busy = ["app", "intercom"].includes(sheet?.kind);
+  return overlay?.type === "settings" || busy || Boolean(sheet?.item?.frame || sheet?.item?.card);
 }
 
 export function dashboardPath(pathname) {
@@ -498,6 +501,17 @@ export class HomeDashboardChrome extends LitElement {
     return this._saveSettings({ detail: { dashboard } });
   }
 
+  _saveShortcuts(event) {
+    const { shortcuts, renamed } = event.detail;
+    const raw = renamed ? renameBlockRules(this.raw, renamed.from, renamed.to) : this.raw;
+    return this._saveSettings({ detail: { dashboard: { ...raw, shortcuts } } });
+  }
+
+  _saveMedia(event) {
+    const media = { ...this.raw.media, sections: event.detail.sections };
+    return this._saveSettings({ detail: { dashboard: { ...this.raw, media } } });
+  }
+
   _saveAccess(event) {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, access: event.detail.access } } });
   }
@@ -567,10 +581,35 @@ export class HomeDashboardChrome extends LitElement {
     `;
   }
 
+  _renderMenuItem(item) {
+    const icon = html`<ha-icon .icon=${item.icon ?? "mdi:circle-small"}></ha-icon>`;
+    if (item.block) {
+      return html`<button data-drawer-shortcut=${item.name} @click=${() => this._openShortcut(item.block)}>${icon}${item.name}</button>`;
+    }
+    if (item.addon) {
+      const open = () => this.open({ type: "sheet", sheet: { kind: "app", item } });
+      return html`<button data-menu-app=${item.addon} @click=${open}>${icon}${item.name}</button>`;
+    }
+    if (item.action) {
+      return html`<button data-menu-action=${item.action} @click=${() => this._runMenuAction(item.action)}>${icon}${item.name}</button>`;
+    }
+    return html`<button data-link=${item.path} @click=${() => this._pickLink(item.path)}>${icon}${item.name}</button>`;
+  }
+
+  _runMenuAction(action) {
+    if (action === "notifications") this.open({ type: "sheet", sheet: { kind: "notifications" } });
+  }
+
+  _editMenu() {
+    const groups = menuGroups(this._config, LINKS, this.hass.language);
+    const onSave = ({ kind, ...menu }) => this._saveSettings({ detail: { dashboard: { ...this.raw, menu } } });
+    this.open({ type: "sheet", sheet: { kind: "block-edit", item: { kind: "menu", groups }, onSave } });
+  }
+
   _renderDrawer(language) {
     const admin = this.hass.user?.is_admin;
     const rooms = buildRoomList(this.hass, this._config, this._selection);
-    const shortcuts = shownShortcuts(this.hass, this._config);
+    const groups = shownMenu(this.hass, this._config, LINKS);
     return html`
       <div class="scrim" @click=${() => this.close()}></div>
       <aside class="drawer" data-drawer>
@@ -589,36 +628,17 @@ export class HomeDashboardChrome extends LitElement {
             `,
           )}
         </ul>
-        ${shortcuts.length
-          ? html`
-              <hr />
-              <ul>
-                ${shortcuts.map(
-                  (item) => html`
-                    <li>
-                      <button
-                        data-drawer-shortcut=${item.name}
-                        @click=${() => this._openShortcut(item)}
-                      >
-                        <ha-icon .icon=${item.icon}></ha-icon>${item.name}
-                      </button>
-                    </li>
-                  `,
-                )}
-              </ul>
-            `
-          : nothing}
+        ${groups.map(
+          (group) => html`
+            <hr />
+            ${group.title ? html`<h3>${group.title}</h3>` : nothing}
+            <ul>
+              ${group.items.map((item) => html`<li>${this._renderMenuItem(item)}</li>`)}
+            </ul>
+          `,
+        )}
         <hr />
         <ul>
-          ${LINKS.filter((link) => admin || !link.admin).map(
-            (link) => html`
-              <li>
-                <button data-link=${link.path} @click=${() => this._pickLink(link.path)}>
-                  <ha-icon .icon=${link.icon}></ha-icon>${translate(language, link.key)}
-                </button>
-              </li>
-            `,
-          )}
           ${admin
             ? html`<li>
                 <button data-settings @click=${() => this.open({ type: "settings" })}>
@@ -636,6 +656,18 @@ export class HomeDashboardChrome extends LitElement {
                     <li><button data-jump=${room.id} @click=${() => this._pickRoom(room.id)}>${room.name}</button></li>
                   `,
                 )}
+              </ul>
+            `
+          : nothing}
+        ${admin
+          ? html`
+              <hr />
+              <ul>
+                <li>
+                  <button data-menu-edit @click=${this._editMenu}>
+                    <ha-icon icon="mdi:pencil-outline"></ha-icon>${translate(language, "menu_edit")}
+                  </button>
+                </li>
               </ul>
             `
           : nothing}
@@ -667,6 +699,9 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-home=${this._pickHome}
       @sheet-edit=${this._editScreen}
       @sheet-access=${this._saveAccess}
+      @sheet-shortcuts=${this._saveShortcuts}
+      @sheet-media=${this._saveMedia}
+      @sheet-link=${(event) => this._pickLink(event.detail.path)}
       @sheet-background=${this._saveBackground}
       @sheet-details=${this._details}
     ></home-dashboard-sheet>`;
@@ -864,6 +899,13 @@ export class HomeDashboardChrome extends LitElement {
       }
       .drawer button.active {
         background: var(--hd-pill);
+      }
+      .drawer h3 {
+        margin: 0;
+        padding: 4px 24px 0;
+        color: var(--hd-text-muted);
+        font-size: 13px;
+        font-weight: 500;
       }
       .drawer hr {
         margin: 8px 16px;
