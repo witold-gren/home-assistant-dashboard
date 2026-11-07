@@ -1,7 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-11-07)
 
+- The school screen shows the important events of today and tomorrow at the top, for all children, and the plan shows the events of each day. The calendar of a child adds them to the entries of the school.
+- `kind: overview`: a shortcut with the time, the date and only what needs a look right now, by rules set in its `sections`; `bottom: true` keeps a section at the very bottom.
+- My layout has a Chips tab: everyone orders and hides the chips of Home for themselves. It opens from Home only.
+- User access has a Chips tab, and "Everyone but me" hides something from all the others at once.
+- `kind: departures`: a shortcut with the next tram or bus large and the coming times of every line.
+- The volume changes while the slider moves, not when it is let go, in the player and on the remote.
+- Tiles in a row have the size of ordinary tiles, and a name on two lines no longer makes a tile taller.
+- `cameras.guest.users` limits guest mode to chosen accounts, by name or id.
 - Weather: the first chip on Home shows the temperature and opens a screen with the current readings and
   the hourly and daily forecast. `weather.entity` and `weather.forecast` choose the entities, `weather: false`
   turns it off.

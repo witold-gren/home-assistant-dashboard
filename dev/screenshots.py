@@ -106,8 +106,31 @@ def make(browser, base: str, language: str) -> None:
     take(page, folder, "switch")
 
     page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page .camera")
+    take(page, folder, "camera")
+
+    page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page [data-weather]")
     take(page, folder, "weather")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-shortcut='{}']".format("Tramwaje" if language == "pl" else "Trams"))
+    take(page, folder, "departures")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-shortcut='Status']")
+    take(page, folder, "status")
+
+    page = open_page(browser, base, language, PHONE)
+    school = "Rok szkolny" if language == "pl" else "School year"
+    tap(page, f"home-dashboard-page [data-shortcut='{school}']")
+    take(page, folder, "school")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-personal]")
+    tap(page, f"{SHEET} [data-tab='chips']")
+    take(page, folder, "chips")
 
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-chrome .mini-open")

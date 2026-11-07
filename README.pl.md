@@ -28,9 +28,13 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Roleta](docs/screenshots/pl/blind.png) | ![Przełącznik](docs/screenshots/pl/switch.png) | ![Tło ekranu](docs/screenshots/pl/background.png) | ![Mój układ](docs/screenshots/pl/layout.png) |
 
-| Dostęp użytkowników | Energia |
-|---|---|
-| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) |
+| Dostęp użytkowników | Energia | Kamera |
+|---|---|---|
+| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) | ![Kamera](docs/screenshots/pl/camera.png) |
+
+| Status | Odjazdy | Rok szkolny | Plakietki |
+|---|---|---|---|
+| ![Status](docs/screenshots/pl/status.png) | ![Odjazdy](docs/screenshots/pl/departures.png) | ![Rok szkolny](docs/screenshots/pl/school.png) | ![Plakietki](docs/screenshots/pl/chips.png) |
 
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
@@ -118,11 +122,14 @@ zmiany. Bloki można tu przenosić i usuwać, a dodawać w edytorze YAML.
 ### Skróty
 
 `shortcuts` dodaje przyciski za chipami na stronie głównej i w menu. Każdy to blok (`kind: panel`) albo
-ekran szkoły (`kind: school`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu
+ekran szkoły (`kind: school`), przegląd domu (`kind: overview`, opis w przewodniku) albo odjazdy (`kind: departures` z `entities`, encjami z atrybutem `list`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu
 pokazywać kartę (`auto_card: true`), zostawiać kartę administratorom (`admin_card: true`, a pozostali
 widzą `frame`) i nazywać przycisk karty przez `card_label` i `card_icon`. `tone` wybiera kolor ikony (green, purple,
 teal, pink), a bez niego kolory idą po kolei. Akcja może wywołać usługę
 swojej encji: `{name: Start, entity: vacuum.robot, service: vacuum.start}`.
+
+Ekran szkoły u góry pokazuje ważne wydarzenia na dziś i jutro, wszystkich dzieci razem (`important` w wydarzeniach z
+`sensor.rodzinnik_librus`), plan lekcji pokazuje wszystkie wydarzenia danego dnia, a terminarz dziecka dokłada je do wpisów ze szkoły.
 
 ### Pogoda
 
@@ -176,7 +183,9 @@ Trzy kropki → **Mój układ**: każdy ustawia kolejność i ukrywa kamery oraz
 zapisuje się na koncie w Home Assistant, więc jest taki sam na każdym urządzeniu tej osoby, i nie
 wymaga konta administratora. Lista kamer dotyczy strony głównej, pokoi i Ochrony.
 
-Trzy kropki → **Dostęp użytkowników** (administrator): wybierasz osobę i ukrywasz jej obszary, kamery,
+Trzy kropki na stronie głównej → **Mój układ** (każdy): kolejność i ukrywanie kamer, obszarów i plakietek strony głównej.
+
+Trzy kropki → **Dostęp użytkowników** (administrator): wybierasz osobę albo **Wszyscy oprócz mnie** i ukrywasz jej obszary, kamery,
 sceny, skrypty, światła, media, ochronę i inne encje. W zakładce Inne są też bloki i skróty, np. Frigate.
 Zapisuje się to w `access` jako `{<id użytkownika>: {rooms: [...], hide: [...]}}`.
 Ukrycie obszaru ukrywa też jego kamery. Ta osoba nie przywróci sobie tych pozycji.
@@ -336,13 +345,15 @@ paska, nawet gdy dopiszesz ją do `snapshot_platforms`.
 Filtr **Ochrona** chowa pasek i pokazuje wszystkie kamery jedna pod drugą. Na ekranie kamery pasek
 miniatur przełącza między kamerami, a przełączenie zatrzymuje strumień poprzedniej.
 
-`cameras.guest` ukrywa wskazane kamery, gdy włączony jest tryb gościa, na każdym urządzeniu:
+`cameras.guest` ukrywa wskazane kamery, gdy włączony jest tryb gościa. Bez `users` działa na każdym koncie.
+Z `users` działa tylko na podanych kontach, po nazwie lub identyfikatorze, np. na koncie tabletu na ścianie:
 
 ```yaml
 cameras:
   guest:
     entity: input_boolean.guest
     hide: [camera.living_room, camera.bedroom]
+    users: [Tablet]
 ```
 
 Dotknięcie obrazu otwiera go na pełnym ekranie, nadal bez strumienia. **Oglądaj na żywo** uruchamia

@@ -131,6 +131,56 @@ function buildHass() {
     supported_features: 152463,
     volume_level: 0.35,
   });
+  const departures = (line, direction, ...times) =>
+    add(`sensor.tram_${line}`, null, "ok", {
+      friendly_name: `${line} ${direction}`,
+      list: times.map(([departure, minutes, delay = 0]) => ({ line, direction, departure, time_to_departure: minutes, delay })),
+    });
+  departures("4", say("HARBOUR", "PORT"), ["09:46", 4], ["10:06", 24], ["10:26", 44]);
+  departures("11", say("OLD TOWN", "STARE MIASTO"), ["09:53", 11, 120], ["10:13", 31], ["10:33", 51]);
+  const lesson = (number, start, end, subject, teacher) => ({ type: "lesson", number, start, end, subject, teacher, classroom: "12" });
+  const today = new Date();
+  const isoDay = (offset) => {
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+    return [day.getFullYear(), String(day.getMonth() + 1).padStart(2, "0"), String(day.getDate()).padStart(2, "0")].join("-");
+  };
+  const schoolEvent = (title, offset, extra = {}) => ({ date: isoDay(offset), title, start: null, end: null, place: "", description: "", instead_of_lessons: false, important: true, ...extra });
+  const trip = schoolEvent(say("School trip", "Wycieczka szkolna"), 0, { start: "08:00", end: "15:00", place: say("Museum", "Muzeum") });
+  const formal = schoolEvent(say("Formal outfit", "Strój galowy"), 1);
+  add("sensor.rodzinnik_librus", null, "0", {
+    children: [
+      { child: "Lena", events: [trip] },
+      { child: "Kuba", events: [formal] },
+    ],
+  });
+  add("sensor.rodzinnik_plan_lekcji", null, isoDay(0), {
+    children: [
+      {
+        child: "Lena",
+        days: [
+          {
+            date: isoDay(0),
+            name: say("Today", "Dzisiaj"),
+            is_today: true,
+            events: [trip],
+            lessons: [
+              lesson(1, "08:00", "08:45", say("Maths", "Matematyka"), "Anna Nowak"),
+              lesson(2, "08:55", "09:40", say("English", "Język angielski"), "Jan Kowalski"),
+              lesson(3, "09:50", "10:35", say("Science", "Przyroda"), "Anna Nowak"),
+            ],
+          },
+        ],
+      },
+      { child: "Kuba", days: [] },
+    ],
+  });
+  add("sensor.bedroom_temperature", null, "17.5", { friendly_name: say("Bedroom", "Sypialnia"), unit_of_measurement: "°C" });
+  add("sensor.car_range", null, "80", { friendly_name: say("Car range", "Zasięg auta"), unit_of_measurement: "km" });
+  add("sensor.door_battery", null, "8", { friendly_name: say("Door sensor", "Czujnik drzwi"), unit_of_measurement: "%", device_class: "battery" });
+  add("sensor.washer_state", null, "Running", { friendly_name: say("Washer", "Pralka") });
+  add("sensor.washer_program", null, say("Cottons", "Bawełna"), {});
+  add("sensor.washer_phase", null, say("Spin", "Wirowanie"), {});
+  add("sensor.washer_left", null, "25 min", {});
   add("scene.morning", null, stamp(), { friendly_name: say("Good morning", "Dzień dobry"), icon: "mdi:weather-sunny" });
   add("scene.movie", null, stamp(), { friendly_name: say("Movie", "Film"), icon: "mdi:movie-open-outline" });
   add("scene.night", null, stamp(), { friendly_name: say("Good night", "Dobranoc"), icon: "mdi:weather-night" });
@@ -258,8 +308,48 @@ const DASHBOARD = {
         },
       ],
     },
+    {
+      kind: "overview",
+      name: "Status",
+      icon: "mdi:clipboard-pulse-outline",
+      sections: [
+        {
+          title: say("Needs a look", "Wymaga uwagi"),
+          alert: true,
+          items: [
+            { name: say("Cold room", "Zimno w pokoju"), icon: "mdi:snowflake", entities: ["sensor.bedroom_temperature"], below: 19, unit: "°" },
+            { name: say("Low fuel", "Mało paliwa"), icon: "mdi:gas-station", entities: ["sensor.car_range"], below: 100 },
+            { name: say("Batteries", "Baterie"), icon: "mdi:battery-alert", auto: "battery", below: 11 },
+          ],
+        },
+        {
+          title: say("At home", "W domu"),
+          items: [{ name: say("Lights on", "Włączone światła"), icon: "mdi:lightbulb-on", entities: ["light.sofa", "light.shelf", "light.counter"] }],
+        },
+        {
+          title: say("Working", "W pracy"),
+          items: [
+            {
+              name: say("Washer", "Pralka"),
+              icon: "mdi:washing-machine",
+              entity: "sensor.washer_state",
+              state: ["Running"],
+              labels: { Running: say("Washing", "Pierze") },
+              facts: [
+                { name: say("Program", "Program"), entity: "sensor.washer_program" },
+                { name: say("Phase", "Faza"), entity: "sensor.washer_phase" },
+                { name: say("Left", "Zostało"), entity: "sensor.washer_left" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    { kind: "departures", name: say("Trams", "Tramwaje"), icon: "mdi:tram", entities: ["sensor.tram_4", "sensor.tram_11"] },
+    { kind: "school", name: say("School year", "Rok szkolny"), icon: "mdi:school-outline" },
   ],
   cameras: { snapshot_platforms: ["frigate"] },
+  intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"] },
   visibility: { "light.shelf": { only: ["kid"] }, "switch.coffee": { except: ["kid"] } },
   layout: [
     {

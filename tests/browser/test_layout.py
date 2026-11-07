@@ -649,6 +649,41 @@ def test_guest_mode_also_empties_the_thumbnails(phone):
     assert not set(thumbs) & set(dashboard["cameras"]["guest"]["hide"])
 
 
+def mount_as(page, dashboard: dict, user: dict) -> None:
+    page.evaluate(
+        """async ({ dashboard, user }) => {
+            window.hass = window.dashboard.hass({ user });
+            window.card = await window.dashboard.mount(window.hass, dashboard, "home");
+        }""",
+        {"dashboard": dashboard, "user": user},
+    )
+
+
+@pytest.mark.parametrize("rule", ["Tablet", "tablet-id"])
+def test_guest_mode_holds_for_the_listed_account(phone, rule):
+    dashboard = guest_dashboard(phone)
+    dashboard["cameras"]["guest"]["users"] = [rule]
+    set_state(phone, "input_boolean.guest", "on")
+    mount_as(phone, dashboard, {"id": "tablet-id", "name": "Tablet", "is_admin": True})
+    assert not set(shown_cameras(phone)) & set(dashboard["cameras"]["guest"]["hide"])
+
+
+def test_guest_mode_leaves_other_accounts_alone(phone):
+    dashboard = guest_dashboard(phone)
+    dashboard["cameras"]["guest"]["users"] = ["Tablet"]
+    set_state(phone, "input_boolean.guest", "on")
+    mount_as(phone, dashboard, {"id": "someone", "name": "Someone", "is_admin": True})
+    assert set(dashboard["cameras"]["guest"]["hide"]) <= set(shown_cameras(phone))
+
+
+def test_guest_mode_does_not_blur_a_room_for_other_accounts(phone):
+    dashboard = guest_dashboard(phone)
+    dashboard["cameras"]["guest"]["users"] = ["Tablet"]
+    set_state(phone, "input_boolean.guest", "on")
+    mount_as(phone, dashboard, {"id": "someone", "name": "Someone", "is_admin": True})
+    assert phone.locator("home-dashboard-page .camera.guest").count() == 0
+
+
 def test_cameras_come_back_when_guests_leave(phone):
     dashboard = guest_dashboard(phone)
     set_state(phone, "input_boolean.guest", "off")

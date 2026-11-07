@@ -938,7 +938,7 @@ def test_access_sorts_entities_into_tabs_and_blocks_into_other(phone):
     assert "light.a" in result["lights"]
     assert "lock.a" in result["security"]
     assert "media_player.a" in result["media"]
-    assert {"switch.a", "block:Frigate", "block:Host"} <= set(result["other"])
+    assert {"switch.a", "block:Frigate"} <= set(result["other"])
 
 
 def test_a_hidden_block_and_shortcut_are_gone_for_that_person(phone):
@@ -974,7 +974,7 @@ def test_the_tabs_of_access_fit_in_one_scrolling_row(phone):
     tops = phone.locator(f"{SHEET} [data-tab]").evaluate_all(
         "(tabs) => tabs.map((tab) => Math.round(tab.getBoundingClientRect().top))"
     )
-    assert len(tops) == 7
+    assert len(tops) == 8
     assert len(set(tops)) == 1
 
 
@@ -1481,6 +1481,25 @@ def test_scenes_on_home_can_be_a_row(phone):
     add_entity(phone, "scene.a", "2026-01-01", {})
     mount(phone, {"scenes": [{"entity": "scene.a"}], "scenes_layout": "row"})
     assert "row" in phone.locator("home-dashboard-page [data-scenes] .tiles").get_attribute("class")
+
+
+@pytest.mark.parametrize("size", ["phone", "tablet"])
+def test_scenes_in_a_row_match_the_ordinary_tiles(size, request):
+    page = request.getfixturevalue(size)
+    names = ["Dobranoc", "Wyciszenie Wszystkie"]
+    for index, name in enumerate(names):
+        add_entity(page, f"scene.s{index}", "2026-01-01", {"friendly_name": name})
+    mount(page, {"scenes": [{"entity": f"scene.s{i}", "name": name} for i, name in enumerate(names)], "scenes_layout": "row"})
+    sizes = page.locator("home-dashboard-page .tile").evaluate_all(
+        """(tiles) => {
+            const size = (tile) => { const box = tile.getBoundingClientRect(); return [Math.round(box.width), Math.round(box.height)]; };
+            return { scenes: tiles.filter((tile) => tile.closest("[data-scenes]")).map(size),
+                     others: tiles.filter((tile) => !tile.closest("[data-scenes]")).map(size) };
+        }"""
+    )
+    assert sizes["others"]
+    assert len(sizes["scenes"]) == 2
+    assert all(scene == sizes["others"][0] for scene in sizes["scenes"])
 
 
 def test_the_scenes_editor_saves_the_row(phone):

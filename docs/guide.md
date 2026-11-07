@@ -133,7 +133,7 @@ weather:
   forecast: weather.forecast_home
 ```
 
-`weather: false` removes the chip. **User access** hides it from one person, under **Other**.
+`weather: false` removes the chip. **User access** hides it from one person, under **Chips**.
 
 ![Weather](screenshots/en/weather.png)
 
@@ -175,6 +175,11 @@ in a small picture, blurred and marked as unavailable. The Security chip lists a
 Tapping a picture opens it without a stream. **Watch live** starts one, from a camera on the same device or
 from `cameras.live: {image.door_last_screen: camera.door}`.
 
+The button next to it speaks to the camera's area. It appears when the [intercom](#11-intercom) is set up and
+that area is one of its areas.
+
+![Camera](screenshots/en/camera.png)
+
 ### Guest mode and privacy
 
 ```yaml
@@ -185,6 +190,9 @@ cameras:
   private:
     - {entity: switch.bedroom_privacy, hide: [camera.bedroom]}
 ```
+
+Add `users: [Tablet]` to `guest` to make it hold only for those accounts, by name or id. Everyone else keeps
+seeing the cameras.
 
 While `guest` is on, these cameras leave Home and Security, and stay on their room's page blurred. While a
 `private` switch is on, the camera is gone from every page.
@@ -235,6 +243,70 @@ The same block can stand in a room: put it among the tiles in `layout`.
 | `card`, `card_open`, `card_last` | A Home Assistant card in the block: on a button, at once, or below the groups. |
 | `frame` | A web page on the whole screen. |
 | `tone` | Icon colour of a shortcut: green, purple, teal or pink. |
+
+The home overview is `kind: overview`: a clock, the date and only what is worth a look now. An item with nothing to show disappears,
+and a section goes with its last item. A section with `alert: true` counts towards the summary by the clock, and `bottom: true` always stands at the very
+bottom. `title` is optional. Tapping an
+entity opens its details.
+
+```yaml
+shortcuts:
+  - kind: overview
+    name: Status
+    icon: mdi:clipboard-pulse-outline
+    sections:
+      - title: Needs a look
+        alert: true
+        items:
+          - name: Cold room
+            icon: mdi:snowflake
+            attribute: current_temperature
+            unit: "°"
+            below: 19
+            entities: [{entity: climate.bedroom, name: Bedroom}]
+          - {name: Batteries, icon: mdi:battery-alert, auto: battery, below: 11}
+      - title: At home
+        items:
+          - {name: Open windows, icon: mdi:window-open-variant, entities: [binary_sensor.window]}
+      - title: Working
+        items:
+          - name: Washer
+            icon: mdi:washing-machine
+            entity: sensor.washer_state
+            state: [Running]
+            labels: {Running: Washing}
+            facts: [{name: Program, entity: sensor.washer_program}]
+      - title: Sunday
+        items:
+          - {name: Service, icon: mdi:church, text: "8.00, 10.00", weekdays: [7]}
+```
+
+| Item | When it shows |
+|---|---|
+| `entities` | When an entity is in `state` (`on` by default). An entity is an id or `{entity, name}`. |
+| `entities` with `below` | When the value is lower than `below`. `attribute` reads it from an attribute, `unit` gives the unit. |
+| `auto: battery` with `below` | Finds batteries itself: percentages of entities with `battery` in the id or the `battery` class. |
+| `list` | When a list in an attribute is not empty: `{entity, attribute, name, detail, since}` name its fields. |
+| `entity` with `state` | When a device is in one of the states. `labels` describes the state, `facts` shows values. |
+| `text` | Always, and with `weekdays` (1 is Monday, 7 is Sunday) and `months` only on those days and months. |
+
+`weekdays` and `months` work in every item.
+
+![Status](screenshots/en/status.png)
+
+Tram and bus departures are `kind: departures`. The next one is large, and under it every line shows its coming
+times and any delay. The entities must keep the departures in a `list` attribute (`line`, `direction`, `departure`,
+`time_to_departure`, `delay`):
+
+```yaml
+shortcuts:
+  - kind: departures
+    name: Trams
+    icon: mdi:tram
+    entities: [sensor.tram_4, sensor.tram_11]
+```
+
+![Departures](screenshots/en/departures.png)
 
 Other shortcuts: `{kind: page, name: Media, icon: mdi:play, page: media}` opens a page in a sheet, and
 `kind: host` shows machines with `columns`. A TV has `kind: tv`, with `entity`, `on`, `off` and `shortcuts`,
@@ -294,7 +366,7 @@ counts twice.
 |---|---|---|
 | ![Background](screenshots/en/background.png) | ![My layout](screenshots/en/layout.png) | ![User access](screenshots/en/access.png) |
 
-**My layout** (three dots, for everyone): the order of cameras and areas, and what to hide. It is kept with
+**My layout** (three dots on Home, for everyone): the order of cameras, areas and the chips of Home, and what to hide. It is kept with
 the account, so it follows the person to all their devices.
 
 **Background of this screen** (three dots, for everyone): a gradient, a colour or a picture for Home or a room,
@@ -302,7 +374,10 @@ separately for the light and dark look. **For everyone** appears for administrat
 Without it the background stays with that account. A person's own background beats the default.
 
 **User access** (three dots, administrators): choose a person and hide areas, cameras, lights, media, security,
-scenes, scripts, other entities and blocks.
+scenes, scripts, other entities and blocks. The **Chips** tab holds the weather, the chips and the shortcuts, and a
+hidden shortcut also leaves that person's menu and **My layout**. **Everyone but me** hides something from all other
+accounts at once, such as administrative blocks. It covers the accounts that exist when you save it, so set it
+separately for a new user.
 
 **Who sees this** (a tile in the editor): Everyone, Only chosen or All except. It applies to the entity
 everywhere, your own account included. In the editor an administrator still sees everything: a green tile is

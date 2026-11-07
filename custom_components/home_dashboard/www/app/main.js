@@ -8,6 +8,8 @@ import { HomeDashboardPage } from "./page.js";
 import { HomeDashboardSchool } from "./school.js";
 import { HomeDashboardSettings } from "./settings.js";
 import { HomeDashboardSheet } from "./sheet.js";
+import { HomeDashboardDepartures } from "./departures.js";
+import { HomeDashboardOverview } from "./overview.js";
 import { HomeDashboardWeather } from "./weather.js";
 
 const PAGES = ["home", "room", "media", "music", "energy", "map"];
@@ -23,6 +25,8 @@ define("home-dashboard-settings", HomeDashboardSettings);
 define("home-dashboard-intercom", HomeDashboardIntercom);
 define("home-dashboard-school", HomeDashboardSchool);
 define("home-dashboard-weather", HomeDashboardWeather);
+define("home-dashboard-departures", HomeDashboardDepartures);
+define("home-dashboard-overview", HomeDashboardOverview);
 define("home-dashboard-host", HomeDashboardHost);
 
 export function generateDashboard(config, hass) {

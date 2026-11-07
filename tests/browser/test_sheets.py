@@ -339,6 +339,76 @@ def test_mini_player_pauses_and_opens_the_full_player(phone):
     assert calls(phone)[-1]["data"]["entity_id"] == speaker
 
 
+VOLUME = "home-dashboard-sheet .volume input"
+
+
+def open_player(page) -> str:
+    speaker = playing_speaker(page)
+    mount(page)
+    page.locator(".mini-open").click()
+    page.wait_for_selector(VOLUME)
+    return speaker
+
+
+def move_volume(page, *values: int) -> None:
+    page.locator(VOLUME).evaluate(
+        """(slider, values) => {
+            for (const value of values) {
+                slider.value = String(value);
+                slider.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+            }
+        }""",
+        list(values),
+    )
+
+
+def volumes(page) -> list:
+    return [call["data"]["volume_level"] for call in calls(page) if call.get("service") == "volume_set"]
+
+
+def test_the_volume_follows_the_slider_before_it_is_let_go(phone):
+    speaker = open_player(phone)
+    move_volume(phone, 50)
+    assert volumes(phone) == [0.5]
+    assert calls(phone)[-1]["data"]["entity_id"] == speaker
+
+
+def test_a_fast_slider_sends_the_last_value_and_not_every_step(phone):
+    open_player(phone)
+    move_volume(phone, 50, 55, 60, 65)
+    assert volumes(phone) == [0.5]
+    phone.wait_for_function("window.hass.calls.filter((call) => call.service === 'volume_set').length === 2")
+    assert volumes(phone) == [0.5, 0.65]
+    phone.wait_for_timeout(400)
+    assert volumes(phone) == [0.5, 0.65]
+
+
+def test_the_slider_does_not_jump_back_while_the_player_catches_up(phone):
+    speaker = open_player(phone)
+    move_volume(phone, 80)
+    phone.evaluate(
+        """(id) => {
+            const sheet = document.querySelector("home-dashboard-chrome").shadowRoot.querySelector("home-dashboard-sheet");
+            const stateObj = sheet.hass.states[id];
+            const attributes = { ...stateObj.attributes, volume_level: 0.45 };
+            sheet.hass = { ...sheet.hass, states: { ...sheet.hass.states, [id]: { ...stateObj, attributes } } };
+        }""",
+        speaker,
+    )
+    phone.wait_for_timeout(100)
+    assert phone.locator(VOLUME).input_value() == "80"
+
+
+def test_the_slider_shows_the_player_again_after_the_move(phone):
+    open_player(phone)
+    move_volume(phone, 80)
+    phone.wait_for_function(
+        """() => document.querySelector("home-dashboard-chrome").shadowRoot
+            .querySelector("home-dashboard-sheet").shadowRoot.querySelector(".volume input").value === "40" """,
+        timeout=4000,
+    )
+
+
 def test_player_model(phone):
     result = phone.evaluate(
         """(attributes) => {

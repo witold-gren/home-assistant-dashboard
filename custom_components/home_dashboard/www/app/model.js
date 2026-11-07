@@ -510,7 +510,8 @@ function isInDeniedArea(hass, entityId, config) {
 
 function hiddenFromGuests(hass, entityId, config) {
   const { guest } = config.cameras;
-  return Boolean(guest) && hass.states[guest.entity]?.state === "on" && guest.hide.includes(entityId);
+  if (!guest || hass.states[guest.entity]?.state !== "on" || !guest.hide.includes(entityId)) return false;
+  return !guest.users || guest.users.includes(hass.user?.id) || guest.users.includes(hass.user?.name);
 }
 
 // A camera that stopped working keeps its place, so it is clear that something is wrong with it.
@@ -548,8 +549,8 @@ function cameraEntry(hass, entityId) {
   };
 }
 
-const inOrder = (ids, order) => {
-  const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
+const inOrder = (ids, order, idOf = (id) => id) => {
+  const rank = (id) => (order.includes(idOf(id)) ? order.indexOf(idOf(id)) : order.length);
   return [...ids].sort((a, b) => rank(a) - rank(b));
 };
 
@@ -601,6 +602,7 @@ export function personalize(config, userId, prefs = {}) {
     denied,
     deniedAreas,
     personalBackgrounds: prefs.backgrounds ?? {},
+    chipLayout: { order: prefs.chips ?? [], hidden: [...denied, ...(prefs.hidden_chips ?? [])] },
     rooms: {
       ...config.rooms,
       order: prefs.rooms?.length ? prefs.rooms : config.rooms.order,
@@ -621,7 +623,10 @@ export function personalChoices(hass, raw, userId, prefs = {}) {
   const hiddenRooms = prefs.hidden_rooms ?? [];
   const hiddenCameras = prefs.hidden_cameras ?? [];
   const cameras = new Map(buildCameras(hass, allowed).map((camera) => [camera.entityId, camera]));
+  const hiddenChips = prefs.hidden_chips ?? [];
+  const chips = homeChips(hass, allowed).filter(({ id }) => !allowed.denied.includes(id));
   return {
+    chips: inOrder(chips, prefs.chips ?? [], ({ id }) => id).map((chip) => ({ ...chip, hidden: hiddenChips.includes(chip.id) })),
     cameras: inOrder([...cameras.keys()], prefs.cameras ?? []).map((id) => ({
       id,
       name: cameras.get(id).name,
@@ -651,11 +656,12 @@ export function accessChoices(hass, raw) {
     .filter((id) => hass.states[id] && !ACCESS_ELSEWHERE.has(domainOf(id)))
     .map((id) => ({ ...named(id), name: names.get(id) ?? named(id).name }));
   const group = (domains) => entities.filter(({ id }) => domains.has(domainOf(id)));
-  const blocks = [...items, ...config.shortcuts]
+  const blocks = items
     .filter((item) => item.name && !item.entity)
     .map((item) => ({ id: blockKey(item), name: item.name }));
   const unique = [...new Map(blocks.map((block) => [block.id, block])).values()];
   return {
+    chips: homeChips(hass, config),
     rooms: buildRoomList(hass, config, selection),
     cameras: buildCameras(hass, config).map((camera) => ({ id: camera.entityId, name: camera.name })),
     actions: sorted([...of("scene"), ...of("script")]),
@@ -753,6 +759,23 @@ export function applyFilter(model, key, language) {
     cameraList: key === "security" ? model.cameras : [],
     rooms: key === "security" ? [...securityGroup(model), ...rooms] : rooms,
   };
+}
+
+export const chipKey = (key) => `chip:${key}`;
+
+// Everything that can stand in the row on Home, in its shared order.
+function homeChips(hass, config) {
+  const fixed = [...(buildWeather(hass, config) ? ["weather"] : []), "climate", "lights", "security", "media"];
+  return [
+    ...fixed.map((key) => ({ id: chipKey(key), name: translate(hass.language, `chip_${key}`) })),
+    ...config.shortcuts.filter((item) => item.name).map((item) => ({ id: blockKey(item), name: item.name })),
+  ];
+}
+
+// A chip that filters the page stays until the filter is off, or nothing could turn it off.
+export function arrangeChips(entries, config, selected) {
+  const { order, hidden } = config.chipLayout;
+  return inOrder(entries, order, ({ id }) => id).filter(({ id }) => id === selected || !hidden.includes(id));
 }
 
 export function buildChips(hass, selection) {

@@ -132,7 +132,7 @@ weather:
   forecast: weather.forecast_home
 ```
 
-`weather: false` usuwa chip. **Dostęp użytkowników** ukrywa go przed jedną osobą, w zakładce **Inne**.
+`weather: false` usuwa chip. **Dostęp użytkowników** ukrywa go przed jedną osobą, w zakładce **Plakietki**.
 
 ![Pogoda](screenshots/pl/weather.png)
 
@@ -173,6 +173,11 @@ okienku, rozmyta i oznaczona jako niedostępna. Chip Ochrona pokazuje wszystkie 
 Dotknięcie obrazu otwiera go bez strumienia. **Oglądaj na żywo** uruchamia strumień z kamery tego samego urządzenia
 albo z `cameras.live: {image.door_last_screen: camera.door}`.
 
+Przycisk obok mówi do obszaru kamery. Pojawia się, gdy [intercom](#11-intercom) jest skonfigurowany, a ten obszar
+należy do jego obszarów.
+
+![Kamera](screenshots/pl/camera.png)
+
 ### Tryb gościa i prywatność
 
 ```yaml
@@ -183,6 +188,9 @@ cameras:
   private:
     - {entity: switch.bedroom_privacy, hide: [camera.bedroom]}
 ```
+
+Dodaj `users: [Tablet]` do `guest`, żeby działał tylko na tych kontach, po nazwie lub identyfikatorze. Pozostali
+dalej widzą kamery.
 
 Gdy `guest` jest włączony, te kamery znikają ze strony głównej i Ochrony, a na stronie pokoju zostają rozmyte.
 Gdy włączony jest przełącznik z `private`, kamera znika ze wszystkich stron.
@@ -233,6 +241,69 @@ Ten sam blok może stać w pokoju: wstaw go między kafelki w `layout`.
 | `card`, `card_open`, `card_last` | Karta Home Assistant w bloku: na przycisk, od razu albo pod grupami. |
 | `frame` | Strona WWW na cały ekran. |
 | `tone` | Kolor ikony skrótu: green, purple, teal lub pink. |
+
+Ekran stanu domu to `kind: overview`: zegar, data i tylko to, co teraz warto zobaczyć. Pozycja bez niczego do pokazania znika, a razem
+z ostatnią pozycją znika cała sekcja. Sekcja z `alert: true` liczy się do podsumowania przy zegarze, a `bottom: true` stoi zawsze na samym dole. `title` można pominąć. Dotknięcie encji
+otwiera jej szczegóły.
+
+```yaml
+shortcuts:
+  - kind: overview
+    name: Status
+    icon: mdi:clipboard-pulse-outline
+    sections:
+      - title: Wymaga uwagi
+        alert: true
+        items:
+          - name: Zimno w pokoju
+            icon: mdi:snowflake
+            attribute: current_temperature
+            unit: "°"
+            below: 19
+            entities: [{entity: climate.bedroom, name: Sypialnia}]
+          - {name: Baterie, icon: mdi:battery-alert, auto: battery, below: 11}
+      - title: W domu
+        items:
+          - {name: Otwarte okna, icon: mdi:window-open-variant, entities: [binary_sensor.window]}
+      - title: W pracy
+        items:
+          - name: Pralka
+            icon: mdi:washing-machine
+            entity: sensor.washer_state
+            state: [Running]
+            labels: {Running: Pierze}
+            facts: [{name: Program, entity: sensor.washer_program}]
+      - title: Niedziela
+        items:
+          - {name: Msza, icon: mdi:church, text: "8.00, 10.00", weekdays: [7]}
+```
+
+| Pozycja | Kiedy się pokazuje |
+|---|---|
+| `entities` | Gdy encja ma stan `state` (domyślnie `on`). Encja to identyfikator albo `{entity, name}`. |
+| `entities` z `below` | Gdy wartość jest mniejsza niż `below`. `attribute` czyta ją z atrybutu, a `unit` podaje jednostkę. |
+| `auto: battery` z `below` | Same wyszukuje baterie: procenty w encjach z `battery` w nazwie lub klasą `battery`. |
+| `list` | Gdy lista w atrybucie nie jest pusta: `{entity, attribute, name, detail, since}` to nazwy pól. |
+| `entity` ze `state` | Gdy urządzenie jest w jednym ze stanów. `labels` opisuje stan, a `facts` pokazuje wartości. |
+| `text` | Zawsze, a z `weekdays` (1 to poniedziałek, 7 to niedziela) i `months` tylko w te dni i miesiące. |
+
+`weekdays` i `months` działają w każdej pozycji.
+
+![Status](screenshots/pl/status.png)
+
+Odjazdy tramwajów i autobusów to `kind: departures`. Najbliższy odjazd jest duży, a pod nim każda linia z kolejnymi
+godzinami i opóźnieniem. Encje muszą trzymać odjazdy w atrybucie `list` (`line`, `direction`, `departure`,
+`time_to_departure`, `delay`):
+
+```yaml
+shortcuts:
+  - kind: departures
+    name: Tramwaje
+    icon: mdi:tram
+    entities: [sensor.tram_4, sensor.tram_11]
+```
+
+![Odjazdy](screenshots/pl/departures.png)
 
 Inne skróty: `{kind: page, name: Media, icon: mdi:play, page: media}` otwiera stronę w oknie, a `kind: host`
 pokazuje maszyny z `columns`. Telewizor to `kind: tv` z `entity`, `on`, `off` i `shortcuts`, a telewizor webOS sam
@@ -292,7 +363,7 @@ podrzędne, inaczej policzy się podwójnie.
 |---|---|---|
 | ![Tło](screenshots/pl/background.png) | ![Mój układ](screenshots/pl/layout.png) | ![Dostęp użytkowników](screenshots/pl/access.png) |
 
-**Mój układ** (trzy kropki, dla każdego): kolejność kamer i obszarów oraz to, co ukryć. Zapisuje się na koncie, więc
+**Mój układ** (trzy kropki na stronie głównej, dla każdego): kolejność kamer, obszarów i plakietek na stronie głównej oraz to, co ukryć. Zapisuje się na koncie, więc
 działa na wszystkich urządzeniach tej osoby.
 
 **Tło tego ekranu** (trzy kropki, dla każdego): gradient, kolor lub zdjęcie dla strony głównej albo pokoju, osobno dla
@@ -300,7 +371,9 @@ jasnego i ciemnego wyglądu. **Dla wszystkich** widzą administratorzy i ustawia
 na koncie tej osoby. Własne tło wygrywa z domyślnym.
 
 **Dostęp użytkowników** (trzy kropki, administratorzy): wybierz osobę i ukryj jej obszary, kamery, światła, media,
-ochronę, sceny, skrypty, inne encje i bloki.
+ochronę, sceny, skrypty, inne encje i bloki. Zakładka **Plakietki** zawiera pogodę, chipy i skróty, a ukryty skrót znika
+też z menu i z **Mojego układu** tej osoby. Opcja **Wszyscy oprócz mnie** ukrywa coś od razu wszystkim innym kontom, na
+przykład bloki administracyjne. Dotyczy kont istniejących w chwili zapisu, więc nowemu użytkownikowi ustaw to osobno.
 
 **Kto to widzi** (kafelek w edycji): Wszyscy, Tylko wybrani albo Wszyscy oprócz. Dotyczy encji wszędzie, także Twojego
 konta. W edycji administrator i tak widzi wszystko: kafelek zielony widzą tylko wybrane osoby, a czerwony jest przed

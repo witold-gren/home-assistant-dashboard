@@ -77,15 +77,15 @@ def add_school(page) -> None:
         "week_start": "2026-11-02",
         "week_end": "2026-11-08",
         "children": [
-            {"child": "Zofia", "child_color": "#f5ec00", "set": "Salon", "color": "#77bb41", "tasks": ["Kurze", "Zakupy"]},
+            {"child": "Ola", "child_color": "#f5ec00", "set": "Salon", "color": "#77bb41", "tasks": ["Kurze", "Zakupy"]},
             {"child": "Kuba", "set": "Zmywarka", "color": "#112233", "tasks": ["Naczynia"]},
-            {"child": "Hanna", "free_week": True},
+            {"child": "Ewa", "free_week": True},
         ],
     }
-    later = {"week_start": "2026-11-09", "week_end": "2026-11-15", "children": [{"child": "Zofia", "set": "Kuchnia", "tasks": []}]}
+    later = {"week_start": "2026-11-09", "week_end": "2026-11-15", "children": [{"child": "Ola", "set": "Kuchnia", "tasks": []}]}
     add_entity(page, "sensor.rodzinnik_obowiazki", "x", {**week, "next_week": later})
     add_entity(page, "sensor.rodzinnik_prace", "1", {"jobs": [{"name": "Grabienie", "reward_label": "5 do 10 zł", "description": "Liście"}]})
-    add_entity(page, "sensor.rodzinnik_bank", "1", {"currency": "PLN", "children": [{"child": "Zofia", "balance": 65, "savings": 10, "debt": 0}]})
+    add_entity(page, "sensor.rodzinnik_bank", "1", {"currency": "PLN", "children": [{"child": "Ola", "balance": 65, "savings": 10, "debt": 0}]})
 
 
 def open_school(page) -> None:
@@ -365,7 +365,7 @@ def test_lunch_shows_only_what_is_available(phone):
 def test_chores_show_each_child_with_the_set_and_tasks(phone):
     open_school(phone)
     tab(phone, "tab", "duties")
-    card = phone.locator("home-dashboard-school [data-duty='Zofia']")
+    card = phone.locator("home-dashboard-school [data-duty='Ola']")
     assert "Salon" in card.inner_text()
     assert card.locator("li").all_inner_texts() == ["Kurze", "Zakupy"]
     assert phone.locator("home-dashboard-school [data-duty]").count() == 3
@@ -374,7 +374,7 @@ def test_chores_show_each_child_with_the_set_and_tasks(phone):
 def test_a_free_week_is_named(phone):
     open_school(phone)
     tab(phone, "tab", "duties")
-    assert "Wolny tydzień" in phone.locator("home-dashboard-school [data-duty='Hanna']").inner_text()
+    assert "Wolny tydzień" in phone.locator("home-dashboard-school [data-duty='Ewa']").inner_text()
 
 
 def test_weeks_can_be_changed_only_where_there_is_data(phone):
@@ -386,7 +386,7 @@ def test_weeks_can_be_changed_only_where_there_is_data(phone):
     assert phone.locator("home-dashboard-school [data-week='previous']").is_disabled()
     phone.locator("home-dashboard-school [data-week='next']").click()
     assert "Następny tydzień" in label.inner_text()
-    assert "Kuchnia" in phone.locator("home-dashboard-school [data-duty='Zofia']").inner_text()
+    assert "Kuchnia" in phone.locator("home-dashboard-school [data-duty='Ola']").inner_text()
     assert phone.locator("home-dashboard-school [data-week='next']").is_disabled()
 
 

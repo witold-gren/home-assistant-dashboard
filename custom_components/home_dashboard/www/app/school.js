@@ -13,6 +13,7 @@ const DEFAULT_SOURCES = {
   duties: "sensor.rodzinnik_obowiazki",
   jobs: "sensor.rodzinnik_prace",
   bank: "sensor.rodzinnik_bank",
+  librus: "sensor.rodzinnik_librus",
 };
 const CHILD_VIEWS = ["plan", "grades", "events"];
 const COMMON_TABS = ["meals", "duties", "jobs", "bank"];
@@ -33,7 +34,23 @@ export function currentDayIndex(days) {
 }
 
 export function shownDays(days) {
-  return days.filter((day) => day.lessons?.length || !["Sobota", "Niedziela"].includes(day.name));
+  return days.filter((day) => day.lessons?.length || day.events?.length || !["Sobota", "Niedziela"].includes(day.name));
+}
+
+const isoDate = (date) =>
+  [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+
+// Each account of a child has its own entry, so the same event comes once per account.
+export function familyEvents(children) {
+  const events = (children ?? []).flatMap(({ child, events: own }) => (own ?? []).map((event) => ({ ...event, child })));
+  return [...new Map(events.map((event) => [`${event.child}|${event.date}|${event.title}|${event.start}`, event])).values()];
+}
+
+export function importantEvents(children, now = new Date()) {
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const important = familyEvents(children).filter((event) => event.important);
+  const on = (date) => important.filter((event) => event.date === isoDate(date));
+  return { today: on(now), tomorrow: on(tomorrow) };
 }
 
 export function subjectAverage(subject, semester) {
@@ -102,11 +119,49 @@ export class HomeDashboardSchool extends LitElement {
     `;
   }
 
+  _eventDetails(event) {
+    return [event.instead_of_lessons ? this._t("school_instead_of_lessons") : "", event.place, event.description]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  _renderEventRow(event) {
+    return html`
+      <div class="row day-event" data-day-event>
+        <span class="time">
+          ${event.start ?? html`<ha-icon icon="mdi:calendar-star"></ha-icon>`}<small>${event.end ?? ""}</small>
+        </span>
+        <span class="main">
+          <strong>${event.title}</strong>
+          <small>${[event.child, this._eventDetails(event)].filter(Boolean).join(" · ")}</small>
+        </span>
+      </div>
+    `;
+  }
+
+  _renderImportantDay(key, events) {
+    if (!events.length) return nothing;
+    return html`
+      <section data-important=${key}>
+        <h3>${this._t(key)}</h3>
+        ${events.map((event) => this._renderEventRow(event))}
+      </section>
+    `;
+  }
+
+  _renderImportant() {
+    const { today, tomorrow } = importantEvents(this._attribute("librus", "children"));
+    return html`
+      ${this._renderImportantDay("school_today", today)} ${this._renderImportantDay("school_tomorrow", tomorrow)}
+    `;
+  }
+
   _renderPlan(name) {
     const days = shownDays(this._child("plan", name)?.days ?? []);
     if (!days.length) return html`<p class="empty">${this._t("school_no_data")}</p>`;
     const index = Math.min(this._day ?? currentDayIndex(days), days.length - 1);
     const lessons = days[index].lessons ?? [];
+    const events = days[index].events ?? [];
     return html`
       ${this._tabs(
         String(index),
@@ -116,10 +171,11 @@ export class HomeDashboardSchool extends LitElement {
         },
         "day",
       )}
-      ${lessons.length ? nothing : html`<p class="empty">${this._t("school_no_lessons")}</p>`}
+      ${events.map((event) => this._renderEventRow(event))}
+      ${lessons.length || events.length ? nothing : html`<p class="empty">${this._t("school_no_lessons")}</p>`}
       ${lessons.map(
         (lesson) => html`
-          <div class="row ${lesson.canceled ? "canceled" : ""}" data-lesson>
+          <div class="row ${lesson.canceled || (days[index].no_lessons && lesson.type !== "extra") ? "canceled" : ""}" data-lesson>
             <span class="time">${lesson.start}<small>${lesson.end}</small></span>
             <span class="main">
               <strong>${lesson.number != null ? `${lesson.number}. ` : ""}${lesson.subject}</strong>
@@ -162,15 +218,24 @@ export class HomeDashboardSchool extends LitElement {
   }
 
   _renderEvents(name) {
-    const entries = this._child("events", name)?.entries ?? [];
+    const school = (this._child("events", name)?.entries ?? []).map((entry) => ({
+      ...entry,
+      title: `${entry.kind}: ${entry.title}`,
+      details: entry.description ?? "",
+    }));
+    const own = familyEvents(this._attribute("librus", "children"))
+      .filter((event) => event.child === name)
+      .map((event) => ({ ...event, details: this._eventDetails(event), own: true }));
+    const moment = ({ date, start }) => `${date} ${start ?? ""}`;
+    const entries = [...school, ...own].sort((first, second) => moment(first).localeCompare(moment(second)));
     if (!entries.length) return html`<p class="empty">${this._t("school_no_events")}</p>`;
     return entries.map(
       (entry) => html`
-        <div class="row" data-event>
+        <div class="row ${entry.own ? "day-event" : ""}" data-event>
           <span class="time">${entry.date?.slice(5).split("-").reverse().join(".")}<small>${entry.start ?? ""}</small></span>
           <span class="main">
-            <strong>${entry.kind}: ${entry.title}</strong>
-            <small>${entry.description ?? ""}</small>
+            <strong>${entry.title}</strong>
+            <small>${entry.details}</small>
           </span>
         </div>
       `,
@@ -338,6 +403,7 @@ export class HomeDashboardSchool extends LitElement {
     };
     return html`
       <div class="content">
+        ${this._renderImportant()}
         ${this._tabs(
           tab,
           tabs,
@@ -398,6 +464,20 @@ export class HomeDashboardSchool extends LitElement {
         padding: 10px 12px;
         border-radius: 14px;
         background: var(--hd-off);
+      }
+      section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      section h3 {
+        margin: 0;
+      }
+      .row.day-event {
+        background: var(--hd-light);
+      }
+      .row.day-event ha-icon {
+        color: var(--hd-light-ink);
       }
       .row.canceled strong {
         text-decoration: line-through;

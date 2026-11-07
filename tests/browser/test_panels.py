@@ -307,6 +307,12 @@ def test_the_remote_starts_a_tv_that_is_off(phone):
     assert (sent["domain"], sent["service"], sent["data"]) == ("remote", "turn_on", {"entity_id": "remote.tv"})
 
 
+def test_the_remote_shows_the_volume_while_it_moves(phone):
+    open_tv(phone, ON_TV)
+    phone.locator("[data-tv-volume]").fill("35")
+    assert "35%" in phone.locator(".range-field h3").text_content()
+
+
 def test_the_remote_controls_the_volume(phone):
     open_tv(phone, ON_TV)
     phone.locator("[data-remote='tv_mute']").click()

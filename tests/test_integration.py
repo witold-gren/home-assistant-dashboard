@@ -92,7 +92,7 @@ def test_every_colour_mode_has_a_name(language: str) -> None:
 
 
 async def test_loader_is_added_with_the_version(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    assert loader_urls(hass) == [f"{STATIC_URL}/{LOADER_FILENAME}?v=0.1.1"]
+    assert loader_urls(hass) == [f"{STATIC_URL}/{LOADER_FILENAME}?v=0.1.2"]
 
 
 async def test_unload_removes_and_reload_restores_the_loader(

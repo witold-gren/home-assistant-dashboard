@@ -28,9 +28,13 @@ Status: early version.
 |---|---|---|---|
 | ![Blind](docs/screenshots/en/blind.png) | ![Switch](docs/screenshots/en/switch.png) | ![Screen background](docs/screenshots/en/background.png) | ![My layout](docs/screenshots/en/layout.png) |
 
-| User access | Energy |
-|---|---|
-| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) |
+| User access | Energy | Camera |
+|---|---|---|
+| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) | ![Camera](docs/screenshots/en/camera.png) |
+
+| Status | Departures | School year | Chips |
+|---|---|---|---|
+| ![Status](docs/screenshots/en/status.png) | ![Departures](docs/screenshots/en/departures.png) | ![School year](docs/screenshots/en/school.png) | ![Chips](docs/screenshots/en/chips.png) |
 
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
@@ -118,11 +122,14 @@ can be moved and removed here, and added in the YAML editor.
 ### Shortcuts
 
 `shortcuts` adds buttons after the chips on Home and to the menu. Each is a block (`kind: panel`) or the
-school screen (`kind: school`). A block can open fully with `fullscreen: true`, show its card at once
+school screen (`kind: school`), a home overview (`kind: overview`, see the guide) or departures (`kind: departures` with `entities` that keep a `list` attribute). A block can open fully with `fullscreen: true`, show its card at once
 with `auto_card: true`, keep the card for administrators with `admin_card: true` (`frame` is shown to
 the others), and name the card's button with `card_label` and `card_icon`. `tone` picks the icon colour (green, purple,
 teal, pink); without it the colours follow the order. An action can call a service
 of its entity: `{name: Start, entity: vacuum.robot, service: vacuum.start}`.
+
+The school screen shows the important events of today and tomorrow at the top, for all children together (`important`
+in the events of `sensor.rodzinnik_librus`), the lesson plan shows all the events of a day, and the calendar of a child adds them to the entries of the school.
 
 ### Weather
 
@@ -177,7 +184,9 @@ Three dots → **My layout**: everyone orders and hides cameras and areas for th
 kept with their Home Assistant account, so it is the same on all their devices, and it needs no
 administrator. The list of cameras applies to Home, rooms and the security filter.
 
-Three dots → **User access** (administrators): choose a person and hide areas, cameras, scenes, scripts,
+Three dots on Home → **My layout** (everyone): the order of cameras, areas and the chips of Home, and what to hide.
+
+Three dots → **User access** (administrators): choose a person or **Everyone but me** and hide areas, cameras, scenes, scripts,
 lights, media, security and other entities from them. The Other tab also has blocks and shortcuts, such as
 Frigate. It is saved in `access` as `{<user id>: {rooms: [...], hide: [...]}}`. Hiding an area hides its
 cameras too. That person cannot bring these items back.
@@ -336,13 +345,15 @@ when it is also added to `snapshot_platforms`.
 The **Security** filter hides the strip and shows every camera one under another. On the camera screen
 a row of thumbnails switches between cameras, and switching stops the stream of the previous one.
 
-`cameras.guest` hides the listed cameras while guest mode is on, on every device:
+`cameras.guest` hides the listed cameras while guest mode is on. Without `users` it holds for every account.
+With `users` it holds only for those accounts, given by name or id, such as the one on a wall tablet:
 
 ```yaml
 cameras:
   guest:
     entity: input_boolean.guest
     hide: [camera.living_room, camera.bedroom]
+    users: [Tablet]
 ```
 
 Tapping a picture opens it full screen, still without a stream. **Watch live** starts one, found on

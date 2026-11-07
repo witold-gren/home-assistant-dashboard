@@ -41,6 +41,9 @@ import {
   playableSources,
   SCENES_ROOM,
   selectEntities,
+  arrangeChips,
+  blockKey,
+  chipKey,
   shownShortcuts,
   watchedEntityIds,
 } from "./model.js";
@@ -468,7 +471,13 @@ export class HomeDashboardPage extends LitElement {
         aria-label=${translate(this._hass.language, "rooms_pick")}
         data-rooms
         @click=${() =>
-          openSheet(this, { kind: "rooms", rooms, onEdit: this._screenEditor, onBackground: this._backgroundEditor })}
+          openSheet(this, {
+            kind: "rooms",
+            rooms,
+            personal: this._page === "home",
+            onEdit: this._screenEditor,
+            onBackground: this._backgroundEditor,
+          })}
       >
         <ha-icon icon="mdi:dots-horizontal"></ha-icon>
       </button>
@@ -524,8 +533,9 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _renderShortcuts() {
-    return shownShortcuts(this._hass, this._config).map(
-      (item, index) => html`
+    return shownShortcuts(this._hass, this._config).map((item, index) => ({
+      id: blockKey(item),
+      view: html`
         <button
           class="chip shortcut"
           data-shortcut=${item.name}
@@ -535,7 +545,28 @@ export class HomeDashboardPage extends LitElement {
           <span><strong>${item.name}</strong></span>
         </button>
       `,
-    );
+    }));
+  }
+
+  _renderChips({ chips, filter, weather }) {
+    const entries = [
+      ...(weather ? [{ id: chipKey("weather"), view: this._renderWeather(weather) }] : []),
+      ...chips.map((chip) => ({
+        id: chipKey(chip.key),
+        view: html`
+          <button
+            class="chip ${chip.key === filter ? `selected ${chip.tone}` : ""}"
+            data-chip=${chip.key}
+            @click=${() => this._toggleFilter(chip.key)}
+          >
+            <ha-icon class=${chip.tone} .icon=${chip.icon}></ha-icon>
+            <span><small>${chip.label}</small><strong>${chip.value}</strong></span>
+          </button>
+        `,
+      })),
+      ...this._renderShortcuts(),
+    ];
+    return arrangeChips(entries, this._config, filter && chipKey(filter)).map(({ view }) => view);
   }
 
   _renderPageTitle(title) {
@@ -620,7 +651,7 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _renderHome() {
-    const { title, chips, filter, weather } = this._model;
+    const { title } = this._model;
     const old = this._leavingModel;
     return html`
       <div class="home-title">
@@ -629,22 +660,7 @@ export class HomeDashboardPage extends LitElement {
           : nothing}</h1>
         ${this._renderHomeActions()}
       </div>
-      <div class="chips">
-        ${this._renderWeather(weather)}
-        ${chips.map(
-          (chip) => html`
-            <button
-              class="chip ${chip.key === filter ? `selected ${chip.tone}` : ""}"
-              data-chip=${chip.key}
-              @click=${() => this._toggleFilter(chip.key)}
-            >
-              <ha-icon class=${chip.tone} .icon=${chip.icon}></ha-icon>
-              <span><small>${chip.label}</small><strong>${chip.value}</strong></span>
-            </button>
-          `,
-        )}
-        ${this._renderShortcuts()}
-      </div>
+      <div class="chips">${this._renderChips(this._model)}</div>
       <div class="stage">
         <div class="stage-now">${this._renderHomeContent(this._model)}</div>
         ${old ? html`<div class="stage-old" aria-hidden="true" inert>${this._renderHomeContent(old)}</div>` : nothing}
@@ -1512,7 +1528,7 @@ export class HomeDashboardPage extends LitElement {
         display: none;
       }
       .tiles.row > .tile {
-        flex: 0 0 176px;
+        flex: 0 0 calc((100% - 8px) / 2);
         box-sizing: border-box;
         scroll-snap-align: start;
       }
@@ -1532,7 +1548,7 @@ export class HomeDashboardPage extends LitElement {
         gap: 12px;
         min-width: 0;
         min-height: 72px;
-        padding: 12px;
+        padding: 7px 12px;
         border-radius: var(--hd-radius);
         background: var(--tile-background);
         transition: background-color 180ms ease;
@@ -2036,8 +2052,11 @@ export class HomeDashboardPage extends LitElement {
         .tiles {
           grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
         }
+        .tiles.row > .tile {
+          flex-basis: 220px;
+        }
         .tile {
-          min-height: 76px;
+          min-height: 80px;
         }
         .icon {
           width: 56px;

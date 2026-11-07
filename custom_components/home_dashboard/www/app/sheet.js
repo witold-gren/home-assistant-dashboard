@@ -56,6 +56,9 @@ const COMMIT_DELAY_MS = 500;
 const COVER_SET_POSITION = 4;
 const COVER_STOP = 8;
 const COVER_TICK_MS = 250;
+const EVERYONE_ELSE = "__everyone_else";
+const VOLUME_STEP_MS = 250;
+const VOLUME_HOLD_MS = 1500;
 const SHEET_LEAVE_MS = 240;
 const SHEET_DRAG_START_PX = 8;
 // Whatever handles a finger itself keeps it: a slider, a dial or a card with its own gestures.
@@ -130,6 +133,7 @@ const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const ENTITY_FREE_KINDS = new Set([
   "access",
   "background",
+  "departures",
   "group",
   "host",
   "intercom",
@@ -139,6 +143,7 @@ const ENTITY_FREE_KINDS = new Set([
   "pin",
   "rooms",
   "school",
+  "overview",
   "tile-edit",
   "tile-picker",
 ]);
@@ -151,6 +156,7 @@ export class HomeDashboardSheet extends LitElement {
     raw: { attribute: false },
     layout: { type: String },
     _draft: { state: true },
+    _volume: { state: true },
     _live: { state: true },
     _tick: { state: true },
     _voice: { state: true },
@@ -174,6 +180,7 @@ export class HomeDashboardSheet extends LitElement {
     this._stopLive();
     clearInterval(this._ticker);
     clearTimeout(this._commitTimer);
+    this._stopVolume();
     this.removeEventListener("touchstart", this._touchStart);
     this.removeEventListener("touchmove", this._touchMove);
     this.removeEventListener("touchend", this._touchEnd);
@@ -191,6 +198,7 @@ export class HomeDashboardSheet extends LitElement {
   willUpdate(changed) {
     if (changed.has("sheet")) {
       this._stopLive();
+      this._stopVolume();
       this._draft = undefined;
       this._voice = null;
       this._pending = null;
@@ -1018,10 +1026,14 @@ export class HomeDashboardSheet extends LitElement {
           `,
         )}
         <hr />
-        <button class="row off" data-sheet-personal @click=${() => this._change({ kind: "personal" })}>
-          <span class="row-icon"><ha-icon icon="mdi:sort"></ha-icon></span>
-          <span class="row-text"><strong>${this._t("personal_title")}</strong></span>
-        </button>
+        ${this.sheet.personal
+          ? html`
+              <button class="row off" data-sheet-personal @click=${() => this._change({ kind: "personal" })}>
+                <span class="row-icon"><ha-icon icon="mdi:sort"></ha-icon></span>
+                <span class="row-text"><strong>${this._t("personal_title")}</strong></span>
+              </button>
+            `
+          : nothing}
         ${this.hass.user?.is_admin
           ? html`
               <button class="row off" data-sheet-access @click=${() => this._change({ kind: "access" })}>
@@ -1097,6 +1109,7 @@ export class HomeDashboardSheet extends LitElement {
         ${this._renderTabs([
           ["cameras", this._t("personal_cameras")],
           ["rooms", this._t("personal_rooms")],
+          ["chips", this._t("personal_chips")],
         ])}
         ${list.map(
           (item, index) => html`
@@ -1133,21 +1146,35 @@ export class HomeDashboardSheet extends LitElement {
     return this._access ?? this.config.access;
   }
 
+  get _accessTargets() {
+    if (this._accessUser !== EVERYONE_ELSE) return [this._accessUser];
+    return (this._users ?? []).map((user) => user.id).filter((id) => id !== this.hass.user?.id);
+  }
+
+  // With several people, only what all of them have hidden counts as hidden.
+  _accessHidden(key) {
+    const [first, ...rest] = this._accessTargets.map((id) => this._accessDraft[id]?.[key] ?? []);
+    return (first ?? []).filter((id) => rest.every((list) => list.includes(id)));
+  }
+
   _toggleAccess(key, id) {
-    const draft = this._accessDraft;
-    const rule = draft[this._accessUser] ?? {};
-    const list = rule[key] ?? [];
-    const next = list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
-    this._access = { ...draft, [this._accessUser]: { ...rule, [key]: next } };
+    const hide = !this._accessHidden(key).includes(id);
+    const draft = { ...this._accessDraft };
+    for (const user of this._accessTargets) {
+      const rule = draft[user] ?? {};
+      const others = (rule[key] ?? []).filter((item) => item !== id);
+      draft[user] = { ...rule, [key]: hide ? [...others, id] : others };
+    }
+    this._access = draft;
   }
 
   _renderAccess() {
     const choices = accessChoices(this.hass, this.raw);
-    const rule = this._accessDraft[this._accessUser] ?? {};
     const key = this._tab === "rooms" ? "rooms" : "hide";
     const query = this._query.toLowerCase();
     const list = (choices[this._tab] ?? []).filter((item) => item.name.toLowerCase().includes(query));
-    const hidden = (id) => (rule[key] ?? []).includes(id);
+    const shut = this._accessHidden(key);
+    const hidden = (id) => shut.includes(id);
     return html`
       ${this._renderHeader(this._t("access_title"), false, false)}
       <div class="rows">
@@ -1157,11 +1184,13 @@ export class HomeDashboardSheet extends LitElement {
             ${(this._users ?? []).map(
               (user) => html`<option value=${user.id} ?selected=${user.id === this._accessUser}>${user.name}</option>`,
             )}
+            <option value=${EVERYONE_ELSE} ?selected=${this._accessUser === EVERYONE_ELSE}>${this._t("access_everyone_else")}</option>
           </select>
         </label>
         ${this._renderTabs([
           ["cameras", this._t("access_cameras")],
           ["rooms", this._t("access_rooms")],
+          ["chips", this._t("personal_chips")],
           ["lights", this._t("access_lights")],
           ["media", this._t("access_media")],
           ["security", this._t("access_security")],
@@ -1176,7 +1205,7 @@ export class HomeDashboardSheet extends LitElement {
           .value=${this._query}
           @input=${(event) => (this._query = event.target.value)}
         />
-        <small>${this._t("access_hidden", { count: (rule.hide?.length ?? 0) + (rule.rooms?.length ?? 0) })}</small>
+        <small>${this._t("access_hidden", { count: this._accessHidden("hide").length + this._accessHidden("rooms").length })}</small>
         ${[...list]
           .sort((a, b) => Number(hidden(b.id)) - Number(hidden(a.id)))
           .map(
@@ -1364,6 +1393,20 @@ export class HomeDashboardSheet extends LitElement {
     return html`
       ${this._renderHeader(this.sheet.item.label, false, false)}
       <home-dashboard-weather .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-weather>
+    `;
+  }
+
+  _renderDepartures() {
+    return html`
+      ${this._renderHeader(this.sheet.item.name, false, false)}
+      <home-dashboard-departures .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-departures>
+    `;
+  }
+
+  _renderOverview() {
+    return html`
+      ${this._renderHeader(this.sheet.item.name, false, false)}
+      <home-dashboard-overview .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-overview>
     `;
   }
 
@@ -1815,7 +1858,7 @@ export class HomeDashboardSheet extends LitElement {
     const sources = rememberedSources(stateObj.entity_id, attributes.source_list);
     const current = attributes.source || attributes.app_name;
     const modes = item.sound_mode ? (attributes.sound_mode_list ?? []).filter((mode) => !mode.startsWith("Unknown")) : [];
-    const volume = Math.round((attributes.volume_level ?? 0) * 100);
+    const volume = this._volume ?? Math.round((attributes.volume_level ?? 0) * 100);
     const taken = (item.shortcuts ?? []).map((shortcut) => matchSource(sources, shortcut.name));
     const rest = sources.filter((source) => !taken.includes(source));
     const button = (key, icon, onTap, active = false) => html`
@@ -1864,7 +1907,7 @@ export class HomeDashboardSheet extends LitElement {
                   min="0"
                   max="100"
                   .value=${String(volume)}
-                  @change=${(event) => this._call("media_player", "volume_set", { volume_level: Number(event.target.value) / 100 })}
+                  @input=${this._volumeInput}
                 />
               </div>
             `
@@ -1939,6 +1982,33 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  // Volume ----------------------------------------------------------------------------------
+
+  // The sound follows the slider while it moves, at a pace a speaker can keep up with. The player
+  // reports its level a moment later, and the slider must not jump back meanwhile.
+  _volumeInput(event) {
+    clearTimeout(this._volumeHold);
+    this._volume = Number(event.target.value);
+    this._volumeHold = setTimeout(() => this._stopVolume(), VOLUME_HOLD_MS);
+    if (!this._volumeTimer) this._sendVolume();
+  }
+
+  _sendVolume() {
+    this._volumeTimer = null;
+    if (this._volume === this._volumeSent) return;
+    this._volumeSent = this._volume;
+    this._call("media_player", "volume_set", { volume_level: this._volume / 100 });
+    this._volumeTimer = setTimeout(() => this._sendVolume(), VOLUME_STEP_MS);
+  }
+
+  _stopVolume() {
+    clearTimeout(this._volumeHold);
+    clearTimeout(this._volumeTimer);
+    this._volumeTimer = null;
+    this._volume = undefined;
+    this._volumeSent = undefined;
+  }
+
   // Player ----------------------------------------------------------------------------------
 
   _renderPlayer() {
@@ -1992,9 +2062,8 @@ export class HomeDashboardSheet extends LitElement {
                   type="range"
                   min="0"
                   max="100"
-                  .value=${String(Math.round(player.volume * 100))}
-                  @change=${(event) =>
-                    this._call("media_player", "volume_set", { volume_level: Number(event.target.value) / 100 })}
+                  .value=${String(this._volume ?? Math.round(player.volume * 100))}
+                  @input=${this._volumeInput}
                 />
               </label>
             `
@@ -2040,6 +2109,8 @@ export class HomeDashboardSheet extends LitElement {
       background: this._renderBackground,
       school: this._renderSchool,
       weather: this._renderWeather,
+      departures: this._renderDepartures,
+      overview: this._renderOverview,
       host: this._renderHost,
       page: this._renderPage,
       pin: this._renderPin,
