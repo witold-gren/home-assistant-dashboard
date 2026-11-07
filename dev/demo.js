@@ -174,6 +174,18 @@ function buildHass() {
       { child: "Kuba", days: [] },
     ],
   });
+  const article = (title, text, source, rating) => ({ title, text, source, rating, votes: 120, source_url: "https://example.org/", url: "https://example.org/" });
+  add("sensor.news_home", null, "ok", {
+    release: say("Edition of the day", "Wydanie dnia"),
+    attribution: say("Sample news", "Przykładowe wiadomości"),
+    news: [
+      article(say("The new tram line opens on Monday", "Nowa linia tramwajowa rusza w poniedziałek"), say("The route links the station with the new housing estates and runs every ten minutes.", "Trasa połączy dworzec z nowymi osiedlami, a tramwaje pojadą co dziesięć minut."), say("City Daily", "Dziennik Miejski"), 4.4),
+      article(say("A warm autumn helps the vineyards", "Ciepła jesień pomaga winnicom"), say("Growers expect the best harvest for years.", "Hodowcy spodziewają się najlepszych zbiorów od lat."), "Radio Demo", 3.9),
+    ],
+  });
+  add("sensor.news_world", null, "ok", {
+    news: [article(say("A new telescope sends its first pictures", "Nowy teleskop przysłał pierwsze zdjęcia"), say("Scientists say the images are sharper than expected.", "Naukowcy mówią, że zdjęcia są ostrzejsze, niż oczekiwano."), "Science Demo", 4.7)],
+  });
   add("sensor.bedroom_temperature", null, "17.5", { friendly_name: say("Bedroom", "Sypialnia"), unit_of_measurement: "°C" });
   add("sensor.car_range", null, "80", { friendly_name: say("Car range", "Zasięg auta"), unit_of_measurement: "km" });
   add("sensor.door_battery", null, "8", { friendly_name: say("Door sensor", "Czujnik drzwi"), unit_of_measurement: "%", device_class: "battery" });
@@ -238,6 +250,7 @@ function buildHass() {
           { id: "demo", name: "Alex", is_active: true },
           { id: "kid", name: say("Sam", "Kuba"), is_active: true },
         ],
+        "logbook/get_events": demoLogbook(say),
         "energy/get_prefs": { energy_sources: [{ type: "grid" }], device_consumption: [{ stat_consumption: "a" }] },
         "media_source/browse_media": {
           children: [
@@ -258,6 +271,18 @@ function buildHass() {
       },
     },
   };
+}
+
+function demoLogbook(say) {
+  const minutesAgo = (minutes) => Date.now() / 1000 - minutes * 60;
+  return [
+    { when: minutesAgo(2), entity_id: "light.sofa", state: "on", context_event_type: "automation_triggered", context_name: say("Evening lights", "Wieczorne światła") },
+    { when: minutesAgo(6), entity_id: "light.counter", state: "on", context_entity_id: "light.sofa", context_state: "on" },
+    { when: minutesAgo(11), entity_id: "cover.living", state: "closed" },
+    { when: minutesAgo(18), entity_id: "light.ceiling", state: "off" },
+    { when: minutesAgo(27), entity_id: "climate.living", state: "heat" },
+    { when: minutesAgo(41), entity_id: "light.table", state: "off", context_event_type: "automation_triggered", context_name: say("Nobody in the kitchen", "Nikogo w kuchni") },
+  ];
 }
 
 function demoSupervisor({ type, endpoint }) {
@@ -389,6 +414,15 @@ const DASHBOARD = {
     },
     { kind: "departures", name: say("Trams", "Tramwaje"), icon: "mdi:tram", entities: ["sensor.tram_4", "sensor.tram_11"] },
     { kind: "school", name: say("School year", "Rok szkolny"), icon: "mdi:school-outline" },
+    {
+      kind: "news",
+      name: say("News", "Wiadomości"),
+      icon: "mdi:newspaper-variant-outline",
+      sections: [
+        { title: say("Home", "Kraj"), entity: "sensor.news_home" },
+        { title: say("World", "Świat"), entity: "sensor.news_world" },
+      ],
+    },
   ],
   media: {
     sections: [
@@ -539,6 +573,14 @@ function streetMap() {
 }
 
 const DEMO_CARDS = {
+  "history-graph": () => {
+    const graph = document.createElement("div");
+    graph.innerHTML = `<svg viewBox="0 0 360 180" style="display: block; width: 100%">
+      <polyline fill="none" stroke="#4d7ea8" stroke-width="3" points="0,120 40,110 80,126 120,96 160,88 200,60 240,72 280,48 320,66 360,54"/>
+      <polyline fill="none" stroke="#cc6f00" stroke-width="3" points="0,150 40,146 80,150 120,140 160,136 200,120 240,126 280,116 320,122 360,118"/>
+    </svg>`;
+    return graph;
+  },
   map: streetMap,
   "demo-floor-plan": floorPlan,
   "energy-usage-graph": energyGraph,

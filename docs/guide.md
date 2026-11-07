@@ -350,9 +350,16 @@ and hiding in someone's **My layout** have to be set again.
 The three bars open the menu: pages, your groups, settings and areas. Administrators arrange the groups with **Edit the
 menu** at the very bottom. A group can have a title, and an entry has a name, an icon and one of three: the **Address** of
 a Home Assistant page (it suggests panels such as `/config`), a **Shortcut** by name, or the **Action** `notifications`,
-which opens a window of notifications, live, where they can be dismissed. **Administrators only** hides an entry from the others, and **Hide in guest mode** hides
+which opens a window of notifications, live, where they can be dismissed. **Administrators only** hides an entry from the others, **Who sees it** limits it to the ticked people (`users`, none ticked means everyone), and **Hide in guest mode** hides
 it while guest mode holds for the account: use it for cameras, so the entry does not get around the block. With no menu
 of your own it shows the shortcuts and the basic links.
+
+Entries with the address `/history` and `/logbook` open in windows of the dashboard. The logbook shows the devices of the
+dashboard for the last hour, 6 or 24 hours, and the history shows graphs of the entities each person picks for themselves.
+
+| Logbook | History |
+|---|---|
+| ![Logbook](screenshots/en/logbook.png) | ![History](screenshots/en/history.png) |
 
 | Menu editor | Notifications |
 |---|---|
@@ -369,6 +376,24 @@ menu:
       items:
         - {name: Settings, icon: mdi:cog-outline, path: /config, admin: true}
 ```
+
+### News
+
+`kind: news` is a screen for reading. Each section is a sensor with a `news` attribute, a list of articles: `title`, `text`,
+and optionally `rating`, `votes`, `source`, `source_url` and `url`. The `release` and `attribution` attributes show at
+the top and bottom. In **Blocks** it is **News**:
+
+```yaml
+shortcuts:
+  - kind: news
+    name: News
+    icon: mdi:newspaper-variant-outline
+    sections:
+      - {title: Home, entity: sensor.news_home}
+      - {title: World, entity: sensor.news_world}
+```
+
+![News](screenshots/en/news.png)
 
 ### Apps in a window
 
@@ -500,7 +525,9 @@ are merged with `media.group_patterns`.
 **Individual devices**. If one device is plugged into another that is measured, set it as a child there, or it
 counts twice.
 
-**Map** uses the map card of a dashboard with the address `map`, and lists people below it.
+**Map** uses the map card of the dashboard with the address `map`. The list of People, Devices and Zones lies on the map: on a phone it is a panel you drag between a thin bar, half the screen and the whole screen, and on a tablet it floats on the left. Tapping an entry shows it on the map.
+
+The music page opens the Music Assistant add-on, also for accounts without administrator rights: `music: {addon: abcd1234_music_assistant}`. With `fullscreen: true` the bottom bar goes away, and the **Home Assistant** button in the menu of Music Assistant goes back to Home.
 
 `media.sections`, or the form **Blocks → Media categories** (pictured below), puts the media page in your own groups. Tiles are written as in a room, `kind: tv` and `kind: panel`
 included. Those also standing in the layout of a room show in the Media filter on Home, in their room:

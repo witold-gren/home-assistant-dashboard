@@ -33,6 +33,22 @@ export class HomeDashboardApp extends LitElement {
     this._open();
   }
 
+  // A frame does not know about the clock of the phone. When the page wants the app to run under it, the
+  // app gets the room as its own style; a frame that cannot be reached stays below the clock instead.
+  _reachUnderClock(event) {
+    const { insetStyle } = this.item;
+    if (!insetStyle) return;
+    const probe = this.renderRoot.querySelector("[data-app-inset]");
+    try {
+      const style = event.target.contentDocument.createElement("style");
+      style.textContent = `:root { --hd-inset: ${probe.offsetHeight}px; } ${insetStyle}`;
+      event.target.contentDocument.head.append(style);
+      this.dispatchEvent(new CustomEvent("app-under-clock", { bubbles: true, composed: true }));
+    } catch {
+      // Another address: the page keeps its own margin.
+    }
+  }
+
   _supervisor(endpoint, method, data) {
     return this.hass.callWS({ type: "supervisor/api", endpoint, method, ...(data ? { data } : {}) });
   }
@@ -73,8 +89,9 @@ export class HomeDashboardApp extends LitElement {
     if (!this.hass || !this.item) return nothing;
     const language = this.hass.language;
     if (this._url) {
-      return html`<iframe
+      return html`<i data-app-inset></i><iframe
         data-app-frame
+        @load=${this._reachUnderClock}
         title=${this.item.name}
         allow="fullscreen; autoplay; clipboard-read; clipboard-write"
         src=${this._url}
@@ -104,6 +121,12 @@ export class HomeDashboardApp extends LitElement {
         flex: 1;
         width: 100%;
         border: 0;
+      }
+      [data-app-inset] {
+        position: absolute;
+        visibility: hidden;
+        width: 0;
+        height: var(--hd-safe-top);
       }
       .message {
         display: flex;

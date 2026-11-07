@@ -1022,11 +1022,43 @@ export function buildPeople(hass) {
         name: name ?? stateObj.entity_id,
         picture: picture ?? null,
         state: hass.formatEntityState?.(stateObj) ?? stateObj.state,
+        known: !["unknown", "unavailable"].includes(stateObj.state),
+        changed: stateObj.last_changed ?? null,
+        position: located ? [latitude, longitude] : null,
         kilometres,
         distance: kilometres === null || stateObj.state === "home" ? "" : distanceText(hass.language, kilometres),
       };
     });
   return people.sort((a, b) => (a.kilometres ?? Infinity) - (b.kilometres ?? Infinity) || a.name.localeCompare(b.name));
+}
+
+// What else the map can show: anything that reports where it is, and the zones.
+export function buildTrackers(hass, config) {
+  return Object.values(hass.states)
+    .filter(({ entity_id: id, attributes }) => domainOf(id) === "device_tracker" && attributes.latitude != null)
+    .filter(({ entity_id: id }) => !config.denied?.includes(id))
+    .map((stateObj) => ({
+      entityId: stateObj.entity_id,
+      name: stateObj.attributes.friendly_name ?? stateObj.entity_id,
+      icon: stateObj.attributes.icon ?? "mdi:cellphone",
+      state: hass.formatEntityState?.(stateObj) ?? stateObj.state,
+      changed: stateObj.last_changed ?? null,
+      position: [stateObj.attributes.latitude, stateObj.attributes.longitude],
+    }))
+    .sort((first, second) => first.name.localeCompare(second.name, hass.language));
+}
+
+export function buildZones(hass) {
+  return Object.values(hass.states)
+    .filter(({ entity_id: id, attributes }) => domainOf(id) === "zone" && attributes.latitude != null)
+    .map(({ entity_id: entityId, state, attributes }) => ({
+      entityId,
+      name: attributes.friendly_name ?? entityId,
+      icon: attributes.icon ?? "mdi:map-marker",
+      people: Number(state) || 0,
+      position: [attributes.latitude, attributes.longitude],
+    }))
+    .sort((first, second) => second.people - first.people || first.name.localeCompare(second.name, hass.language));
 }
 
 export function toggleInList(list, id) {
@@ -1110,7 +1142,8 @@ export function menuGroups(config, links, language) {
 export function shownMenu(hass, config, links) {
   const shortcuts = shownShortcuts(hass, config);
   const guest = guestModeHolds(hass, config);
-  const shown = (item) => (!item.admin || hass.user?.is_admin) && !(item.hide_for_guests && guest);
+  const forThisPerson = (item) => !item.users?.length || item.users.includes(hass.user?.id);
+  const shown = (item) => (!item.admin || hass.user?.is_admin) && !(item.hide_for_guests && guest) && forThisPerson(item);
   const resolved = (item) => {
     if (!item.shortcut) return [item];
     const block = shortcuts.find(({ name }) => name === item.shortcut);

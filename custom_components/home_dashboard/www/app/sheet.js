@@ -139,8 +139,11 @@ const ENTITY_FREE_KINDS = new Set([
   "blocks",
   "departures",
   "group",
+  "history",
   "host",
   "intercom",
+  "logbook",
+  "news",
   "notifications",
   "page",
   "panel",
@@ -216,7 +219,7 @@ export class HomeDashboardSheet extends LitElement {
       this._pinState = null;
       this._tab = "cameras";
       this._access = null;
-      if (this.sheet?.kind === "access" || this.sheet?.kind === "tile-edit") this._loadUsers();
+      if (["access", "block-edit", "tile-edit"].includes(this.sheet?.kind)) this._loadUsers();
       if (this.sheet?.kind === "tile-edit") this._startRule();
       if (this.sheet?.kind === "background") this._startBackground();
       this.classList.remove("settling");
@@ -1423,6 +1426,27 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  _renderHistory() {
+    return html`
+      ${this._renderHeader(this._t("history"), false, false)}
+      <home-dashboard-history .hass=${this.hass} .config=${this.config}></home-dashboard-history>
+    `;
+  }
+
+  _renderLogbook() {
+    return html`
+      ${this._renderHeader(this._t("logbook"), false, false)}
+      <home-dashboard-logbook .hass=${this.hass} .config=${this.config}></home-dashboard-logbook>
+    `;
+  }
+
+  _renderNews() {
+    return html`
+      ${this._renderHeader(this.sheet.item.name, false, false)}
+      <home-dashboard-news .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-news>
+    `;
+  }
+
   _renderNotifications() {
     return html`
       ${this._renderHeader(this._t("notifications_title"), false, false)}
@@ -1519,6 +1543,7 @@ export class HomeDashboardSheet extends LitElement {
         .hass=${this.hass}
         .item=${item}
         .shortcuts=${(this.raw?.shortcuts ?? []).map(({ name }) => name)}
+        .users=${this._users}
         ?removable=${index !== undefined}
         @block-save=${(event) => this._blockSaved(event.detail.item)}
         @block-remove=${this._blockRemoved}
@@ -2239,6 +2264,9 @@ export class HomeDashboardSheet extends LitElement {
       weather: this._renderWeather,
       departures: this._renderDepartures,
       app: this._renderApp,
+      news: this._renderNews,
+      history: this._renderHistory,
+      logbook: this._renderLogbook,
       notifications: this._renderNotifications,
       blocks: this._renderBlocks,
       "block-edit": this._renderBlockEdit,
@@ -2254,7 +2282,7 @@ export class HomeDashboardSheet extends LitElement {
     };
     const dark = this.sheet.kind === "camera";
     const { item } = this.sheet;
-    const whole = dark || ["app", "block-edit", "blocks", "host", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    const whole = dark || ["app", "block-edit", "blocks", "history", "host", "logbook", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     return html`
       <div class="scrim" @click=${this._close}></div>
       <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""}"></div>

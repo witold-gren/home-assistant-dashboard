@@ -91,3 +91,165 @@ def test_the_idle_timer_leaves_an_open_app_alone(phone):
         return holdsScreen({ type: "sheet", sheet: { kind: "app", item: {} } });
     }""")
     assert result is True
+
+
+def test_the_music_page_can_be_an_app(phone):
+    dashboard = {"music": {"addon": "abc_music"}}
+    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False})
+    phone.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
+    endpoints = phone.evaluate("window.ws.filter((m) => m.type === 'supervisor/api').map((m) => m.endpoint)")
+    assert "/addons/abc_music/info" in endpoints
+
+
+def test_the_music_app_fills_the_page(phone):
+    dashboard = {"music": {"addon": "abc_music"}}
+    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False})
+    frame = phone.locator(f"home-dashboard-page {APP} [data-app-frame]")
+    frame.wait_for(state="attached")
+    assert frame.bounding_box()["height"] > 600
+
+
+NAV = "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('nav')"
+
+
+def open_full_music(page, info: dict = RUNNING, music: dict | None = None) -> None:
+    dashboard = {"music": music or {"addon": "abc_music", "fullscreen": True}}
+    page.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": info, "fails": False, "admin": False})
+    page.evaluate("""() => {
+        window.navigated = [];
+        document.querySelector("home-dashboard-chrome")._navigate = (target) => window.navigated.push(target.key);
+    }""")
+
+
+def app_frame(page):
+    page.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
+    return next(frame for frame in page.frames if frame != page.main_frame)
+
+
+def test_full_music_hides_the_bottom_bar_and_fills_the_screen(phone):
+    open_full_music(phone)
+    app_frame(phone)
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    assert phone.locator(f"home-dashboard-page {APP} [data-app-frame]").bounding_box()["height"] > 800
+
+
+def test_the_menu_button_of_the_app_goes_home(phone):
+    open_full_music(phone)
+    app_frame(phone).evaluate("parent.postMessage({ type: 'home-assistant/toggle-menu' }, '*')")
+    phone.wait_for_function("window.navigated.length === 1")
+    assert phone.evaluate("window.navigated") == ["home"]
+
+
+def test_a_message_from_elsewhere_goes_nowhere(phone):
+    open_full_music(phone)
+    app_frame(phone)
+    phone.evaluate("window.postMessage({ type: 'home-assistant/toggle-menu' }, '*')")
+    phone.wait_for_timeout(200)
+    assert phone.evaluate("window.navigated") == []
+
+
+def test_music_that_cannot_open_keeps_the_bottom_bar(phone):
+    open_full_music(phone, info={**RUNNING, "state": "stopped"})
+    phone.locator(f"{APP} [data-app-link]").wait_for()
+    phone.wait_for_timeout(500)
+    assert phone.evaluate(f"{NAV}.classList.contains('tucked')") is False
+
+
+def test_music_without_the_option_keeps_the_bottom_bar(phone):
+    open_full_music(phone, music={"addon": "abc_music"})
+    app_frame(phone)
+    phone.wait_for_timeout(500)
+    assert phone.evaluate(f"{NAV}.classList.contains('tucked')") is False
+
+
+def test_the_bottom_bar_comes_back_on_the_next_page(phone):
+    open_full_music(phone)
+    app_frame(phone)
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    phone.evaluate("""async () => {
+        window.card = await window.dashboard.mount(window.hass, { music: { addon: "abc_music", fullscreen: true } }, "home");
+    }""")
+    phone.wait_for_function(f"!{NAV}.classList.contains('tucked')")
+    phone.wait_for_timeout(600)
+    assert phone.evaluate(f"{NAV}.classList.contains('tucked')") is False
+
+
+def test_full_music_reaches_the_bottom_of_the_screen(phone):
+    open_full_music(phone)
+    app_frame(phone)
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    box = phone.locator(f"home-dashboard-page {APP} [data-app-frame]").bounding_box()
+    assert box["y"] + box["height"] == phone.viewport_size["height"]
+
+
+def test_coming_back_to_a_kept_page_hides_the_bottom_bar_again(phone):
+    open_full_music(phone)
+    frame = app_frame(phone)
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    phone.evaluate("""() => {
+        const card = window.card;
+        window.keptParent = card.parentNode;
+        card.remove();
+    }""")
+    phone.wait_for_function(f"!{NAV}.classList.contains('tucked')")
+    phone.evaluate("window.keptParent.append(window.card)")
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    assert frame is not None
+
+
+def test_the_menu_button_works_after_coming_back(phone):
+    open_full_music(phone)
+    app_frame(phone)
+    phone.evaluate("""() => {
+        window.keptParent = window.card.parentNode;
+        window.card.remove();
+        window.keptParent.append(window.card);
+    }""")
+    phone.wait_for_function(f"{NAV}.classList.contains('tucked')")
+    next(frame for frame in phone.frames if frame != phone.main_frame).evaluate(
+        "parent.postMessage({ type: 'home-assistant/toggle-menu' }, '*')"
+    )
+    phone.wait_for_function("window.navigated.length === 1")
+
+
+def test_the_side_bar_keeps_up_with_a_sidebar_that_stops_late(tablet):
+    tablet.evaluate(MOUNT, {"dashboard": {}, "info": RUNNING, "fails": False, "admin": True})
+    result = tablet.evaluate("""async () => {
+        const chrome = document.querySelector("home-dashboard-chrome");
+        const root = document.createElement("div");
+        root.style.cssText = "position: fixed; left: 256px; width: 100px; height: 10px";
+        document.body.append(root);
+        chrome.root = root;
+        chrome._followRoot();
+        await new Promise((done) => setTimeout(done, 300));
+        root.style.left = "56px";
+        await new Promise((done) => setTimeout(done, 200));
+        const left = chrome._left;
+        chrome.root = null;
+        root.remove();
+        return left;
+    }""")
+    assert result == 56
+
+
+def test_full_music_runs_under_the_clock_and_gets_room_inside(phone):
+    open_full_music(phone)
+    frame = app_frame(phone)
+    phone.wait_for_selector("home-dashboard-page .page.under-clock")
+    assert phone.locator(f"home-dashboard-page {APP} [data-app-frame]").bounding_box()["y"] == 0
+    assert frame.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--hd-inset')").endswith("px")
+
+
+def test_music_without_the_option_stays_below_the_clock(phone):
+    open_full_music(phone, music={"addon": "abc_music"})
+    app_frame(phone)
+    phone.wait_for_timeout(500)
+    assert phone.locator("home-dashboard-page .page.under-clock").count() == 0
+
+
+def test_a_frame_from_another_address_stays_below_the_clock(phone):
+    dashboard = {"music": {"addon": "abc_music", "fullscreen": True, "frame": "http://127.0.0.1:9/"}}
+    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": True, "admin": False})
+    phone.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
+    phone.wait_for_timeout(600)
+    assert phone.locator("home-dashboard-page .page.under-clock").count() == 0

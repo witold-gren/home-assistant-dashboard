@@ -133,6 +133,11 @@ def make(browser, base: str, language: str) -> None:
     take(page, folder, "chips")
 
     page = open_page(browser, base, language, PHONE)
+    news = "Wiadomości" if language == "pl" else "News"
+    page.locator(f"home-dashboard-page [data-shortcut='{news}']").evaluate("(button) => button.click()")
+    take(page, folder, "news")
+
+    page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-chrome .mini-open")
     take(page, folder, "player")
 
@@ -168,12 +173,25 @@ def make(browser, base: str, language: str) -> None:
     page.wait_for_selector(f"{SHEET} home-dashboard-block-editor [data-block-save]")
     take(page, folder, "media-editor")
 
-    for name, target in (("notifications", "[data-menu-action='notifications']"), ("app", "[data-menu-app]")):
+    windows = (
+        ("notifications", "[data-menu-action='notifications']"),
+        ("app", "[data-menu-app]"),
+        ("logbook", "[data-link='/logbook']"),
+    )
+    for name, target in windows:
         page = open_page(browser, base, language, PHONE)
         tap(page, "home-dashboard-page .top-bar button")
         page.locator(target).evaluate("(button) => button.click()")
         page.wait_for_timeout(1000)
         take(page, folder, name)
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page .top-bar button")
+    page.locator("[data-link='/history']").evaluate("(button) => button.click()")
+    page.wait_for_selector("home-dashboard-history [data-activity-search]")
+    page.locator("home-dashboard-history [data-activity-search]").fill("climate.living")
+    tap(page, "home-dashboard-history [data-history-match]")
+    take(page, folder, "history")
 
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page .top-bar button")

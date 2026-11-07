@@ -40,9 +40,13 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Powiadomienia](docs/screenshots/pl/notifications.png) | ![Aplikacja w oknie](docs/screenshots/pl/app.png) | ![Bloki](docs/screenshots/pl/blocks.png) | ![Edycja bloku](docs/screenshots/pl/block-editor.png) |
 
-| Edycja menu | Kategorie mediów |
-|---|---|
-| ![Edycja menu](docs/screenshots/pl/menu-editor.png) | ![Kategorie mediów](docs/screenshots/pl/media-editor.png) |
+| Edycja menu | Kategorie mediów | Dziennik | Historia |
+|---|---|---|---|
+| ![Edycja menu](docs/screenshots/pl/menu-editor.png) | ![Kategorie mediów](docs/screenshots/pl/media-editor.png) | ![Dziennik](docs/screenshots/pl/logbook.png) | ![Historia](docs/screenshots/pl/history.png) |
+
+| Wiadomości |
+|---|
+| ![Wiadomości](docs/screenshots/pl/news.png) |
 
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
@@ -133,7 +137,7 @@ zmiany. Bloki można tu przenosić i usuwać, a dodawać w edytorze YAML.
 Administrator dodaje je i edytuje w formularzu: trzy kropki na stronie głównej → **Bloki**. Opis pól jest też niżej i w przewodniku.
 
 `shortcuts` dodaje przyciski za chipami na stronie głównej i w menu. Każdy to blok (`kind: panel`) albo
-ekran szkoły (`kind: school`), przegląd domu (`kind: overview`, opis w przewodniku) albo odjazdy (`kind: departures` z `entities`, encjami z atrybutem `list`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu
+ekran szkoły (`kind: school`), przegląd domu (`kind: overview`, opis w przewodniku), wiadomości (`kind: news`) albo odjazdy (`kind: departures` z `entities`, encjami z atrybutem `list`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu
 pokazywać kartę (`auto_card: true`), zostawiać kartę administratorom (`admin_card: true`, a pozostali
 widzą `frame`) i nazywać przycisk karty przez `card_label` i `card_icon`. `tone` wybiera kolor ikony (green, purple,
 teal, pink), a bez niego kolory idą po kolei. Akcja może wywołać usługę

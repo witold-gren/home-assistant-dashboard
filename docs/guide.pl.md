@@ -347,8 +347,15 @@ czyimś **Moim układzie** trzeba ustawić od nowa.
 Trzy kreski otwierają menu: strony, Twoje grupy, ustawienia i obszary. Administrator układa grupy przyciskiem **Edytuj menu**
 na samym dole. Grupa może mieć tytuł, a wpis to nazwa, ikona i jedno z trzech: **Adres** strony Home Assistant (podpowiada
 panele, np. `/config`), **Skrót** po nazwie albo **Akcja** `notifications`, która otwiera okno powiadomień z listą na żywo i odrzucaniem. **Tylko
-administratorzy** chowa wpis przed resztą, a **Ukryj w trybie gościa** chowa go, gdy tryb gościa obowiązuje na tym koncie:
+administratorzy** chowa wpis przed resztą, a **Kto to widzi** ogranicza wpis do zaznaczonych osób (`users`, brak zaznaczeń to wszyscy), a **Ukryj w trybie gościa** chowa go, gdy tryb gościa obowiązuje na tym koncie:
 użyj tego przy kamerach, żeby wpis nie omijał blokady. Bez własnej konfiguracji menu pokazuje skróty i podstawowe linki.
+
+Wpisy z adresem `/history` i `/logbook` otwierają się w oknach dashboardu. Dziennik pokazuje urządzenia z dashboardu z
+ostatniej godziny, 6 lub 24 godzin, a Historia wykresy encji, które każdy wybiera dla siebie.
+
+| Dziennik | Historia |
+|---|---|
+| ![Dziennik](screenshots/pl/logbook.png) | ![Historia](screenshots/pl/history.png) |
 
 | Edycja menu | Powiadomienia |
 |---|---|
@@ -365,6 +372,24 @@ menu:
       items:
         - {name: Ustawienia, icon: mdi:cog-outline, path: /config, admin: true}
 ```
+
+### Wiadomości
+
+`kind: news` to ekran do czytania. Każda sekcja to sensor z atrybutem `news`, czyli listą artykułów: `title`, `text`,
+opcjonalnie `rating`, `votes`, `source`, `source_url` i `url`. Atrybuty `release` i `attribution` pokazują się u góry i na
+dole. W **Blokach** to **Wiadomości**:
+
+```yaml
+shortcuts:
+  - kind: news
+    name: Wiadomości
+    icon: mdi:newspaper-variant-outline
+    sections:
+      - {title: Kraj, entity: sensor.news_home}
+      - {title: Świat, entity: sensor.news_world}
+```
+
+![Wiadomości](screenshots/pl/news.png)
 
 ### Aplikacje w oknie
 
@@ -496,7 +521,9 @@ na pozostałych stronach nad paskiem widać mini-odtwarzacz. Głośniki będące
 **Poszczególne urządzenia**. Jeśli urządzenie jest podłączone do innego mierzonego urządzenia, ustaw je tam jako
 podrzędne, inaczej policzy się podwójnie.
 
-**Mapa** używa karty mapy z dashboardu o adresie `map`, a pod nią pokazuje listę osób.
+**Mapa** używa karty mapy z dashboardu o adresie `map`. Lista Osoby, Urządzenia i Strefy leży na mapie: na telefonie to panel, który przeciągasz palcem między wąskim paskiem, połową i całym ekranem, a na tablecie pływa z lewej. Dotknięcie pozycji pokazuje ją na mapie.
+
+Strona Muzyka otworzy dodatek Music Assistant także na kontach bez administratora: `music: {addon: abcd1234_music_assistant}`. Z `fullscreen: true` dolny pasek znika, a przycisk **Home Assistant** w menu Music Assistant wraca na stronę główną.
 
 Stronę Media ułożysz we własne grupy przez `media.sections` albo w formularzu **Bloki → Kategorie mediów** (zrzut niżej). Kafelki wpisuje się jak w pokoju, także `kind: tv` i
 `kind: panel`. Te, które stoją też w układzie pokoju, pokazują się w filtrze Media na stronie głównej, w swoim pokoju:

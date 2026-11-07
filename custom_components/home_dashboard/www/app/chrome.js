@@ -25,6 +25,7 @@ export const TABLET_MEDIA_QUERY = "(min-width: 900px)";
 const CHROME_TAG = "home-dashboard-chrome";
 const STYLE_ID = "home-dashboard-root-style";
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
+const FOLLOW_ROOT_MS = 800;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchmove"];
 const PAGES = [
   { key: "home", icon: "mdi:home", path: "home" },
@@ -33,11 +34,13 @@ const PAGES = [
   { key: "map", icon: "mdi:map-outline", path: "map" },
 ];
 const MUSIC_PAGE = { key: "music", icon: "mdi:music", path: "music" };
+// Pages of Home Assistant that have a window here, so that nobody has to leave the dashboard for them.
+const WINDOWS = { "/history": "history", "/logbook": "logbook" };
 const LINKS = [
-  { key: "devices", icon: "mdi:devices", path: "/config/devices/dashboard", admin: true },
-  { key: "automations", icon: "mdi:robot-outline", path: "/config/automation/dashboard", admin: true },
   { key: "history", icon: "mdi:chart-box-outline", path: "/history" },
   { key: "logbook", icon: "mdi:format-list-bulleted", path: "/logbook" },
+  { key: "devices", icon: "mdi:devices", path: "/config/devices/dashboard", admin: true },
+  { key: "automations", icon: "mdi:robot-outline", path: "/config/automation/dashboard", admin: true },
   { key: "home_assistant", icon: "mdi:view-dashboard-outline", path: "/lovelace" },
 ];
 
@@ -130,6 +133,7 @@ export function attachChrome(card, hass, page, raw) {
   chrome.card = card;
   chrome.hass = hass;
   chrome.page = page;
+  if (page !== "music") chrome.navTucked = false;
 }
 
 export function setPageBackground(card, background) {
@@ -137,9 +141,13 @@ export function setPageBackground(card, background) {
   if (chrome) chrome.pageBackground = background;
 }
 
+export function goHome(card) {
+  existingChrome(card)?._navigate(PAGES[0]);
+}
+
 export function tuckNavigation(card, tucked) {
   const chrome = existingChrome(card);
-  if (chrome) chrome.navTucked = tucked;
+  if (chrome) chrome.navTucked = tucked && chrome.page === "music";
 }
 
 export function updateChrome(card, hass) {
@@ -369,18 +377,32 @@ export class HomeDashboardChrome extends LitElement {
     this._paintDocument();
     this._watchDialogs();
     if (this.root) {
-      this._observer = new ResizeObserver(() => {
-        this._left = Math.round(this.root.getBoundingClientRect().left);
-      });
+      this._observer = new ResizeObserver(this._followRoot);
       this._observer.observe(this.root);
+      window.addEventListener("click", this._followRoot, { capture: true, passive: true });
     }
   }
+
+  // The sidebar of Home Assistant slides, and the last resize can come before it stops, so the bars
+  // keep up for a moment longer. A click counts too: it is what folds the sidebar.
+  _followRoot = () => {
+    this._followUntil = performance.now() + FOLLOW_ROOT_MS;
+    if (this._following) return;
+    this._following = true;
+    const step = () => {
+      if (this.root) this._left = Math.round(this.root.getBoundingClientRect().left);
+      if (this.isConnected && performance.now() < this._followUntil) requestAnimationFrame(step);
+      else this._following = false;
+    };
+    requestAnimationFrame(step);
+  };
 
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("popstate", this._onPopState);
     ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, this._armIdle, { capture: true }));
     this._observer?.disconnect();
+    window.removeEventListener("click", this._followRoot, { capture: true });
     clearInterval(this._timer);
     clearTimeout(this._idleTimer);
     this._settingsWatch?.then((unsubscribe) => unsubscribe?.());
@@ -593,7 +615,9 @@ export class HomeDashboardChrome extends LitElement {
     if (item.action) {
       return html`<button data-menu-action=${item.action} @click=${() => this._runMenuAction(item.action)}>${icon}${item.name}</button>`;
     }
-    return html`<button data-link=${item.path} @click=${() => this._pickLink(item.path)}>${icon}${item.name}</button>`;
+    const kind = WINDOWS[item.path];
+    const open = () => (kind ? this.open({ type: "sheet", sheet: { kind } }) : this._pickLink(item.path));
+    return html`<button data-link=${item.path} @click=${open}>${icon}${item.name}</button>`;
   }
 
   _runMenuAction(action) {
@@ -637,16 +661,18 @@ export class HomeDashboardChrome extends LitElement {
             </ul>
           `,
         )}
-        <hr />
-        <ul>
-          ${admin
-            ? html`<li>
-                <button data-settings @click=${() => this.open({ type: "settings" })}>
-                  <ha-icon icon="mdi:cog-outline"></ha-icon>${translate(language, "settings")}
-                </button>
-              </li>`
-            : nothing}
-        </ul>
+        ${admin
+          ? html`
+              <hr />
+              <ul>
+                <li>
+                  <button data-settings @click=${() => this.open({ type: "settings" })}>
+                    <ha-icon icon="mdi:cog-outline"></ha-icon>${translate(language, "settings")}
+                  </button>
+                </li>
+              </ul>
+            `
+          : nothing}
         ${rooms.length
           ? html`
               <hr />
@@ -878,8 +904,19 @@ export class HomeDashboardChrome extends LitElement {
         left: 0;
         box-sizing: border-box;
         width: min(320px, 86vw);
-        padding: calc(var(--hd-safe-top) + 16px) 12px calc(var(--hd-safe-bottom) + 16px);
+        padding: 0 12px calc(var(--hd-safe-bottom) + 16px);
         overflow-y: auto;
+        background: var(--hd-background);
+      }
+      /* Stands still under the clock of the phone, so the list does not run through it. */
+      .drawer::before {
+        content: "";
+        position: sticky;
+        z-index: 1;
+        top: 0;
+        display: block;
+        height: calc(var(--hd-safe-top) + 16px);
+        margin: 0 -12px;
         background: var(--hd-background);
       }
       .drawer ul {

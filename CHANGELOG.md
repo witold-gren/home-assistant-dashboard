@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.4 (2026-11-07)
+
+New screens:
+
+- Map: the map fills the page, with a list of people, devices and zones that shows them on the map when tapped. On a
+  phone it is a panel you drag between a thin bar, half the screen and the whole screen, and on a tablet it floats.
+- History and logbook: they open in windows of the dashboard, also for people who are not administrators. The logbook
+  reads like the one of Home Assistant and shows the devices of the dashboard, and each person keeps their own entities
+  in the history.
+- News: `kind: news` is a screen for reading articles from sensors that keep them in a `news` attribute.
+
+Music:
+
+- `music.addon` opens the music page through the window of apps, also for people who are not administrators.
+- `music.fullscreen` hides the bottom bar and fills the screen from top to bottom, with the bars of the add-on below the
+  clock of a phone. The Home Assistant button in the menu of the add-on goes back to Home.
+
+Menu:
+
+- Each entry can be for chosen people: Who sees it in Edit the menu, `users` in the configuration.
+- The side menu no longer runs under the clock of a phone, has no empty section for those who cannot open the dashboard
+  settings, and groups in its editor are named after their entries.
+
+Fixes:
+
+- The side bar follows the sidebar of Home Assistant to the end of its animation.
+- The greeting on Home fits one line on a phone.
+
 ## 0.1.3 (2026-11-07)
 
 Editing without YAML:

@@ -40,9 +40,13 @@ Status: early version.
 |---|---|---|---|
 | ![Notifications](docs/screenshots/en/notifications.png) | ![App in a window](docs/screenshots/en/app.png) | ![Blocks](docs/screenshots/en/blocks.png) | ![Block editor](docs/screenshots/en/block-editor.png) |
 
-| Menu editor | Media categories |
-|---|---|
-| ![Menu editor](docs/screenshots/en/menu-editor.png) | ![Media categories](docs/screenshots/en/media-editor.png) |
+| Menu editor | Media categories | Logbook | History |
+|---|---|---|---|
+| ![Menu editor](docs/screenshots/en/menu-editor.png) | ![Media categories](docs/screenshots/en/media-editor.png) | ![Logbook](docs/screenshots/en/logbook.png) | ![History](docs/screenshots/en/history.png) |
+
+| News |
+|---|
+| ![News](docs/screenshots/en/news.png) |
 
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
@@ -133,7 +137,7 @@ can be moved and removed here, and added in the YAML editor.
 Administrators add and edit them in a form: three dots on Home → **Blocks**. The options are also described below and in the guide.
 
 `shortcuts` adds buttons after the chips on Home and to the menu. Each is a block (`kind: panel`) or the
-school screen (`kind: school`), a home overview (`kind: overview`, see the guide) or departures (`kind: departures` with `entities` that keep a `list` attribute). A block can open fully with `fullscreen: true`, show its card at once
+school screen (`kind: school`), a home overview (`kind: overview`, see the guide), news (`kind: news`) or departures (`kind: departures` with `entities` that keep a `list` attribute). A block can open fully with `fullscreen: true`, show its card at once
 with `auto_card: true`, keep the card for administrators with `admin_card: true` (`frame` is shown to
 the others), and name the card's button with `card_label` and `card_icon`. `tone` picks the icon colour (green, purple,
 teal, pink); without it the colours follow the order. An action can call a service

@@ -82,6 +82,17 @@ export const BLOCK_KINDS = {
     },
   ],
   departures: [...BASE, { key: "entities", type: "entities" }],
+  news: [
+    ...BASE,
+    {
+      key: "sections",
+      type: "list",
+      fields: [
+        { key: "title", type: "text", label: "title_field" },
+        { key: "entity", type: "entity" },
+      ],
+    },
+  ],
   app: [...BASE, { key: "addon", type: "text", list: "addons" }, { key: "frame", type: "text" }],
   host: [
     ...BASE,
@@ -168,6 +179,7 @@ export const BLOCK_KINDS = {
             { key: "shortcut", type: "text", list: "shortcuts" },
             { key: "action", type: "select", options: ["notifications"] },
             { key: "admin", type: "boolean" },
+            { key: "users", type: "users" },
             { key: "hide_for_guests", type: "boolean" },
           ],
         },
@@ -181,6 +193,7 @@ export const NEW_BLOCK_ICONS = {
   overview: "mdi:clipboard-pulse-outline",
   departures: "mdi:tram",
   app: "mdi:application-outline",
+  news: "mdi:newspaper-variant-outline",
   host: "mdi:server",
   panel: "mdi:view-dashboard-outline",
   page: "mdi:play-box-multiple-outline",
@@ -217,6 +230,7 @@ export class HomeDashboardBlockEditor extends LitElement {
     item: { attribute: false },
     removable: { type: Boolean },
     shortcuts: { attribute: false },
+    users: { attribute: false },
     _draft: { state: true },
     _yaml: { state: true },
     _broken: { state: true },
@@ -303,6 +317,26 @@ export class HomeDashboardBlockEditor extends LitElement {
     `;
   }
 
+  // Nobody ticked means everyone, so an entry does not vanish by itself when a new person arrives.
+  _renderUsers(field, value, set) {
+    const chosen = asList(value);
+    const change = (id, on) => set(on ? [...chosen, id] : chosen.filter((item) => item !== id));
+    return html`
+      <section class="group" data-block-field=${field.key}>
+        <h4>${this._label(field)}</h4>
+        <small>${this._t(chosen.length ? "users_some" : "users_all")}</small>
+        ${(this.users ?? []).map(
+          ({ id, name }) => html`
+            <label class="field" data-block-user=${id}>
+              <span>${name}</span>
+              <input type="checkbox" .checked=${chosen.includes(id)} @change=${(event) => change(id, event.target.checked)} />
+            </label>
+          `,
+        )}
+      </section>
+    `;
+  }
+
   _renderEntities(field, value, set) {
     const list = asList(value);
     const change = (index, entity) => set(list.map((item, position) => (position === index ? entity : item)));
@@ -329,7 +363,8 @@ export class HomeDashboardBlockEditor extends LitElement {
   }
 
   _title(item, index) {
-    return item.name || item.title || item.entity || item.shortcut || `${index + 1}`;
+    const inside = (item.items ?? []).slice(0, 3).map((entry) => entry.name ?? entry.shortcut).filter(Boolean);
+    return item.name || item.title || item.entity || item.shortcut || inside.join(", ") || `${index + 1}`;
   }
 
   _renderList(field, value, set, path) {
@@ -420,6 +455,7 @@ export class HomeDashboardBlockEditor extends LitElement {
     }
     if (field.type === "yaml") return this._renderYaml(field, value, set, path);
     if (field.type === "entities") return this._renderEntities(field, value, set);
+    if (field.type === "users") return this._renderUsers(field, value, set);
     if (field.type === "list") return this._renderList(field, value, set, path);
     if (field.type === "object") return html`<div class="fields">${this._fields(field.fields, value ?? {}, set, path)}</div>`;
     return this._input(field, value, set, "text", field.list ?? nothing);
@@ -551,6 +587,10 @@ export class HomeDashboardBlockEditor extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 8px;
+      }
+      small {
+        color: var(--hd-text-muted);
+        font-size: 13px;
       }
       h4 {
         margin: 8px 0 0;

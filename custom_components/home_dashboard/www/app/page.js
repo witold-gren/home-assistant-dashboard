@@ -12,6 +12,7 @@ import {
   pageScroller,
   saveDashboard,
   setPageBackground,
+  goHome,
   tuckNavigation,
   updateChrome,
 } from "./chrome.js";
@@ -26,6 +27,8 @@ import {
   buildRoomList,
   buildRoomModel,
   buildMediaSections,
+  buildTrackers,
+  buildZones,
   buildSpeakers,
   cameraColumns,
   editableTile,
@@ -79,6 +82,20 @@ const DRAG_SCROLL = 12;
 const LONG_TITLE = 14;
 const DEFAULT_MAP = { type: "map", auto_fit: true, show_all: true };
 const RAN_MS = 2000;
+// What Music Assistant needs to run under the clock of a phone: its bars and panels start lower.
+const MUSIC_INSET_STYLE = `
+  header.v-toolbar { height: auto !important; padding-top: var(--hd-inset) !important; }
+  [data-sidebar="header"] { padding-top: calc(var(--hd-inset) + 8px) !important; }
+  .v-overlay__content { padding-top: var(--hd-inset); box-sizing: border-box; }
+`;
+const FRAME_MENU_MESSAGE = "home-assistant/toggle-menu";
+const MAP_FOCUS_ZOOM = 15;
+const MAP_PANEL_FOLDED_PX = 32;
+const MAP_PANEL_OPEN = 0.48;
+const MAP_DRAG_START_PX = 6;
+const CLICK_AFTER_DRAG_MS = 300;
+const MAP_CONTROL_TRIES = 20;
+const MAP_CONTROL_WAIT_MS = 500;
 const MUSIC_PLAYER_CHECK_MS = 250;
 const MUSIC_PLAYER = ".v-overlay--active .fullscreen-player-card";
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -92,6 +109,10 @@ export class HomeDashboardPage extends LitElement {
     _edit: { state: true },
     _drag: { state: true },
     _energyReady: { state: true },
+    _mapTab: { state: true },
+    _mapPanel: { state: true },
+    _musicUnderClock: { state: true },
+    _mapDrag: { state: true },
     _leavingModel: { state: true },
     _ran: { state: true },
   };
@@ -116,6 +137,8 @@ export class HomeDashboardPage extends LitElement {
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
     this._pictureTimer = setInterval(this._refreshPictures, PICTURE_REFRESH_MS);
+    // Home Assistant keeps a page it has shown and puts the same one back on the way in.
+    if (this.hasUpdated) this._watchMusic();
     // Home Assistant keeps this card when only the query changes, as between two rooms.
     if (this._page === "room") {
       window.addEventListener("location-changed", this._onLocation);
@@ -129,6 +152,7 @@ export class HomeDashboardPage extends LitElement {
     clearInterval(this._pictureTimer);
     clearTimeout(this._leavingTimer);
     clearInterval(this._musicWatch);
+    window.removeEventListener("message", this._onFrameMessage);
     clearTimeout(this._ranTimer);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
     if (this._page === "music") tuckNavigation(this, false);
@@ -138,10 +162,36 @@ export class HomeDashboardPage extends LitElement {
 
   // Music Assistant does not tell the page anything, and a frame from another address cannot be
   // read at all: there the navigation simply stays.
-  _checkMusicPlayer = () => {
+  _watchMusic() {
+    if (this._page !== "music") return;
+    clearInterval(this._musicWatch);
+    this._musicWatch = setInterval(this._checkMusicPlayer, MUSIC_PLAYER_CHECK_MS);
+    window.addEventListener("message", this._onFrameMessage);
+  }
+
+  get _musicFrame() {
     const card = this.renderRoot.querySelector("[data-cards] > *");
-    const frame =
-      this.renderRoot.querySelector("iframe") ?? card?.querySelector("iframe") ?? card?.shadowRoot?.querySelector("iframe");
+    return (
+      this.renderRoot.querySelector("iframe") ??
+      this.renderRoot.querySelector("home-dashboard-app")?.shadowRoot?.querySelector("iframe") ??
+      card?.querySelector("iframe") ??
+      card?.shadowRoot?.querySelector("iframe")
+    );
+  }
+
+  // In a frame the menu button of an add-on asks for the sidebar. A fullscreen app has no other way out.
+  _onFrameMessage = ({ data, source }) => {
+    if (data?.type !== FRAME_MENU_MESSAGE || !this._config.music?.fullscreen) return;
+    if (source === this._musicFrame?.contentWindow) goHome(this);
+  };
+
+  _checkMusicPlayer = () => {
+    const frame = this._musicFrame;
+    // The bar goes only once the frame is there: without it nobody could leave the page.
+    if (frame && this._config.music?.fullscreen) {
+      tuckNavigation(this, true);
+      return;
+    }
     let open = false;
     try {
       open = Boolean(frame?.contentDocument?.querySelector(MUSIC_PLAYER));
@@ -185,7 +235,7 @@ export class HomeDashboardPage extends LitElement {
     if (this._page === "energy") this._loadEnergy();
     if (this._page === "map") this._mountMap();
     if (this._page === "music" && this._musicCard) this._mountCards([this._musicCard]);
-    if (this._page === "music") this._musicWatch = setInterval(this._checkMusicPlayer, MUSIC_PLAYER_CHECK_MS);
+    this._watchMusic();
   }
 
   set hass(hass) {
@@ -234,7 +284,11 @@ export class HomeDashboardPage extends LitElement {
         sections: buildMediaSections(this._hass, this._config, layout),
       };
     } else if (this._page === "map") {
-      this._model = { people: buildPeople(this._hass) };
+      this._model = {
+        people: buildPeople(this._hass).filter(({ entityId }) => !this._config.denied?.includes(entityId)),
+        devices: buildTrackers(this._hass, this._config),
+        zones: buildZones(this._hass),
+      };
     } else if (this._page === "home") {
       const model = buildHomeModel(this._hass, this._config, this._selection, layout);
       this._model = applyFilter(model, this._filter, this._hass.language);
@@ -301,7 +355,24 @@ export class HomeDashboardPage extends LitElement {
     } catch {
       // No such dashboard: the plain map below is enough.
     }
-    this._mountCards([{ ...(card ?? DEFAULT_MAP), theme_mode: isDark() ? "dark" : "light" }]);
+    await this._mountCards([{ ...(card ?? DEFAULT_MAP), theme_mode: isDark() ? "dark" : "light" }]);
+    this._placeMapControls(MAP_CONTROL_TRIES);
+  }
+
+  // The list lies over the left side, so the buttons of the map move right. They live inside the card
+  // and appear late; when a new frontend moves them, the map simply keeps them where they were.
+  _placeMapControls(tries) {
+    const card = this._cards?.[0]?.shadowRoot;
+    const map = card?.querySelector("ha-map")?.shadowRoot;
+    if (!map?.querySelector(".maplibregl-ctrl-top-left")) {
+      if (tries > 0) setTimeout(() => this._placeMapControls(tries - 1), MAP_CONTROL_WAIT_MS);
+      return;
+    }
+    const style = document.createElement("style");
+    style.textContent = ".maplibregl-ctrl-top-left { left: auto; right: 0; }";
+    map.append(style);
+    const buttons = card.querySelector("ha-icon-button")?.parentElement;
+    if (buttons) Object.assign(buttons.style, { left: "auto", right: "3px" });
   }
 
   async _loadSources() {
@@ -1079,38 +1150,162 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _renderMusic() {
+    const { addon, frame: fallback } = this._config.music ?? {};
+    if (addon) {
+      const insetStyle = this._config.music.fullscreen ? MUSIC_INSET_STYLE : null;
+      return html`<home-dashboard-app
+        class="music"
+        .hass=${this._hass}
+        .item=${{ name: "Music", addon, frame: fallback, insetStyle }}
+        @app-under-clock=${() => {
+          this._musicUnderClock = true;
+        }}
+      ></home-dashboard-app>`;
+    }
     if (this._musicCard) return html`<div class="cards music" data-cards></div>`;
     const frame = this._config.music?.frame;
     return frame ? html`<iframe class="music" src=${frame} title="Music"></iframe>` : nothing;
   }
 
+  _ago(iso) {
+    if (!iso) return "";
+    const minutes = Math.round((new Date(iso) - Date.now()) / 60000);
+    const format = new Intl.RelativeTimeFormat(this._hass.language, { numeric: "auto", style: "short" });
+    if (minutes > -60) return format.format(minutes, "minute");
+    return minutes > -2880 ? format.format(Math.round(minutes / 60), "hour") : format.format(Math.round(minutes / 1440), "day");
+  }
+
+  // A marker has no address of its own on the card, so the place is what the map is sent to.
+  _showOnMap(position) {
+    if (!position) return;
+    const map = this._cards?.[0]?.shadowRoot?.querySelector("ha-map");
+    map?.fitBounds?.([position, position], { zoom: MAP_FOCUS_ZOOM });
+    if (this._mapPanel === "full") this._mapPanel = "half";
+  }
+
+  _renderMapRow({ key, person, position, known = true, picture, icon, name, details }) {
+    return html`
+      <li class=${known ? "" : "unknown"} data-map-row=${key} data-person=${person ?? nothing}>
+        <button @click=${() => this._showOnMap(position)}>
+          <span class="avatar">
+            ${picture
+              ? html`<img src=${this._hass.hassUrl(picture)} alt="" />`
+              : icon
+                ? html`<ha-icon .icon=${icon}></ha-icon>`
+                : (name[0] ?? "")}
+          </span>
+          <span class="text">
+            <strong>${name}</strong>
+            <small>${details.filter(Boolean).join(" · ")}</small>
+          </span>
+        </button>
+      </li>
+    `;
+  }
+
+  _renderMapList() {
+    const language = this._hass.language;
+    const { people = [], devices = [], zones = [] } = this._model;
+    const tab = this._mapTab ?? "people";
+    if (tab === "devices") {
+      return devices.map((device) =>
+        this._renderMapRow({ ...device, key: device.entityId, details: [device.state, this._ago(device.changed)] }),
+      );
+    }
+    if (tab === "zones") {
+      return zones.map((zone) =>
+        this._renderMapRow({
+          ...zone,
+          key: zone.entityId,
+          details: [translate(language, "map_people_here", { count: zone.people })],
+        }),
+      );
+    }
+    return people.map((person) =>
+      this._renderMapRow({
+        ...person,
+        key: person.entityId,
+        person: person.entityId,
+        details: [person.state, person.distance, this._ago(person.changed)],
+      }),
+    );
+  }
+
+  // The finger moves the panel, not the page. Up to the first few pixels it may still be a tap on a tab.
+  _startMapDrag(event) {
+    const panel = this.renderRoot.querySelector("[data-map-panel]");
+    if (!this.renderRoot.querySelector("[data-map-grip]")?.offsetParent) return;
+    const room = panel.parentElement.offsetHeight;
+    const { clientY: startY } = event;
+    const startHeight = panel.offsetHeight;
+    let moved = false;
+    const move = ({ clientY }) => {
+      if (!moved && Math.abs(startY - clientY) < MAP_DRAG_START_PX) return;
+      moved = true;
+      this._mapDrag = Math.min(room, Math.max(MAP_PANEL_FOLDED_PX, startHeight + startY - clientY));
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      if (!moved) return;
+      const stops = { folded: MAP_PANEL_FOLDED_PX, half: room * MAP_PANEL_OPEN, full: room };
+      const nearest = (first, second) => (Math.abs(stops[second] - this._mapDrag) < Math.abs(stops[first] - this._mapDrag) ? second : first);
+      this._mapPanel = Object.keys(stops).reduce(nearest);
+      this._mapDrag = null;
+      const swallow = (click) => click.stopPropagation();
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), CLICK_AFTER_DRAG_MS);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+
   _renderMap() {
     const language = this._hass.language;
-    const { people = [] } = this._model;
+    const tab = this._mapTab ?? "people";
+    const dragged = this._mapDrag == null ? nothing : `height: ${this._mapDrag}px; transition: none`;
     return html`
-      ${this._renderPageTitle(translate(language, "nav_map"))}
-      <div class="map-layout">
+      <div class="map-page">
         <div class="cards map" data-cards></div>
-        <section class="people">
-          <h2>${translate(language, "people")}</h2>
-          <ul>
-            ${people.map(
-              (person) => html`
-                <li data-person=${person.entityId}>
-                  <span class="avatar">
-                    ${person.picture
-                      ? html`<img src=${this._hass.hassUrl(person.picture)} alt="" />`
-                      : html`<ha-icon icon="mdi:account"></ha-icon>`}
-                  </span>
-                  <span class="text">
-                    <strong>${person.name}</strong>
-                    <small>${[person.state, person.distance].filter(Boolean).join(" · ")}</small>
-                  </span>
-                </li>
+        <aside class="map-panel ${this._mapPanel ?? "half"}" style=${dragged} data-map-panel>
+          <div class="map-grab" @pointerdown=${this._startMapDrag}>
+          <button
+            class="map-grip"
+            aria-label=${translate(language, "map_fold")}
+            data-map-grip
+            @click=${() => {
+              this._mapPanel = this._mapPanel === "folded" ? "half" : "folded";
+            }}
+          ></button>
+          <div class="map-head">
+          <div class="map-tabs">
+            ${[
+              ["people", "people"],
+              ["devices", "map_devices"],
+              ["zones", "map_zones"],
+            ].map(
+              ([key, label]) => html`
+                <button
+                  class=${key === tab ? "selected" : ""}
+                  data-map-tab=${key}
+                  @click=${() => {
+                    this._mapTab = key;
+                  }}
+                >
+                  ${translate(language, label)}
+                </button>
               `,
             )}
+          </div>
+          <div class="intercom">${this._renderRoomsButton()}</div>
+          </div>
+          </div>
+          <ul>
+            ${this._renderMapList()}
           </ul>
-        </section>
+        </aside>
       </div>
     `;
   }
@@ -1122,7 +1317,7 @@ export class HomeDashboardPage extends LitElement {
         <button aria-label=${translate(language, "menu")} data-menu @click=${() => openDrawer(this)}>
           <ha-icon icon="mdi:menu"></ha-icon>
         </button>
-        <span></span>
+        <span>${this._page === "map" ? translate(language, "nav_map") : nothing}</span>
         <button
           aria-label=${translate(language, "voice")}
           @click=${() =>
@@ -1154,7 +1349,7 @@ export class HomeDashboardPage extends LitElement {
     const background = this._background;
     return html`
       <div
-        class="page ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""}
+        class="page ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""} ${this._page === "music" && this._config.music?.fullscreen ? "music-full" : ""} ${this._page === "music" && this._musicUnderClock ? "under-clock" : ""} ${this._page === "map" ? "whole map-view" : ""}
           ${this._embedded ? "embedded" : ""}"
       >
         ${background
@@ -1220,6 +1415,10 @@ export class HomeDashboardPage extends LitElement {
       .home-title h1 {
         flex: 1;
         min-width: 0;
+        overflow: hidden;
+        font-size: min(30px, 6.2vw);
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
       .intercom {
         display: flex;
@@ -1341,6 +1540,18 @@ export class HomeDashboardPage extends LitElement {
       }
       .page.whole {
         padding: var(--hd-safe-top) 0 0;
+      }
+      home-dashboard-app.music {
+        display: flex;
+      }
+      .page.music-full .music {
+        height: calc(100dvh - var(--hd-safe-top));
+      }
+      .page.under-clock {
+        padding-top: 0;
+      }
+      .page.music-full.under-clock .music {
+        height: 100dvh;
       }
       .music {
         display: block;
@@ -1962,11 +2173,110 @@ export class HomeDashboardPage extends LitElement {
         --secondary-text-color: var(--hd-text-muted);
         --card-background-color: var(--hd-surface);
       }
-      .cards.map {
-        height: calc(100dvh - var(--hd-safe-top) - var(--hd-nav-height) - 170px);
-        min-height: 320px;
+      .page.map-view .top-bar {
+        margin: 0;
+        padding: 0 8px;
+      }
+      .page.map-view .top-bar span {
+        font-size: 20px;
+      }
+      .map-page {
+        position: relative;
+        overscroll-behavior: none;
+        height: calc(100dvh - var(--hd-safe-top) - var(--hd-nav-height) - var(--hd-nav-safe) - 48px);
         overflow: hidden;
-        border-radius: var(--hd-radius);
+      }
+      .cards.map {
+        height: 100%;
+      }
+      .map-panel {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        height: 48%;
+        padding: 0 12px;
+        box-sizing: border-box;
+        overflow: hidden;
+        border-radius: var(--hd-radius) var(--hd-radius) 0 0;
+        background: var(--hd-background);
+        transition: height 200ms ease;
+      }
+      .map-panel.folded {
+        height: 32px;
+      }
+      .map-panel.full {
+        height: 100%;
+        border-radius: 0;
+      }
+      .map-grab {
+        flex: none;
+        touch-action: none;
+      }
+      .map-grip {
+        display: block;
+        width: 100%;
+        height: 32px;
+      }
+      .map-grip::after {
+        content: "";
+        display: block;
+        width: 36px;
+        height: 4px;
+        margin: 14px auto;
+        border-radius: 2px;
+        background: var(--hd-off-icon);
+      }
+      .map-head {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 8px;
+      }
+      .map-head .intercom {
+        margin: 0;
+      }
+      .map-tabs {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 14px;
+        background: var(--hd-off);
+      }
+      .map-tabs button {
+        flex: 1;
+        min-height: 36px;
+        border-radius: 10px;
+        font-size: 14px;
+        text-align: center;
+      }
+      .map-tabs .selected {
+        background: var(--hd-surface);
+        font-weight: 500;
+      }
+      .map-panel ul {
+        flex: 1;
+        min-height: 0;
+        margin: 4px 0 0;
+        padding: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        list-style: none;
+      }
+      .map-panel li.unknown {
+        opacity: 0.6;
+      }
+      .map-panel li button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 60px;
+        padding: 4px;
       }
       .cards.map > * {
         display: block;
@@ -2040,6 +2350,25 @@ export class HomeDashboardPage extends LitElement {
         }
         .music {
           height: calc(100dvh - var(--hd-safe-top));
+        }
+        .map-page {
+          height: calc(100dvh - var(--hd-safe-top));
+        }
+        .map-panel,
+        .map-panel.folded,
+        .map-panel.full {
+          top: 12px;
+          right: auto;
+          bottom: auto;
+          left: 12px;
+          width: 320px;
+          height: auto;
+          max-height: calc(100% - 24px);
+          padding: 12px;
+          border-radius: var(--hd-radius);
+        }
+        .map-grip {
+          display: none;
         }
         .map-layout {
           display: grid;
