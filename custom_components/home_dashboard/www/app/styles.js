@@ -10,17 +10,19 @@ const LIGHT_BACKGROUND = "#fbfaff";
 const DARK_BACKGROUND = "#121316";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
+// A window over the page may bring its own colours (the look of windows): every element inside it,
+// whatever shadow root it lives in, picks them up through the --hd-ov-* properties it inherits.
 const LIGHT = `
     --hd-background: #fbfaff;
-    --hd-surface: #ffffff;
-    --hd-outline: #dfe2eb;
-    --hd-text: #1b1b1f;
-    --hd-text-muted: #5b5e66;
-    --hd-pill: #d3e3f2;
+    --hd-surface: var(--hd-ov-surface, #ffffff);
+    --hd-outline: var(--hd-ov-outline, #dfe2eb);
+    --hd-text: var(--hd-ov-text, #1b1b1f);
+    --hd-text-muted: var(--hd-ov-text-muted, #5b5e66);
+    --hd-pill: var(--hd-ov-pill, #d3e3f2);
     --hd-player: #dbe2ea;
-    --hd-off: #ebebed;
-    --hd-off-icon: #dcdcdf;
-    --hd-off-ink: #45474d;
+    --hd-off: var(--hd-ov-off, #ebebed);
+    --hd-off-icon: var(--hd-ov-off-icon, #dcdcdf);
+    --hd-off-ink: var(--hd-ov-off-ink, #45474d);
     --hd-climate: #ffe3c7;
     --hd-climate-icon: #cc6f00;
     --hd-climate-ink: #cc6f00;
@@ -50,7 +52,7 @@ const LIGHT = `
     --hd-chip-pink: #d9498f;
     --hd-link: #0b57d0;
     --hd-star: #b98900;
-    --hd-control: #45474d;
+    --hd-control: var(--hd-ov-control, #45474d);
     --hd-radius: 20px;
     --hd-rail-width: 88px;
     --hd-nav-height: 72px;
@@ -62,15 +64,15 @@ const LIGHT = `
 
 const DARK = `
     --hd-background: #121316;
-    --hd-surface: #1e1f24;
-    --hd-outline: #3a3c43;
-    --hd-text: #e4e4ea;
-    --hd-text-muted: #a3a6ae;
-    --hd-pill: #2f3f52;
+    --hd-surface: var(--hd-ov-surface, #1e1f24);
+    --hd-outline: var(--hd-ov-outline, #3a3c43);
+    --hd-text: var(--hd-ov-text, #e4e4ea);
+    --hd-text-muted: var(--hd-ov-text-muted, #a3a6ae);
+    --hd-pill: var(--hd-ov-pill, #2f3f52);
     --hd-player: #262a31;
-    --hd-off: #24262b;
-    --hd-off-icon: #34363d;
-    --hd-off-ink: #c8cad0;
+    --hd-off: var(--hd-ov-off, #24262b);
+    --hd-off-icon: var(--hd-ov-off-icon, #34363d);
+    --hd-off-ink: var(--hd-ov-off-ink, #c8cad0);
     --hd-climate: #4a2f14;
     --hd-climate-icon: #cc6f00;
     --hd-climate-ink: #f0a24c;
@@ -100,7 +102,7 @@ const DARK = `
     --hd-chip-pink: #f48fb8;
     --hd-link: #a8c7fa;
     --hd-star: #f0d24a;
-    --hd-control: #c8cad0;
+    --hd-control: var(--hd-ov-control, #c8cad0);
 `;
 
 const COMMON = `
@@ -152,7 +154,7 @@ export const pageColour = () => (isDark() ? DARK_BACKGROUND : LIGHT_BACKGROUND);
 export function backgroundStyle(value, position = "center") {
   const clean = String(value).replace(/[";{}<>]/g, "");
   const part = ["top", "bottom"].includes(position) ? position : "center";
-  return /^(\/|https?:)/.test(clean)
+  return /^(\/|https?:|data:image\/)/.test(clean)
     ? `background-image: url("${clean}"); background-position: center ${part}`
     : `background: ${clean}`;
 }
@@ -174,12 +176,13 @@ function channels(colour) {
   return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
 }
 
-// The share of the theme over a background, as in .backdrop::after on the page.
+// The share of the theme over a background, as in .backdrop::after on the page, unless the look
+// of the page says otherwise.
 const BACKGROUND_VEIL = 0.6;
 
-export function veiled(colour, veil = pageColour()) {
+export function veiled(colour, veil = pageColour(), share = BACKGROUND_VEIL) {
   const [top, over] = [channels(colour), channels(veil)];
-  const mixed = top.map((value, index) => Math.round(value + (over[index] - value) * BACKGROUND_VEIL));
+  const mixed = top.map((value, index) => Math.round(value + (over[index] - value) * share));
   return `#${mixed.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
@@ -198,17 +201,33 @@ function pictureTop(url) {
 }
 
 // The colour along the top edge of a background, which the area over the page continues.
-export async function backgroundTop(value) {
+export async function backgroundTop(value, share = BACKGROUND_VEIL) {
   if (!value) return pageColour();
   const clean = String(value).trim();
   if (/^(\/|https?:)/.test(clean)) {
     const top = await pictureTop(clean);
-    return top ? veiled(top) : pageColour();
+    return top ? veiled(top, pageColour(), share) : pageColour();
   }
   const first = /gradient/.test(clean)
     ? clean.match(/#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\([^)]*\)/i)?.[0]
     : clean;
-  return first ? veiled(first) : pageColour();
+  return first ? veiled(first, pageColour(), share) : pageColour();
+}
+
+// A background painted on the view itself, under the same veil as on the page. The view scrolls, but
+// its own background does not move: the page bounces over a background that stays where it is.
+export function viewBackgroundFor(value, position = "center", share = BACKGROUND_VEIL) {
+  const clean = String(value ?? "").replace(/[";{}<>]/g, "").trim();
+  if (!clean) return null;
+  const [red, green, blue] = channels(pageColour());
+  const veil = `rgba(${red}, ${green}, ${blue}, ${share})`;
+  const part = ["top", "bottom"].includes(position) ? position : "center";
+  const layer = /^(\/|https?:|data:image\/)/.test(clean)
+    ? `url("${clean}") center ${part} / cover no-repeat`
+    : /gradient\(/.test(clean)
+      ? clean
+      : `linear-gradient(${clean}, ${clean})`;
+  return `linear-gradient(${veil}, ${veil}), ${layer}, ${pageColour()}`;
 }
 
 // For Home Assistant's own view behind the page, which the tokens cannot reach.

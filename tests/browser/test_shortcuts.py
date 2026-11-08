@@ -650,6 +650,18 @@ def test_turning_the_screen_changes_the_background(phone):
     phone.wait_for_function(f"({style})().includes('#202020')")
 
 
+def test_the_scenes_page_has_a_background_of_its_own(phone):
+    mount_admin(phone, {"backgrounds": {"scenes": {"light": "#303030", "dark": "#303030"}}}, name="room")
+    phone.evaluate("""() => {
+        const page = document.querySelector('home-dashboard-page');
+        page._room = '__scenes';
+        page.requestUpdate();
+    }""")
+    phone.wait_for_function(
+        "document.querySelector('home-dashboard-page').shadowRoot.querySelector('.backdrop')?.getAttribute('style')?.includes('#303030')"
+    )
+
+
 def test_only_an_administrator_edits_the_screen(phone):
     mount_admin(phone, {}, admin=False)
     phone.locator("home-dashboard-page [data-rooms]").click()

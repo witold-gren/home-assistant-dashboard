@@ -479,10 +479,10 @@ export class HomeDashboardSchool extends LitElement {
         margin: 0;
       }
       .row.day-event {
-        background: var(--hd-light);
+        background: var(--hd-ov-highlight, var(--hd-light));
       }
       .row.day-event ha-icon {
-        color: var(--hd-light-ink);
+        color: var(--hd-ov-highlight-ink, var(--hd-light-ink));
       }
       .row.canceled strong {
         text-decoration: line-through;

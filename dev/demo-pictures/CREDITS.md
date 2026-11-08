@@ -3,6 +3,10 @@
 Photos of other people's homes, shown in place of camera pictures in the screenshots. All are CC0 on
 Wikimedia Commons, cropped and without metadata.
 
+The backgrounds in `backgrounds/` (home, kids room, office, living room, each light and dark) were made by the author
+of Home Dashboard for the screenshots of the Apple Home theme. They come without metadata and may be used with Home
+Dashboard.
+
 | File | Source | Author | Licence |
 |---|---|---|---|
 | driveway.jpg | [House in forest (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:House_in_forest_(Unsplash).jpg) | Flo Pappert flopt | CC0 |

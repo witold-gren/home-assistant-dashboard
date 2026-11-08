@@ -169,32 +169,3 @@ export function selectSourceAfterStart(getHass, entityId, source, timing = {}) {
   }, poll);
 }
 
-// Energy ------------------------------------------------------------------------------------------
-
-// The cards of Home Assistant's own energy panel, as far as the household has data for them.
-export function energyCards(prefs, localize) {
-  const sources = prefs.energy_sources ?? [];
-  const has = (type) => sources.some((source) => source.type === type);
-  const devices = prefs.device_consumption?.length > 0;
-  const card = (type, titleKey) => ({
-    type,
-    ...(titleKey ? { title: localize?.(`ui.panel.energy.cards.${titleKey}`) } : {}),
-  });
-  return [
-    card("energy-date-selection"),
-    card("energy-compare"),
-    card("energy-usage-graph", "energy_usage_graph_title"),
-    ...(has("solar") ? [card("energy-solar-graph", "energy_solar_graph_title")] : []),
-    ...(has("gas") ? [card("energy-gas-graph", "energy_gas_graph_title")] : []),
-    ...(has("water") ? [card("energy-water-graph", "energy_water_graph_title")] : []),
-    card("energy-distribution", "energy_distribution_title"),
-    card("energy-sources-table", "energy_sources_table_title"),
-    ...(devices
-      ? [
-          card("energy-devices-detail-graph", "energy_devices_detail_graph_title"),
-          card("energy-devices-graph", "energy_devices_graph_title"),
-          card("energy-sankey", "energy_sankey_title"),
-        ]
-      : []),
-  ];
-}

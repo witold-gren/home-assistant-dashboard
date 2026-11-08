@@ -4,9 +4,15 @@
 
 Strategia dashboardu dla Home Assistant zaprojektowana pod dotyk: jeden dashboard na telefon
 i tablet ścienny, z pastelowymi kafelkami, podsumowaniami, dolnym paskiem na telefonie i bocznym
-na tablecie. Całość powstaje automatycznie z Twoich pokoi, więc nie piszesz kart ręcznie.
+na tablecie. Całość powstaje automatycznie z Twoich pokoi, więc nie piszesz kart ręcznie. Wygląd ustawiasz w
+samym dashboardzie i zapisujesz jako motyw, którym możesz się podzielić; w zestawie są dwa: **Home Dashboard** i
+**Apple Home**.
 
 Stan: wczesna wersja.
+
+| Apple Home | Apple Home: pokój | Apple Home: lampa | Apple Home: energia |
+|---|---|---|---|
+| ![Apple Home](docs/screenshots/pl/apple-home.png) | ![Apple Home: pokój](docs/screenshots/pl/apple-room.png) | ![Apple Home: lampa](docs/screenshots/pl/apple-light.png) | ![Apple Home: energia](docs/screenshots/pl/apple-energy.png) |
 
 | Strona główna | Pokój | Tryb ciemny | Edycja kafelka |
 |---|---|---|---|
@@ -51,8 +57,8 @@ Stan: wczesna wersja.
 **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
 Zrzuty pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
-([źródła](dev/demo-pictures/CREDITS.md)). Muzyka, Energia i Mapa używają zastępczej aplikacji muzycznej
-i kart z wymyślonymi liczbami. `make screenshots` tworzy je od nowa.
+([źródła](dev/demo-pictures/CREDITS.md)). Tła na zrzutach Apple Home przygotował autor dashboardu. Muzyka i Mapa
+używają zastępczej aplikacji muzycznej i mapy, a Energia wymyślonych statystyk. `make screenshots` tworzy je od nowa.
 
 Dashboard mówi językiem użytkownika Home Assistant. W zestawie są angielski i polski, a nowy język to
 kolejny blok w `www/app/i18n.js`. Test pilnuje, żeby miał wszystkie teksty.
@@ -241,7 +247,18 @@ w `layout`.
 Trzy kropki → **Tło tego ekranu** ustawia tło strony głównej lub pokoju: gradient, kolor albo wgrane zdjęcie,
 osobno dla jasnego i ciemnego wyglądu oraz dla ekranu pionowego (telefon) i poziomego (tablet obrócony, laptop), z wyborem części zdjęcia, która zostaje po przycięciu. Administrator przy każdym z nich zaznacza **Dla wszystkich** i wtedy
 zapisuje się ono w `backgrounds`. Bez zaznaczenia tło zostaje na koncie tej osoby i wygrywa ze wspólnym. Strona trzyma nad tłem warstwę w kolorze
-motywu, więc nagłówki są czytelne w trybie jasnym i ciemnym. Tło stoi w miejscu, gdy strona się przewija.
+motywu, więc nagłówki są czytelne w trybie jasnym i ciemnym; jej siłę ustawia **Wygląd → Tło**. Tło stoi w miejscu,
+gdy strona się przewija i odbija na końcach. Własne tło mają też strona Scen, Mapa i Energia.
+
+### Wygląd i motywy
+
+Trzy kropki → **Wygląd** ustawia wygląd całego dashboardu: wyrazistość tła, odbicie przewijania, przyciski (krycie,
+zaokrąglenie, kolor całego przycisku albo samej ikony, kolor każdego rodzaju), kolory napisów, górnych bloków i
+plakietek, dolny pasek (pozycje, styl przyklejony albo pływający, szkło), mały odtwarzacz, okna (przezroczystość i
+rozmycie), mapę i własne ikony urządzeń. Administrator ustawia wygląd dla wszystkich, a każdy może go dopasować dla
+siebie. Zakładka **Motywy** trzyma bibliotekę wyglądów: **Home Dashboard** i **Apple Home** przychodzą w zestawie,
+swój wygląd zachowujesz jako motyw, a każdy eksportujesz do pliku razem ze zdjęciami teł i wczytujesz w innym domu.
+Szczegóły i instrukcja krok po kroku są w [przewodniku](docs/guide.pl.md#wygląd).
 
 ### Otwieranie przy starcie na jednym urządzeniu
 
@@ -396,6 +413,11 @@ Frontend nie ma kroku budowania: to zwykłe moduły ES, a Lit jest w `www/vendor
 skryptem `scripts/make_fixture.py`.
 
 ## FAQ
+
+**Mały odtwarzacz cały czas pokazuje głośnik, na którym nic nie gra** — niektóre głośniki, np. HomePod po
+zakończonym strumieniu AirPlay, dalej zgłaszają stan `playing`, ale bez tytułu. Od tej wersji taki głośnik się nie
+pokazuje. Wstrzymane odtwarzanie znika po czasie z **Wygląd → Pasek → Wstrzymany zostaje** (domyślnie 10 minut), a
+przycisk × zamyka odtwarzacz do czasu, aż coś zacznie grać.
 
 **Dashboard zostaje jasny w nocy** — sprawdź tryb kolorów w opcjach integracji, ustawienie systemu, a w aplikacji Companion także jej
 ustawienie motywu (Konfiguracja aplikacji → Motyw). Może też pomóc wyczyszczenie pamięci frontendu.

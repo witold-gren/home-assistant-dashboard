@@ -1,5 +1,6 @@
 // What the dashboard shows, as plain data: no Lit and no DOM, so it can be tested on its own.
 
+import { mergeAppearance, tileKind } from "./appearance.js";
 import { translate } from "./i18n.js";
 import { panelEntityIds, panelTile } from "./panel.js";
 
@@ -119,9 +120,11 @@ export function normalizeConfig(config = {}) {
     scenes: config.scenes ?? [],
     scenes_layout: config.scenes_layout ?? null,
     music: config.music ?? null,
+    map: { track: [], ...config.map },
     weather: config.weather === false ? null : { entity: null, forecast: null, ...config.weather },
     background: config.background ?? null,
     backgrounds: config.backgrounds ?? {},
+    appearance: config.appearance ?? {},
     access: config.access ?? {},
     visibility: config.visibility ?? {},
     cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, battery_platforms: ["eufy_sdk"], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
@@ -345,7 +348,8 @@ export function buildTile(hass, entityId, roomName, config, layout = "phone") {
     stateText: tileStateText(hass, domain, stateObj),
     tone: available ? tileTone(domain, stateObj) : "off",
     tint: domain === "light" ? lightTint(stateObj) : null,
-    icon: tileIcon(stateObj, entityId, config),
+    kind: tileKind(domain),
+    icon: config.appearance?.icons?.[entityId] ?? tileIcon(stateObj, entityId, config),
     badge: domain === "climate" && current != null ? `${Math.round(current)}°` : null,
     available,
     iconAction: available && TOGGLE_ON_ICON.has(domain) ? "toggle" : null,
@@ -367,14 +371,16 @@ export function layoutTile(hass, item, roomName, config, layout) {
   if (item.kind === "panel") return panelTile(hass, item);
   const tile = buildTile(hass, item.entity, roomName, config, layout);
   if (!tile || (item.active_only && INACTIVE_STATES.has(hass.states[item.entity].state))) return null;
-  const shown = { ...tile, name: item.name ?? tile.name, icon: item.icon ?? tile.icon };
+  // An icon chosen in the look of the page wins over the one of the layout.
+  const icon = config.appearance?.icons?.[item.entity] ?? item.icon ?? tile.icon;
+  const shown = { ...tile, name: item.name ?? tile.name, icon };
   if (tile.item) shown.item = { ...tile.item, name: shown.name };
   // Something that is on nearly all the time must not shine: only being off stands out.
   if (item.calm) {
     Object.assign(shown, { tone: "off", dormant: INACTIVE_STATES.has(hass.states[item.entity].state) });
   }
   if (item.kind === "tv") {
-    return { ...shown, icon: item.icon ?? tile.icon, item, iconAction: null, tapAction: "tv" };
+    return { ...shown, item, iconAction: null, tapAction: "tv" };
   }
   if (item.turn_on_only) {
     const off = hass.states[item.entity].state === "off";
@@ -646,6 +652,7 @@ export function personalize(config, userId, prefs = {}) {
     denied,
     deniedAreas,
     personalBackgrounds: prefs.backgrounds ?? {},
+    appearance: mergeAppearance(config.appearance, prefs.appearance),
     scenes: personalScenes(config, prefs),
     favorites: prefs.favorites ?? config.favorites,
     menuHidden: prefs.hidden_menu ?? [],
@@ -1003,11 +1010,24 @@ export function buildHomeModel(hass, config, selection, layout = "phone", now = 
   };
 }
 
-export function nowPlaying(hass, selection) {
-  const active = (state) =>
-    selection.mediaGroups.flat().find((id) => hass.states[id]?.state === state) ?? null;
-  return active("playing") ?? active("paused");
+// A speaker can say it plays long after a stream ended, with nothing to show: that is not playing.
+export const hasMedia = (stateObj) => Boolean(stateObj?.attributes?.media_title || stateObj?.attributes?.media_content_id);
+
+// What the small player shows: something playing, else something paused for less than `pausedMinutes`
+// (0: nothing paused at all). A player someone closed stays away until it plays something again.
+export function nowPlaying(hass, selection, { pausedMinutes = 10, now = Date.now(), dismissed = null } = {}) {
+  const ids = selection.mediaGroups.flat();
+  const shown = (id) => hasMedia(hass.states[id]) && mediaKey(hass.states[id]) !== dismissed;
+  const playing = ids.find((id) => hass.states[id]?.state === "playing" && shown(id));
+  if (playing) return playing;
+  if (!pausedMinutes) return null;
+  const recent = (id) => now - new Date(hass.states[id].last_changed ?? 0).getTime() < pausedMinutes * 60000;
+  return ids.find((id) => hass.states[id]?.state === "paused" && shown(id) && recent(id)) ?? null;
 }
+
+// What a closed player was showing, so that it comes back for anything new.
+export const mediaKey = (stateObj) =>
+  stateObj ? [stateObj.entity_id, stateObj.state, stateObj.attributes?.media_title ?? stateObj.attributes?.media_content_id].join("|") : null;
 
 export function buildPlayer(hass, entityId, config, now = Date.now()) {
   const stateObj = hass.states[entityId];
@@ -1123,6 +1143,23 @@ export function buildTrackers(hass, config) {
       position: [stateObj.attributes.latitude, stateObj.attributes.longitude],
     }))
     .sort((first, second) => first.name.localeCompare(second.name, hass.language));
+}
+
+export const MAP_HOURS = [6, 24, 72, 168];
+
+// The map of the Map page: where the people and the chosen devices went in the last hours, with the
+// zones. Home Assistant draws a route only for what is listed, so everything is listed.
+export function mapCardConfig({ people, devices, zones }, { track = [], who = "all", hours = 24, dark = false } = {}) {
+  const subjects = [...people.map(({ entityId }) => entityId), ...devices.filter(({ entityId }) => track.includes(entityId)).map(({ entityId }) => entityId)];
+  const chosen = who !== "all" && subjects.includes(who) ? [who] : subjects;
+  return {
+    type: "map",
+    theme_mode: dark ? "dark" : "light",
+    auto_fit: true,
+    fit_zones: false,
+    hours_to_show: hours,
+    entities: [...chosen.map((entity) => ({ entity })), ...zones.map(({ entityId }) => entityId)],
+  };
 }
 
 export function buildZones(hass) {

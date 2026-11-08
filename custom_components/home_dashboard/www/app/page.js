@@ -12,12 +12,14 @@ import {
   pageScroller,
   saveDashboard,
   setPageBackground,
+  setViewBackground,
+  paintsView,
   goHome,
   tuckNavigation,
   updateChrome,
 } from "./chrome.js";
 import { translate } from "./i18n.js";
-import { energyCards } from "./panel.js";
+import { backgroundVeil, panelVariables, tileColour, tileColourStyle, tileVariables } from "./appearance.js";
 import { PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { createRecorder } from "./intercom.js";
 import {
@@ -29,6 +31,8 @@ import {
   buildMediaSections,
   buildTrackers,
   buildZones,
+  MAP_HOURS,
+  mapCardConfig,
   buildSpeakers,
   cameraColumns,
   editableTile,
@@ -71,7 +75,7 @@ import {
 } from "./room-editor.js";
 import { rememberConfig } from "./settings.js";
 import { buildRoomStatus, roomActions } from "./status.js";
-import { backgroundStyle, isDark, screenShape, tokens, WIDE_QUERY } from "./styles.js";
+import { backgroundStyle, isDark, screenShape, tokens, viewBackgroundFor, WIDE_QUERY } from "./styles.js";
 
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
 const MEDIA_BROWSER_PATH = "/media-browser/browser";
@@ -81,7 +85,6 @@ const SHORTCUT_TONES = ["green", "purple", "teal", "pink"];
 const DRAG_EDGE = 72;
 const DRAG_SCROLL = 12;
 const LONG_TITLE = 14;
-const DEFAULT_MAP = { type: "map", auto_fit: true, show_all: true };
 const RAN_MS = 2000;
 // What Music Assistant needs to run under the clock of a phone: its bars and panels start lower.
 const MUSIC_INSET_STYLE = `
@@ -96,6 +99,8 @@ const MAP_PANEL_OPEN = 0.48;
 const MAP_DRAG_START_PX = 6;
 const CLICK_AFTER_DRAG_MS = 300;
 const MAP_CONTROL_TRIES = 20;
+const MAP_HOURS_KEY = "home_dashboard_map_hours";
+const MAP_WHO_KEY = "home_dashboard_map_who";
 const MAP_CONTROL_WAIT_MS = 500;
 const MUSIC_PLAYER_CHECK_MS = 250;
 const MUSIC_PLAYER = ".v-overlay--active .fullscreen-player-card";
@@ -137,6 +142,8 @@ export class HomeDashboardPage extends LitElement {
     super.connectedCallback();
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
+    // A page shown again, as Home after a room, puts its own background back on the view.
+    if (this.hasUpdated) this.requestUpdate();
     // Turning a tablet changes the shape of the screen, and with it the background.
     this._shapeQuery = window.matchMedia(WIDE_QUERY);
     this._shapeQuery.addEventListener("change", this._onShape);
@@ -354,16 +361,55 @@ export class HomeDashboardPage extends LitElement {
     });
   }
 
-  // The map dashboard of Home Assistant decides what the map shows, so a change there counts here too.
-  async _mountMap() {
-    let card = null;
+  // Each device remembers whose routes it shows and how far back.
+  _remembered(key) {
     try {
-      const dashboard = await this._hass.callWS({ type: "lovelace/config", url_path: "map" });
-      card = dashboard?.views?.[0]?.cards?.find((item) => item.type === "map");
+      return localStorage.getItem(key);
     } catch {
-      // No such dashboard: the plain map below is enough.
+      return null;
     }
-    await this._mountCards([{ ...(card ?? DEFAULT_MAP), theme_mode: isDark() ? "dark" : "light" }]);
+  }
+
+  get _mapHours() {
+    const hours = Number(this._remembered(MAP_HOURS_KEY));
+    return MAP_HOURS.includes(hours) ? hours : this._config.appearance.map.hours;
+  }
+
+  get _mapWho() {
+    return this._remembered(MAP_WHO_KEY) ?? "all";
+  }
+
+  get _mapSubjects() {
+    const { track } = this._config.map;
+    return {
+      people: buildPeople(this._hass).filter(({ entityId }) => !this._config.denied?.includes(entityId)),
+      devices: buildTrackers(this._hass, this._config).filter(({ entityId }) => track.includes(entityId)),
+      zones: buildZones(this._hass),
+    };
+  }
+
+  _pickMap(key, value) {
+    try {
+      localStorage.setItem(key, String(value));
+    } catch {
+      // Private browsing: the choice holds until the page reloads.
+    }
+    this._mountMap();
+    this.requestUpdate();
+  }
+
+  // Home Assistant's map draws the routes; the page chooses what it draws and in which colours.
+  async _mountMap() {
+    const { theme } = this._config.appearance.map;
+    const dark = theme === "auto" ? isDark() : theme === "dark";
+    const config = mapCardConfig(this._mapSubjects, {
+      track: this._config.map.track,
+      who: this._mapWho,
+      hours: this._mapHours,
+      dark,
+    });
+    this.renderRoot.querySelector("[data-cards]")?.replaceChildren();
+    await this._mountCards([config]);
     this._placeMapControls(MAP_CONTROL_TRIES);
   }
 
@@ -377,7 +423,8 @@ export class HomeDashboardPage extends LitElement {
       return;
     }
     const style = document.createElement("style");
-    style.textContent = ".maplibregl-ctrl-top-left { left: auto; right: 0; }";
+    // Below the buttons for whose routes and how far back, and below the own buttons of the map.
+    style.textContent = ".maplibregl-ctrl-top-left { top: 220px; left: auto; right: 0; }";
     map.append(style);
     const buttons = card.querySelector("ha-icon-button")?.parentElement;
     if (buttons) Object.assign(buttons.style, { left: "auto", right: "3px" });
@@ -392,17 +439,20 @@ export class HomeDashboardPage extends LitElement {
     }
   }
 
+  // The page draws the energy itself from the settings of Home Assistant; the costs it worked out
+  // live in statistics of their own, which energy/info names.
   async _loadEnergy() {
     let prefs = null;
+    let info = {};
     try {
       prefs = await this._hass.callWS({ type: "energy/get_prefs" });
+      info = await this._hass.callWS({ type: "energy/info" }).catch(() => ({}));
     } catch {
       // Not configured: the page says so.
     }
-    this._energyReady = Boolean(prefs?.energy_sources?.length);
-    if (!this._energyReady) return;
-    await this.updateComplete;
-    this._mountCards(energyCards(prefs, this._hass.localize));
+    this._energyReady = Boolean(prefs?.energy_sources?.length || prefs?.device_consumption?.length);
+    this._energy = this._energyReady ? { prefs, info } : null;
+    this.requestUpdate();
   }
 
   _fire(type, detail) {
@@ -460,10 +510,14 @@ export class HomeDashboardPage extends LitElement {
   _renderTile(tile, showRoom) {
     const tint = tile.tint?.join(",");
     const ran = this._ran && this._ran === (tile.entityId ?? tile.name);
+    // A colour chosen for the kind of tile wins over the colour of the lamp.
+    const chosen = tileColourStyle(tileColour(tile, this._config.appearance));
+    const tinted = tint ? `--tile-background: rgba(${tint}, 0.18); --tile-icon: rgba(${tint}, 0.75)` : null;
     return html`
       <button
         class="tile ${tile.tone} ${tile.available ? "" : "unavailable"} ${tile.stats?.length ? "wide" : ""} ${ran ? "ran" : ""} ${tile.dormant ? "dormant" : ""}"
-        style=${tint ? `--tile-background: rgba(${tint}, 0.18); --tile-icon: rgba(${tint}, 0.75)` : nothing}
+        style=${chosen ?? tinted ?? nothing}
+        data-kind=${tile.kind ?? nothing}
         data-entity=${tile.entityId}
         data-tile=${tile.name}
         @click=${() => this._tap(tile)}
@@ -578,9 +632,11 @@ export class HomeDashboardPage extends LitElement {
     return this._backgroundKey ? () => this._openBackground() : null;
   }
 
+  // Home, Map and Energy have a background of their own; a room is known by its id.
   get _backgroundKey() {
-    if (this._page === "home") return "home";
-    return this._page === "room" && this._room !== SCENES_ROOM ? this._room : null;
+    if (["home", "map", "energy"].includes(this._page)) return this._page;
+    if (this._page !== "room") return null;
+    return this._room === SCENES_ROOM ? "scenes" : this._room;
   }
 
   get _legacyBackground() {
@@ -784,9 +840,14 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
+  // A page without a background of its own takes the one of the look, except the music, which fills
+  // the screen. The map takes it too: it shows above and below the map.
   get _background() {
     const key = this._backgroundKey;
-    return key ? pickBackground(this._config, key, this._legacyBackground, isDark() ? "dark" : "light", screenShape()) : null;
+    const mode = isDark() ? "dark" : "light";
+    const own = key ? pickBackground(this._config, key, this._legacyBackground, mode, screenShape()) : null;
+    if (own || this._page === "music") return own;
+    return this._config.appearance.page[`background_${mode}`] ?? null;
   }
 
   get _backgroundPosition() {
@@ -1166,7 +1227,9 @@ export class HomeDashboardPage extends LitElement {
     return html`
       ${this._renderPageTitle(translate(language, "nav_energy"))}
       ${this._energyReady === false ? html`<p class="soon">${translate(language, "energy_unavailable")}</p>` : nothing}
-      <div class="cards energy" data-cards></div>
+      ${this._energy
+        ? html`<home-dashboard-energy .hass=${this._hass} .prefs=${this._energy.prefs} .info=${this._energy.info}></home-dashboard-energy>`
+        : nothing}
     `;
   }
 
@@ -1289,14 +1352,48 @@ export class HomeDashboardPage extends LitElement {
     window.addEventListener("pointercancel", end);
   }
 
+  _renderMapFilters() {
+    const language = this._hass.language;
+    const { people, devices } = this._mapSubjects;
+    const hours = this._mapHours;
+    const subjects = [
+      ["all", translate(language, "map_everyone")],
+      ...[...people, ...devices].map(({ entityId, name }) => [entityId, name.split(" ")[0]]),
+    ];
+    // Someone no longer on the map leaves everyone shown, as the map does.
+    const who = subjects.some(([key]) => key === this._mapWho) ? this._mapWho : "all";
+    return html`
+      <div class="map-filters" style=${panelVariables(this._config.appearance)}>
+        <div class="map-chips">
+          ${subjects.map(
+            ([key, label]) => html`
+              <button class=${key === who ? "on" : ""} data-map-who=${key} @click=${() => this._pickMap(MAP_WHO_KEY, key)}>${label}</button>
+            `,
+          )}
+        </div>
+        <div class="map-chips">
+          ${MAP_HOURS.map(
+            (value) => html`
+              <button class=${value === hours ? "on" : ""} data-map-hours=${value} @click=${() => this._pickMap(MAP_HOURS_KEY, value)}>
+                ${translate(language, `map_hours_${value}`)}
+              </button>
+            `,
+          )}
+        </div>
+      </div>
+    `;
+  }
+
   _renderMap() {
     const language = this._hass.language;
     const tab = this._mapTab ?? "people";
     const dragged = this._mapDrag == null ? nothing : `height: ${this._mapDrag}px; transition: none`;
+    const glass = panelVariables(this._config.appearance);
     return html`
       <div class="map-page">
         <div class="cards map" data-cards></div>
-        <aside class="map-panel ${this._mapPanel ?? "half"}" style=${dragged} data-map-panel>
+        ${this._renderMapFilters()}
+        <aside class="map-panel ${this._mapPanel ?? "half"}" style="${glass}; ${dragged === nothing ? "" : dragged}" data-map-panel>
           <div class="map-grab" @pointerdown=${this._startMapDrag}>
           <button
             class="map-grip"
@@ -1360,7 +1457,28 @@ export class HomeDashboardPage extends LitElement {
   }
 
   updated() {
-    if (!this._embedded) setPageBackground(this, this._background);
+    if (!this._embedded) {
+      setPageBackground(this, this._background);
+      const onView = this._onView;
+      // A page shorter than the screen does not scroll, and what does not scroll does not bounce.
+      this.toggleAttribute("bounce", onView && this._config.appearance.bounce && !["map", "music"].includes(this._page));
+      this.toggleAttribute("on-view", onView && Boolean(this._background));
+      if (onView) this._paintView();
+    }
+  }
+
+  // On the dashboard the background lies on the view, which does not move when the page bounces.
+  // Elsewhere, as in a sheet, the page carries it itself.
+  get _onView() {
+    return !this._embedded && paintsView(this);
+  }
+
+  // The view is shared by every page of the dashboard, so it alone knows what it shows now.
+  _paintView() {
+    const value = this._background
+      ? viewBackgroundFor(this._background, this._backgroundPosition, backgroundVeil(this._config.appearance))
+      : null;
+    setViewBackground(this, value);
   }
 
   render() {
@@ -1374,12 +1492,14 @@ export class HomeDashboardPage extends LitElement {
       map: this._renderMap,
     };
     const background = this._background;
+    const { appearance } = this._config;
     return html`
       <div
-        class="page ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""} ${this._page === "music" && this._config.music?.fullscreen ? "music-full" : ""} ${this._page === "music" && this._musicUnderClock ? "under-clock" : ""} ${this._page === "map" ? "whole map-view" : ""}
+        style="${tileVariables(appearance)}; --hd-veil: ${backgroundVeil(appearance)}"
+        class="page ${appearance.tiles.fill === "icon" ? "fill-icon" : ""} ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""} ${this._page === "music" && this._config.music?.fullscreen ? "music-full" : ""} ${this._page === "music" && this._musicUnderClock ? "under-clock" : ""} ${this._page === "map" ? "whole map-view" : ""}
           ${this._embedded ? "embedded" : ""}"
       >
-        ${background
+        ${background && !this._onView
           ? html`<div class="backdrop-rail"><div class="backdrop" style=${backgroundStyle(background, this._backgroundPosition)}></div></div>`
           : nothing}
         ${this._page === "music" || this._embedded ? nothing : this._renderTopBar()} ${pages[this._page].call(this)}
@@ -1396,6 +1516,13 @@ export class HomeDashboardPage extends LitElement {
         min-height: 100vh;
         background: var(--hd-background);
       }
+      :host([bounce]) {
+        min-height: calc(100dvh + 1px);
+      }
+      /* The view under the page carries the background. */
+      :host([on-view]) {
+        background: transparent;
+      }
       :host([embedded]) {
         min-height: 0;
       }
@@ -1407,7 +1534,7 @@ export class HomeDashboardPage extends LitElement {
       .page {
         box-sizing: border-box;
         padding: calc(var(--hd-safe-top) + 8px) 16px
-          calc(var(--hd-nav-height) + var(--hd-nav-safe) + var(--hd-player-space, 88px));
+          calc(var(--hd-nav-height) + var(--hd-nav-safe) + var(--hd-nav-gap, 0px) + var(--hd-player-space, 88px));
       }
       .page.embedded {
         padding: 0 16px;
@@ -1420,8 +1547,10 @@ export class HomeDashboardPage extends LitElement {
       }
       .top-bar span {
         flex: 1;
+        color: var(--hd-look-title, inherit);
       }
       .top-bar button {
+        color: var(--hd-look-title, inherit);
         display: grid;
         place-items: center;
         width: 48px;
@@ -1429,6 +1558,7 @@ export class HomeDashboardPage extends LitElement {
         border-radius: 50%;
       }
       h1 {
+        color: var(--hd-look-title, inherit);
         margin: 8px 0 16px;
         font-size: 30px;
         line-height: 38px;
@@ -1458,9 +1588,10 @@ export class HomeDashboardPage extends LitElement {
         place-items: center;
         width: 44px;
         height: 44px;
-        border: 1px solid var(--hd-outline);
+        border: 1px solid var(--hd-look-button-border, var(--hd-outline));
         border-radius: 50%;
-        background: var(--hd-surface);
+        color: var(--hd-look-button-icon, inherit);
+        background: color-mix(in srgb, var(--hd-look-button-bg, var(--hd-surface)) var(--hd-button-opacity, 100%), transparent);
       }
       .room-link {
         display: inline-flex;
@@ -1470,7 +1601,7 @@ export class HomeDashboardPage extends LitElement {
       }
       .room-link ha-icon {
         --mdc-icon-size: 20px;
-        color: var(--hd-text-muted);
+        color: var(--hd-look-headings, var(--hd-text-muted));
       }
       .status {
         display: flex;
@@ -1497,10 +1628,10 @@ export class HomeDashboardPage extends LitElement {
         box-sizing: border-box;
         width: 44px;
         height: 44px;
-        border: 2px solid var(--pill-ring, var(--hd-outline));
+        border: 2px solid var(--pill-ring, var(--hd-look-badge-ring, var(--hd-outline)));
         border-radius: 50%;
         background: var(--pill-fill, transparent);
-        color: var(--pill-ink, var(--hd-off-ink));
+        color: var(--pill-ink, var(--hd-look-badge-icon, var(--hd-off-ink)));
       }
       .pill-text {
         display: flex;
@@ -1508,6 +1639,7 @@ export class HomeDashboardPage extends LitElement {
         white-space: nowrap;
       }
       .pill-text strong {
+        color: var(--hd-look-badge-text, inherit);
         font-size: 15px;
         line-height: 20px;
         font-weight: 500;
@@ -1515,7 +1647,7 @@ export class HomeDashboardPage extends LitElement {
       .pill-text small {
         font-size: 13px;
         line-height: 18px;
-        color: var(--hd-text-muted);
+        color: var(--hd-look-badge-muted, var(--hd-text-muted));
       }
       .pill.climate {
         --pill-ring: var(--hd-climate-icon);
@@ -1555,6 +1687,7 @@ export class HomeDashboardPage extends LitElement {
         margin-left: -8px;
       }
       .room-title button {
+        color: var(--hd-look-title, inherit);
         display: grid;
         flex: none;
         place-items: center;
@@ -1609,7 +1742,7 @@ export class HomeDashboardPage extends LitElement {
         content: "";
         position: absolute;
         inset: 0;
-        opacity: 0.6;
+        opacity: var(--hd-veil, 0.6);
         background: var(--hd-background);
       }
       .with-background {
@@ -1669,6 +1802,7 @@ export class HomeDashboardPage extends LitElement {
         font-size: 23px;
       }
       h2 {
+        color: var(--hd-look-headings, inherit);
         margin: 28px 0 12px;
         font-size: 17px;
         line-height: 24px;
@@ -1694,9 +1828,17 @@ export class HomeDashboardPage extends LitElement {
         align-items: center;
         gap: 8px;
         padding: 7px 14px 7px 10px;
-        border: 1px solid var(--hd-outline);
-        border-radius: 14px;
-        background: var(--hd-surface);
+        border: 1px solid var(--hd-look-chip-border, var(--hd-outline));
+        border-radius: var(--hd-chip-radius, 14px);
+        color: var(--hd-look-chip-text, inherit);
+        background: color-mix(in srgb, var(--hd-look-chip-bg, var(--hd-surface)) var(--hd-chip-opacity, 100%), transparent);
+      }
+      /* A chosen chip has the colour of its kind, so it keeps the writing of the page. */
+      .chip.selected {
+        color: var(--hd-text);
+      }
+      .chip.selected small {
+        color: var(--hd-text-muted);
       }
       .chip.selected.climate {
         border-color: transparent;
@@ -1721,7 +1863,7 @@ export class HomeDashboardPage extends LitElement {
       .chip small {
         font-size: 12px;
         line-height: 16px;
-        color: var(--hd-text-muted);
+        color: var(--hd-look-chip-muted, var(--hd-text-muted));
       }
       .chip strong {
         font-size: 14px;
@@ -1790,14 +1932,15 @@ export class HomeDashboardPage extends LitElement {
         --tile-background: var(--hd-off);
         --tile-icon: var(--hd-off-icon);
         --tile-ink: var(--hd-off-ink);
+        --tile-fill: var(--tile-background);
         display: flex;
         align-items: center;
         gap: 12px;
         min-width: 0;
         min-height: 72px;
         padding: 7px 12px;
-        border-radius: var(--hd-radius);
-        background: var(--tile-background);
+        border-radius: var(--hd-tile-radius, var(--hd-radius));
+        background: color-mix(in srgb, var(--tile-fill) var(--hd-tile-opacity, 100%), transparent);
         transition: background-color 180ms ease;
       }
       .tile.climate {
@@ -1829,6 +1972,24 @@ export class HomeDashboardPage extends LitElement {
         --tile-background: var(--hd-appliance);
         --tile-icon: var(--hd-appliance-icon);
         --tile-ink: #ffffff;
+      }
+      /* A tile that is off takes the colours chosen for the look of the page. */
+      .tile.off {
+        --tile-background: var(--hd-look-tile-bg, var(--hd-off));
+        --tile-icon: var(--hd-look-tile-icon-bg, var(--hd-off-icon));
+        --tile-ink: var(--hd-look-tile-icon, var(--hd-off-ink));
+      }
+      .tile.off,
+      .fill-icon .tile:not(.ran) {
+        color: var(--hd-look-tile-text, inherit);
+      }
+      .tile.off small,
+      .fill-icon .tile:not(.ran) small {
+        color: var(--hd-look-tile-muted, var(--hd-text-muted));
+      }
+      /* The colour stays on the icon only, the tile keeps the plain look. */
+      .fill-icon .tile:not(.ran) {
+        --tile-fill: var(--hd-look-tile-bg, var(--hd-off));
       }
       .tile.unavailable {
         opacity: 0.55;
@@ -2228,8 +2389,49 @@ export class HomeDashboardPage extends LitElement {
         box-sizing: border-box;
         overflow: hidden;
         border-radius: var(--hd-radius) var(--hd-radius) 0 0;
-        background: var(--hd-background);
+        color: var(--hd-text);
+        background: color-mix(in srgb, var(--hd-sheet-bg, var(--hd-background)) var(--hd-sheet-opacity, 100%), transparent);
+        -webkit-backdrop-filter: blur(var(--hd-sheet-blur, 0px));
+        backdrop-filter: blur(var(--hd-sheet-blur, 0px));
         transition: height 200ms ease;
+      }
+      /* Whose routes and how far back, over the top of the map and under the list, which comes later. */
+      .map-filters {
+        position: absolute;
+        top: 8px;
+        right: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: none;
+      }
+      .map-chips {
+        display: flex;
+        gap: 6px;
+        padding: 0 12px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        pointer-events: auto;
+      }
+      .map-chips::-webkit-scrollbar {
+        display: none;
+      }
+      .map-chips button {
+        flex: none;
+        padding: 7px 14px;
+        border-radius: 18px;
+        font-size: 14px;
+        color: var(--hd-text);
+        background: color-mix(in srgb, var(--hd-sheet-bg, var(--hd-surface)) max(var(--hd-sheet-opacity, 100%), 70%), transparent);
+        -webkit-backdrop-filter: blur(var(--hd-sheet-blur, 0px));
+        backdrop-filter: blur(var(--hd-sheet-blur, 0px));
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      }
+      .map-chips button.on {
+        color: #1b1b1f;
+        background: #ffffff;
+        font-weight: 500;
       }
       .map-panel.folded {
         height: 32px;

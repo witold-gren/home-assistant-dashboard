@@ -13,6 +13,14 @@ OPEN_STOP_AND_POSITION = 15
 NO_STOP = 7
 
 
+
+def as_rgb(value: str) -> str:
+    """A colour mixed for the opacity of the look is written as srgb; the same colour as rgb."""
+    if not value.startswith("color(srgb "):
+        return value
+    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb "):-1].split()[:3])
+    return f"rgb({red}, {green}, {blue})"
+
 def touch(page, points: list[tuple[float, float]]) -> None:
     """A real finger: the browser decides about scrolling and clicks as it would on a phone."""
     client = page.context.new_cdp_session(page)
@@ -180,7 +188,8 @@ def test_a_sheet_follows_the_light_or_dark_page_and_a_camera_stays_black(phone):
     colour = "(element) => getComputedStyle(element).backgroundColor"
     open_tile(phone, find_id(phone, "cover."))
     page_colour = phone.evaluate("getComputedStyle(window.card).backgroundColor")
-    assert phone.locator(f"{SHEET} section.panel").evaluate(colour) == page_colour
+    # On a phone the cover under the panel carries the background, so a see-through look is laid once.
+    assert as_rgb(phone.locator(f"{SHEET} .cover").evaluate(colour)) == page_colour
     phone.locator(f"{SHEET} header button").first.click()
     phone.wait_for_selector(f"{SHEET} section.panel", state="detached")
     phone.locator("home-dashboard-page .camera").first.click()
@@ -246,11 +255,20 @@ def test_the_close_button_lets_the_sheet_slide_away_first(moving_phone):
 # Mini player ----------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", ["home", "media", "energy", "map"])
-def test_the_mini_player_is_on_every_other_page(phone, name):
+@pytest.mark.parametrize("name", ["home", "media"])
+def test_the_mini_player_is_on_the_other_pages(phone, name):
     playing_speaker(phone)
     mount(phone, None, name)
     assert phone.locator("[data-mini]").count() == 1
+
+
+# The map and the energy page need the bottom of the screen for their own panel and lists.
+@pytest.mark.parametrize("name", ["energy", "map"])
+def test_the_mini_player_keeps_off_the_map_and_energy(phone, name):
+    playing_speaker(phone)
+    mount(phone, None, name)
+    phone.wait_for_timeout(200)
+    assert phone.locator("[data-mini]").count() == 0
 
 
 def test_music_assistant_keeps_its_own_player_on_the_music_page(phone):

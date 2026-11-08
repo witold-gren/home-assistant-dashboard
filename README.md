@@ -4,9 +4,14 @@
 
 A touch-first dashboard strategy for Home Assistant: one dashboard for a phone and a wall tablet,
 with pastel tiles, summary chips, bottom navigation on phones and a side rail on tablets. The whole
-dashboard is generated from your rooms, so there are no cards to write by hand.
+dashboard is generated from your rooms, so there are no cards to write by hand. The look is set in the dashboard
+itself and kept as a theme you can share; two come with it: **Home Dashboard** and **Apple Home**.
 
 Status: early version.
+
+| Apple Home | Apple Home: room | Apple Home: lamp | Apple Home: energy |
+|---|---|---|---|
+| ![Apple Home](docs/screenshots/en/apple-home.png) | ![Apple Home: room](docs/screenshots/en/apple-room.png) | ![Apple Home: lamp](docs/screenshots/en/apple-light.png) | ![Apple Home: energy](docs/screenshots/en/apple-energy.png) |
 
 | Home | Room | Dark mode | Tile editor |
 |---|---|---|---|
@@ -51,8 +56,8 @@ Status: early version.
 **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
 The screenshots show a made-up home from `dev/demo.js`, and the camera pictures are free CC0 photos of
-other homes ([credits](dev/demo-pictures/CREDITS.md)). The Music, Energy and Map pictures use stand-ins
-for your music app and Home Assistant's cards, with made-up numbers. Run `make screenshots` to make them again.
+other homes ([credits](dev/demo-pictures/CREDITS.md)). The backgrounds in the Apple Home pictures were made by the
+author of the dashboard. Music and Map use stand-ins for your music app and the map, and Energy made-up statistics. Run `make screenshots` to make them again.
 
 The dashboard speaks the language of the Home Assistant user. English and Polish are included; a new
 language is one more block in `www/app/i18n.js`, and a test checks that it has every text.
@@ -242,8 +247,19 @@ in `layout`.
 Three dots → **Background of this screen** sets the background of Home or a room: a gradient, a colour or an
 uploaded picture, separately for the light and the dark look and for upright (phone) and wide (tablet on its side, laptop) screens, with the part of the picture that stays when it is cropped. An administrator ticks **For everyone** next to
 either, which saves it in `backgrounds`. Without it the background stays with that account and beats the shared one. The page
-keeps a layer of the theme colour over it, so headings stay readable in light and dark mode. The
-background stays put while the page scrolls.
+keeps a layer of the theme colour over it, so headings stay readable in light and dark mode; **Look → Background**
+sets how strong it is. The background stays put while the page scrolls and bounces at its ends. The Scenes page, the
+Map and Energy have a background of their own too.
+
+### Look and themes
+
+Three dots → **Look** sets the look of the whole dashboard: background strength, bounce, buttons (opacity, corners,
+colour on the whole button or the icon only, a colour for each kind), the colours of writing, of the blocks at the top
+and of badges, the bar at the bottom (entries, docked or floating, glass), the small player, windows (see-through and
+blurred), the map and own icons of devices. An administrator sets the look for everyone, and each person may adjust
+it for themselves. The **Themes** tab keeps a library of looks: **Home Dashboard** and **Apple Home** come with it,
+your own look is kept as a theme, and any theme exports to a file with the pictures of its backgrounds and imports into
+another home. Details and a step-by-step guide are in the [guide](docs/guide.md#look).
 
 ### Opening at start on one device
 
@@ -394,6 +410,11 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 `scripts/make_fixture.py`.
 
 ## FAQ
+
+**The small player keeps showing a speaker that plays nothing** — some speakers, such as a HomePod after an AirPlay
+stream ended, keep reporting `playing` without a title. Since this version such a speaker is not shown. Something
+paused goes away after **Look → Bar → Paused stays** (10 minutes by default), and the × button closes the player until
+something plays.
 
 **The dashboard shows "Timeout waiting for strategy element"** — the integration is not set up, or
 Home Assistant was not restarted after copying it.

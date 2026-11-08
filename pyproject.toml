@@ -1,6 +1,6 @@
 [project]
 name = "home-assistant-dashboard"
-version = "0.1.5"
+version = "0.1.6"
 description = "Home Dashboard for Home Assistant: a touch-first dashboard strategy for phones and wall tablets."
 requires-python = ">=3.14"
 

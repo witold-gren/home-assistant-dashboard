@@ -48,7 +48,6 @@ czegoś brakuje, zacznij od nich.
 | **Użytkownicy** | Administratorzy mogą edytować. Pozostali tylko korzystają i układają dashboard dla siebie. |
 | **Osoby i strefy** | Strona Mapa pokazuje osoby i ich odległość od domu. |
 | **Panel energii** (Ustawienia → Dashboardy → Energia) | Decyduje, co pokazuje strona Energia. |
-| **Dashboard o adresie `map`** | Jego karta mapy trafia na stronę Mapa. Bez niego mapa pokazuje wszystko. |
 | **Język użytkownika** | Język interfejsu. W zestawie są angielski i polski. |
 
 Domyślnie kafelki dostają tylko światła, klimat, rolety i zamki. Resztę dodajesz sam, patrz [Pokoje](#3-pokoje).
@@ -516,12 +515,26 @@ odtwarzaczu Music Assistant tylko wtedy, gdy ramka pochodzi z tego samego adresu
 na pozostałych stronach nad paskiem widać mini-odtwarzacz. Głośniki będące tym samym urządzeniem scala
 `media.group_patterns`.
 
-**Energia** pokazuje karty panelu energii Home Assistant, na tyle, na ile są dane. Ustawisz je w
+**Energia** to własna strona dashboardu, w jego wyglądzie: **Dzień**, **Tydzień** albo **Miesiąc** ze strzałkami do
+wcześniejszych okresów, kafelki **Zużycie** i **Koszt** (oraz **Ze słońca**, **Do sieci**, **Gaz**, **Woda**, gdy je
+masz), wykres godzin albo dni i lista **Urządzeń** z udziałem każdego. Dane pochodzą z ustawień Energii i statystyk
+Home Assistant, tak jak w jego panelu Energia, więc liczby są te same. Karty mają wygląd przycisków z motywu. Mały
+odtwarzacz nie pokazuje się na Energii ani na Mapie, żeby nie zasłaniać dołu strony. Energię ustawisz w
 **Ustawienia → Dashboardy → Energia**: licznik dodaj jako źródło sieciowe, a urządzenia w sekcji
 **Poszczególne urządzenia**. Jeśli urządzenie jest podłączone do innego mierzonego urządzenia, ustaw je tam jako
 podrzędne, inaczej policzy się podwójnie.
 
-**Mapa** używa karty mapy z dashboardu o adresie `map`. Lista Osoby, Urządzenia i Strefy leży na mapie: na telefonie to panel, który przeciągasz palcem między wąskim paskiem, połową i całym ekranem, a na tablecie pływa z lewej. Dotknięcie pozycji pokazuje ją na mapie.
+**Mapa** rysuje trasy osób z ostatnich godzin, razem ze strefami, na mapie Home Assistant. Nad mapą są dwa rzędy
+przycisków: **czyje trasy** (Wszyscy, każda osoba i wybrane urządzenia) oraz **zakres**: 6 h, 24 h, 3 dni albo 7 dni.
+Każde urządzenie pamięta swój wybór. Urządzenie z trasą, np. samochód, dodajesz w konfiguracji:
+
+```yaml
+map:
+  track: [device_tracker.car_location]
+```
+
+Kolory mapy (jak strona, jasna, ciemna) i zakres na start ustawia **Wygląd → Tło → Mapa**; Apple Home ma ciemną mapę.
+Lista Osoby, Urządzenia i Strefy leży na mapie: na telefonie to panel, który przeciągasz palcem między wąskim paskiem, połową i całym ekranem, a na tablecie pływa z lewej. Dotknięcie pozycji pokazuje ją na mapie.
 
 Strona Muzyka otworzy dodatek Music Assistant także na kontach bez administratora: `music: {addon: abcd1234_music_assistant}`. Z `fullscreen: true` dolny pasek znika, a przycisk **Home Assistant** w menu Music Assistant wraca na stronę główną.
 
@@ -545,13 +558,14 @@ media:
 
 ### Trzy kropki na stronie głównej
 
-Na dole menu trzech kropek są cztery pozycje. Dwie zmieniają dashboard tylko dla Ciebie, dwie dla domowników:
+Na dole menu trzech kropek jest pięć pozycji. Część zmienia dashboard tylko dla Ciebie, część dla domowników:
 
 | Pozycja | Kto ją widzi | Co ustawia | Dla kogo i gdzie się zapisuje | Gdzie widać zmianę |
 |---|---|---|---|---|
 | **Mój układ** | każdy | kolejność i ukrycie kamer, obszarów, plakietek i scen, własne ulubione, ukryte wpisy menu, start dashboardu | dla Ciebie, na koncie HA, czyli na wszystkich Twoich urządzeniach; administrator w Obszarach i Ulubionych może zaznaczyć **Dla wszystkich** | strona główna, pokoje, menu, Ochrona (kamery) |
 | **Bloki** | administratorzy | lista skrótów (bloków): dodanie nowego, kolejność, edycja w formularzu, kategorie mediów | dla wszystkich, w konfiguracji dashboardu | skróty na stronie głównej, w menu i w pokojach; kategorie na stronie Muzyka |
 | **Dostęp użytkowników** | administratorzy | co zabrać wybranej osobie albo wszystkim oprócz Ciebie: kamery, obszary, sekcje pokoi, plakietki, światła, media, ochronę, sceny i inne | dla tej osoby, w konfiguracji dashboardu (`access`); ona nie może tego przywrócić | wszędzie w tym dashboardzie, u tej osoby |
+| **Wygląd** | każdy, na każdej stronie | wyrazistość tła, odbicie przewijania, wygląd przycisków (krycie, zaokrąglenie, kolor na całym przycisku albo tylko na ikonie, kolory dla rodzajów przycisków) i własne ikony urządzeń; administrator także motywy | dla Ciebie, na koncie HA; administrator z **Dla wszystkich** ustawia wygląd wspólny (`appearance`) | cały dashboard |
 | **Tło tego ekranu** | każdy | tło strony, na której jesteś, osobno dla jasnego i ciemnego wyglądu, oraz Twój wygląd: Systemowy, Jasny, Ciemny | dla Ciebie na koncie; z **Dla wszystkich** (administratorzy) jako tło domyślne w konfiguracji | tylko ta strona: główna albo pokój, w którym jesteś |
 
 Kolejność ważności: najpierw **Dostęp użytkowników** (czego nie ma, tego nie przywróci żaden układ), potem ustawienia
@@ -581,7 +595,7 @@ działa na wszystkich urządzeniach tej osoby.
 |---|---|
 | ![Mój widok pokoju](screenshots/pl/my-view.png) | ![Moje sceny](screenshots/pl/my-scenes.png) |
 
-**Tło tego ekranu** (trzy kropki, dla każdego): gradient, kolor lub zdjęcie dla strony głównej albo pokoju, osobno dla
+**Tło tego ekranu** (trzy kropki, dla każdego): gradient, kolor lub zdjęcie dla strony głównej, pokoju, strony Scen (klucz `scenes`), Mapy (`map`) albo Energii (`energy`), osobno dla
 jasnego i ciemnego wyglądu; wygląd bez własnego tła pokazuje zwykłą stronę. Na górze tego okna wybierasz też dla siebie wygląd całego dashboardu: Systemowy, Jasny albo Ciemny. **Dla wszystkich** widzą administratorzy i ustawia ono tło domyślne. Bez tego tło zostaje
 na koncie tej osoby. Własne tło wygrywa z domyślnym.
 
@@ -609,6 +623,197 @@ backgrounds:
     dark: "#121316"
     position: top
 ```
+
+### Wygląd
+
+**Wygląd** (trzy kropki na każdej stronie, dla każdego) ma trzy zakładki, a przy **Dla wszystkich** czwartą: **Motywy**. Administrator ma zaznaczone **Dla
+wszystkich** i wtedy zmienia wygląd wspólny, który zapisuje **Zapisz dla wszystkich**. Bez tego znacznika, i u każdej
+innej osoby, zmiany są tylko Twoje. Zapisuje się wyłącznie to, czym różnisz się od wyglądu wspólnego, więc to, czego nie
+ruszasz, dalej podąża za zmianami administratora. **Wróć do wyglądu dla wszystkich** usuwa Twoje zmiany.
+
+| Tło | Przyciski | Kolory | Ikony |
+|---|---|---|---|
+| ![Wygląd: tło](screenshots/pl/look-background.png) | ![Wygląd: przyciski](screenshots/pl/look-buttons.png) | ![Wygląd: kolory](screenshots/pl/look-colours.png) | ![Wygląd: ikony](screenshots/pl/look-icons.png) |
+
+| Pasek | Okna |
+|---|---|
+| ![Wygląd: pasek](screenshots/pl/look-nav.png) | ![Wygląd: okna](screenshots/pl/look-sheets.png) |
+
+Kolor bez wartości (**Domyślny**) zostawia kolor jasnego albo ciemnego wyglądu, więc motyw może zmieniać tylko część
+kolorów. Kolor wybrany zostaje ten sam w obu trybach. W YAML i w motywie kolor może mieć przezroczystość:
+`#rrggbbaa`, np. `#ffffff26` to biel w 15%. Tak zbudowany jest Apple Home: czarne przyciski z kryciem 26% i białe
+kółka w 15% biorą kolor tła, na którym leżą, więc pasują do każdego pokoju. Wybór koloru w oknie zmienia odcień, a
+przezroczystość zostaje.
+
+| Zakładka | Ustawienie | Domyślnie | Co robi |
+|---|---|---|---|
+| **Tło** | **Wyrazistość tła** (0-100%) | 40% | jak mocno widać zdjęcie lub kolor tła; reszta to kolor strony nałożony na tło, żeby napisy były czytelne. 100% to tło bez przygaszenia |
+| **Tło** | **Odbicie na końcach** | włączone | strona przeciągnięta za górę lub dół jedzie trochę dalej i płynnie wraca, jak w aplikacjach na telefonie; tło stoi w miejscu, a odbija się tylko układ |
+| **Tło** | **Jasny wygląd / Ciemny wygląd** (tło stron bez własnego tła) | brak | kolor (`#1c2a55`) albo gradient (`linear-gradient(170deg, #4a9be8, #2a1b5e)`) dla każdej strony bez własnego tła, oprócz Muzyki; na Mapie widać je nad mapą i pod nią; bez zdjęć, więc motyw pasuje do każdego domu |
+| **Przyciski** | **Krycie przycisków** (20-100%) | 100% | przy mniejszym kryciu przez przyciski prześwituje tło |
+| **Przyciski** | **Zaokrąglenie rogów** (0-36 px) | 20 px | 0 to prostokąt, 36 to pigułka |
+| **Przyciski** | **Cały przycisk / Tylko ikona** | Cały przycisk | gdzie włączony przycisk pokazuje kolor; przy **Tylko ikona** tło przycisku zostaje neutralne |
+| **Przyciski** | kolory rodzajów | brak | własny kolor dla świateł, przełączników, rolet, termostatów, nagłośnienia i TV, zamków i alarmu, wentylatorów, scen, skryptów, automatyzacji i czujników |
+| **Kolory** | **Napisy**: tytuł (Dzień dobry…, nazwa pokoju) i nagłówki sekcji | kolory wyglądu | kolor napisów i ikon w górnym pasku |
+| **Kolory** | **Wyłączone przyciski**: tło, napisy, ikona, kółko pod ikoną | kolory wyglądu | wygląd przycisków, które są wyłączone, oraz wszystkich przy **Tylko ikona** |
+| **Kolory** | **Górne bloki**: tło, napisy, krycie, zaokrąglenie | jasne tło, 100%, 14 px | bloki Pogoda, Klimat, Światła…; z wybranym tłem bez obwódki |
+| **Kolory** | **Okrągłe przyciski**: tło, ikona, krycie | jasne tło, 100% | interkom i trzy kropki |
+| **Kolory** | **Plakietki w pokojach**: napisy, ikona i obwódka | kolory wyglądu | plakietki pod nazwą pokoju (Temperatura, Wilgotność…) |
+| **Pasek** | pozycje: od 2 do 5 z listy Dom, Media albo Muzyka, Energia, Mapa, Sceny, Menu i pokoje; kolejność strzałkami | Dom, Media/Muzyka, Energia, Mapa | pokój i Sceny są podświetlone, gdy są otwarte; w innym pokoju podświetlony jest Dom |
+| **Pasek** | **Przy krawędzi / Pływający** | Przy krawędzi | pływający pasek to zaokrąglona pigułka nad dolną krawędzią, jak w Apple Home; tablet zawsze ma pasek z boku |
+| **Pasek** | tło, ikony i podpisy, oznaczenie otwartej strony, krycie, rozmycie | kolory wyglądu, 100%, 0 px | przy mniejszym kryciu i rozmyciu strona pod paskiem prześwituje jak przez matowe szkło |
+| **Pasek** | **Odtwarzacz**: wstrzymany zostaje (0-120 min), tło, napisy i ikony, krycie, rozmycie, zaokrąglenie | 10 min, kolory wyglądu, 100%, 0 px, 16 px | mały odtwarzacz nad paskiem; pokazuje tylko to, co gra albo zostało wstrzymane niedawno; 0 chowa wstrzymane od razu, a × zamyka go do czasu, aż coś zacznie grać |
+| **Okna** | tło, napisy i ikony, przyciski i pola, tło kart Home Assistant, krycie, rozmycie (0-40 px), przyciemnienie strony (0-80%) | kolory wyglądu, 100%, 0 px, 45% | wszystkie okna otwierane nad stroną: lampa, roleta, termostat, odtwarzacz, menu trzech kropek, Pogoda, Status, Host, Rok szkolny, odjazdy, Wiadomości, Media, odkurzacz; tło kart Home Assistant `#00000000` usuwa np. szare tło mapy odkurzacza; wybrane zakładki i wyróżnione wydarzenia dostają jaśniejsze i żółte szkło; przy mniejszym kryciu strona prześwituje rozmyta; arkusz Wygląd pokazuje zmianę od razu, przed zapisem |
+| **Ikony** | ikona urządzenia | ikona z HA | wyszukaj urządzenie, potem ikonę (np. `led strip`) i wybierz ją; lista pod wyszukiwarką pokazuje Twoje ikony |
+
+Kolor rodzaju widać, gdy przycisk jest włączony. Sceny, skrypty i czujniki nie mają stanu „wyłączone”, więc ich kolor
+widać zawsze. Wybrany kolor zastępuje też kolor żarówki na kafelku światła. Napis na ikonie sam zmienia się na ciemny
+albo biały, zależnie od jasności koloru. Na górze zakładki **Przyciski** jest podgląd z kilkoma przyciskami.
+
+Własna ikona wygrywa z ikoną ustawioną w edytorze pokoju i z ikoną z Home Assistant.
+
+```yaml
+appearance:
+  background_strength: 70   # 0-100, domyślnie 40
+  bounce: false             # domyślnie true
+  tiles:
+    opacity: 85             # 20-100, domyślnie 100
+    radius: 28              # 0-36, domyślnie 20
+    fill: icon              # tile albo icon
+    colours:
+      light: "#ffb300"
+      cover: "#7e57c2"
+      scene: "#26a69a"
+    background: "#1c2a55"   # wyłączone przyciski
+    text: "#ffffff"
+    icon: "#ffffff"
+    icon_background: "#2b3a6b"
+  text:
+    title: "#ffffff"
+    headings: "#ffffff"
+  chips:                    # górne bloki
+    background: "#1c2a55"
+    text: "#ffffff"
+    opacity: 60             # 20-100, domyślnie 100
+    radius: 24              # 0-30, domyślnie 14
+  buttons:                  # interkom i trzy kropki
+    background: "#1c2a55"
+    icon: "#ffffff"
+    opacity: 50
+  badges:                   # plakietki w pokojach
+    text: "#ffffff"
+    icon: "#ffffff"
+  nav:                      # dolny pasek
+    items: [home, scenes, "room:salon", menu]   # od 2 do 5: home, media, music, energy, map, scenes, menu, room:<id>
+    style: floating         # docked albo floating
+    background: "#2a2f6a"
+    icon: "#ffffff"
+    active: "#4a4f9a"
+    opacity: 55             # 20-100, domyślnie 100
+    blur: 20                # 0-30 px, domyślnie 0
+  sheets:                   # okna nad stroną
+    background: "#1d2c5c"
+    text: "#ffffff"
+    controls: "#2c3d72"     # przyciski i pola w oknie
+    cards: "#00000000"      # tło kart Home Assistant, np. mapy odkurzacza
+    opacity: 70             # 20-100, domyślnie 100
+    blur: 30                # 0-40 px, domyślnie 0
+    scrim: 25               # przyciemnienie strony 0-80, domyślnie 45
+  player:                   # mały odtwarzacz
+    background: "#2a2f6a"
+    text: "#ffffff"
+    opacity: 60             # 20-100, domyślnie 100
+    blur: 20                # 0-30 px, domyślnie 0
+    radius: 22              # 0-32 px, domyślnie 16
+    paused_minutes: 0       # 0-120, domyślnie 10
+  icons:
+    light.led_strip: mdi:led-strip-variant
+```
+
+Klucze kolorów: `light`, `switch`, `cover`, `climate`, `media_player`, `lock`, `fan`, `scene`, `script`, `automation`,
+`binary_sensor`, `sensor`. Pomocnik `input_boolean` liczy się jako `switch`, `alarm_control_panel` jako `lock`, a
+`button` jako `script`.
+
+#### Motywy
+
+Zakładka **Motywy** jest widoczna przy zaznaczonym **Dla wszystkich**. Motyw to wygląd dla wszystkich (tło, odbicie,
+przyciski, kolory, własne ikony) razem ze wspólnymi tłami stron. Ustawienia osobiste, np. dzieci, nie należą do motywu.
+Motywy tworzą bibliotekę w konfiguracji dashboardu (`themes`), a `theme` mówi, od którego zaczął się obecny wygląd.
+
+Z Home Dashboard przychodzą dwa motywy, które są bazą do własnych:
+
+| Motyw | Wygląd |
+|---|---|
+| **Home Dashboard** | jasne przyciski, zasłona tła 40%, bez odbicia: wygląd jak dotąd |
+| **Apple Home** | ciemne, półprzezroczyste przyciski z białym tekstem, białe nagłówki, górne bloki jak pigułki, pływający szklany pasek, pełne tło i niebieski gradient dla stron bez własnego tła |
+
+Motyw wbudowany ma podpis **Wbudowany w Home Dashboard**. Nie da się go usunąć, ale można go zmieniać: zmień wygląd
+i wybierz **Zapisz zmiany w motywie …**, a Twój dom zachowa własną wersję (podpis **Twoja wersja**). Przycisk z
+okrągłą strzałką przy takim motywie przywraca wersję wbudowaną. Motywy wbudowane nie mają zdjęć, najwyżej gradienty (Apple Home ma ciemne tło Mapy pod ciemną mapę); Twoja wersja
+zapamiętuje także tła Twoich stron.
+
+| Pozycja | Co robi |
+|---|---|
+| **W użyciu: …** | motyw, od którego zaczął się obecny wygląd; dopisek **zmieniony od wybrania**, gdy go potem zmieniłeś |
+| **Zapisz zmiany w motywie …** | zapisuje obecny wygląd i tła stron w motywie, którego używasz; od tej chwili to jego wersja |
+| **Wróć do motywu …** | przywraca wygląd i tła stron zapisane w motywie |
+| wiersz motywu | **Użyj** (zastępuje wygląd tym z motywu, a tła tylko na stronach, które motyw ma; reszta Twoich teł zostaje), **Eksportuj do pliku**, **Usuń** z biblioteki albo, przy motywie wbudowanym, przywróć wersję wbudowaną (obecny wygląd zostaje) |
+| **Zwykły wygląd** | wygląd bez ustawień motywu; tła stron zostają |
+| **Nazwa motywu** + **Zachowaj obecny wygląd jako motyw** | dodaje Twoją wersję do biblioteki i oznacza ją jako używaną |
+| **Eksportuj obecny wygląd do pliku** | plik `<nazwa>.home-dashboard-theme.json` z wyglądem i zdjęciami teł |
+| **Importuj motyw** | wczytuje plik, pozwala wybrać nazwę i miejsce każdego tła, dodaje motyw do biblioteki i od razu go używa |
+
+| Biblioteka motywów | Import motywu |
+|---|---|
+| ![Motywy](screenshots/pl/look-themes.png) | ![Import motywu](screenshots/pl/theme-import.png) |
+
+Jak tego używać:
+
+1. **Wybierz bazę.** Trzy kropki → **Wygląd** → **Motywy** i **Użyj** przy **Home Dashboard** albo **Apple Home**.
+   Możesz też zacząć od obecnego wyglądu: wpisz nazwę, np. „Nasz dom”, i wybierz **Zachowaj obecny wygląd jako
+   motyw**.
+2. **Dostosuj.** W zakładkach **Tło**, **Przyciski** i **Ikony** zmień, co chcesz, i zapisz **Zapisz dla wszystkich**;
+   tła stron zmieniasz w **Tło tego ekranu**. Motyw pokaże się jako **zmieniony od wybrania**.
+3. **Zapisz, cofnij albo zachowaj osobno.** **Zapisz zmiany w motywie …** zapisuje je w motywie, którego używasz.
+   **Wróć do motywu …** cofa zmiany. Wpisz nową nazwę i **Zachowaj obecny wygląd jako motyw**, a nowa wersja stanie
+   obok dotychczasowej; przełączasz je przyciskiem **Użyj**.
+4. **Podziel się.** Przycisk eksportu przy motywie (albo **Eksportuj obecny wygląd do pliku**) zapisuje plik, który
+   wyślesz np. bratu.
+5. **Wczytaj cudzy motyw.** **Importuj motyw**, wybierz plik, popraw nazwę, przypisz każde tło do swojej strony albo
+   wybierz **Pomiń**, a potem **Zapisz dla wszystkich**.
+
+Przełączenie motywu nie gubi Twojej pracy: wygląd, którego nie ma jeszcze w bibliotece, zapisuje się w niej sam jako
+**Mój wygląd <data>**.
+
+Import pokazuje każde tło z miniaturą i listą: **Pomiń**, **Strona główna**, **Sceny** albo pokój. Na starcie wybrana
+jest ta sama strona, jeśli istnieje, albo pokój o tej samej nazwie; reszta czeka na wybór. Zdjęcia trafiają do Home
+Assistant (jak przy wyborze zdjęcia w oknie tła), a biblioteka trzyma tylko ich adresy. Własne ikony przychodzą tylko
+dla urządzeń o tym samym `entity_id`; okno mówi, ile z nich pasuje.
+
+Plik może mieć kilka MB, bo zawiera zdjęcia. Zdjęcia z internetu (adresy `https://`) nie są przenoszone, tylko obrazy z
+pliku i kolory.
+
+#### Apple Home krok po kroku
+
+| Strona główna | Tryb ciemny | Pokój | Lampa | Energia |
+|---|---|---|---|---|
+| ![Apple Home](screenshots/pl/apple-home.png) | ![Apple Home, ciemny](screenshots/pl/apple-home-dark.png) | ![Apple Home, pokój](screenshots/pl/apple-room.png) | ![Apple Home, lampa](screenshots/pl/apple-light.png) | ![Apple Home, energia](screenshots/pl/apple-energy.png) |
+
+![Apple Home na tablecie](screenshots/pl/apple-tablet.png)
+
+1. **Włącz motyw.** Trzy kropki → **Wygląd**, zaznacz **Dla wszystkich**, zakładka **Motywy** → **Użyj** przy
+   **Apple Home**. Przyciski, górne bloki, pasek i okna stają się szkłem, napisy białe, a strony bez własnego tła
+   dostają niebieski gradient.
+2. **Dodaj tła.** Na stronie głównej i w każdym pokoju: trzy kropki → **Tło tego ekranu**, zdjęcie dla **Jasnego**
+   i dla **Ciemnego** wyglądu, **Część zdjęcia: Góra**, **Dla wszystkich**. Najlepiej działa pionowe zdjęcie
+   (np. 1284 × 2778) ze sprzętem pokoju u góry, które w dół przechodzi w jeden kolor; wersja ciemna to to samo
+   zdjęcie przyciemnione. Przykłady są w `dev/demo-pictures/backgrounds`.
+3. **Nie zmieniaj koloru przycisków.** W Apple Home są neutralne (czarne z kryciem 26%), więc w każdym pokoju biorą
+   kolor jego tła. Okno urządzenia pokazuje rozmyte tło pokoju, z którego je otwarto.
+4. **Mapa i Energia** mają własne tło w **Tło tego ekranu**; Apple Home daje Mapie ciemne tło pod ciemną mapę.
+5. **Ikony.** **Wygląd → Ikony**: własne ikony urządzeń, np. taśma LED dla taśmy LED.
+6. **Zapisz.** **Wygląd → Motywy → Zapisz zmiany w motywie Apple Home**. Eksport zapisze motyw razem ze zdjęciami
+   teł do pliku, który wczytasz w innym domu.
 
 **Dostęp użytkowników** (trzy kropki, administratorzy): wybierz osobę i ukryj jej obszary, kamery, światła, media,
 ochronę, sceny, skrypty, inne encje i bloki, a w zakładce **Sekcje** także całe sekcje pokoi. Zakładka **Plakietki** zawiera pogodę, chipy i skróty, a ukryty skrót znika

@@ -12,6 +12,7 @@ import { HomeDashboardHistory, HomeDashboardLogbook } from "./activity.js";
 import { HomeDashboardApp } from "./app-frame.js";
 import { HomeDashboardBlockEditor } from "./block-editor.js";
 import { HomeDashboardDepartures } from "./departures.js";
+import { HomeDashboardEnergy } from "./energy.js";
 import { HomeDashboardNews } from "./news.js";
 import { HomeDashboardNotifications } from "./notifications.js";
 import { HomeDashboardOverview } from "./overview.js";
@@ -39,6 +40,7 @@ define("home-dashboard-history", HomeDashboardHistory);
 define("home-dashboard-logbook", HomeDashboardLogbook);
 define("home-dashboard-notifications", HomeDashboardNotifications);
 define("home-dashboard-host", HomeDashboardHost);
+define("home-dashboard-energy", HomeDashboardEnergy);
 
 export function generateDashboard(config, hass) {
   return {

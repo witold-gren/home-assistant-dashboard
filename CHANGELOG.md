@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.1.6 (2026-11-08)
+
+The look of the dashboard is set in the dashboard itself, kept as themes and shared between homes. Two themes come
+with it: Home Dashboard, the look so far, and Apple Home.
+
+Look (three dots → Look, on every page). An administrator sets it for everyone, and each person adjusts it for
+themselves on top; only what differs from the shared look is kept.
+
+- Background: how strongly a background shows (the default 40% is the look so far, 100% has no veil), bounce at the
+  ends, a colour or gradient for pages without a background of their own, and the colours and starting range of the
+  map.
+- Buttons: opacity, rounded corners, colour on the whole button or only on the icon, and a colour for each kind
+  (lights, switches, blinds, thermostats, speakers, locks, fans, scenes, scripts, automations, sensors), with a
+  preview.
+- Colours: the title and headings, buttons that are off (background, writing, icon, its circle), the blocks at the top
+  (background, writing, opacity, corners), the round buttons (intercom, three dots) and the badges in rooms. A colour
+  left at Default keeps the colour of the light or dark look; a colour may be see-through (`#rrggbbaa`).
+- Bar: 2 to 5 entries (pages, Scenes, the menu, rooms) in any order, at the edge or floating as a rounded pill, with
+  its own background, icon colour, mark of the open page, opacity and blur. A tablet keeps its side bar.
+- Player: background, writing, opacity, blur, corners, and how long something paused stays (0 hides it at once).
+- Windows: background, writing, buttons and fields, Home Assistant cards (a vacuum map can lose its background),
+  opacity, blur and the dimming of the page. It reaches every window: device controls, the player, menus, Weather,
+  Status, Host, School year, departures, News and Media. The Look sheet shows it before saving.
+- Icons: an own icon for any device, picked from the icons of Home Assistant by search.
+
+Themes (Look → Themes, administrators):
+
+- A library of looks, each with the backgrounds of its pages. Use one, change it, save the changes into it, go back
+  to it, keep the current look as a new theme, or go back to the plain look. A look not yet in the library is kept
+  there before switching. Using a theme changes the backgrounds only of the pages it has.
+- Home Dashboard and Apple Home come with the dashboard and cannot be deleted; a home keeps its own version of them
+  and can go back to the one that came. Apple Home is neutral glass: black and white that let the background
+  through, so buttons and windows take the colour of the room they are in, with white writing, a floating glass bar
+  and a dark map.
+- A theme exports to one file with the pictures of its backgrounds and imports from another home, choosing where each
+  background goes or leaving it out; own icons come along for devices of the same id only.
+
+Pages:
+
+- Energy is a page of the dashboard itself instead of the cards of Home Assistant: day, week or month, used energy,
+  cost, sun, export, gas and water when set up, an hourly or daily chart and the devices, in the look of the theme.
+- The Map draws the routes of people and chosen devices (`map.track`) over 6 h, 24 h, 3 days or 7 days, chosen with
+  buttons over the map and remembered on each device. The list over the map takes the look of windows. It no longer
+  follows the map dashboard of Home Assistant.
+- The Scenes page, the Map and Energy have a background of their own in Background of this screen (keys `scenes`,
+  `map`, `energy`).
+- The page bounces at its top and bottom over a background that stays still, short pages too; the background now lies
+  on the view itself.
+
+Fixes:
+
+- The small player no longer shows a speaker that says it plays with nothing to play (a HomePod after an AirPlay
+  stream), nor something paused for longer than 10 minutes; a × closes it until something plays. It stays off the
+  Map and Energy pages, as it does on Music.
+- Going back to a page shows its own background again, not the one of the room seen last.
+
 ## 0.1.5 (2026-11-08)
 
 Each person arranges the shared dashboard for themselves:

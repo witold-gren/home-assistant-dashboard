@@ -211,6 +211,9 @@ def make(browser, base: str, language: str) -> None:
     tap(page, f"{SHEET} [data-tab='scenes']")
     take(page, folder, "my-scenes")
 
+    make_look(browser, base, language, folder)
+    make_apple(browser, base, language, folder)
+
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
         page = open_page(browser, base, language, PHONE)
@@ -218,6 +221,102 @@ def make(browser, base: str, language: str) -> None:
         if row:
             tap(page, f"{SHEET} [data-sheet-{row}]")
         take(page, folder, name)
+
+
+LOOK_SHEET = (
+    "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
+)
+SAMPLE_THEMES = {
+    "en": [("winter", "Winter"), ("summer", "Summer evening")],
+    "pl": [("winter", "Zima"), ("summer", "Letni wieczór")],
+}
+
+
+def open_look(browser, base: str, language: str, tab: str) -> Page:
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-rooms]")
+    tap(page, f"{SHEET} [data-sheet-look]")
+    tap(page, f"{SHEET} [data-tab='{tab}']")
+    return page
+
+
+def on_sheet(page: Page, script: str, arg=None) -> None:
+    body = f"const sheet = {LOOK_SHEET}; {script}; await sheet.updateComplete;"
+    page.evaluate(f"async (arg) => {{ {body} }}", arg)
+    page.wait_for_timeout(300)
+
+
+# The look of the page and its themes, with a few choices made so the pictures show what they do.
+def make_look(browser, base: str, language: str, folder: Path) -> None:
+    page = open_look(browser, base, language, "background")
+    on_sheet(page, "sheet._setLook({ background_strength: 65 })")
+    take(page, folder, "look-background")
+
+    page = open_look(browser, base, language, "tiles")
+    on_sheet(page, """sheet._setLookTiles({ radius: 28, opacity: 90 });
+        sheet._setKindColour('light', '#ff8a3d'); sheet._setKindColour('scene', '#26a69a')""")
+    take(page, folder, "look-buttons")
+
+    page = open_look(browser, base, language, "colours")
+    on_sheet(page, """sheet._setLookGroup('tiles', { background: '#1c2a55', text: '#ffffff' });
+        sheet._setLookGroup('tiles', { icon: '#ffffff' });
+        sheet._setLookGroup('text', { headings: '#ffffff' })""")
+    take(page, folder, "look-colours")
+
+    page = open_look(browser, base, language, "nav")
+    on_sheet(page, "sheet._setLookGroup('nav', { style: 'floating', opacity: 55, blur: 20 })")
+    take(page, folder, "look-nav")
+
+    page = open_look(browser, base, language, "sheets")
+    on_sheet(page, """sheet._setLookGroup('sheets', { background: '#1d2c5c', text: '#ffffff' });
+        sheet._setLookGroup('sheets', { controls: '#2c3d72', opacity: 85, blur: 30 })""")
+    take(page, folder, "look-sheets")
+
+    page = open_look(browser, base, language, "icons")
+    on_sheet(page, "sheet._setIcon('light.sofa', 'mdi:led-strip-variant');"
+                   "sheet._setIcon('cover.living', 'mdi:roller-shade')")
+    take(page, folder, "look-icons")
+
+    look = {"tiles": {"radius": 28}}
+    names = SAMPLE_THEMES[language]
+    themes = [{"id": key, "name": name, "appearance": look, "backgrounds": {}} for key, name in names]
+    page = open_look(browser, base, language, "themes")
+    on_sheet(page, """sheet.raw = { ...sheet.raw, themes: arg, theme: arg[0].id,
+        appearance: { tiles: { radius: 12 } } };
+        sheet._themeName = arg[1].name""", themes)
+    take(page, folder, "look-themes")
+
+    page = open_look(browser, base, language, "themes")
+    on_sheet(page, """sheet._theme = { name: arg.name,
+        appearance: { icons: { 'light.sofa': 'mdi:led-strip', 'light.attic': 'mdi:lamp' } },
+        backgrounds: {
+          home: { name: arg.home, light: 'linear-gradient(160deg, #6a8fd0, #3b2f7a)' },
+          living: { name: arg.living, light: 'linear-gradient(160deg, #c77dff, #4b3bf5)' },
+          garage: { name: arg.garage, light: 'linear-gradient(160deg, #9ba4b5, #394150)' } } };
+        sheet._themeName = arg.name;
+        sheet._themeChoices = { home: 'home', living: 'living', garage: null }""",
+        {
+            "name": SAMPLE_THEMES[language][1][1],
+            "home": "Home" if language == "en" else "Strona główna",
+            "living": "Living room" if language == "en" else "Salon",
+            "garage": "Garage" if language == "en" else "Garaż",
+        },
+    )
+    take(page, folder, "theme-import")
+
+
+# The Apple Home theme that comes with Home Dashboard, with the example backgrounds of the demo.
+def make_apple(browser, base: str, language: str, folder: Path) -> None:
+    apple = "&theme=apple"
+    take(open_page(browser, base, language, PHONE, query=apple), folder, "apple-home")
+    take(open_page(browser, base, language, PHONE, "dark", query=apple), folder, "apple-home-dark")
+    room = f"{apple}&page=room&room=living"
+    take(open_page(browser, base, language, PHONE, query=room), folder, "apple-room")
+    page = open_page(browser, base, language, PHONE, query=room)
+    tap(page, "home-dashboard-page [data-entity='light.sofa'] .text")
+    take(page, folder, "apple-light")
+    take(open_page(browser, base, language, PHONE, query=f"{apple}&page=energy"), folder, "apple-energy")
+    take(open_page(browser, base, language, TABLET, query=apple), folder, "apple-tablet")
 
 
 def main() -> None:

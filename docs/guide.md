@@ -47,7 +47,6 @@ this is the first place to look when something is missing.
 | **Users** | Administrators can edit. Everyone else can only use the dashboard and arrange it for themselves. |
 | **Persons and zones** | The Map page lists people and how far they are from home. |
 | **Energy dashboard** (Settings → Dashboards → Energy) | Decides what the Energy page shows. |
-| **Dashboard with the address `map`** | Its map card is used on the Map page. Without it the map shows everything. |
 | **Language of the user** | The language of the interface. English and Polish are included. |
 
 By default only lights, climate, covers and locks become tiles. Anything else is added by you, see
@@ -520,12 +519,26 @@ Music Assistant's full-screen player only when the frame comes from the same add
 When something plays a mini player shows above the bar on the other pages. Speakers that are the same device
 are merged with `media.group_patterns`.
 
-**Energy** shows the cards of Home Assistant's own panel, as far as there is data. Set it up in
+**Energy** is a page of the dashboard itself, in its look: **Day**, **Week** or **Month** with arrows to earlier
+periods, the **Used** and **Cost** tiles (and **From the sun**, **To the grid**, **Gas**, **Water** when you have them),
+a chart of hours or days and the list of **Devices** with the share of each. The numbers come from the energy settings
+and statistics of Home Assistant, as in its Energy panel, so they are the same. The cards take the look of the buttons
+of the theme. The small player does not show on Energy or the Map, so the bottom of the page stays free. Set it up in
 **Settings → Dashboards → Energy**. Add your meter as the grid source and devices under
 **Individual devices**. If one device is plugged into another that is measured, set it as a child there, or it
 counts twice.
 
-**Map** uses the map card of the dashboard with the address `map`. The list of People, Devices and Zones lies on the map: on a phone it is a panel you drag between a thin bar, half the screen and the whole screen, and on a tablet it floats on the left. Tapping an entry shows it on the map.
+**Map** draws the routes of people over the last hours, with the zones, on the map of Home Assistant. Over the map are
+two rows of buttons: **whose routes** (Everyone, each person and chosen devices) and **range**: 6 h, 24 h, 3 days or
+7 days. Each device remembers its choice. A device with a route, such as a car, is added in the configuration:
+
+```yaml
+map:
+  track: [device_tracker.car_location]
+```
+
+The colours of the map (as the page, light, dark) and the range at first are set in **Look → Background → Map**; Apple
+Home has a dark map. The list of People, Devices and Zones lies on the map: on a phone it is a panel you drag between a thin bar, half the screen and the whole screen, and on a tablet it floats on the left. Tapping an entry shows it on the map.
 
 The music page opens the Music Assistant add-on, also for accounts without administrator rights: `music: {addon: abcd1234_music_assistant}`. With `fullscreen: true` the bottom bar goes away, and the **Home Assistant** button in the menu of Music Assistant goes back to Home.
 
@@ -549,13 +562,14 @@ media:
 
 ### Three dots on Home
 
-The three dots menu ends with four entries. Two change the dashboard for you alone, two for the household:
+The three dots menu ends with five entries. Some change the dashboard for you alone, some for the household:
 
 | Entry | Who sees it | What it sets | For whom, and where it is kept | Where the change shows |
 |---|---|---|---|---|
 | **My layout** | everyone | order and hiding of cameras, areas, chips and scenes, your own favorites, hidden menu entries, the start of the dashboard | for you, with your HA account, so on all your devices; on Areas and Favorites an administrator can tick **For everyone** | Home, rooms, the menu, Security (cameras) |
 | **Blocks** | administrators | the list of shortcuts (blocks): adding one, their order, editing in a form, media categories | for everyone, in the dashboard configuration | shortcuts on Home, in the menu and in rooms; categories on the Music page |
 | **User access** | administrators | what to take away from one person or from everyone but you: cameras, areas, sections of rooms, chips, lights, media, security, scenes and more | for that person, in the dashboard configuration (`access`); they cannot bring it back | everywhere in this dashboard, for that person |
+| **Look** | everyone, on every page | background strength, bounce at the ends, the look of buttons (opacity, rounded corners, colour on the whole button or only on the icon, colours for kinds of buttons) and own icons of devices; themes for administrators | for you, with your HA account; with **For everyone** an administrator sets the shared look (`appearance`) | the whole dashboard |
 | **Background of this screen** | everyone | the background of the page you are on, for the light and the dark look separately, and your look: System, Light, Dark | for you, with your account; with **For everyone** (administrators) as the default, in the configuration | only this page: Home or the room you are in |
 
 What wins: first **User access** (what is taken away no layout brings back), then the **For everyone** settings, and
@@ -585,7 +599,7 @@ account, so it follows the person to all their devices.
 |---|---|
 | ![My view of a room](screenshots/en/my-view.png) | ![My scenes](screenshots/en/my-scenes.png) |
 
-**Background of this screen** (three dots, for everyone): a gradient, a colour or a picture for Home or a room,
+**Background of this screen** (three dots, for everyone): a gradient, a colour or a picture for Home, a room or the Scenes page (key `scenes`), the Map (`map`) or Energy (`energy`),
 separately for the light and dark look; a look without its own background shows the plain page. At the top of this window you also choose the look of the whole dashboard for yourself: System, Light or Dark. **For everyone** appears for administrators and makes it the default.
 Without it the background stays with that account. A person's own background beats the default.
 
@@ -613,6 +627,200 @@ backgrounds:
     dark: "#121316"
     position: top
 ```
+
+### Look
+
+**Look** (three dots on every page, everyone) has three tabs, and a fourth with **For everyone**: **Themes**. An administrator has **For everyone** ticked and then
+changes the shared look, saved with **Save for everyone**. Without that tick, and for everyone else, the changes are
+yours alone. Only what differs from the shared look is saved, so what you leave alone keeps following the
+administrator's changes. **Back to the look for everyone** removes your changes.
+
+| Background | Buttons | Colours | Icons |
+|---|---|---|---|
+| ![Look: background](screenshots/en/look-background.png) | ![Look: buttons](screenshots/en/look-buttons.png) | ![Look: colours](screenshots/en/look-colours.png) | ![Look: icons](screenshots/en/look-icons.png) |
+
+| Bar | Windows |
+|---|---|
+| ![Look: bar](screenshots/en/look-nav.png) | ![Look: windows](screenshots/en/look-sheets.png) |
+
+A colour without a value (**Default**) keeps the colour of the light or the dark look, so a theme can change only some
+colours. A chosen colour stays the same in both modes. In YAML and in a theme a colour may be see-through:
+`#rrggbbaa`, e.g. `#ffffff26` is white at 15%. Apple Home is built that way: black buttons at 26% and white circles at
+15% take the colour of the background they lie on, so they suit every room. Picking a colour in the sheet changes the
+hue and keeps the see-through part.
+
+| Tab | Setting | Default | What it does |
+|---|---|---|---|
+| **Background** | **Background strength** (0-100%) | 40% | how clearly the background picture or colour shows; the rest is the page colour laid over it, so writing stays readable. 100% is the background as it is |
+| **Background** | **Bounce at the ends** | on | pulled past the top or the bottom, the page goes a little further and floats back, as in phone apps; the background stays still and only the layout bounces |
+| **Background** | **Light look / Dark look** (background of pages without one) | none | a colour (`#1c2a55`) or a gradient (`linear-gradient(170deg, #4a9be8, #2a1b5e)`) for every page without a background of its own, except Music; on the Map it shows above and below the map; no pictures, so a theme suits any home |
+| **Buttons** | **Button opacity** (20-100%) | 100% | with less opacity the background shows through the buttons |
+| **Buttons** | **Rounded corners** (0-36 px) | 20 px | 0 is a rectangle, 36 a pill |
+| **Buttons** | **Whole button / Icon only** | Whole button | where a button that is on shows its colour; with **Icon only** the button itself stays neutral |
+| **Buttons** | colours of kinds | none | your own colour for lights, switches, blinds, thermostats, speakers and TVs, locks and alarm, fans, scenes, scripts, automations and sensors |
+| **Colours** | **Writing**: the title (Good morning…, room name) and the headings of sections | colours of the look | also the icons in the top bar |
+| **Colours** | **Buttons that are off**: background, writing, icon, circle under the icon | colours of the look | buttons that are off, and every button with **Icon only** |
+| **Colours** | **Blocks at the top**: background, writing, opacity, rounded corners | light background, 100%, 14 px | the Weather, Climate, Lights… blocks; with a chosen background they lose their outline |
+| **Colours** | **Round buttons**: background, icon, opacity | light background, 100% | intercom and the three dots |
+| **Colours** | **Badges in rooms**: writing, icon and ring | colours of the look | badges under the room name (Temperature, Humidity…) |
+| **Bar** | entries: 2 to 5 of Home, Media or Music, Energy, Map, Scenes, Menu and the rooms; arrows set the order | Home, Media/Music, Energy, Map | a room and Scenes light up while open; in any other room Home does |
+| **Bar** | **At the edge / Floating** | At the edge | a floating bar is a rounded pill above the bottom edge, as in Apple Home; a tablet always keeps the bar on the side |
+| **Bar** | background, icons and labels, mark of the open page, opacity, blur | colours of the look, 100%, 0 px | with less opacity and some blur, the page under the bar shows through as frosted glass |
+| **Bar** | **Player**: paused stays (0-120 min), background, writing and icons, opacity, blur, rounded corners | 10 min, colours of the look, 100%, 0 px, 16 px | the small player above the bar; it shows only what plays or was paused a short while ago; 0 hides anything paused at once, and × closes it until something plays |
+| **Windows** | background, writing and icons, buttons and fields, background of Home Assistant cards, opacity, blur (0-40 px), dimming of the page (0-80%) | colours of the look, 100%, 0 px, 45% | every window that opens over the page: a lamp, a blind, a thermostat, the player, the three dots menu, Weather, Status, Host, School year, departures, News, Media, a vacuum; `#00000000` for Home Assistant cards takes away e.g. the grey background of a vacuum map; chosen tabs and highlighted events get a lighter and a yellow glass; with less opacity the page shows through blurred; the Look sheet shows the change at once, before saving |
+| **Icons** | icon of a device | icon from HA | find a device, then an icon (e.g. `led strip`) and pick it; the list under the search shows your icons |
+
+The colour of a kind shows while the button is on. Scenes, scripts and sensors have no "off", so their colour always
+shows. A chosen colour also replaces the colour of the bulb on a light tile. Writing on the icon turns dark or white by
+itself, depending on how light the colour is. The top of the **Buttons** tab shows a preview with a few buttons.
+
+An own icon wins over the icon set in the room editor and over the icon from Home Assistant.
+
+```yaml
+appearance:
+  background_strength: 70   # 0-100, default 40
+  bounce: false             # default true
+  tiles:
+    opacity: 85             # 20-100, default 100
+    radius: 28              # 0-36, default 20
+    fill: icon              # tile or icon
+    colours:
+      light: "#ffb300"
+      cover: "#7e57c2"
+      scene: "#26a69a"
+    background: "#1c2a55"   # buttons that are off
+    text: "#ffffff"
+    icon: "#ffffff"
+    icon_background: "#2b3a6b"
+  text:
+    title: "#ffffff"
+    headings: "#ffffff"
+  chips:                    # blocks at the top
+    background: "#1c2a55"
+    text: "#ffffff"
+    opacity: 60             # 20-100, default 100
+    radius: 24              # 0-30, default 14
+  buttons:                  # intercom and three dots
+    background: "#1c2a55"
+    icon: "#ffffff"
+    opacity: 50
+  badges:                   # badges in rooms
+    text: "#ffffff"
+    icon: "#ffffff"
+  nav:                      # bar at the bottom
+    items: [home, scenes, "room:living_room", menu]   # 2 to 5: home, media, music, energy, map, scenes, menu, room:<id>
+    style: floating         # docked or floating
+    background: "#2a2f6a"
+    icon: "#ffffff"
+    active: "#4a4f9a"
+    opacity: 55             # 20-100, default 100
+    blur: 20                # 0-30 px, default 0
+  sheets:                   # windows over the page
+    background: "#1d2c5c"
+    text: "#ffffff"
+    controls: "#2c3d72"     # buttons and fields in a window
+    cards: "#00000000"      # background of Home Assistant cards, e.g. a vacuum map
+    opacity: 70             # 20-100, default 100
+    blur: 30                # 0-40 px, default 0
+    scrim: 25               # dimming of the page 0-80, default 45
+  player:                   # the small player
+    background: "#2a2f6a"
+    text: "#ffffff"
+    opacity: 60             # 20-100, default 100
+    blur: 20                # 0-30 px, default 0
+    radius: 22              # 0-32 px, default 16
+    paused_minutes: 0       # 0-120, default 10
+  icons:
+    light.led_strip: mdi:led-strip-variant
+```
+
+Colour keys: `light`, `switch`, `cover`, `climate`, `media_player`, `lock`, `fan`, `scene`, `script`, `automation`,
+`binary_sensor`, `sensor`. The helper `input_boolean` counts as `switch`, `alarm_control_panel` as `lock` and `button`
+as `script`.
+
+#### Themes
+
+The **Themes** tab shows while **For everyone** is ticked. A theme is the look for everyone (background, bounce,
+buttons, colours, own icons) with the shared backgrounds of the pages. Personal settings, such as the children's, are
+not part of a theme. Themes make a library in the dashboard configuration (`themes`), and `theme` says which one the
+current look started from.
+
+Two themes come with Home Dashboard as a base for your own:
+
+| Theme | Look |
+|---|---|
+| **Home Dashboard** | light buttons, 40% background veil, no bounce: the look so far |
+| **Apple Home** | dark see-through buttons with white writing, white headings, pill-shaped blocks at the top, a floating glass bar, the full background and a blue gradient for pages without one |
+
+A theme that comes with Home Dashboard says **Comes with Home Dashboard**. It cannot be deleted, but it can be changed:
+change the look and choose **Save the changes into the theme …**, and your home keeps its own version (**your version**).
+The button with a round arrow next to such a theme brings back the version that came. Themes that come with Home
+Dashboard have no pictures, at most gradients (Apple Home has a dark background on the Map, for the dark map); your version also keeps the backgrounds of your pages.
+
+| Entry | What it does |
+|---|---|
+| **In use: …** | the theme the current look started from; **changed since it was chosen** when you changed it afterwards |
+| **Save the changes into the theme …** | saves the current look and backgrounds of pages into the theme in use; from now on that is its version |
+| **Back to the theme …** | brings back the look and backgrounds of pages saved in the theme |
+| row of a theme | **Use** (replaces the look with the theme's, and backgrounds only on the pages the theme has; your other backgrounds stay), **Export to a file**, **Delete** from the library or, for a theme that came with Home Dashboard, bring back that version (the current look stays) |
+| **Plain look** | the look without the settings of a theme; the backgrounds of pages stay |
+| **Name of the theme** + **Keep the current look as a theme** | adds your version to the library and marks it as used |
+| **Export the current look to a file** | a file `<name>.home-dashboard-theme.json` with the look and the pictures of the backgrounds |
+| **Import a theme** | reads a file, lets you choose its name and where each background goes, adds it to the library and uses it at once |
+
+| Library of themes | Importing a theme |
+|---|---|
+| ![Themes](screenshots/en/look-themes.png) | ![Importing a theme](screenshots/en/theme-import.png) |
+
+How to use it:
+
+1. **Choose a base.** Three dots → **Look** → **Themes** and **Use** next to **Home Dashboard** or **Apple Home**.
+   You can also start from the current look: type a name, e.g. "Our home", and choose **Keep the current look as a
+   theme**.
+2. **Adjust.** Change what you like on the **Background**, **Buttons** and **Icons** tabs and press **Save for
+   everyone**; the backgrounds of pages change in **Background of this screen**. The theme then shows as **changed
+   since it was chosen**.
+3. **Save, undo or keep apart.** **Save the changes into the theme …** saves them into the theme in use. **Back to
+   the theme …** undoes them. Type a new name and **Keep the current look as a theme**, and the new version stands
+   next to the old one; **Use** switches between them.
+4. **Share.** The export button of a theme (or **Export the current look to a file**) saves a file you can send, for
+   example to your brother.
+5. **Load someone else's theme.** **Import a theme**, choose the file, adjust the name, give each background a page of
+   yours or choose **Leave out**, then **Save for everyone**.
+
+Switching themes does not lose your work: a look that is not in the library yet is kept there by itself as
+**My look <date>**.
+
+The import shows each background with a thumbnail and a list: **Leave out**, **Home**, **Scenes** or a room. At first
+the same page is chosen when it exists, or a room of the same name; the rest waits for a choice. The pictures go to
+Home Assistant (as choosing a picture in the background sheet does), and the library keeps only their addresses. Own
+icons come along only for devices with the same `entity_id`; the sheet says how many fit.
+
+The file can take a few MB, as the pictures are inside. Pictures from the internet (`https://` addresses) do not come
+along, only images from the file and colours.
+
+#### Apple Home step by step
+
+| Home | Dark mode | Room | Lamp | Energy |
+|---|---|---|---|---|
+| ![Apple Home](screenshots/en/apple-home.png) | ![Apple Home, dark](screenshots/en/apple-home-dark.png) | ![Apple Home, room](screenshots/en/apple-room.png) | ![Apple Home, lamp](screenshots/en/apple-light.png) | ![Apple Home, energy](screenshots/en/apple-energy.png) |
+
+![Apple Home on a tablet](screenshots/en/apple-tablet.png)
+
+1. **Turn the theme on.** Three dots → **Look**, tick **For everyone**, **Themes** tab → **Use** next to **Apple
+   Home**. Buttons, the blocks at the top, the bar and windows turn to glass, writing to white, and pages without a
+   background of their own get a blue gradient.
+2. **Add backgrounds.** On Home and in every room: three dots → **Background of this screen**, a picture for the
+   **Light** and the **Dark** look, **Part of the picture: Top**, **For everyone**. An upright picture works best
+   (e.g. 1284 × 2778) with the room at the top fading into one colour below; the dark one is the same picture made
+   darker. Examples are in `dev/demo-pictures/backgrounds`.
+3. **Leave the colour of buttons alone.** In Apple Home they are neutral (black at 26%), so in each room they take the
+   colour of its background. The window of a device shows the blurred background of the room it opened from.
+4. **Map and Energy** have a background of their own in **Background of this screen**; Apple Home gives the Map a
+   dark one under the dark map.
+5. **Icons.** **Look → Icons**: own icons for devices, e.g. a LED strip icon for a LED strip.
+6. **Save.** **Look → Themes → Save the changes into the theme Apple Home**. Export saves the theme with the pictures
+   of its backgrounds into a file you can import in another home.
 
 **User access** (three dots, administrators): choose a person and hide areas, cameras, lights, media, security,
 scenes, scripts, other entities and blocks, and in the **Sections** tab whole sections of rooms. The **Chips** tab holds the weather, the chips and the shortcuts, and a

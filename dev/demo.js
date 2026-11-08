@@ -238,6 +238,7 @@ function buildHass() {
     user: { id: "demo", name: "Alex", is_admin: true },
     themes: {},
     localize: (key) => key,
+    config: { currency: say("EUR", "PLN") },
     formatEntityState: (stateObj) =>
       ({ on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[stateObj.state] ?? stateObj.state,
     formatEntityAttributeValue: (stateObj, attribute) => stateObj.attributes[attribute],
@@ -251,7 +252,12 @@ function buildHass() {
           { id: "kid", name: say("Sam", "Kuba"), is_active: true },
         ],
         "logbook/get_events": demoLogbook(say),
-        "energy/get_prefs": { energy_sources: [{ type: "grid" }], device_consumption: [{ stat_consumption: "a" }] },
+        "energy/get_prefs": {
+          energy_sources: [{ type: "grid", stat_energy_from: "sensor.grid", stat_cost: "sensor.grid_cost" }],
+          device_consumption: DEMO_DEVICES.map(([id, name]) => ({ stat_consumption: id, name })),
+        },
+        "energy/info": { cost_sensors: {} },
+        "recorder/statistics_during_period": message.type === "recorder/statistics_during_period" ? demoStatistics(message) : null,
         "media_source/browse_media": {
           children: [
             { title: say("Radio", "Radio"), thumbnail: null },
@@ -501,39 +507,30 @@ const panel = (html) => {
   return card;
 };
 
-function energyGraph() {
-  const bars = [3, 2, 2, 2, 3, 6, 9, 7, 5, 4, 5, 6, 7, 5, 4, 5, 7, 10, 12, 11, 8, 6, 4, 3];
-  const columns = bars
-    .map((value) => `<rect x="0" y="${130 - value * 10}" width="10" height="${value * 10}" rx="2" fill="#4d7ea8"></rect>`)
-    .map((bar, index) => `<g transform="translate(${index * 14} 0)">${bar}</g>`)
-    .join("");
-  return panel(`<strong>${say("Energy usage", "Zużycie energii")}</strong>
-    <svg viewBox="0 0 336 134" style="display:block;width:100%;margin-top:12px">${columns}</svg>`);
-}
+// The statistics of a demo house for the Energy page: a usual day, more in the evening.
+const DEMO_HOURS = [0.3, 0.2, 0.2, 0.2, 0.3, 0.6, 0.9, 0.7, 0.5, 0.4, 0.5, 0.6, 0.7, 0.5, 0.4, 0.5, 0.7, 1.0, 1.2, 1.1, 0.8, 0.6, 0.4, 0.3];
+const DEMO_DEVICES = [
+  ["sensor.heat_pump", say("Heat pump", "Pompa ciepła"), 0.32],
+  ["sensor.dishwasher", say("Dishwasher", "Zmywarka"), 0.12],
+  ["sensor.fridge", say("Fridge", "Lodówka"), 0.07],
+  ["sensor.computer", say("Computer", "Komputer"), 0.05],
+  ["sensor.router", say("Router and NAS", "Router i NAS"), 0.03],
+];
 
-function energyDevices() {
-  const devices = [
-    [say("Heat pump", "Pompa ciepła"), 9.4],
-    [say("Dishwasher", "Zmywarka"), 3.2],
-    [say("Fridge", "Lodówka"), 1.8],
-    [say("Computer", "Komputer"), 1.4],
-    [say("Router and NAS", "Router i NAS"), 0.9],
-  ];
-  const rows = devices
-    .map(
-      ([name, value]) => `<div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-        <span style="flex:0 0 112px">${name}</span>
-        <span style="height:12px;border-radius:6px;background:#8fbf7f;width:${value * 14}px"></span>
-        <small>${value} kWh</small></div>`,
-    )
-    .join("");
-  return panel(`<strong>${say("Devices", "Urządzenia")}</strong>${rows}`);
-}
-
-function energyTable() {
-  return panel(`<strong>${say("Sources", "Źródła")}</strong>
-    <div style="display:flex;justify-content:space-between;margin-top:12px"><span>${say("Grid", "Sieć")}</span><span>21.4 kWh</span></div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px"><span>${say("Cost", "Koszt")}</span><span>6.10 €</span></div>`);
+function demoStatistics(message) {
+  const start = Date.parse(message.start_time);
+  const step = message.period === "hour" ? 3600000 : 86400000;
+  const count = Math.round((Date.parse(message.end_time) - start) / step);
+  const rows = (scale) =>
+    Array.from({ length: count }, (_, index) => ({
+      start: start + index * step,
+      change: (message.period === "hour" ? DEMO_HOURS[index % 24] : 12 + (index % 5)) * scale,
+    }));
+  return {
+    "sensor.grid": rows(1),
+    "sensor.grid_cost": rows(0.25),
+    ...Object.fromEntries(DEMO_DEVICES.map(([id, , share]) => [id, rows(share)])),
+  };
 }
 
 function floorPlan() {
@@ -583,14 +580,37 @@ const DEMO_CARDS = {
   },
   map: streetMap,
   "demo-floor-plan": floorPlan,
-  "energy-usage-graph": energyGraph,
-  "energy-sources-table": energyTable,
-  "energy-devices-graph": energyDevices,
 };
 
 window.loadCardHelpers = async () => ({
   createCardElement: (config) => DEMO_CARDS[config.type]?.() ?? document.createElement("div"),
 });
+
+// ?theme=apple shows the Apple Home theme that comes with Home Dashboard, with example backgrounds.
+if (params.get("theme") === "apple") {
+  const { BUILTIN_THEMES } = await import("/custom_components/home_dashboard/www/app/builtin-themes.js");
+  const theme = BUILTIN_THEMES.find((item) => item.id === "apple_home");
+  const picture = (name) => ({
+    light: `/dev/demo-pictures/backgrounds/${name}_light.jpg`,
+    dark: `/dev/demo-pictures/backgrounds/${name}_dark.jpg`,
+    position: "top",
+  });
+  Object.assign(DASHBOARD, {
+    appearance: theme.appearance,
+    theme: theme.id,
+    background: null,
+    backgrounds: {
+      ...theme.backgrounds,
+      home: picture("home"),
+      living: picture("living_room"),
+      bedroom: picture("kids_room"),
+      scenes: picture("office"),
+    },
+  });
+  // In Home Assistant the view under the side bar of a tablet carries the background; here the page does.
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.body.style.background = theme.appearance.page[dark ? "background_dark" : "background_light"];
+}
 
 if (params.get("room")) window.history.replaceState(null, "", `?${params}`);
 const card = document.createElement("home-dashboard-page");

@@ -477,23 +477,6 @@ def test_media_page_survives_without_sources(phone):
     assert phone.locator("[data-browse]").count() == 1
 
 
-def test_energy_page_uses_home_assistant_cards_when_set_up(phone):
-    phone.evaluate("""() => {
-        const original = window.dashboard.hass;
-        window.dashboard.hass = (overrides) => original({
-            callWS: async () => ({ energy_sources: [{ type: "grid" }] }), ...overrides });
-    }""")
-    mount(phone, None, "energy")
-    phone.wait_for_function("window.createdCards.length === 5")
-    assert phone.evaluate("window.createdCards.map((card) => card.type)") == [
-        "energy-date-selection",
-        "energy-compare",
-        "energy-usage-graph",
-        "energy-distribution",
-        "energy-sources-table",
-    ]
-
-
 PEOPLE = """() => {
     const person = (id, name, state, position) => ({ entity_id: `person.${id}`, state,
         attributes: { friendly_name: name, ...position } });
@@ -528,7 +511,7 @@ def test_map_page_shows_the_map_card_and_people(phone):
     }}""")
     phone.wait_for_function("window.createdCards.length === 1")
     assert phone.evaluate("window.createdCards[0].type") == "map"
-    assert phone.evaluate("window.createdCards[0].show_all") is True
+    assert phone.evaluate("window.createdCards[0].entities.filter((item) => item.entity?.startsWith('person.')).length") == 4
     assert phone.locator("[data-person]").count() == 4
 
 

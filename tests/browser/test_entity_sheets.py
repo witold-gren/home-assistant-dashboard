@@ -1338,57 +1338,58 @@ def test_a_toggle_tile_works_with_one_tap_and_keeps_its_own_state(phone):
 # Energy and map ---------------------------------------------------------------------------------
 
 
-def energy(page, prefs: dict) -> list:
-    return page.evaluate(
-        """async (prefs) => {
-            const { energyCards } = await import("/custom_components/home_dashboard/www/app/panel.js");
-            return energyCards(prefs, (key) => key).map((card) => card.type);
-        }""",
-        prefs,
-    )
-
-
-def test_energy_has_the_device_cards_when_devices_are_set(phone):
-    cards = energy(phone, {"energy_sources": [{"type": "grid"}], "device_consumption": [{"stat_consumption": "a"}]})
-    assert {"energy-devices-graph", "energy-devices-detail-graph", "energy-sankey"} <= set(cards)
-
-
-def test_energy_leaves_out_what_the_house_has_no_data_for(phone):
-    cards = energy(phone, {"energy_sources": [{"type": "grid"}]})
-    assert not {"energy-solar-graph", "energy-gas-graph", "energy-water-graph", "energy-sankey"} & set(cards)
-
-
-def test_energy_adds_the_graph_of_each_source(phone):
-    cards = energy(phone, {"energy_sources": [{"type": "solar"}, {"type": "gas"}, {"type": "water"}]})
-    assert {"energy-solar-graph", "energy-gas-graph", "energy-water-graph"} <= set(cards)
-
-
-def mount_map(page, answer) -> None:
+def map_card(page, dashboard: dict | None = None, who: str | None = None, hours: int | None = None) -> dict:
     page.evaluate(
-        """(answer) => {
-            const original = window.dashboard.hass;
-            window.dashboard.hass = (overrides) => original({
-                callWS: async (message) => {
-                    if (answer === null) throw new Error("no dashboard");
-                    return answer;
-                }, ...overrides });
+        """({ who, hours }) => {
+            if (who) localStorage.setItem('home_dashboard_map_who', who);
+            if (hours) localStorage.setItem('home_dashboard_map_hours', String(hours));
+            const states = window.dashboard.snapshot.states;
+            states["zone.home"] = { entity_id: "zone.home", state: "1", attributes: { latitude: 50.0, longitude: 10.0 } };
+            states["person.anna"] = { entity_id: "person.anna", state: "home", attributes: { friendly_name: "Anna Nowak", latitude: 50.0, longitude: 10.0 } };
+            states["device_tracker.car"] = { entity_id: "device_tracker.car", state: "not_home",
+                attributes: { friendly_name: "Auto", latitude: 50.1, longitude: 10.1 } };
         }""",
-        answer,
+        {"who": who, "hours": hours},
     )
-    mount(page, None, "map")
-    page.wait_for_function("window.createdCards.length === 1")
+    mount(page, dashboard, "map")
+    page.wait_for_function("window.createdCards.length >= 1")
+    return page.evaluate("window.createdCards.at(-1)")
 
 
-def test_the_map_follows_the_map_dashboard_of_home_assistant(phone):
-    mount_map(phone, {"views": [{"cards": [{"type": "map", "show_all": True, "default_zoom": 9}]}]})
-    card = phone.evaluate("window.createdCards[0]")
-    assert card["default_zoom"] == 9
-    assert card["show_all"] is True
+def test_the_map_draws_the_routes_of_everyone_with_the_zones(phone):
+    card = map_card(phone)
+    entities = [item["entity"] if isinstance(item, dict) else item for item in card["entities"]]
+    assert card["hours_to_show"] == 24
+    assert card["fit_zones"] is False
+    assert any(entity.startswith("person.") for entity in entities)
+    assert any(entity.startswith("zone.") for entity in entities)
+    assert not any(entity.startswith("device_tracker.") for entity in entities)
 
 
-def test_without_that_dashboard_the_map_shows_everything(phone):
-    mount_map(phone, None)
-    assert phone.evaluate("window.createdCards[0].show_all") is True
+def test_a_device_with_a_route_is_chosen_in_the_configuration(phone):
+    card = map_card(phone, {"map": {"track": ["device_tracker.car"]}})
+    assert {"entity": "device_tracker.car"} in card["entities"]
+
+
+def test_the_map_remembers_whose_route_and_how_far_back(phone):
+    card = map_card(phone, None, who="person.anna", hours=168)
+    routes = [item for item in card["entities"] if isinstance(item, dict)]
+    assert routes == [{"entity": "person.anna"}]
+    assert card["hours_to_show"] == 168
+
+
+def test_choosing_a_range_draws_the_map_again(phone):
+    map_card(phone)
+    phone.locator("home-dashboard-page [data-map-hours='72']").click()
+    phone.wait_for_function("window.createdCards.at(-1).hours_to_show === 72")
+    assert phone.evaluate("localStorage.getItem('home_dashboard_map_hours')") == "72"
+    assert phone.locator("home-dashboard-page [data-map-hours='72'].on").count() == 1
+
+
+def test_the_look_chooses_the_colours_of_the_map(phone):
+    card = map_card(phone, {"appearance": {"map": {"theme": "dark", "hours": 6}}})
+    assert card["theme_mode"] == "dark"
+    assert card["hours_to_show"] == 6
 
 
 # Calm tiles -------------------------------------------------------------------------------------

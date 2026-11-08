@@ -9,17 +9,20 @@ import { translate } from "./i18n.js";
 import {
   buildPlayer,
   buildRoomList,
+  mediaKey,
   normalizeConfig,
   nowPlaying,
   MENU_LINKS,
   menuGroups,
   personalize,
   renameBlockRules,
+  SCENES_ROOM,
   selectEntities,
   shownMenu,
 } from "./model.js";
 import { loadPrefs, PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { stopWatchingPresses, watchPresses } from "./press.js";
+import { backgroundVeil, navVariables, sheetVariables } from "./appearance.js";
 import { applyColorMode, backgroundTop, DARK_SCHEME, isDark, pageColour, tokens, viewBackground } from "./styles.js";
 
 export const TABLET_MEDIA_QUERY = "(min-width: 900px)";
@@ -35,6 +38,24 @@ const PAGES = [
   { key: "map", icon: "mdi:map-outline", path: "map" },
 ];
 const MUSIC_PAGE = { key: "music", icon: "mdi:music", path: "music" };
+const NAV_EXTRAS = {
+  scenes: { icon: "mdi:palette-outline", label: "personal_scenes", room: SCENES_ROOM },
+  menu: { icon: "mdi:menu", label: "menu", menu: true },
+};
+
+// The entries of the bar chosen in the look of the page. Something that is not here, such as a room
+// that is gone, is left out; without a choice the bar keeps its pages.
+export function navEntries(items, { pages, rooms = [], areas = {} }) {
+  if (!items?.length) return pages.map((page) => ({ key: page.key, icon: page.icon, label: `nav_${page.key}`, page }));
+  const allPages = [...PAGES, MUSIC_PAGE];
+  return items.flatMap((item) => {
+    const page = allPages.find((candidate) => candidate.key === item);
+    if (page) return [{ key: item, icon: page.icon, label: `nav_${item}`, page }];
+    if (NAV_EXTRAS[item]) return [{ key: item, ...NAV_EXTRAS[item] }];
+    const room = rooms.find((candidate) => `room:${candidate.id}` === item);
+    return room ? [{ key: item, icon: areas[room.id]?.icon ?? "mdi:floor-plan", name: room.name, room: room.id }] : [];
+  });
+}
 // Pages of Home Assistant that have a window here, so that nobody has to leave the dashboard for them.
 const WINDOWS = { "/history": "history", "/logbook": "logbook" };
 const LINKS = MENU_LINKS;
@@ -42,6 +63,7 @@ const LINKS = MENU_LINKS;
 const CAMERA_BAND = "#17181a";
 const BAND_REPEAT_MS = 800;
 const PLAYER_SPACE = "88px";
+const DISMISSED_PLAYER_KEY = "home_dashboard_dismissed_player";
 const NO_PLAYER_SPACE = "16px";
 const APP_COLOURS = [
   "--app-header-background-color",
@@ -65,16 +87,19 @@ function postThemeColors({ band }) {
 // Replaces the regular header and the view padding that makes room for it. The opaque background
 // covers whatever the active theme paints behind the view.
 // The view scrolls by itself: on iOS a scrolling document slides under the status bar, past what
-// fixed elements reach, and takes the navigation up with it at the end of the page.
+// fixed elements reach, and takes the navigation up with it at the end of the page. The view itself
+// may bounce at its ends; the look of the page can turn that off.
 export const rootStyle = () => `
   .header { display: none !important; }
+  /* The view itself carries the background of a page; Home Assistant's own would cover it. */
+  hui-view-background { display: none !important; }
   #view {
     box-sizing: border-box;
     height: 100dvh;
     min-height: 0 !important;
     padding: 0 !important;
     overflow-y: auto;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: contain;
     touch-action: pan-x pan-y;
   }
   ${viewBackground()}
@@ -135,6 +160,18 @@ export function setPageBackground(card, background) {
   const chrome = existingChrome(card);
   if (chrome) chrome.pageBackground = background;
 }
+
+// The background of the page, painted on the view so it stays put while the page bounces. The rule
+// for the view is important, so the value has to be too.
+export function setViewBackground(card, value) {
+  const view = findRoot(card)?.shadowRoot?.getElementById("view");
+  if (!view || view.homeDashboardBackground === value) return;
+  view.homeDashboardBackground = value;
+  if (value) view.style.setProperty("background", value, "important");
+  else view.style.removeProperty("background");
+}
+
+export const paintsView = (card) => Boolean(findRoot(card)?.shadowRoot?.getElementById("view"));
 
 export function goHome(card) {
   existingChrome(card)?._navigate(PAGES[0]);
@@ -234,6 +271,8 @@ export class HomeDashboardChrome extends LitElement {
     this._selectionRaw = null;
     this._useColorMode();
     this.requestUpdate();
+    // How much of the background shows may have changed, and the band above the page with it.
+    this.updateComplete.then(() => this._paintBand());
   };
 
   _noPinch = (event) => event.preventDefault();
@@ -331,7 +370,7 @@ export class HomeDashboardChrome extends LitElement {
   // shortly after, so the band goes out once more when that has passed.
   async _paintBand() {
     const background = this._bandBackground;
-    const band = background === CAMERA_BAND ? CAMERA_BAND : await backgroundTop(background);
+    const band = background === CAMERA_BAND ? CAMERA_BAND : await backgroundTop(background, backgroundVeil(this._appearance));
     if (background !== this._bandBackground) return;
     this._band = band;
     postThemeColors({ band });
@@ -343,8 +382,9 @@ export class HomeDashboardChrome extends LitElement {
     if (document.visibilityState === "visible") this._paintBand();
   };
 
+  // Music Assistant has its own player; the map and the energy page need the bottom of the screen.
   get _showsPlayer() {
-    return Boolean(this._playerId) && this.page !== "music";
+    return Boolean(this._playerId) && !["music", "map", "energy"].includes(this.page);
   }
 
   _refreshPlayer() {
@@ -356,7 +396,29 @@ export class HomeDashboardChrome extends LitElement {
       this._registries = this.hass;
       this._armIdle();
     }
-    this._playerId = nowPlaying(this.hass, this._selection);
+    this._playerId = nowPlaying(this.hass, this._selection, {
+      pausedMinutes: this._appearance.player.paused_minutes,
+      dismissed: this._dismissedPlayer,
+    });
+  }
+
+  // Remembered on this device, so a closed player stays away after a reload too.
+  get _dismissedPlayer() {
+    try {
+      return localStorage.getItem(DISMISSED_PLAYER_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  _dismissPlayer() {
+    try {
+      localStorage.setItem(DISMISSED_PLAYER_KEY, mediaKey(this.hass.states[this._playerId]));
+    } catch {
+      // Private browsing: it stays closed until the page reloads.
+    }
+    this._refreshPlayer();
+    this.requestUpdate();
   }
 
   connectedCallback() {
@@ -377,6 +439,7 @@ export class HomeDashboardChrome extends LitElement {
     this._scheme.addEventListener("change", this._paintDocument);
     document.addEventListener("visibilitychange", this._onVisible);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
+    window.addEventListener("location-changed", this._onLocation);
     this._lockZoom();
     watchPresses();
     this._paintDocument();
@@ -415,6 +478,7 @@ export class HomeDashboardChrome extends LitElement {
     this._scheme.removeEventListener("change", this._paintDocument);
     document.removeEventListener("visibilitychange", this._onVisible);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
+    window.removeEventListener("location-changed", this._onLocation);
     this._unlockZoom();
     stopWatchingPresses();
     this._restoreDocument();
@@ -440,7 +504,22 @@ export class HomeDashboardChrome extends LitElement {
     pageScroller(this.card).scrollTo(0, 0);
   };
 
+  // What the person chose for the page as a whole; the configuration may not be read yet.
+  get _appearance() {
+    return this._config?.appearance ?? personalize(normalizeConfig(this.raw ?? {}), this.hass?.user?.id, personalPrefs()).appearance;
+  }
+
+  // The page bounces at its ends unless someone turned that off. The view is Home Assistant's, so the
+  // choice goes on the element itself, over the rule that keeps the document still.
+  _applyBounce() {
+    const view = this.root?.shadowRoot?.getElementById("view");
+    if (view) view.style.overscrollBehaviorY = this._appearance.bounce ? "contain" : "none";
+  }
+
   updated(changed) {
+    this._applyBounce();
+    // A floating bar leaves a gap under it, which the page and the player make room for.
+    (this.root ?? document.documentElement).style.setProperty("--hd-nav-gap", this._appearance.nav.style === "floating" ? "8px" : "0px");
     if (changed.has("pageBackground") || changed.has("_overlay")) this._paintBand();
     const space = this._showsPlayer ? PLAYER_SPACE : NO_PLAYER_SPACE;
     (this.root ?? document.documentElement).style.setProperty("--hd-player-space", space);
@@ -489,6 +568,31 @@ export class HomeDashboardChrome extends LitElement {
   get _activePage() {
     return this.page === "room" ? "home" : this.page;
   }
+
+  get _navEntries() {
+    const items = this._appearance.nav.items;
+    const rooms = items?.some((item) => item.startsWith("room:")) && this._config
+      ? buildRoomList(this.hass, this._config, this._selection)
+      : [];
+    return navEntries(items, { pages: this._pages, rooms, areas: this.hass?.areas });
+  }
+
+  // A room or the Scenes page in the bar lights up while it is open; Home takes every other room.
+  _isActive(entry, entries) {
+    const room = this.page === "room" ? new URLSearchParams(window.location.search).get("room") : null;
+    if (entry.room) return room === entry.room;
+    if (entry.page?.key === "home" && room) return !entries.some((other) => other.room === room);
+    return entry.page?.key === this.page;
+  }
+
+  _goTo(entry) {
+    if (entry.menu) this.open({ type: "drawer" });
+    else if (entry.room) navigateTo(`${dashboardPath(window.location.pathname)}/room?room=${encodeURIComponent(entry.room)}`);
+    else if (entry.page.key === "home" && this.page === "room") navigateTo(`${dashboardPath(window.location.pathname)}/home`);
+    else this._navigate(entry.page);
+  }
+
+  _onLocation = () => this.requestUpdate();
 
   _navigate(page) {
     if (page.key === this.page) return;
@@ -545,6 +649,13 @@ export class HomeDashboardChrome extends LitElement {
     return this._saveSettings({ detail: { dashboard } });
   }
 
+  // An empty look is left out, so a dashboard that never changed it keeps a short configuration.
+  _saveAppearance(event) {
+    const { appearance: dropped, ...rest } = this.raw;
+    const { appearance } = event.detail;
+    return this._saveSettings({ detail: { dashboard: Object.keys(appearance).length ? { ...rest, appearance } : rest } });
+  }
+
   _saveAccess(event) {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, access: event.detail.access } } });
   }
@@ -589,7 +700,7 @@ export class HomeDashboardChrome extends LitElement {
     const player = buildPlayer(this.hass, this._playerId, this._config);
     if (!player) return nothing;
     return html`
-      <div class="mini" style="--hd-left: ${this._left ?? 0}px" data-mini>
+      <div class="mini" style="--hd-left: ${this._left ?? 0}px; ${navVariables(this._appearance)}" data-mini>
         <button
           class="mini-open"
           aria-label=${translate(language, "now_playing")}
@@ -602,6 +713,11 @@ export class HomeDashboardChrome extends LitElement {
           </span>
           <span class="mini-text"><strong>${player.room}</strong><small>${player.title}</small></span>
         </button>
+        ${player.playing
+          ? nothing
+          : html`<button class="mini-play" data-mini-close aria-label=${translate(language, "close")} @click=${this._dismissPlayer}>
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>`}
         <button
           class="mini-play"
           data-mini-play
@@ -725,6 +841,7 @@ export class HomeDashboardChrome extends LitElement {
       ></home-dashboard-settings>`;
     }
     return html`<home-dashboard-sheet
+      style=${sheetVariables(this._appearance)}
       .hass=${this.hass}
       .sheet=${overlay.sheet}
       .config=${this._config}
@@ -737,6 +854,8 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-edit=${this._editScreen}
       @sheet-access=${this._saveAccess}
       @sheet-layout=${this._saveLayout}
+      @sheet-appearance=${this._saveAppearance}
+      @sheet-theme=${this._saveSettings}
       @sheet-shortcuts=${this._saveShortcuts}
       @sheet-media=${this._saveMedia}
       @sheet-link=${(event) => this._pickLink(event.detail.path)}
@@ -747,9 +866,14 @@ export class HomeDashboardChrome extends LitElement {
 
   render() {
     const language = this.hass?.language;
+    const look = this._appearance;
+    const entries = this._navEntries;
     return html`
       ${this.hass ? this._renderMiniPlayer(language) : nothing}
-      <nav class=${this.navTucked ? "tucked" : ""} style="--hd-left: ${this._left ?? 0}px">
+      <nav
+        class="${this.navTucked ? "tucked" : ""} ${look.nav.style}"
+        style="--hd-left: ${this._left ?? 0}px; ${navVariables(look)}"
+      >
         <button
           class="rail-only"
           data-menu
@@ -758,15 +882,15 @@ export class HomeDashboardChrome extends LitElement {
         >
           <ha-icon icon="mdi:menu"></ha-icon>
         </button>
-        ${this._pages.map(
-          (page) => html`
+        ${entries.map(
+          (entry) => html`
             <button
-              class="item ${page.key === this._activePage ? "active" : ""}"
-              data-page=${page.key}
-              @click=${() => this._navigate(page)}
+              class="item ${this._isActive(entry, entries) ? "active" : ""}"
+              data-page=${entry.key}
+              @click=${() => this._goTo(entry)}
             >
-              <span class="pill"><ha-icon .icon=${page.icon}></ha-icon></span>
-              <span class="label">${translate(language, `nav_${page.key}`)}</span>
+              <span class="pill"><ha-icon .icon=${entry.icon}></ha-icon></span>
+              <span class="label">${entry.name ?? translate(language, entry.label)}</span>
             </button>
           `,
         )}
@@ -807,8 +931,25 @@ export class HomeDashboardChrome extends LitElement {
         box-sizing: border-box;
         height: calc(var(--hd-nav-height) + var(--hd-nav-safe));
         padding: 8px 8px var(--hd-nav-safe);
-        background: var(--hd-background);
+        color: var(--hd-nav-icon, inherit);
+        background: color-mix(in srgb, var(--hd-nav-bg, var(--hd-background)) var(--hd-nav-opacity, 100%), transparent);
+        -webkit-backdrop-filter: blur(var(--hd-nav-blur, 0px));
+        backdrop-filter: blur(var(--hd-nav-blur, 0px));
         transition: transform 220ms ease;
+      }
+      /* A bar that floats over the page, away from the edges, as a rounded pill. */
+      nav.floating {
+        right: 16px;
+        bottom: calc(var(--hd-nav-safe) + var(--hd-nav-gap, 8px));
+        left: calc(var(--hd-left, 0px) + 16px);
+        height: var(--hd-nav-height);
+        padding: 6px;
+        border: 1px solid color-mix(in srgb, #ffffff 22%, transparent);
+        border-radius: calc(var(--hd-nav-height) / 2);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+      }
+      nav.floating.tucked {
+        transform: translateY(calc(100% + 32px));
       }
       /* On a phone the bar goes away for a full-screen player inside the music page. */
       nav.tucked {
@@ -833,7 +974,7 @@ export class HomeDashboardChrome extends LitElement {
         transition: background-color 180ms ease;
       }
       .active .pill {
-        background: var(--hd-pill);
+        background: var(--hd-nav-active, var(--hd-pill));
       }
       .label {
         font-size: 12px;
@@ -844,15 +985,18 @@ export class HomeDashboardChrome extends LitElement {
         position: fixed;
         z-index: 5;
         right: 16px;
-        bottom: calc(var(--hd-nav-height) + var(--hd-nav-safe) + 8px);
+        bottom: calc(var(--hd-nav-height) + var(--hd-nav-safe) + var(--hd-nav-gap, 0px) + 8px);
         left: calc(var(--hd-left, 0px) + 16px);
         display: flex;
         align-items: center;
         box-sizing: border-box;
         height: 64px;
         padding: 0 8px;
-        border-radius: 16px;
-        background: var(--hd-player);
+        border-radius: var(--hd-player-radius, 16px);
+        color: var(--hd-player-text, inherit);
+        background: color-mix(in srgb, var(--hd-player-bg, var(--hd-player)) var(--hd-player-opacity, 100%), transparent);
+        -webkit-backdrop-filter: blur(var(--hd-player-blur, 0px));
+        backdrop-filter: blur(var(--hd-player-blur, 0px));
       }
       .mini-open {
         display: flex;
@@ -893,7 +1037,7 @@ export class HomeDashboardChrome extends LitElement {
       }
       .mini-text small {
         font-size: 13px;
-        color: var(--hd-text-muted);
+        color: var(--hd-player-muted, var(--hd-text-muted));
       }
       .mini-play {
         display: grid;
@@ -980,9 +1124,15 @@ export class HomeDashboardChrome extends LitElement {
         nav.tucked {
           transform: none;
         }
-        nav {
+        nav,
+        nav.floating {
           top: 0;
           right: auto;
+          bottom: 0;
+          left: var(--hd-left, 0);
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
           flex-direction: column;
           justify-content: flex-start;
           gap: 12px;

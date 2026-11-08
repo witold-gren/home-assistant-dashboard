@@ -15,6 +15,14 @@ CONTRAST_TEXT = 4.5
 CONTRAST_ICON = 3
 
 
+
+def as_rgb(value: str) -> str:
+    """A colour mixed for the opacity of the look is written as srgb; the same colour as rgb."""
+    if not value.startswith("color(srgb "):
+        return value
+    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb "):-1].split()[:3])
+    return f"rgb({red}, {green}, {blue})"
+
 def open_dark(browser, base_url: str, viewport: dict) -> Page:
     page = browser.new_page(viewport=viewport, color_scheme="dark")
     page.errors = []
@@ -187,10 +195,10 @@ def test_the_change_reaches_an_open_sheet(phone):
     phone.locator("[data-rooms]").click()
     phone.wait_for_selector("home-dashboard-sheet section.panel")
     push_mode(phone, "dark")
-    background = phone.locator("home-dashboard-sheet section.panel").evaluate(
-        "(panel) => getComputedStyle(panel).backgroundColor"
+    background = phone.locator("home-dashboard-sheet .cover").evaluate(
+        "(cover) => getComputedStyle(cover).backgroundColor"
     )
-    assert background == "rgb(18, 19, 22)"
+    assert as_rgb(background) == "rgb(18, 19, 22)"
 
 
 def test_the_page_opens_with_the_last_mode_before_it_connects(phone, base_url):
