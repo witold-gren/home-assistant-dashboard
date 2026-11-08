@@ -201,7 +201,8 @@ sceny i skrypty. Przycisk ze strzałkami układa je w jeden rząd przewijany w b
 
 ## 7. Skróty i bloki
 
-Blok to kilka encji na jednym ekranie. To zwykłe dane, więc nie wymaga kodu.
+Blok to kilka encji na jednym ekranie. To zwykłe dane, więc nie wymaga kodu. Jak zbudować okno dla urządzenia, którego
+dashboard nie zna, krok po kroku i z przykładami, opisuje [poradnik o własnych urządzeniach](own-devices.pl.md).
 
 | Odkurzacz | Media | Roleta | Przełącznik |
 |---|---|---|---|
@@ -794,6 +795,8 @@ Plik może mieć kilka MB, bo zawiera zdjęcia. Zdjęcia z internetu (adresy `ht
 pliku i kolory.
 
 #### Apple Home krok po kroku
+
+Szczegółowy poradnik, od instalacji po przygotowanie teł i palety kolorów, jest w [osobnym dokumencie](apple-home.pl.md).
 
 | Strona główna | Tryb ciemny | Pokój | Lampa | Energia |
 |---|---|---|---|---|

@@ -258,7 +258,9 @@ plakietek, dolny pasek (pozycje, styl przyklejony albo pływający, szkło), ma�
 rozmycie), mapę i własne ikony urządzeń. Administrator ustawia wygląd dla wszystkich, a każdy może go dopasować dla
 siebie. Zakładka **Motywy** trzyma bibliotekę wyglądów: **Home Dashboard** i **Apple Home** przychodzą w zestawie,
 swój wygląd zachowujesz jako motyw, a każdy eksportujesz do pliku razem ze zdjęciami teł i wczytujesz w innym domu.
-Szczegóły i instrukcja krok po kroku są w [przewodniku](docs/guide.pl.md#wygląd).
+Szczegóły są w [przewodniku](docs/guide.pl.md#wygląd), a cały wygląd Apple Home od zera, z przygotowaniem teł, w
+[poradniku Apple Home](docs/apple-home.pl.md). Jak zbudować okno dla własnego urządzenia, którego dashboard nie zna,
+opisuje [poradnik o własnych urządzeniach](docs/own-devices.pl.md).
 
 ### Otwieranie przy starcie na jednym urządzeniu
 

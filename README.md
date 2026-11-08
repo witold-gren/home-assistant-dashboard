@@ -259,7 +259,9 @@ and of badges, the bar at the bottom (entries, docked or floating, glass), the s
 blurred), the map and own icons of devices. An administrator sets the look for everyone, and each person may adjust
 it for themselves. The **Themes** tab keeps a library of looks: **Home Dashboard** and **Apple Home** come with it,
 your own look is kept as a theme, and any theme exports to a file with the pictures of its backgrounds and imports into
-another home. Details and a step-by-step guide are in the [guide](docs/guide.md#look).
+another home. Details are in the [guide](docs/guide.md#look), and the whole Apple Home look from scratch, with making the
+backgrounds, in the [Apple Home guide](docs/apple-home.md). How to build a window for a device the dashboard does not know is in the
+[guide to your own devices](docs/own-devices.md).
 
 ### Opening at start on one device
 

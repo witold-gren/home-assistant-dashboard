@@ -8,7 +8,16 @@ import re
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ["README.md", "README.pl.md", "docs/guide.md", "docs/guide.pl.md"]
+DOCS = [
+    "README.md",
+    "README.pl.md",
+    "docs/guide.md",
+    "docs/guide.pl.md",
+    "docs/apple-home.md",
+    "docs/apple-home.pl.md",
+    "docs/own-devices.md",
+    "docs/own-devices.pl.md",
+]
 LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 
 
@@ -27,6 +36,20 @@ def test_both_languages_of_the_guide_have_the_same_sections() -> None:
         return [len(line.split()[0]) for line in lines if line.startswith("##")]
 
     assert headings("docs/guide.md") == headings("docs/guide.pl.md")
+
+
+@pytest.mark.parametrize("name", ["apple-home", "own-devices"])
+def test_both_languages_of_a_guide_have_the_same_sections(name: str) -> None:
+    # The level of each heading and the number of a chapter, which both languages share.
+    def sections(name: str) -> list[str]:
+        lines = (ROOT / name).read_text().splitlines()
+        return [
+            line.split()[0] + (line.split()[1] if line.split()[1][0].isdigit() else "")
+            for line in lines
+            if line.startswith("##")
+        ]
+
+    assert sections(f"docs/{name}.md") == sections(f"docs/{name}.pl.md")
 
 
 def test_every_language_has_the_same_screenshots() -> None:

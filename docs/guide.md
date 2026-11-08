@@ -203,7 +203,8 @@ offers scenes and scripts. The arrows button lays them out in one row that scrol
 
 ## 7. Shortcuts and blocks
 
-A block is several entities on one screen. It is plain data, so it needs no code.
+A block is several entities on one screen. It is plain data, so it needs no code. How to build a window for a device
+the dashboard does not know, step by step and with examples, is in the [guide to your own devices](own-devices.md).
 
 | Vacuum | Media | Blind | Switch |
 |---|---|---|---|
@@ -800,6 +801,8 @@ The file can take a few MB, as the pictures are inside. Pictures from the intern
 along, only images from the file and colours.
 
 #### Apple Home step by step
+
+A detailed guide, from installation to making backgrounds and colour palettes, is in a [separate document](apple-home.md).
 
 | Home | Dark mode | Room | Lamp | Energy |
 |---|---|---|---|---|
