@@ -13,10 +13,12 @@ const PRESS_SERVICES = {
 };
 const ROW_CONTROLS = {
   button: "press",
+  fan: "toggle",
   input_boolean: "toggle",
   input_button: "press",
   input_number: "range",
   input_select: "select",
+  light: "toggle",
   number: "range",
   script: "press",
   select: "select",

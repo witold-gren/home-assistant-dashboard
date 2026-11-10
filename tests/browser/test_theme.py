@@ -125,8 +125,8 @@ def test_removing_the_theme_in_use_keeps_the_look(phone):
 
 def open_look(page, dashboard: dict, admin: bool = True) -> None:
     mount_admin(page, dashboard, admin=admin)
-    page.locator("home-dashboard-page [data-rooms]").click()
-    page.locator(f"{SHEET} [data-sheet-look]").click()
+    page.locator("home-dashboard-page [data-menu]").click()
+    page.locator("[data-drawer] [data-look]").click()
 
 
 def test_only_the_look_for_everyone_offers_themes(phone):

@@ -25,11 +25,14 @@ import { stopWatchingPresses, watchPresses } from "./press.js";
 import { backgroundVeil, navVariables, sheetVariables } from "./appearance.js";
 import { applyColorMode, backgroundTop, DARK_SCHEME, isDark, pageColour, tokens, viewBackground } from "./styles.js";
 
-export const TABLET_MEDIA_QUERY = "(min-width: 900px)";
+// A phone on its side is wide but low, and stays a phone.
+export const TABLET_MEDIA_QUERY = "(min-width: 900px) and (min-height: 501px)";
 const CHROME_TAG = "home-dashboard-chrome";
 const STYLE_ID = "home-dashboard-root-style";
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
 const FOLLOW_ROOT_MS = 800;
+// Frames are counted too: a phone turned while the app was away runs none until it comes back.
+const FOLLOW_ROOT_FRAMES = 45;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchmove"];
 const PAGES = [
   { key: "home", icon: "mdi:home", path: "home" },
@@ -379,7 +382,9 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   _onVisible = () => {
-    if (document.visibilityState === "visible") this._paintBand();
+    if (document.visibilityState !== "visible") return;
+    this._paintBand();
+    this._followRoot();
   };
 
   // Music Assistant has its own player; the map and the energy page need the bottom of the screen.
@@ -441,6 +446,8 @@ export class HomeDashboardChrome extends LitElement {
     window.addEventListener(PREFS_EVENT, this._onPrefs);
     window.addEventListener("location-changed", this._onLocation);
     this._lockZoom();
+    this._hideSidebar();
+    this._watchMenuGesture();
     watchPresses();
     this._paintDocument();
     this._watchDialogs();
@@ -449,17 +456,22 @@ export class HomeDashboardChrome extends LitElement {
       this._observer.observe(this.root);
       window.addEventListener("click", this._followRoot, { capture: true, passive: true });
     }
+    // Turning the phone resizes the window; the sidebar of Home Assistant comes and goes with that width.
+    window.addEventListener("resize", this._followRoot, { passive: true });
   }
 
   // The sidebar of Home Assistant slides, and the last resize can come before it stops, so the bars
   // keep up for a moment longer. A click counts too: it is what folds the sidebar.
   _followRoot = () => {
     this._followUntil = performance.now() + FOLLOW_ROOT_MS;
+    this._followFrames = 0;
     if (this._following) return;
     this._following = true;
     const step = () => {
       if (this.root) this._left = Math.round(this.root.getBoundingClientRect().left);
-      if (this.isConnected && performance.now() < this._followUntil) requestAnimationFrame(step);
+      this._followFrames += 1;
+      const more = performance.now() < this._followUntil || this._followFrames < FOLLOW_ROOT_FRAMES;
+      if (this.isConnected && more) requestAnimationFrame(step);
       else this._following = false;
     };
     requestAnimationFrame(step);
@@ -471,6 +483,7 @@ export class HomeDashboardChrome extends LitElement {
     ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, this._armIdle, { capture: true }));
     this._observer?.disconnect();
     window.removeEventListener("click", this._followRoot, { capture: true });
+    window.removeEventListener("resize", this._followRoot);
     clearInterval(this._timer);
     clearTimeout(this._idleTimer);
     this._settingsWatch?.then((unsubscribe) => unsubscribe?.());
@@ -480,9 +493,48 @@ export class HomeDashboardChrome extends LitElement {
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
     window.removeEventListener("location-changed", this._onLocation);
     this._unlockZoom();
+    this._restoreSidebar();
+    this._menuTarget?.removeEventListener("hass-toggle-menu", this._onMenuGesture, { capture: true });
+    this._menuTarget = null;
     stopWatchingPresses();
     this._restoreDocument();
   }
+
+  // The app of Home Assistant opens its menu with a swipe from the left edge. Here the swipe opens the menu of the
+  // dashboard on Home instead, which has everything that one has; anywhere else it goes back, as in other apps, so an
+  // open window closes and another page returns to Home. The app asks the page for the menu, and this listener hears
+  // it before Home Assistant does.
+  // The menu of Home Assistant does not belong on this dashboard, which has its own; a wide phone or a tablet would keep
+  // it docked at the side. It is hidden while the dashboard is open, without saving that for the user, and comes back
+  // as it was when they leave.
+  _hideSidebar() {
+    const app = document.querySelector("home-assistant");
+    if (!app?._updateHass || !app.hass || app.hass.dockedSidebar === "always_hidden") return;
+    this._userDock = app.hass.dockedSidebar;
+    app._updateHass({ dockedSidebar: "always_hidden" });
+  }
+
+  _restoreSidebar() {
+    const app = document.querySelector("home-assistant");
+    if (this._userDock === undefined || !app?._updateHass) return;
+    if (app.hass?.dockedSidebar === "always_hidden") app._updateHass({ dockedSidebar: this._userDock });
+    this._userDock = undefined;
+  }
+
+  _watchMenuGesture() {
+    const main = document.querySelector("home-assistant")?.shadowRoot?.querySelector("home-assistant-main");
+    if (!main) return;
+    this._menuTarget = main;
+    main.addEventListener("hass-toggle-menu", this._onMenuGesture, { capture: true });
+  }
+
+  _onMenuGesture = (event) => {
+    if (event.detail?.open === false) return;
+    event.stopImmediatePropagation();
+    if (this._overlay) this.close();
+    else if (this.page === "home") this.open({ type: "drawer" });
+    else this._navigate(PAGES[0]);
+  };
 
   // Tablets only: a phone is in someone's hand, and its page should wait for them.
   _armIdle = () => {
@@ -779,27 +831,6 @@ export class HomeDashboardChrome extends LitElement {
             `,
           )}
         </ul>
-        ${groups.map(
-          (group) => html`
-            <hr />
-            ${group.title ? html`<h3>${group.title}</h3>` : nothing}
-            <ul>
-              ${group.items.map((item) => html`<li>${this._renderMenuItem(item)}</li>`)}
-            </ul>
-          `,
-        )}
-        ${admin
-          ? html`
-              <hr />
-              <ul>
-                <li>
-                  <button data-settings @click=${() => this.open({ type: "settings" })}>
-                    <ha-icon icon="mdi:cog-outline"></ha-icon>${translate(language, "settings")}
-                  </button>
-                </li>
-              </ul>
-            `
-          : nothing}
         ${rooms.length
           ? html`
               <hr />
@@ -812,6 +843,30 @@ export class HomeDashboardChrome extends LitElement {
               </ul>
             `
           : nothing}
+        ${groups.map(
+          (group) => html`
+            <hr />
+            ${group.title ? html`<h3>${group.title}</h3>` : nothing}
+            <ul>
+              ${group.items.map((item) => html`<li>${this._renderMenuItem(item)}</li>`)}
+            </ul>
+          `,
+        )}
+        <hr />
+        <ul>
+          <li>
+            <button data-look @click=${() => this.open({ type: "sheet", sheet: { kind: "look", rooms } })}>
+              <ha-icon icon="mdi:palette-outline"></ha-icon>${translate(language, "look_title")}
+            </button>
+          </li>
+          ${admin
+            ? html`<li>
+                <button data-settings @click=${() => this.open({ type: "settings" })}>
+                  <ha-icon icon="mdi:cog-outline"></ha-icon>${translate(language, "settings")}
+                </button>
+              </li>`
+            : nothing}
+        </ul>
         ${admin
           ? html`
               <hr />
@@ -824,6 +879,14 @@ export class HomeDashboardChrome extends LitElement {
               </ul>
             `
           : nothing}
+        <hr />
+        <ul>
+          <li>
+            <button data-profile @click=${() => this._pickLink("/profile")}>
+              <ha-icon icon="mdi:face-recognition"></ha-icon>${translate(language, "profile", { name: this.hass?.user?.name ?? "" })}
+            </button>
+          </li>
+        </ul>
       </aside>
     `;
   }

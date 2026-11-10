@@ -34,17 +34,21 @@ Stan: wczesna wersja.
 |---|---|---|---|
 | ![Roleta](docs/screenshots/pl/blind.png) | ![Przełącznik](docs/screenshots/pl/switch.png) | ![Tło ekranu](docs/screenshots/pl/background.png) | ![Mój układ](docs/screenshots/pl/layout.png) |
 
-| Dostęp użytkowników | Energia | Kamera |
-|---|---|---|
-| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) | ![Kamera](docs/screenshots/pl/camera.png) |
+| Dostęp użytkowników | Energia | Kamera | Ustawienia dashboardu |
+|---|---|---|---|
+| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) | ![Kamera](docs/screenshots/pl/camera.png) | ![Ustawienia dashboardu](docs/screenshots/pl/settings.png) |
+
+| Kamera na telefonie trzymanym poziomo |
+|---|
+| ![Kamera poziomo](docs/screenshots/pl/camera-landscape.png) |
 
 | Status | Odjazdy | Rok szkolny | Plakietki |
 |---|---|---|---|
 | ![Status](docs/screenshots/pl/status.png) | ![Odjazdy](docs/screenshots/pl/departures.png) | ![Rok szkolny](docs/screenshots/pl/school.png) | ![Plakietki](docs/screenshots/pl/chips.png) |
 
-| Powiadomienia | Aplikacja w oknie | Bloki | Edycja bloku |
+| Powiadomienia | Aplikacja w oknie | Odznaki podsumowania | Edycja bloku |
 |---|---|---|---|
-| ![Powiadomienia](docs/screenshots/pl/notifications.png) | ![Aplikacja w oknie](docs/screenshots/pl/app.png) | ![Bloki](docs/screenshots/pl/blocks.png) | ![Edycja bloku](docs/screenshots/pl/block-editor.png) |
+| ![Powiadomienia](docs/screenshots/pl/notifications.png) | ![Aplikacja w oknie](docs/screenshots/pl/app.png) | ![Odznaki podsumowania](docs/screenshots/pl/blocks.png) | ![Edycja bloku](docs/screenshots/pl/block-editor.png) |
 
 | Edycja menu | Kategorie mediów | Dziennik | Historia |
 |---|---|---|---|
@@ -108,7 +112,9 @@ strategy:
     hero: image.korytarz_dzwonek_last_screen
     tiles: [image.garage_last_screen]
     live: {image.korytarz_dzwonek_last_screen: camera.dzwonek}
-    battery_platforms: [eufy_sdk]
+    controls: {camera.hall_frigate: camera.hall}   # ta sama kamera w innej integracji: obraca i mówi (np. obraz z Frigate)
+    talk: camera                       # mówienie przez głośnik kamery zamiast intercomu (domyślnie intercom)
+    battery_platforms: [my_platform]   # tylko kamery, które nie zgłaszają baterii
     snapshot_platforms: [frigate]
   entities:
     include:
@@ -140,7 +146,7 @@ zmiany. Bloki można tu przenosić i usuwać, a dodawać w edytorze YAML.
 
 ### Skróty
 
-Administrator dodaje je i edytuje w formularzu: trzy kropki na stronie głównej → **Bloki**. Opis pól jest też niżej i w przewodniku.
+Administrator dodaje je i edytuje w formularzu: trzy kropki na stronie głównej → **Odznaki podsumowania**. Opis pól jest też niżej i w przewodniku.
 
 `shortcuts` dodaje przyciski za chipami na stronie głównej i w menu. Każdy to blok (`kind: panel`) albo
 ekran szkoły (`kind: school`), przegląd domu (`kind: overview`, opis w przewodniku), wiadomości (`kind: news`) albo odjazdy (`kind: departures` z `entities`, encjami z atrybutem `list`). Blok może otwierać się na cały ekran (`fullscreen: true`), od razu
@@ -252,7 +258,7 @@ gdy strona się przewija i odbija na końcach. Własne tło mają też strona Sc
 
 ### Wygląd i motywy
 
-Trzy kropki → **Wygląd** ustawia wygląd całego dashboardu: wyrazistość tła, odbicie przewijania, przyciski (krycie,
+Menu → **Wygląd** ustawia wygląd całego dashboardu: wyrazistość tła, odbicie przewijania, przyciski (krycie,
 zaokrąglenie, kolor całego przycisku albo samej ikony, kolor każdego rodzaju), kolory napisów, górnych bloków i
 plakietek, dolny pasek (pozycje, styl przyklejony albo pływający, szkło), mały odtwarzacz, okna (przezroczystość i
 rozmycie), mapę i własne ikony urządzeń. Administrator ustawia wygląd dla wszystkich, a każdy może go dopasować dla
@@ -375,8 +381,9 @@ obszar. Na każdej miniaturze widać wiek obrazu. Pasek pokazuje dwa rodzaje źr
   strona jest widoczna.
 
 Pozostałe encje `camera.*` są celowo odrzucane, bo ich miniatura pobierana jest z samego urządzenia,
-a to rozładowuje kamery na baterię. Platforma z `cameras.battery_platforms` nigdy nie trafi do
-paska, nawet gdy dopiszesz ją do `snapshot_platforms`.
+a to rozładowuje kamery na baterię. Kamera na baterię (jej urządzenie ma czujnik `device_class: battery`
+albo jej platforma jest w `cameras.battery_platforms`) nigdy nie trafi do paska, nawet gdy dopiszesz
+jej platformę do `snapshot_platforms`.
 
 Filtr **Ochrona** chowa pasek i pokazuje wszystkie kamery jedna pod drugą. Na ekranie kamery pasek
 miniatur przełącza między kamerami, a przełączenie zatrzymuje strumień poprzedniej.
@@ -392,9 +399,20 @@ cameras:
     users: [Tablet]
 ```
 
-Dotknięcie obrazu otwiera go na pełnym ekranie, nadal bez strumienia. **Oglądaj na żywo** uruchamia
-strumień z kamery tego samego urządzenia albo wskazanej w `cameras.live`. Zatrzymuje się po dwóch
-minutach lub po zamknięciu ekranu.
+Dotknięcie obrazu otwiera okno kamery, nadal bez strumienia. U góry są dni tygodnia, na dole linia czasu z
+nagraniami: z Frigate albo z nagranych podglądów kamer eufy na baterię (folder mediów). **▶** odtwarza nagranie i
+nigdy nie budzi kamery. **NA ŻYWO** uruchamia strumień z kamery tego samego urządzenia albo wskazanej w
+`cameras.live`. Dopóki kamera się budzi, okno pokazuje jej ostatni obrazek z kółkiem ładowania, a plakietka jest
+szara. Gdy wideo ruszy, przycisk zmienia się na **ROZŁĄCZ**, który kończy podgląd bez zamykania okna; przesunięcie
+linii czasu też rozłącza. Podgląd zatrzymuje się po dwóch minutach albo po zamknięciu okna.
+
+`cameras.controls` wskazuje kamerę, której urządzenie ma przyciski obracania i głośnik, gdy obraz pochodzi z innego
+systemu (np. Frigate, a obracanie i mówienie z eufy). Ustawisz to też w **Ustawienia dashboardu → Ta sama kamera w
+innej integracji**. Sposób obracania (eufy, ONVIF, wybrane ręcznie) i mówienia (głośnik kamery, go2rtc, interkom)
+każdej kamery wybierasz w **Ustawienia dashboardu → Sterowanie i mówienie każdej kamery**. Mówienie przez kamerę działa
+dopiero, gdy podgląd na żywo ruszy. Kamera niedostępna w Home Assistant zostaje w oknie z przygaszonym ostatnim
+obrazkiem i napisem „Kamera jest niedostępna”. Na telefonie trzymanym poziomo obraz zajmuje cały ekran, a dni i linię
+czasu wysuwają przyciski. Szczegóły są w [przewodniku](docs/guide.pl.md#5-kamery).
 
 ## Zamki na tablecie ściennym
 
@@ -415,6 +433,43 @@ Frontend nie ma kroku budowania: to zwykłe moduły ES, a Lit jest w `www/vendor
 skryptem `scripts/make_fixture.py`.
 
 ## FAQ
+
+**Suwak głośności kamery na iPhonie nic nie zmieniał, a dźwięk znikał dopiero w skrajnym położeniu** — iPhone i iPad
+pozwalają zmieniać głośność wideo tylko przyciskami urządzenia. Od tej wersji dźwięk idzie przez Web Audio i suwak
+działa płynnie. Wyjątek: podgląd odtwarzany jako HLS na iPhonie da się tylko włączyć i wyciszyć.
+
+**Okno kamery robiło się czarne, gdy kamera się rozłączyła** — od tej wersji zostaje ostatni obrazek, przygaszony, z
+napisem „Kamera jest niedostępna”, a NA ŻYWO jest zablokowane do jej powrotu.
+
+**W poziomie podgląd na żywo był przesunięty w lewo, a z prawej był czarny pas** — poprawione: podgląd i obrazek
+zastępczy są wyśrodkowane.
+
+**Przycisk mówienia przez kamerę jest szary** — mówienie przez kamerę działa dopiero, gdy podgląd na żywo ruszy, czyli
+widzisz, do kogo mówisz. Włącz NA ŻYWO i poczekaj, aż obraz się poruszy.
+
+**Podgląd NA ŻYWO nie ma dźwięku, choć głośnik jest włączony (nagrania mają)** — karta kamery Home Assistant
+uruchamia odtwarzacz wyciszony, a wyciszony odtwarzacz WebRTC na stałe wyrzuca ścieżkę audio strumienia. Dźwięk był
+więc tylko wtedy, gdy wygrał HLS. Od tej wersji odtwarzacz zawsze przyjmuje dźwięk, a słychać go dopiero po
+dotknięciu głośnika. Jeśli dalej go nie ma, wczytaj aplikację od nowa (niżej).
+
+**Po naciśnięciu NA ŻYWO okno było czarne, zanim kamera się połączyła** — odtwarzacz Home Assistant jest czarny do
+pierwszej klatki, a kamera na baterię budzi się kilka sekund. Od tej wersji do chwili, gdy wideo ruszy, okno pokazuje
+ostatni obrazek kamery. Jeśli dalej widzisz czarny ekran, wczytaj aplikację od nowa (niżej).
+
+**Kamera Frigate ma w oknie intercom zamiast głośnika kamery** — obraz pochodzi z Frigate, które nie ma głośnika.
+Połącz ją z tą samą kamerą z eufy w **Ustawienia dashboardu → Ta sama kamera w innej integracji** i ustaw **Mówienie
+w oknie kamery → Głośnik kamery**.
+
+**Poza domem aplikacja pokazuje starą wersję dashboardu** — aplikacja Home Assistant wraca z tła ze starym kodem
+w pamięci albo trzyma kopię pliku. Menu → **Ustawienia dashboardu** → na dole **Wczytaj aplikację od nowa** (administratorzy): czyści pamięć
+podręczną, pobiera świeże pliki dashboardu i otwiera stronę od nowa. Działa przez każdą sieć, którą aplikacja łączy
+się z Home Assistant. Gdy i to nie pomoże: Ustawienia aplikacji → Companion App → Debugowanie → Resetuj pamięć
+frontendu.
+
+**Po obróceniu telefonu dolny pasek jest wąski i przyklejony do prawej krawędzi** — pasek omija boczne menu Home
+Assistant, które w poziomie na szerszym telefonie (powyżej 870 px) się pokazuje. Gdy telefon obrócono przy
+schowanej aplikacji, pasek zapamiętywał położenie strony z poziomu. Od tej wersji mierzy się na nowo przy każdym
+obrocie i po powrocie do aplikacji. Na starszej wersji pomaga dotknięcie strony albo jej odświeżenie.
 
 **Mały odtwarzacz cały czas pokazuje głośnik, na którym nic nie gra** — niektóre głośniki, np. HomePod po
 zakończonym strumieniu AirPlay, dalej zgłaszają stan `playing`, ale bez tytułu. Od tej wersji taki głośnik się nie

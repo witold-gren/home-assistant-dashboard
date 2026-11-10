@@ -16,8 +16,13 @@ export function createHass(snapshot, overrides = {}) {
     formatEntityAttributeValue: (stateObj, attribute) => stateObj.attributes[attribute],
     hassUrl: (path) => path,
     callService: async (domain, service, data) => calls.push({ type: "service", domain, service, data }),
-    // Every page reads the preferences of the user once, which says nothing about what a test did.
-    callWS: async (message) => (message.type === "frontend/get_user_data" ? null : calls.push({ type: "ws", message })),
+    // Every page reads the preferences of the user once, and a camera window the registry entries of its buttons,
+    // which says nothing about what a test did.
+    callWS: async (message) => {
+      if (message.type === "frontend/get_user_data") return null;
+      if (message.type === "config/entity_registry/get_entries") return {};
+      return calls.push({ type: "ws", message });
+    },
     connection: {
       subscribeMessage: async (callback) => {
         callback({ color_mode: snapshot.colorMode ?? "auto" });

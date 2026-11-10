@@ -151,10 +151,12 @@ A camera also needs an area. To add another platform that keeps its own frame:
 ```yaml
 cameras:
   snapshot_platforms: [frigate, generic]
-  battery_platforms: [eufy_sdk]
+  battery_platforms: [my_platform]   # only cameras that do not report a battery
 ```
 
-A platform in `battery_platforms` never appears, even when it is in both lists.
+A camera on a battery never appears, even when its platform is listed. The dashboard recognises it by itself: its
+device in Home Assistant has a battery level sensor (`device_class: battery`). This works for every brand.
+`battery_platforms` is needed only for cameras that do not report a battery.
 
 ### Order and hiding
 
@@ -171,13 +173,124 @@ in a small picture, blurred and marked as unavailable. The Security chip lists a
 
 ### Live view
 
-Tapping a picture opens it without a stream. **Watch live** starts one, from a camera on the same device or
-from `cameras.live: {image.door_last_screen: camera.door}`.
+Tapping a picture opens it without a stream. **LIVE** at the bottom starts one, from a camera on the same device or
+from `cameras.live: {image.door_last_screen: camera.door}`. While the camera wakes the window shows its last
+picture with a loading ring in its middle, and the LIVE pill is grey. The live view takes the picture's place only
+once the video really moves, and the pill takes its colour. The sound and turning buttons are greyed while nothing
+plays (turning works live only). The battery hint stays upright all the time, faint while a recording plays, so the
+window does not jump.
+
+**LIVE** on the line of time is grey, orange at once when tapped, and turns into an orange **DISCONNECT** once the
+video moves. DISCONNECT ends the live view without closing the window, so the recordings can be looked through at
+once. Moving the line of time lets the camera go at once too. A camera unavailable in Home Assistant stays in the
+window with its last picture, dimmed, saying **The camera is unavailable**, without LIVE; the words go by themselves
+once the camera is back. A picture that did not load is asked for again every 5 seconds.
 
 The button next to it speaks to the camera's area. It appears when the [intercom](#11-intercom) is set up and
-that area is one of its areas.
+that area is one of its areas. **Dashboard settings → Talking in a camera window → The camera's speaker** turns it into
+talking through the speaker of the camera itself, where it has one (the eufy-sdk integration, a `…_speaker` switch).
+The microphone works only over HTTPS or in the Home Assistant app. A recorder camera, e.g. Frigate, has no speaker or
+buttons for turning of its own. In **Dashboard settings → The same camera in another integration** choose a camera of
+the dashboard first, then the same camera in another integration (the list offers only cameras of other
+integrations), and tap **Link**. From then on the window of that camera talks and turns through the other one
+(`cameras.controls`). The links are listed above the choice, and the cross removes a link. **Save** keeps the changes.
 
-![Camera](screenshots/en/camera.png)
+| Phone upright | Phone on its side |
+|---|---|
+| ![Camera upright](screenshots/en/camera.png) | ![Camera on its side](screenshots/en/camera-landscape.png) |
+
+### Turning and talking of each camera
+
+![Dashboard settings](screenshots/en/settings.png)
+
+**Dashboard settings → Turning and talking of each camera** shows for each camera what was found to turn it. A tap on
+the camera opens the choice.
+
+| Turning | What it does |
+|---|---|
+| **Automatic** | in turn: the eufy set, ONVIF, buttons of the device named like `pan_left`, `tilt_up`, `go_to_preset` |
+| **eufy (ready-made)** | the buttons of the eufy-sdk integration, known by their translation keys, so entity ids in any language do |
+| **ONVIF** | the `onvif.ptz` service of a camera of the ONVIF integration; positions are typed as tokens, separated by commas |
+| **Chosen by hand** | any buttons, scripts or scenes for the four directions, and a list of positions with its button |
+| **No turning** | the camera has no turning button |
+
+| Talking | What it does |
+|---|---|
+| **Automatic** | the camera's speaker where an integration offers one (below), else the room's intercom |
+| **Through go2rtc** | a WebRTC connection of its own that only sends the microphone; works with cameras with two-way audio (ONVIF Profile T, Tapo, Dahua, Hikvision and others), not with a `generic` camera |
+| **The room's intercom** | always the intercom |
+| **No talking** | no button |
+
+The sound button in the header is lit only while something plays and has sound. A camera without a microphone
+leaves it grey.
+
+Talking through the camera's speaker works only once the live view really moves, so you see whom you talk to. Before
+that the button is locked, and the end of the live view ends the talk too. A camera that takes a moment to connect its
+speaker shows a grey button saying "Connecting to the camera's speaker, you can talk already", and a red one once it
+listens.
+
+**For authors of integrations:** the dashboard talks through the camera of any integration that has, on the camera's
+device, an entity with a `talk_path` attribute, e.g. `talk_path: /api/mine/talk/gate`. The dashboard signs the path,
+adds `?rate=<Hz>`, opens a WebSocket and sends binary frames of 16-bit little-endian mono PCM, then the text `stop`.
+The integration answers with JSON `{"ok": true}` or `{"ok": false, "error": "busy" | "no_speaker" | "unreachable" |
+"failed"}` and closes. eufy-sdk and Neolink work that way.
+
+### Turning, settings and recordings
+
+- **Turning**: a camera whose device has buttons to move (e.g. `button.…_pan_left`, `…_pan_right`, `…_tilt_up`,
+  `…_tilt_down`) gets a button with arrows in the header, next to the speaker. A tap lays a ring of arrows over the right side of
+  the picture, and the **Position** list stands in the bottom left corner; another tap hides them. The age of the picture is in the top left corner, where LIVE shows during the live view. Playing a recording puts the controls away, since a recording cannot be turned. The window therefore looks the same for every camera, and turning works during
+  the live view and on a camera with recordings too. A `select.…_preset` list with a `…_go_to_preset` button gives a
+  list of the saved positions under the ring; empty ones ("empty") are left out.
+- **Settings**: the gear in the camera window opens a window with the settings and state of the camera instead of the
+  window of Home Assistant: **Settings** (switches, lists, sliders), **State** (sensors) and **Actions** (other
+  buttons), gathered from the entities of the camera's device. Your own choice of entities for a camera:
+
+  ```yaml
+  cameras:
+    settings:
+      camera.garden: [switch.garden_microphone, select.garden_night_vision, sensor.garden_battery]
+  ```
+
+- **Recordings** (Frigate cameras): under the name of the camera is a week of days; days with recordings are
+  bright, and the arrows change the week. At the bottom of the window is a line of the chosen day's time: bright
+  stretches are recordings, orange dots are events, and the orange upright mark is the chosen moment, with its time
+  above the line. Move the line left or right with a finger and the recording starts at that moment; in a gap between
+  recordings it starts at the next one. Tapping a dot plays the event. On the left is **play and pause**, on the
+  right **LIVE**. Play never starts the live view: past the last recording it plays that last one, and when it ends
+  the window goes back to the last picture. Only **LIVE** wakes the camera.
+- **Fast moving**: hold the line still for a moment and the whole day fits on it. Once the finger moves, the mark is
+  under it: the left edge of the line is midnight, the right edge the end of the day. Point at the hour you want,
+  e.g. 4:00, and let go: the line returns to its usual scale at that moment and plays the
+  recording. Then fine-tune the moment with an ordinary move.
+- **Weeks**: swipe over the days to the right to go a week back, or to the left to come forward again.
+- **Phone on its side**: the picture of the camera fills the screen, and its name and buttons lie over it in the
+  corners. The thumbnails of other cameras are hidden. **The calendar** in the header brings the days out at the top
+  edge (the calendar and LIVE leave the header meanwhile), and **the clock with a line** in the bottom right corner
+  brings out the line of time in place of the button. Put them away with the
+  same button, with a swipe (the days up, the line down) or with a tap on the picture, which hides both at once. After a day is picked the days hide by themselves.
+  **LIVE** always stays at the top, by the speaker. On the line of time **⏮** and
+  **⏭** stand on both sides of play: a jump to the previous and the next recording of the day, which plays at once. Buttons are used instead of pulling from the edges because on
+  iPhone the gestures from the top and bottom edges belong to the system (notifications and switching apps).
+- **One picture**: the picture, the live view and a recording show in the same place and take each other's place.
+  Going from the live view to a recording ends the connection to the camera, so a camera on a battery saves its
+  energy. Every camera has the same layout: a camera without recordings has greyed days and an empty line, and the
+  live view starts with **LIVE** or with play on the line.
+- **Sound**: the speaker button next to the gear turns the sound of the live view and of recordings on and off.
+  Holding it shows a volume slider. On iPhone and iPad the volume is set with the buttons of the device, so there the
+  button only turns the sound on and off.
+- **Recorded live views of battery cameras (eufy)**: when **Record live view** is on in the camera's settings
+  (gear → Settings; a switch of the eufy-sdk integration, off by default), the eufy bridge saves every live view of
+  that camera to `/media/eufy/<serial number>/<day>/`, whoever opens it (the dashboard, the window of Home Assistant,
+  HomeKit). The bridge never wakes the camera itself; it records only what flows anyway. During the live view the
+  pill on the picture says **REC · LIVE**. The days and the line of time show these recordings from the last 14 days;
+  older ones stay on disk. Another media folder is set with `cameras.recordings_folder` (e.g.
+  `media-source://media_source/local/eufy`).
+- **Recorded live views of Reolink cameras (Neolink)**: the **Record live** switch of the Neolink integration works
+  the same way (Neolink app 0.2.0 or newer). The files go to `/media/neolink/<camera>/<day>/`, and the switch names
+  that folder itself in its `recordings_path` attribute, so `cameras.recordings_folder` does not move it.
+- A Frigate camera is recognised by itself, also through a picture of the same device. The data and the recordings
+  come from the Frigate integration of Home Assistant.
 
 ### Guest mode and privacy
 
@@ -334,25 +447,49 @@ entities:
 
 ### The block editor
 
-Three dots on Home → **Blocks** (administrators) lists all shortcuts. Here you add a new block and set their order, and
+Three dots on Home → **Summary badges** (administrators) lists all shortcuts. Here you add a new block and set their order, and
 the pencil opens a form. Status, Departures, Machines (`kind: host`), Block (`kind: panel`), Page and School year have
 one, with their sections, rows and buttons. Entities are suggested as you type, and a Home Assistant card goes in as
 YAML in its field. A block standing in a room opens from the room editor: tile → **Edit the block**. A shortcut can have a `label`, a small text above its
 name. Options the form does not know stay in the block untouched. After a rename the rules of **User access** follow the block, while the order
 and hiding in someone's **My layout** have to be set again.
 
-| Blocks | Form |
+| Summary badges | Form |
 |---|---|
-| ![Blocks](screenshots/en/blocks.png) | ![Form](screenshots/en/block-editor.png) |
+| ![Summary badges](screenshots/en/blocks.png) | ![Form](screenshots/en/block-editor.png) |
+
+### Settings and editing of a device
+
+Every device window has two buttons in the top right corner:
+
+- **The gear** opens the settings of the device in tabs, gathered from its other entities: **Settings** (switches,
+  lists, sliders, e.g. the transition time of a lamp), **State** (sensors, e.g. power), **Actions** (buttons, e.g.
+  Identify) and **Activity** (the logbook of that device over 1, 6 or 24 hours). A group, e.g. a group of lights, has
+  a **Members** tab first, with switches. Only tabs with something in them show, Activity always. The gear in that
+  window opens the full window of Home Assistant.
+- **The pencil** (administrators only) changes the **name**, the **area**, the **labels** and whether the device is
+  **enabled**. An entity without a device is changed itself. A disabled device disappears from Home Assistant and
+  from the dashboard; you enable it again in Settings → Devices.
+
+Both windows take the look of the theme from **Look → Windows**, like every window of the dashboard.
 
 ### The side menu
 
-The three bars open the menu: pages, your groups, settings and areas. Administrators arrange the groups with **Edit the
+The three bars open the menu: pages, areas, your groups and settings. Administrators arrange the groups with **Edit the
 menu** at the very bottom. A group can have a title, and an entry has a name, an icon and one of three: the **Address** of
 a Home Assistant page (it suggests panels such as `/config`), a **Shortcut** by name, or the **Action** `notifications`,
 which opens a window of notifications, live, where they can be dismissed. **Administrators only** hides an entry from the others, **Who sees it** limits it to the ticked people (`users`, none ticked means everyone), and **Hide in guest mode** hides
 it while guest mode holds for the account: use it for cameras, so the entry does not get around the block. With no menu
 of your own it shows the shortcuts and the basic links.
+
+Under **Edit the menu** is **Profile** with the name of the signed-in person: it opens the profile of Home Assistant.
+
+The menu of Home Assistant is hidden while the dashboard is open, also on a wide phone on its side and on a tablet,
+so the dashboard takes the whole screen. Your setting does not change: on other pages of Home Assistant the menu is
+back as it was. A phone on its side keeps the phone layout, with three tiles in a row.
+
+In the Home Assistant app a swipe from the left edge opens this menu on Home, instead of the menu of Home Assistant.
+Anywhere else the same swipe goes back: an open window closes, and a room or another page returns to Home.
 
 Entries with the address `/history` and `/logbook` open in windows of the dashboard. The logbook shows the devices of the
 dashboard for the last hour, 6 or 24 hours, and the history shows graphs of the entities each person picks for themselves.
@@ -381,7 +518,7 @@ menu:
 
 `kind: news` is a screen for reading. Each section is a sensor with a `news` attribute, a list of articles: `title`, `text`,
 and optionally `rating`, `votes`, `source`, `source_url` and `url`. The `release` and `attribution` attributes show at
-the top and bottom. In **Blocks** it is **News**:
+the top and bottom. In **Summary badges** it is **News**:
 
 ```yaml
 shortcuts:
@@ -398,7 +535,7 @@ shortcuts:
 ### Apps in a window
 
 An add-on with a web interface, such as Frigate, opens in a window of the dashboard. In the menu put its id in the **App**
-field, which suggests the installed add-ons. As a shortcut on Home it is **Blocks → App**:
+field, which suggests the installed add-ons. As a shortcut on Home it is **Summary badges → App**:
 
 ```yaml
 shortcuts:
@@ -543,7 +680,7 @@ Home has a dark map. The list of People, Devices and Zones lies on the map: on a
 
 The music page opens the Music Assistant add-on, also for accounts without administrator rights: `music: {addon: abcd1234_music_assistant}`. With `fullscreen: true` the bottom bar goes away, and the **Home Assistant** button in the menu of Music Assistant goes back to Home.
 
-`media.sections`, or the form **Blocks → Media categories** (pictured below), puts the media page in your own groups. Tiles are written as in a room, `kind: tv` and `kind: panel`
+`media.sections`, or the form **Summary badges → Media categories** (pictured below), puts the media page in your own groups. Tiles are written as in a room, `kind: tv` and `kind: panel`
 included. Those also standing in the layout of a room show in the Media filter on Home, in their room:
 
 ```yaml
@@ -563,18 +700,20 @@ media:
 
 ### Three dots on Home
 
-The three dots menu ends with five entries. Some change the dashboard for you alone, some for the household:
+The three dots menu ends with, in order: **User access**, **Background of this screen**, **My layout** and **Summary
+badges**; in a room **My view** and **Edit this screen** instead of the last two. **Look** is in the side menu.
+Some change the dashboard for you alone, some for the household:
 
 | Entry | Who sees it | What it sets | For whom, and where it is kept | Where the change shows |
 |---|---|---|---|---|
 | **My layout** | everyone | order and hiding of cameras, areas, chips and scenes, your own favorites, hidden menu entries, the start of the dashboard | for you, with your HA account, so on all your devices; on Areas and Favorites an administrator can tick **For everyone** | Home, rooms, the menu, Security (cameras) |
-| **Blocks** | administrators | the list of shortcuts (blocks): adding one, their order, editing in a form, media categories | for everyone, in the dashboard configuration | shortcuts on Home, in the menu and in rooms; categories on the Music page |
+| **Summary badges** | administrators | the list of shortcuts (blocks): adding one, their order, editing in a form, media categories | for everyone, in the dashboard configuration | shortcuts on Home, in the menu and in rooms; categories on the Music page |
 | **User access** | administrators | what to take away from one person or from everyone but you: cameras, areas, sections of rooms, chips, lights, media, security, scenes and more | for that person, in the dashboard configuration (`access`); they cannot bring it back | everywhere in this dashboard, for that person |
-| **Look** | everyone, on every page | background strength, bounce at the ends, the look of buttons (opacity, rounded corners, colour on the whole button or only on the icon, colours for kinds of buttons) and own icons of devices; themes for administrators | for you, with your HA account; with **For everyone** an administrator sets the shared look (`appearance`) | the whole dashboard |
+| **Look** | everyone, in the side menu | background strength, bounce at the ends, the look of buttons (opacity, rounded corners, colour on the whole button or only on the icon, colours for kinds of buttons) and own icons of devices; themes for administrators | for you, with your HA account; with **For everyone** an administrator sets the shared look (`appearance`) | the whole dashboard |
 | **Background of this screen** | everyone | the background of the page you are on, for the light and the dark look separately, and your look: System, Light, Dark | for you, with your account; with **For everyone** (administrators) as the default, in the configuration | only this page: Home or the room you are in |
 
 What wins: first **User access** (what is taken away no layout brings back), then the **For everyone** settings, and
-last a person's **My layout** and own background. Each entry is described below, and **Blocks** in
+last a person's **My layout** and own background. Each entry is described below, and **Summary badges** in
 [The block editor](#the-block-editor).
 
 | Background | My layout | User access |
@@ -589,7 +728,10 @@ connects to Home Assistant.
 On the **Areas** and **Favorites** tabs an administrator ticks **For everyone** and then sets the shared order of areas,
 which are hidden, and the shared favorites everyone starts from. **Save for everyone** saves them. An area hidden for
 everyone stays on that list, so it can be shown again. This is the only place for these settings: the **Dashboard
-settings** window keeps just the return after idle time, the start on this device and the configuration editor.
+settings** window has the return after idle time, the start on this device, talking in a camera window, linking
+recorder cameras to the same cameras in another integration, the configuration editor and at the bottom **Load the app
+afresh**: it fetches fresh files of the dashboard and opens the page again, when the app shows an old version, e.g.
+away from home.
 
 **My view** (three dots in a room, for everyone): hides a whole section or a single tile for you, the **Scenes** group
 included. A hidden tile leaves the room and its place on Home. **Show everything in this room** brings it all back.
@@ -631,7 +773,7 @@ backgrounds:
 
 ### Look
 
-**Look** (three dots on every page, everyone) has three tabs, and a fourth with **For everyone**: **Themes**. An administrator has **For everyone** ticked and then
+**Look** (side menu, above **Dashboard settings**, everyone) has three tabs, and a fourth with **For everyone**: **Themes**. An administrator has **For everyone** ticked and then
 changes the shared look, saved with **Save for everyone**. Without that tick, and for everyone else, the changes are
 yours alone. Only what differs from the shared look is saved, so what you leave alone keeps following the
 administrator's changes. **Back to the look for everyone** removes your changes.
@@ -775,7 +917,7 @@ Dashboard have no pictures, at most gradients (Apple Home has a dark background 
 
 How to use it:
 
-1. **Choose a base.** Three dots → **Look** → **Themes** and **Use** next to **Home Dashboard** or **Apple Home**.
+1. **Choose a base.** Menu → **Look** → **Themes** and **Use** next to **Home Dashboard** or **Apple Home**.
    You can also start from the current look: type a name, e.g. "Our home", and choose **Keep the current look as a
    theme**.
 2. **Adjust.** Change what you like on the **Background**, **Buttons** and **Icons** tabs and press **Save for
@@ -810,7 +952,7 @@ A detailed guide, from installation to making backgrounds and colour palettes, i
 
 ![Apple Home on a tablet](screenshots/en/apple-tablet.png)
 
-1. **Turn the theme on.** Three dots → **Look**, tick **For everyone**, **Themes** tab → **Use** next to **Apple
+1. **Turn the theme on.** Menu → **Look**, tick **For everyone**, **Themes** tab → **Use** next to **Apple
    Home**. Buttons, the blocks at the top, the bar and windows turn to glass, writing to white, and pages without a
    background of their own get a blue gradient.
 2. **Add backgrounds.** On Home and in every room: three dots → **Background of this screen**, a picture for the

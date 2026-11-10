@@ -218,7 +218,7 @@ function buildHass() {
     hall: ["hall", say("Lounge", "Pokój dzienny")],
   };
   Object.entries(cameras).forEach(([name, [area, title]]) => {
-    add(`camera.${name}`, area, "recording", { friendly_name: title, entity_picture: `/dev/demo-pictures/${name}.jpg` }, "frigate");
+    add(`camera.${name}`, area, "recording", { friendly_name: title, entity_picture: `/dev/demo-pictures/${name}.jpg`, camera_name: name, client_id: "frigate" }, "frigate");
   });
   const areas = Object.fromEntries(
     [
@@ -258,6 +258,7 @@ function buildHass() {
         },
         "energy/info": { cost_sensors: {} },
         "recorder/statistics_during_period": message.type === "recorder/statistics_during_period" ? demoStatistics(message) : null,
+        ...demoFrigate(message),
         "media_source/browse_media": {
           children: [
             { title: say("Radio", "Radio"), thumbnail: null },
@@ -277,6 +278,32 @@ function buildHass() {
       },
     },
   };
+}
+
+// Frigate's recordings of the last days: stretches with gaps, and a few people and cars on the line of time.
+function demoFrigate(message) {
+  if (!message.type?.startsWith("frigate/")) return {};
+  const day = (offset) => {
+    const date = new Date();
+    date.setDate(date.getDate() - offset);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  };
+  if (message.type === "frigate/recordings/summary") {
+    return { [message.type]: JSON.stringify([0, 1, 2, 4].map((offset) => ({ day: day(offset), events: 3 }))) };
+  }
+  const now = Date.now() / 1000;
+  const until = Math.min(message.before, now);
+  const hours = [[0, 2.5], [6.2, 9.8], [11, 13.4], [15, 24]];
+  const segments = hours
+    .map(([from, to]) => ({ start_time: message.after + from * 3600, end_time: Math.min(message.after + to * 3600, until) }))
+    .filter((segment) => segment.end_time > segment.start_time);
+  if (message.type === "frigate/recordings/get") return { [message.type]: JSON.stringify(segments) };
+  const labels = ["person", "car", "person", "person", "car"];
+  const events = segments.flatMap((segment, index) => {
+    const at = segment.start_time + (segment.end_time - segment.start_time) * 0.6;
+    return at < until ? [{ id: `demo-${index}`, start_time: at, end_time: at + 40, label: labels[index % labels.length] }] : [];
+  });
+  return { [message.type]: JSON.stringify(events) };
 }
 
 function demoLogbook(say) {

@@ -91,7 +91,7 @@ shows as a shortcut on Home, in the menu, or as a tile in a room.
 
 ### Step by step in the editor
 
-1. Three dots on Home → **Blocks** (administrator account) → **Add** → **Block**.
+1. Three dots on Home → **Summary badges** (administrator account) → **Add** → **Block**.
 2. **Name**, **Icon** and **Entity**: the main entity of the device, which gives the block its state.
 3. **Numbers at the top**: values seen at once, e.g. the time left of a wash, air quality, the life of a filter. Each
    is an entity, a name, a unit and the number of decimals.

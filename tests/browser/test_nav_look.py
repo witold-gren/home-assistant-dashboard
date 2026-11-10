@@ -82,8 +82,8 @@ def test_a_person_can_have_a_bar_of_their_own(phone):
 
 def test_the_bar_tab_saves_entries_and_style(phone):
     mount_admin(phone, {"layout": ROOMS})
-    phone.locator("home-dashboard-page [data-rooms]").click()
-    phone.locator(f"{SHEET} [data-sheet-look]").click()
+    phone.locator("home-dashboard-page [data-menu]").click()
+    phone.locator("[data-drawer] [data-look]").click()
     phone.locator(f"{SHEET} [data-tab='nav']").click()
     phone.locator(f"{SHEET} [data-nav-item='map'] [data-nav-remove]").click()
     phone.locator(f"{SHEET} [data-nav-add] select").select_option("room:laundry")

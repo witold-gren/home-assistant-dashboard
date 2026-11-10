@@ -461,16 +461,18 @@ def test_the_camera_screen_keeps_picture_and_thumbnails_together_in_the_middle(p
     mount(phone)
     phone.locator("home-dashboard-page .camera").first.click()
     phone.wait_for_selector("[data-thumbs]")
+    phone.wait_for_selector("home-dashboard-timeline [data-timeline-track]")
     boxes = phone.evaluate("""() => {
         const root = document.querySelector("home-dashboard-chrome").shadowRoot
             .querySelector("home-dashboard-sheet").shadowRoot;
         const box = (selector) => root.querySelector(selector).getBoundingClientRect();
-        return { body: box(".camera-body"), actions: box(".camera-actions"), thumbs: box("[data-thumbs]"),
-                 picture: box(".picture") };
+        return { days: box("home-dashboard-recording-days"), thumbs: box("[data-thumbs]"),
+                 picture: box(".stage"), line: box("home-dashboard-timeline") };
     }""")
-    assert boxes["thumbs"]["top"] - boxes["actions"]["bottom"] <= 24
-    above = boxes["picture"]["top"] - boxes["body"]["top"]
-    below = boxes["body"]["bottom"] - boxes["thumbs"]["bottom"]
+    # Days at the top, the line of time at the bottom, and the picture with the thumbnails halfway between them.
+    above = boxes["picture"]["top"] - boxes["days"]["bottom"]
+    below = boxes["line"]["top"] - boxes["thumbs"]["bottom"]
+    assert above > 0 and below > 0
     assert abs(above - below) <= 2
 
 

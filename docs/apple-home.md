@@ -31,7 +31,7 @@ The look works best on a tidy dashboard, so before the colours:
 
 ## 3. Turn on the Apple Home theme
 
-1. Three dots → **Look**.
+1. Menu → **Look**.
 2. Tick **For everyone**: from now on you change the look of the whole home, not only yours.
 3. **Themes** tab → **Use** next to **Apple Home**.
 

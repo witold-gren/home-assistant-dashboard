@@ -2541,93 +2541,101 @@ export class HomeDashboardPage extends LitElement {
         display: flex;
         flex-direction: column;
       }
-      @container (min-width: 800px) {
-        .page {
-          padding: calc(var(--hd-safe-top) + 12px) 24px 32px;
+      /* A phone on its side is wide but low: it keeps the phone layout, with three tiles in a row. */
+      @media (orientation: landscape) and (max-height: 500px) {
+        .tiles:not(.row) {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-        .top-bar {
-          display: none;
-        }
-        .status {
-          margin: 8px -24px 0;
-          padding: 0 24px 4px;
-        }
-        .columns {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 340px;
-          align-items: start;
-          gap: 24px;
-        }
-        .side {
-          position: sticky;
-          top: 12px;
-        }
-        .cameras {
-          width: fit-content;
-          max-width: 100%;
-        }
-        .camera-column {
-          flex: 0 0 412px;
-          height: 232px;
-        }
-        .camera-column.stacked {
-          flex: 0 0 205px;
-        }
-        .camera-list {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .music {
-          height: calc(100dvh - var(--hd-safe-top));
-        }
-        .map-page {
-          height: calc(100dvh - var(--hd-safe-top));
-        }
-        .map-panel,
-        .map-panel.folded,
-        .map-panel.full {
-          top: 12px;
-          right: auto;
-          bottom: auto;
-          left: 12px;
-          width: 320px;
-          height: auto;
-          max-height: calc(100% - 24px);
-          padding: 12px;
-          border-radius: var(--hd-radius);
-        }
-        .map-grip {
-          display: none;
-        }
-        .map-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 340px;
-          align-items: start;
-          gap: 24px;
-        }
-        .people h2 {
-          margin-top: 0;
-        }
-        .cards.energy {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          align-items: start;
-        }
-        .cards.energy > :first-child {
-          grid-column: 1 / -1;
-        }
-        .tiles {
-          grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
-        }
-        .tiles.row > .tile {
-          flex-basis: 220px;
-        }
-        .tile {
-          min-height: 80px;
-        }
-        .icon {
-          width: 56px;
-          height: 56px;
+      }
+      @media (min-height: 501px) {
+        @container (min-width: 800px) {
+          .page {
+            padding: calc(var(--hd-safe-top) + 12px) 24px 32px;
+          }
+          .top-bar {
+            display: none;
+          }
+          .status {
+            margin: 8px -24px 0;
+            padding: 0 24px 4px;
+          }
+          .columns {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            align-items: start;
+            gap: 24px;
+          }
+          .side {
+            position: sticky;
+            top: 12px;
+          }
+          .cameras {
+            width: fit-content;
+            max-width: 100%;
+          }
+          .camera-column {
+            flex: 0 0 412px;
+            height: 232px;
+          }
+          .camera-column.stacked {
+            flex: 0 0 205px;
+          }
+          .camera-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .music {
+            height: calc(100dvh - var(--hd-safe-top));
+          }
+          .map-page {
+            height: calc(100dvh - var(--hd-safe-top));
+          }
+          .map-panel,
+          .map-panel.folded,
+          .map-panel.full {
+            top: 12px;
+            right: auto;
+            bottom: auto;
+            left: 12px;
+            width: 320px;
+            height: auto;
+            max-height: calc(100% - 24px);
+            padding: 12px;
+            border-radius: var(--hd-radius);
+          }
+          .map-grip {
+            display: none;
+          }
+          .map-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            align-items: start;
+            gap: 24px;
+          }
+          .people h2 {
+            margin-top: 0;
+          }
+          .cards.energy {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+          }
+          .cards.energy > :first-child {
+            grid-column: 1 / -1;
+          }
+          .tiles {
+            grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+          }
+          .tiles.row > .tile {
+            flex-basis: 220px;
+          }
+          .tile {
+            min-height: 80px;
+          }
+          .icon {
+            width: 56px;
+            height: 56px;
+          }
         }
       }
     `,

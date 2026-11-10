@@ -33,17 +33,21 @@ Status: early version.
 |---|---|---|---|
 | ![Blind](docs/screenshots/en/blind.png) | ![Switch](docs/screenshots/en/switch.png) | ![Screen background](docs/screenshots/en/background.png) | ![My layout](docs/screenshots/en/layout.png) |
 
-| User access | Energy | Camera |
-|---|---|---|
-| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) | ![Camera](docs/screenshots/en/camera.png) |
+| User access | Energy | Camera | Dashboard settings |
+|---|---|---|---|
+| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) | ![Camera](docs/screenshots/en/camera.png) | ![Dashboard settings](docs/screenshots/en/settings.png) |
+
+| Camera on a phone on its side |
+|---|
+| ![Camera on its side](docs/screenshots/en/camera-landscape.png) |
 
 | Status | Departures | School year | Chips |
 |---|---|---|---|
 | ![Status](docs/screenshots/en/status.png) | ![Departures](docs/screenshots/en/departures.png) | ![School year](docs/screenshots/en/school.png) | ![Chips](docs/screenshots/en/chips.png) |
 
-| Notifications | App in a window | Blocks | Block editor |
+| Notifications | App in a window | Summary badges | Block editor |
 |---|---|---|---|
-| ![Notifications](docs/screenshots/en/notifications.png) | ![App in a window](docs/screenshots/en/app.png) | ![Blocks](docs/screenshots/en/blocks.png) | ![Block editor](docs/screenshots/en/block-editor.png) |
+| ![Notifications](docs/screenshots/en/notifications.png) | ![App in a window](docs/screenshots/en/app.png) | ![Summary badges](docs/screenshots/en/blocks.png) | ![Block editor](docs/screenshots/en/block-editor.png) |
 
 | Menu editor | Media categories | Logbook | History |
 |---|---|---|---|
@@ -107,7 +111,9 @@ strategy:
     hero: image.front_door_last_screen
     tiles: [image.garden_last_screen]
     live: {image.front_door_last_screen: camera.front_door}
-    battery_platforms: [eufy_sdk]
+    controls: {camera.hall_frigate: camera.hall}   # the same camera in another integration: turns and talks (e.g. Frigate picture)
+    talk: camera                       # talk through the camera's speaker instead of the intercom (default intercom)
+    battery_platforms: [my_platform]   # only cameras that do not report a battery
     snapshot_platforms: [frigate]
   entities:
     include:
@@ -139,7 +145,7 @@ can be moved and removed here, and added in the YAML editor.
 
 ### Shortcuts
 
-Administrators add and edit them in a form: three dots on Home → **Blocks**. The options are also described below and in the guide.
+Administrators add and edit them in a form: three dots on Home → **Summary badges**. The options are also described below and in the guide.
 
 `shortcuts` adds buttons after the chips on Home and to the menu. Each is a block (`kind: panel`) or the
 school screen (`kind: school`), a home overview (`kind: overview`, see the guide), news (`kind: news`) or departures (`kind: departures` with `entities` that keep a `list` attribute). A block can open fully with `fullscreen: true`, show its card at once
@@ -253,7 +259,7 @@ Map and Energy have a background of their own too.
 
 ### Look and themes
 
-Three dots → **Look** sets the look of the whole dashboard: background strength, bounce, buttons (opacity, corners,
+Menu → **Look** sets the look of the whole dashboard: background strength, bounce, buttons (opacity, corners,
 colour on the whole button or the icon only, a colour for each kind), the colours of writing, of the blocks at the top
 and of badges, the bar at the bottom (entries, docked or floating, glass), the small player, windows (see-through and
 blurred), the map and own icons of devices. An administrator sets the look for everyone, and each person may adjust
@@ -373,8 +379,9 @@ area. Each thumbnail shows the age of its picture. The strip uses two kinds of s
   30 seconds while the page is visible.
 
 Other `camera.*` entities are rejected on purpose: their thumbnail is fetched from the device itself,
-which drains battery cameras. A platform in `cameras.battery_platforms` never reaches the strip, even
-when it is also added to `snapshot_platforms`.
+which drains battery cameras. A camera on a battery (its device has a `device_class: battery` sensor, or
+its platform is in `cameras.battery_platforms`) never reaches the strip, even when its platform is also
+added to `snapshot_platforms`.
 
 The **Security** filter hides the strip and shows every camera one under another. On the camera screen
 a row of thumbnails switches between cameras, and switching stops the stream of the previous one.
@@ -390,8 +397,20 @@ cameras:
     users: [Tablet]
 ```
 
-Tapping a picture opens it full screen, still without a stream. **Watch live** starts one, found on
-the same device or set in `cameras.live`. It stops after two minutes or when the screen closes.
+Tapping a picture opens the camera's window, still without a stream. The days of the week are at the top, and the
+line of time with the recordings at the bottom: from Frigate, or the recorded live views of eufy battery cameras (the
+media folder). **▶** plays a recording and never wakes the camera. **LIVE** starts a stream, found on the same device or
+set in `cameras.live`. While the camera wakes the window shows its last picture with a loading ring, and the pill is
+grey. Once the video moves the button turns into **DISCONNECT**, which ends the live view without closing the window;
+moving the line of time disconnects too. The live view stops after two minutes or when the window closes.
+
+`cameras.controls` names the camera whose device has the buttons for turning and the speaker, when the picture comes
+from another system (e.g. Frigate, while turning and talking come from eufy). It is also set in **Dashboard settings →
+The same camera in another integration**. How each camera turns (eufy, ONVIF, chosen by hand) and talks (the camera's
+speaker, go2rtc, the intercom) is chosen in **Dashboard settings → Turning and talking of each camera**. Talking
+through a camera works only once the live view moves. A camera unavailable in Home Assistant stays in its window with
+its last picture dimmed, saying "The camera is unavailable". On a phone on its side the picture fills the screen, and
+buttons bring out the days and the line of time. Details are in the [guide](docs/guide.md#5-cameras).
 
 ## Locks on a wall tablet
 
@@ -412,6 +431,43 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 `scripts/make_fixture.py`.
 
 ## FAQ
+
+**The camera's volume slider changed nothing on iPhone, and the sound went only at the far end** — iPhone and iPad let
+only their buttons change the volume of a video. From this version the sound goes through Web Audio and the slider
+works smoothly. The one exception: a live view played as HLS on iPhone can only be muted and unmuted.
+
+**The camera window went black when the camera disconnected** — from this version the last picture stays, dimmed,
+saying "The camera is unavailable", and LIVE is off until the camera is back.
+
+**On its side the live view sat to the left with a black band on the right** — fixed: the live view and the picture
+standing in for it are centred.
+
+**The button for talking through the camera is grey** — talking through a camera works only once the live view moves,
+so you see whom you talk to. Tap LIVE and wait for the picture to move.
+
+**The LIVE view has no sound although the speaker is on (recordings have it)** — the camera card of Home Assistant
+starts its player muted, and a muted WebRTC player drops the stream's audio track for good. So there was sound only
+when HLS won. From this version the player always takes the sound, which is heard only after a tap on the speaker.
+If there is still none, load the app afresh (below).
+
+**After LIVE the window was black before the camera connected** — the player of Home Assistant is black until its
+first frame, and a camera on a battery takes a few seconds to wake. From this version the window shows the camera's
+last picture until the video moves. If you still see black, load the app afresh (below).
+
+**A Frigate camera shows the intercom instead of the camera's speaker** — its picture comes from Frigate, which has no
+speaker. Link it to the same camera from eufy in **Dashboard settings → The same camera in another integration** and
+set **Talking in a camera window → The camera's speaker**.
+
+**Away from home the app shows an old version of the dashboard** — the Home Assistant app comes back from the
+background with old code in memory, or keeps a copy of a file. Menu → **Dashboard settings** → at the bottom **Load the app
+afresh** (administrators): it empties the caches, fetches fresh files of the dashboard and opens the page again. It works over any
+network the app reaches Home Assistant through. If even that does not help: app settings → Companion App →
+Debugging → Reset frontend cache.
+
+**After turning the phone the bottom bar is narrow and stuck to the right edge** — the bar keeps clear of the
+sidebar of Home Assistant, which shows on a wider phone on its side (over 870 px). When the phone was turned while
+the app was away, the bar kept the place of the page from the side view. Since this version it measures again on
+every turn and when the app comes back. On an older version a tap on the page or a reload helps.
 
 **The small player keeps showing a speaker that plays nothing** — some speakers, such as a HomePod after an AirPlay
 stream ended, keep reporting `playing` without a title. Since this version such a speaker is not shown. Something

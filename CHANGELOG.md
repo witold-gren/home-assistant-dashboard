@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.2.0 (2026-11-10)
+
+- Tapping LIVE no longer moves the window by a few pixels: the time over the line hides but keeps its room.
+- Recorded live views of Reolink cameras through Neolink show on the days and the line of time like eufy ones: a
+  "record live" switch may name its folder in the media folder (`recordings_path`).
+- The live view has sound again: the card of Home Assistant starts its player muted, and a muted WebRTC player
+  drops the stream's sound for good, so the sound button found nothing to play whenever WebRTC won over HLS.
+- Play only plays recordings: past the last one it plays that one, and the window goes back to the last picture
+  when it ends; only LIVE wakes a camera. The age of the picture moved to the top left, the camera positions to the
+  bottom left, and a recording puts the controls of turning away. On a phone on its side the ring, the intercom and
+  the button of the line of time stand in one column.
+- **Dashboard settings → Load the app afresh** empties the caches, fetches fresh files of the dashboard and opens the
+  page again, for an app that shows an old version away from home.
+- **Look** moved from the three dots to the side menu, above Dashboard settings, since it is for the whole dashboard.
+  The three dots go User access, Background of this screen, My layout and Summary badges (formerly Blocks) on Home,
+  and User access, Background of this screen, My view and Edit this screen in a room.
+- Talking through the camera's own speaker (eufy-sdk) as a choice in Dashboard settings, instead of the intercom.
+- After LIVE the last picture stays until the video moves, instead of a black player while the camera wakes; a quiet
+  ring turns in its middle meanwhile, and the LIVE pill stays grey until the video moves.
+- The battery hint of a camera stays upright through the live view (faint while a recording plays), so the window
+  does not jump; the sound and turning buttons are greyed while nothing plays; "No recording" under the time keeps
+  its room, so moving the line no longer moves the window.
+- The volume slider turns the sound smoothly on iPhone and iPad too: the sound goes through a Web Audio gain.
+- Turning and talking of each camera in Dashboard settings: turning automatic, the ready-made eufy set (found by
+  translation keys, so Polish entity ids work), ONVIF (`onvif.ptz`, positions as tokens), entities chosen by hand
+  or none (`cameras.ptz`); talking automatic, through go2rtc (a WebRTC connection with the microphone only, for
+  cameras with two-way audio), the room's intercom or none (`cameras.talk_with`).
+- Any integration can offer a camera's speaker with a `talk_path` attribute on an entity of the camera's device
+  (Neolink does); the sound button is lit only when what plays has sound.
+- Talking through a camera's speaker waits for the live view to move (nobody is talked to before they can be seen),
+  shows "Connecting…" while the camera's side connects (`{"state": ...}` from its integration), and ends with the
+  live view.
+- LIVE becomes DISCONNECT once the video moves, and ends the live view without closing the window; moving the line
+  of time lets the camera go at once.
+- A camera that goes away keeps its window: the last picture, dimmed, says the camera is unavailable, LIVE is off,
+  and all comes back by itself; a picture that does not load is asked for again every 5 seconds.
+- On a phone on its side the line of time has buttons to jump to the previous and next recording around play; LIVE
+  no longer carries a red dot, the REC pill on the picture says it records.
+- `cameras.controls` lends a camera the buttons for turning and the speaker of another camera, e.g. a Frigate
+  picture turned and talked through with the eufy camera; **Dashboard settings → The same camera in another
+  integration** links any camera of the dashboard to a camera of another integration, without YAML.
+- Recorded live views of eufy battery cameras (the bridge's opt-in "Record live view") show on the days and the
+  line of time for 14 days, read from the media folder; the pill on the picture says REC while they record.
+- On a phone on its side the windows of devices (thermostat, blind, lamp, alarm) scroll instead of laying their
+  controls over the header and the state.
+- The menu of Home Assistant is hidden while the dashboard is open (not saved; it comes back on other pages), so
+  the dashboard takes the whole screen. A phone on its side keeps the phone layout with three tiles in a row.
+- The bottom bar no longer stays narrow at the right edge after the phone was turned while the app was away: it
+  measures the page again on every turn and when the app comes back.
+- On a phone on its side the camera fills the screen; the days and the line of time hide at the top and bottom
+  edges and come out with a calendar button in the header and a line button in the corner (a swipe or a tap on the picture puts them away),
+  and LIVE stays in the header by the sound button. The live view fills the height of the screen there too.
+- The gear of every device window opens the settings of the device in tabs (settings, state, buttons and its
+  activity, from its other entities; members first for a group), with the window of Home Assistant one tap further;
+  cameras use the same window. Lights and fans in rows of blocks get a switch.
+- A pencil next to the gear lets administrators change the name, area and labels of a device and enable or disable
+  it, without leaving the app.
+- In the Home Assistant app the swipe from the left edge opens the menu of the dashboard on Home instead of the menu
+  of Home Assistant; elsewhere it goes back (a window closes, a page returns to Home). The rooms come right after the
+  pages in that menu.
+- The side menu ends with Profile and the name of the signed-in person, opening the profile of Home Assistant.
+- A camera is known to be on a battery by the battery sensor of its device, for any brand; `battery_platforms` is
+  empty by default and needed only for cameras that do not report a battery.
+- The intercom button lies on the picture of the camera, so it fits a picture of any shape.
+- A camera that can turn gets a button in the header that lays a ring of arrows and a list of its saved
+  positions over the picture (buttons of the device such as `pan_left`, `tilt_up`, `go_to_preset`), so its window
+  looks like that of any other camera.
+- The gear in a camera window opens the settings and state of the camera, gathered from the entities of its device,
+  instead of the window of Home Assistant; `cameras.settings` chooses the entities by hand.
+- A Frigate camera shows its recordings: a week of days at the top and a line of the day's time at the bottom, moved
+  sideways to choose a moment, with play, pause and LIVE. The picture, the live view and a recording take each
+  other's place, and going to a recording ends the live view. Every camera window has the same layout: without
+  recordings the days are greyed and the line is empty, and the Watch live button is gone in favour of LIVE.
+- Holding the line of time shows the whole day on it, and moving the finger then puts the mark under it, for a fast
+  move to another hour; the time over the line is left out while the view is live; a swipe over the days turns
+  the week.
+- A sound button next to the gear of a camera window turns the sound on and off; holding it shows a volume slider.
+
 ## 0.1.6 (2026-11-08)
 
 The look of the dashboard is set in the dashboard itself, kept as themes and shared between homes. Two themes come

@@ -176,7 +176,20 @@ def test_lock_with_a_code_uses_the_regular_dialog_on_the_phone(phone):
 # Camera
 
 
+# The battery cameras of the snapshot report their level, as they do in Home Assistant.
+BATTERIES = """() => {
+    const snapshot = window.dashboard.snapshot;
+    for (const entity of Object.values(snapshot.entities)) {
+        if (!entity.entity_id.startsWith("camera.") || entity.platform !== "eufy_sdk") continue;
+        const id = `sensor.${entity.entity_id.slice(7)}_battery_level`;
+        snapshot.entities[id] = { entity_id: id, device_id: entity.device_id, platform: "eufy_sdk", hidden: false };
+        snapshot.states[id] = { entity_id: id, state: "80", attributes: { device_class: "battery", unit_of_measurement: "%" } };
+    }
+}"""
+
+
 def open_camera(page, stored: bool = True) -> None:
+    page.evaluate(BATTERIES)
     mount(page)
     tiles = page.locator("home-dashboard-page .camera:not(.offline)")
     (tiles.last if stored else tiles.first).click()
@@ -187,20 +200,20 @@ def test_opening_a_stored_picture_shows_it_and_starts_nothing(phone):
     open_camera(phone)
     assert phone.evaluate("window.createdCards") == []
     assert phone.locator("home-dashboard-sheet .picture img").count() == 1
-    assert phone.locator("[data-start-live]").count() == 1
+    assert phone.locator("[data-timeline-live]").count() == 1
     assert "baterię" in phone.locator("home-dashboard-sheet .hint").text_content()
 
 
 def test_opening_a_mains_camera_starts_nothing_and_warns_about_nothing(phone):
     open_camera(phone, stored=False)
     assert phone.evaluate("window.createdCards") == []
-    assert phone.locator("[data-start-live]").count() == 1
+    assert phone.locator("[data-timeline-live]").count() == 1
     assert phone.locator("home-dashboard-sheet .hint").count() == 0
 
 
 def test_stream_starts_on_request_and_stops_when_closed(phone):
     open_camera(phone)
-    phone.locator("[data-start-live]").click()
+    phone.locator("[data-timeline-live]").click()
     phone.wait_for_selector("[data-card='picture-entity']", state="attached")
     (card,) = phone.evaluate("window.createdCards")
     assert card["camera_view"] == "live"
@@ -250,7 +263,7 @@ def test_back_button_closes_the_sheet_and_stays_on_the_page(phone):
     assert phone.url == url
 
 
-def test_details_button_closes_the_sheet_and_opens_the_regular_dialog(phone):
+def test_details_button_opens_the_settings_and_their_gear_the_regular_dialog(phone):
     cover = find_id(phone, "cover.")
     mount(phone)
     phone.evaluate("""() => {
@@ -259,7 +272,10 @@ def test_details_button_closes_the_sheet_and_opens_the_regular_dialog(phone):
     }""")
     open_tile(phone, cover)
     phone.locator("[data-details]").click()
+    phone.wait_for_selector("home-dashboard-sheet [data-settings-tabs]")
+    phone.locator("[data-details]").click()
     phone.wait_for_function("window.moreInfo.length === 1")
+    assert phone.evaluate("window.moreInfo") == [cover]
     assert phone.locator("home-dashboard-sheet .panel").count() == 0
 
 
@@ -657,7 +673,7 @@ SETTINGS_HASS = """(dashboard) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard }, title: "x" };
             }
-            if (!["frontend/get_user_data", "config/auth/list"].includes(message.type)) window.saved.push(message);
+            if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
     });
@@ -817,3 +833,32 @@ def test_a_real_layout_survives_the_round_trip(phone):
     phone.locator("[data-yaml-save]").click()
     phone.wait_for_function("window.saved.length === 1")
     assert phone.evaluate("window.saved[0].config.strategy.layout") == layout
+
+
+def sheet_of(page, script: str):
+    return page.evaluate(f"async () => {{ const sheet = {CHROME}.shadowRoot.querySelector('home-dashboard-sheet'); {script} }}")
+
+
+def test_the_battery_hint_stays_through_the_live_view_and_fades_for_a_recording(phone):
+    open_camera(phone)
+    hint = "home-dashboard-sheet [data-battery-hint]"
+    before = phone.locator(hint).bounding_box()
+    phone.locator("[data-timeline-live]").click()
+    phone.wait_for_selector("[data-card='picture-entity']", state="attached")
+    # Still there, so the window does not jump, and still saying it is a battery camera.
+    assert phone.locator(hint).count() == 1
+    assert "baterię" in phone.locator(hint).text_content()
+    assert "faint" not in phone.locator(hint).get_attribute("class")
+    sheet_of(phone, "sheet._stopLive(); sheet._clip = { url: '/clip.mp4', start: 0, end: 60 }; await sheet.updateComplete;")
+    assert "faint" in phone.locator(hint).get_attribute("class")
+    assert phone.locator(hint).evaluate("(element) => getComputedStyle(element).opacity") == "0.35"
+    assert before is not None
+
+
+def test_a_waking_camera_shows_a_ring_over_its_last_picture(phone):
+    open_camera(phone)
+    assert phone.locator("home-dashboard-sheet [data-live-waking]").count() == 0
+    phone.locator("[data-timeline-live]").click()
+    phone.wait_for_selector("home-dashboard-sheet .live-wrap:not(.shown) [data-live-waking]", state="attached")
+    sheet_of(phone, "sheet._liveShown = true; await sheet.updateComplete;")
+    assert phone.locator("home-dashboard-sheet [data-live-waking]").count() == 0

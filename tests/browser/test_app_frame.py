@@ -253,3 +253,30 @@ def test_a_frame_from_another_address_stays_below_the_clock(phone):
     phone.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
     phone.wait_for_timeout(600)
     assert phone.locator("home-dashboard-page .page.under-clock").count() == 0
+
+
+def test_the_bars_find_the_page_again_after_the_phone_turns(phone):
+    phone.evaluate(MOUNT, {"dashboard": {}, "info": RUNNING, "fails": False, "admin": True})
+    result = phone.evaluate("""async () => {
+        const chrome = document.querySelector("home-dashboard-chrome");
+        const root = document.createElement("div");
+        root.style.cssText = "position: fixed; left: 56px; width: 100px; height: 10px";
+        document.body.append(root);
+        chrome.root = root;
+        chrome._followRoot();
+        await new Promise((done) => setTimeout(done, 1000));
+        const turned = chrome._left;
+        // Upright again, long after: the page moved back without changing its size.
+        root.style.left = "0px";
+        window.dispatchEvent(new Event("resize"));
+        await new Promise((done) => setTimeout(done, 200));
+        const back = chrome._left;
+        root.style.left = "30px";
+        document.dispatchEvent(new Event("visibilitychange"));
+        await new Promise((done) => setTimeout(done, 200));
+        const visible = chrome._left;
+        chrome.root = null;
+        root.remove();
+        return [turned, back, visible];
+    }""")
+    assert result == [56, 0, 30]

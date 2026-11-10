@@ -28,7 +28,7 @@ ADMIN_MOUNT = """async ({ dashboard, page, admin }) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard } };
             }
-            if (!["frontend/get_user_data", "config/auth/list"].includes(message.type)) window.saved.push(message);
+            if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
     });

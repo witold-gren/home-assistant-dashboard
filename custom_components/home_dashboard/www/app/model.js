@@ -127,7 +127,7 @@ export function normalizeConfig(config = {}) {
     appearance: config.appearance ?? {},
     access: config.access ?? {},
     visibility: config.visibility ?? {},
-    cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, battery_platforms: ["eufy_sdk"], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
+    cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
     intercom: {
       script: null,
       areas: [],
@@ -498,9 +498,12 @@ export function unassignedEntities(hass, config, selection) {
 // the frame. Any other camera renders through its own device, and waking a battery camera drains
 // it, so a platform must be listed as safe and a battery platform never counts as safe.
 function isSnapshotCamera(hass, entityId, config) {
-  const { snapshot_platforms: snapshot, battery_platforms: battery } = config.cameras;
   const platform = hass.entities[entityId]?.platform;
-  return domainOf(entityId) === "camera" && snapshot.includes(platform) && !battery.includes(platform);
+  return (
+    domainOf(entityId) === "camera" &&
+    config.cameras.snapshot_platforms.includes(platform) &&
+    !isBatteryCamera(hass, entityId, config)
+  );
 }
 
 export function isGridSafe(hass, entityId, config) {
@@ -785,6 +788,238 @@ export function pictureAge(language, updatedAt, now) {
 }
 
 // The camera that shows the same place as a stored picture: set by hand or found on its device.
+// Moving a camera: the buttons its device has for each direction, by the names integrations give them.
+const PTZ_NAMES = {
+  left: /(pan|ptz|move)_?left$/,
+  right: /(pan|ptz|move)_?right$/,
+  up: /(tilt|ptz|move)_?up$/,
+  down: /(tilt|ptz|move)_?down$/,
+};
+
+export function cameraDeviceId(hass, entityId, config) {
+  const cameraId = liveCameraFor(hass, entityId, config) ?? entityId;
+  return hass.entities[cameraId]?.device_id ?? hass.entities[entityId]?.device_id ?? null;
+}
+
+const deviceEntities = (hass, deviceId) =>
+  deviceId ? Object.keys(hass.entities).filter((id) => hass.entities[id].device_id === deviceId && hass.states[id]) : [];
+
+// The directions this camera can move in, and its saved positions if it has them.
+// The device whose buttons turn the camera. `cameras.controls` names another camera for it, when the picture comes
+// from one system (e.g. Frigate) and turning from another (e.g. the camera's own integration).
+function controlDeviceId(hass, entityId, config) {
+  const other = config.cameras.controls?.[entityId];
+  return (other && hass.entities[other]?.device_id) || cameraDeviceId(hass, entityId, config);
+}
+
+// The cameras of the dashboard and the links between them: the picture comes from one camera (e.g. Frigate), the
+// speaker and turning from the same camera in another integration (e.g. eufy). Feeds the choice in the settings.
+export function cameraLinks(hass, config) {
+  const name = (id) => hass.states[id]?.attributes?.friendly_name ?? id;
+  const controls = config.cameras.controls ?? {};
+  const cameras = buildCameras(hass, config).map((camera) => ({ entityId: camera.entityId, name: camera.name }));
+  const links = Object.entries(controls).map(([entityId, other]) => ({
+    entityId,
+    name: cameras.find((camera) => camera.entityId === entityId)?.name ?? name(entityId),
+    other,
+    otherName: name(other),
+  }));
+  return { cameras: cameras.filter((camera) => !controls[camera.entityId]), links };
+}
+
+// The cameras another camera can be linked to: those of any other integration.
+export function linkChoices(hass, entityId) {
+  const platform = hass.entities[entityId]?.platform;
+  return Object.keys(hass.entities)
+    .filter((id) => domainOf(id) === "camera" && id !== entityId && hass.states[id] && hass.entities[id].platform !== platform)
+    .map((id) => ({ entityId: id, name: hass.states[id].attributes?.friendly_name ?? id }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Ways to turn a camera, tried in this order unless `cameras.ptz` chooses one: entities chosen by hand, a ready-made
+// set of an integration (found by the translation keys of its entities, so names in any language do), ONVIF's
+// service, and buttons found by their names. A move is a service call, so a button, a script and ONVIF are alike.
+export const PTZ_MODES = ["auto", "eufy", "onvif", "manual", "none"];
+export const PTZ_PRESETS = {
+  eufy: { platform: "eufy_sdk", left: "pan_left", right: "pan_right", up: "tilt_up", down: "tilt_down", select: "preset", button: "preset_goto" },
+};
+const DIRECTIONS = ["left", "right", "up", "down"];
+const ONVIF_MOVES = { left: { pan: "LEFT" }, right: { pan: "RIGHT" }, up: { tilt: "UP" }, down: { tilt: "DOWN" } };
+const ONVIF_STEP = { move_mode: "ContinuousMove", continuous_duration: 0.5, speed: 0.5 };
+
+// Translation keys of entities, read from the entity registry once: the list Home Assistant hands every page
+// leaves them out.
+const translationKeys = new Map();
+
+export async function loadTranslationKeys(hass, entityIds) {
+  const missing = entityIds.filter((id) => !translationKeys.has(id));
+  if (!missing.length) return false;
+  try {
+    const entries = await hass.callWS({ type: "config/entity_registry/get_entries", entity_ids: missing });
+    for (const id of missing) translationKeys.set(id, entries?.[id]?.translation_key ?? null);
+  } catch {
+    for (const id of missing) translationKeys.set(id, null);
+  }
+  return true;
+}
+
+/** The entities of the device that turns this camera, whose translation keys a ready-made set looks for. */
+export function controlEntityIds(hass, entityId, config) {
+  return deviceEntities(hass, controlDeviceId(hass, entityId, config));
+}
+
+/** What a tap on an entity chosen for a move does: a button is pressed, a script or scene is run. */
+export function pressCall(entityId) {
+  const domain = domainOf(entityId);
+  const service = domain === "script" || domain === "scene" ? "turn_on" : "press";
+  return { domain, service, data: { entity_id: entityId }, entity: entityId };
+}
+
+/** The calls that take a camera to one of its saved positions. */
+export function presetCalls(presets, option) {
+  if (presets.onvif) {
+    return [{ domain: "onvif", service: "ptz", data: { entity_id: presets.onvif, move_mode: "GotoPreset", preset: option } }];
+  }
+  return [
+    { domain: "select", service: "select_option", data: { entity_id: presets.select, option } },
+    pressCall(presets.button),
+  ];
+}
+
+function entityPresets(hass, select, button) {
+  if (!select || !button || !hass.states[select]) return null;
+  // Positions nobody saved are listed by some cameras as "empty"; they lead nowhere.
+  const options = (hass.states[select].attributes.options ?? []).filter((option) => !/empty$/i.test(String(option).trim()));
+  return options.length ? { select, button, options, current: hass.states[select].state } : null;
+}
+
+function byKeys(hass, ids, preset) {
+  const find = (key) => ids.find((id) => translationKeys.get(id) === key && hass.entities[id]?.platform === preset.platform);
+  const moves = Object.fromEntries(DIRECTIONS.map((direction) => [direction, find(preset[direction])]).filter(([, id]) => id));
+  return { moves: mapMoves(moves), presets: entityPresets(hass, find(preset.select), find(preset.button)) };
+}
+
+const mapMoves = (moves) => Object.fromEntries(Object.entries(moves).map(([direction, id]) => [direction, pressCall(id)]));
+
+function byOnvif(hass, ids, setting) {
+  const camera = ids.find((id) => domainOf(id) === "camera" && hass.entities[id]?.platform === "onvif");
+  if (!camera) return null;
+  const moves = Object.fromEntries(
+    DIRECTIONS.map((direction) => [direction, { domain: "onvif", service: "ptz", data: { entity_id: camera, ...ONVIF_MOVES[direction], ...ONVIF_STEP } }]),
+  );
+  const options = (setting.presets ?? []).map(String).filter(Boolean);
+  return { moves, presets: options.length ? { onvif: camera, options, current: null } : null };
+}
+
+function byNames(hass, ids) {
+  const buttons = ids.filter((id) => domainOf(id) === "button");
+  const moves = Object.fromEntries(
+    Object.entries(PTZ_NAMES)
+      .map(([direction, name]) => [direction, buttons.find((id) => name.test(id.split(".")[1]))])
+      .filter(([, id]) => id),
+  );
+  const select = ids.find((id) => domainOf(id) === "select" && /preset/.test(id));
+  return { moves: mapMoves(moves), presets: entityPresets(hass, select, buttons.find((id) => /go_?to_?preset/.test(id))) };
+}
+
+const found = (controls) => controls && (Object.keys(controls.moves).length || controls.presets) ? controls : null;
+
+/** How this camera turns: `{ mode, moves: { left: call… }, presets }`, the mode being the way that was used. */
+export function cameraMoves(hass, entityId, config) {
+  const setting = config.cameras.ptz?.[entityId] ?? {};
+  const mode = PTZ_MODES.includes(setting.mode) ? setting.mode : "auto";
+  const none = { mode: "none", moves: {}, presets: null };
+  if (mode === "none") return none;
+  if (mode === "manual") {
+    const moves = Object.fromEntries(DIRECTIONS.filter((direction) => setting[direction]).map((d) => [d, pressCall(setting[d])]));
+    return { mode, moves, presets: entityPresets(hass, setting.select, setting.button) };
+  }
+  const ids = controlEntityIds(hass, entityId, config).filter((id) => !hass.entities[id].hidden);
+  if (mode === "auto" || PTZ_PRESETS[mode]) {
+    for (const [name, preset] of Object.entries(PTZ_PRESETS)) {
+      if (mode !== "auto" && mode !== name) continue;
+      const controls = found(byKeys(hass, ids, preset));
+      if (controls) return { mode: name, ...controls };
+    }
+  }
+  if (mode === "auto" || mode === "onvif") {
+    const controls = found(byOnvif(hass, ids, setting));
+    if (controls) return { mode: "onvif", ...controls };
+  }
+  if (mode === "auto") {
+    const controls = found(byNames(hass, ids));
+    if (controls) return { mode: "names", ...controls };
+  }
+  return { ...none, mode };
+}
+
+/** The entities a camera's turning uses, which its window of settings leaves out. */
+export function cameraMoveEntities(controls) {
+  const ids = Object.values(controls.moves).map((call) => call.entity).filter(Boolean);
+  if (controls.presets?.select) ids.push(controls.presets.select, controls.presets.button);
+  return ids;
+}
+
+const READ_ONLY = new Set(["sensor", "binary_sensor"]);
+const SETTING_DOMAINS = new Set(["switch", "select", "number", "input_boolean", "input_select", "input_number"]);
+
+// A window with what a device reports and what can be set on it, made from its other entities, in tabs: its
+// settings, its state, its buttons and what it did lately. A group shows its members first. Every device gets the
+// same window; a list of entities chooses them by hand.
+export function deviceSettingsPanel(hass, entityId, title, { deviceId, exclude = [], chosen = null } = {}) {
+  const device = hass.devices[deviceId ?? hass.entities[entityId]?.device_id];
+  const prefix = (device?.name_by_user ?? device?.name ?? "").trim();
+  const name = (id) => {
+    const full = hass.states[id]?.attributes.friendly_name ?? id;
+    return prefix && full.startsWith(prefix) && full.length > prefix.length ? full.slice(prefix.length).trim() : full;
+  };
+  const row = (id) => ({ entity: id, name: name(id) });
+  const byName = (first, second) => name(first).localeCompare(name(second), hass.language);
+  const t = (key) => translate(hass.language, key);
+  const members = (hass.states[entityId]?.attributes.entity_id ?? []).filter((id) => hass.states[id]);
+  const panel = (groups, related) => ({
+    kind: "panel",
+    name: title,
+    entity: entityId,
+    details: entityId,
+    tabs: true,
+    activity: [entityId, ...related.filter((id) => id !== entityId)],
+    groups,
+  });
+  if (chosen?.length) {
+    const rows = chosen.filter((id) => hass.states[id]);
+    return panel([{ key: "settings", title: t("camera_settings_config"), rows: rows.map(row) }], rows);
+  }
+  const ids = device
+    ? deviceEntities(hass, device.id).filter(
+        (id) =>
+          id !== entityId && !exclude.includes(id) && !hass.entities[id].hidden && hass.states[id].state !== "unavailable",
+      )
+    : [];
+  const settings = ids.filter((id) => SETTING_DOMAINS.has(domainOf(id))).sort(byName);
+  const state = ids.filter((id) => READ_ONLY.has(domainOf(id))).sort(byName);
+  const actions = ids.filter((id) => domainOf(id) === "button").sort(byName);
+  return panel(
+    [
+      { key: "members", title: t("settings_members"), rows: members.map(row) },
+      { key: "settings", title: t("camera_settings_config"), rows: settings.map(row) },
+      { key: "state", title: t("camera_settings_state"), rows: state.map(row) },
+      { key: "actions", title: t("camera_settings_actions"), rows: actions.map(row) },
+    ].filter((group) => group.rows.length),
+    [...members, ...settings, ...state, ...actions],
+  );
+}
+
+// A camera's window of settings leaves out its buttons for turning, which have their own place.
+export function cameraSettingsPanel(hass, entityId, config, title) {
+  const cameraId = liveCameraFor(hass, entityId, config) ?? entityId;
+  return deviceSettingsPanel(hass, cameraId, title, {
+    deviceId: cameraDeviceId(hass, entityId, config),
+    exclude: cameraMoveEntities(cameraMoves(hass, entityId, config)),
+    chosen: config.cameras.settings?.[cameraId],
+  });
+}
+
 export function liveCameraFor(hass, imageId, config) {
   if (domainOf(imageId) === "camera") return imageId;
   const configured = config.cameras.live[imageId];
@@ -798,8 +1033,17 @@ export function liveCameraFor(hass, imageId, config) {
   );
 }
 
+// A camera is on a battery when its platform is known to be, or when its device reports a battery level.
 export function isBatteryCamera(hass, entityId, config) {
-  return config.cameras.battery_platforms.includes(hass.entities[entityId]?.platform);
+  if (config.cameras.battery_platforms.includes(hass.entities[entityId]?.platform)) return true;
+  const deviceId = hass.entities[entityId]?.device_id;
+  if (!deviceId) return false;
+  return Object.values(hass.entities).some(
+    (entity) =>
+      entity.device_id === deviceId &&
+      domainOf(entity.entity_id) === "sensor" &&
+      hass.states[entity.entity_id]?.attributes?.device_class === "battery",
+  );
 }
 
 function climateChip(hass, ids) {

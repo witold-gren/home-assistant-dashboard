@@ -178,7 +178,7 @@ def test_back_closes_the_camera_after_browsing_in_one_step(phone):
 
 def test_switching_camera_stops_the_stream(phone):
     open_first_camera(phone)
-    phone.locator("[data-start-live]").click()
+    phone.locator("[data-timeline-live]").click()
     phone.wait_for_selector("[data-card='picture-entity']", state="attached")
     phone.locator("[data-thumb]").nth(2).click()
     phone.wait_for_timeout(100)
@@ -194,6 +194,10 @@ def test_voice_button_speaks_in_the_camera_room(phone):
         return model.effectiveArea(instance, camera, config);
     }""")
     open_first_camera(phone, {"intercom": {**INTERCOM, "areas": [area]}})
+    # The button lies on the picture, so it fits whatever the shape of the picture.
+    voice = phone.locator(f"{SHEET} .stage [data-voice]").bounding_box()
+    stage = phone.locator(f"{SHEET} .stage").bounding_box()
+    assert stage["y"] < voice["y"] and voice["y"] + voice["height"] <= stage["y"] + stage["height"]
     phone.locator("[data-voice]").click()
     phone.locator(f"{SHEET} home-dashboard-intercom input").fill("Kolacja")
     assert calls(phone) == []

@@ -90,8 +90,8 @@ def test_a_look_can_hide_anything_paused(phone):
 def test_the_player_settings_are_in_the_bar_tab(phone):
     add_entity(phone, "light.x", "on")
     mount_admin(phone, {})
-    phone.locator("home-dashboard-page [data-rooms]").click()
-    phone.locator("home-dashboard-sheet [data-sheet-look]").click()
+    phone.locator("home-dashboard-page [data-menu]").click()
+    phone.locator("[data-drawer] [data-look]").click()
     phone.locator("home-dashboard-sheet [data-tab='nav']").click()
     phone.locator("home-dashboard-sheet [data-look='player-paused'] input").fill("0")
     phone.locator("home-dashboard-sheet [data-look='player-radius'] input").fill("22")

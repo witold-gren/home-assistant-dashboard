@@ -32,8 +32,8 @@ def add_room_things(page) -> None:
 
 def open_look(page, dashboard: dict | None = None, admin: bool = True) -> None:
     mount_admin(page, dashboard or {}, admin=admin)
-    page.locator("home-dashboard-page [data-rooms]").click()
-    page.locator(f"{SHEET} [data-sheet-look]").click()
+    page.locator("home-dashboard-page [data-menu]").click()
+    page.locator("[data-drawer] [data-look]").click()
 
 
 def room_tiles(page) -> dict:
@@ -175,7 +175,7 @@ def test_a_person_turns_the_bounce_off(phone):
 
 # The sheet ----------------------------------------------------------------------------------------
 
-def test_everyone_finds_the_look_in_the_three_dots(phone):
+def test_everyone_finds_the_look_in_the_menu(phone):
     open_look(phone, admin=False)
     assert phone.locator(f"{SHEET} [data-tab]").all_inner_texts() == ["Tło", "Przyciski", "Kolory", "Pasek", "Okna", "Ikony"]
     # Without administrator rights there is no choice for everyone.

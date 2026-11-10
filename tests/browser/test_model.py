@@ -153,13 +153,32 @@ def test_a_battery_platform_stays_out_even_when_listed_as_safe(phone):
     ids = run(
         phone,
         """
-        const custom = model.normalizeConfig({ cameras: { snapshot_platforms: ["eufy_sdk", "frigate"] } });
+        const custom = model.normalizeConfig({ cameras: { snapshot_platforms: ["eufy_sdk", "frigate"], battery_platforms: ["eufy_sdk"] } });
         return model.buildCameras(hass, custom)
             .filter((item) => item.entityId.startsWith("camera."))
             .map((item) => hass.entities[item.entityId].platform);
         """,
     )
     assert ids
+    assert set(ids) == {"frigate"}
+
+
+def test_a_camera_whose_device_reports_a_battery_stays_out_even_when_listed_as_safe(phone):
+    ids = run(
+        phone,
+        """
+        for (const entity of Object.values(hass.entities)) {
+            if (!entity.entity_id.startsWith("camera.") || entity.platform !== "eufy_sdk") continue;
+            const id = `sensor.${entity.entity_id.slice(7)}_battery_level`;
+            hass.entities[id] = { entity_id: id, device_id: entity.device_id };
+            hass.states[id] = { entity_id: id, state: "80", attributes: { device_class: "battery" } };
+        }
+        const custom = model.normalizeConfig({ cameras: { snapshot_platforms: ["eufy_sdk", "frigate"] } });
+        return model.buildCameras(hass, custom)
+            .filter((item) => item.entityId.startsWith("camera."))
+            .map((item) => hass.entities[item.entityId].platform);
+        """,
+    )
     assert set(ids) == {"frigate"}
 
 

@@ -91,7 +91,7 @@ jako skrót na stronie głównej, w menu albo jako kafelek w pokoju.
 
 ### Krok po kroku w edytorze
 
-1. Trzy kropki na stronie głównej → **Bloki** (konto administratora) → **Dodaj** → **Blok**.
+1. Trzy kropki na stronie głównej → **Odznaki podsumowania** (konto administratora) → **Dodaj** → **Blok**.
 2. **Nazwa**, **Ikona** i **Encja**: główna encja urządzenia, od której blok bierze stan.
 3. **Liczby u góry**: wartości, które widać od razu, np. pozostały czas prania, jakość powietrza, stan filtra. Każda
    to encja, nazwa, jednostka i liczba miejsc po przecinku.

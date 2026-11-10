@@ -21,6 +21,7 @@ TILE_URL = "https://tile.openstreetmap.org/{}.png"
 USER_AGENT = "home-dashboard-screenshots/0.1"
 PHONE = {"width": 402, "height": 874}
 TABLET = {"width": 1180, "height": 820}
+LANDSCAPE = {"width": 874, "height": 402}
 SHEET = "home-dashboard-sheet"
 
 
@@ -107,7 +108,25 @@ def make(browser, base: str, language: str) -> None:
 
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page .camera")
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
     take(page, folder, "camera")
+
+    # A phone on its side: the camera fills the screen, the line of time comes out with its button.
+    page = open_page(browser, base, language, LANDSCAPE)
+    tap(page, "home-dashboard-page .camera")
+    tap(page, f"{SHEET} [data-open-line]")
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
+    take(page, folder, "camera-landscape")
+
+    # The dashboard settings, with turning and talking of a camera opened.
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-menu]")
+    tap(page, "[data-drawer] [data-settings]")
+    row = "home-dashboard-settings [data-camera-control] .camera-row"
+    page.locator(row).first.scroll_into_view_if_needed()
+    tap(page, row)
+    page.locator("home-dashboard-settings [data-talk-with]").scroll_into_view_if_needed()
+    take(page, folder, "settings")
 
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page [data-weather]")
@@ -234,8 +253,8 @@ SAMPLE_THEMES = {
 
 def open_look(browser, base: str, language: str, tab: str) -> Page:
     page = open_page(browser, base, language, PHONE)
-    tap(page, "home-dashboard-page [data-rooms]")
-    tap(page, f"{SHEET} [data-sheet-look]")
+    tap(page, "home-dashboard-page [data-menu]")
+    tap(page, "[data-drawer] [data-look]")
     tap(page, f"{SHEET} [data-tab='{tab}']")
     return page
 

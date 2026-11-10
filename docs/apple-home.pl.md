@@ -30,7 +30,7 @@ Wygląd najlepiej działa na uporządkowanym dashboardzie, więc zanim zajmiesz 
 
 ## 3. Włącz motyw Apple Home
 
-1. Trzy kropki → **Wygląd**.
+1. Menu → **Wygląd**.
 2. Zaznacz **Dla wszystkich**: od tej chwili zmieniasz wygląd całego domu, a nie tylko swój.
 3. Zakładka **Motywy** → **Użyj** przy **Apple Home**.
 

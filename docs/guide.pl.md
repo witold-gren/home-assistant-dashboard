@@ -149,10 +149,12 @@ Kamera musi też mieć obszar. Inną platformę, która trzyma własną klatkę,
 ```yaml
 cameras:
   snapshot_platforms: [frigate, generic]
-  battery_platforms: [eufy_sdk]
+  battery_platforms: [my_platform]   # tylko kamery, które nie zgłaszają baterii
 ```
 
-Platforma z `battery_platforms` nigdy się nie pokaże, nawet gdy jest na obu listach.
+Kamera na baterię nigdy się nie pokaże, nawet gdy jej platforma jest na liście. Kamerę na baterię dashboard
+rozpoznaje sam: jej urządzenie w Home Assistant ma czujnik poziomu baterii (`device_class: battery`). Działa to dla
+każdej marki. `battery_platforms` jest potrzebne tylko dla kamer, które baterii nie zgłaszają.
 
 ### Kolejność i ukrywanie
 
@@ -169,13 +171,123 @@ okienku, rozmyta i oznaczona jako niedostępna. Chip Ochrona pokazuje wszystkie 
 
 ### Podgląd na żywo
 
-Dotknięcie obrazu otwiera go bez strumienia. **Oglądaj na żywo** uruchamia strumień z kamery tego samego urządzenia
-albo z `cameras.live: {image.door_last_screen: camera.door}`.
+Dotknięcie obrazu otwiera go bez strumienia. **NA ŻYWO** na dole uruchamia strumień z kamery tego samego urządzenia
+albo z `cameras.live: {image.door_last_screen: camera.door}`. Dopóki kamera się budzi, okno pokazuje jej ostatni
+obrazek z kółkiem ładowania na środku, a plakietka NA ŻYWO jest szara. Podgląd zastępuje obrazek dopiero wtedy, gdy
+wideo naprawdę ruszy, a plakietka nabiera koloru. Głośnik i sterowanie kamerą są przygaszone, dopóki nic nie gra
+(sterowanie działa tylko na żywo). Napis o kamerze na baterię zostaje w pionie cały czas, a przy nagraniu jest
+przygaszony, więc okno nie skacze.
+
+**NA ŻYWO** na linii czasu jest szare, po dotknięciu od razu pomarańczowe, a gdy wideo ruszy, zmienia się w pomarańczowe
+**ROZŁĄCZ**. Dotknięcie ROZŁĄCZ kończy podgląd bez zamykania okna, więc możesz od razu przeglądać nagrania. Przesunięcie
+linii czasu też od razu rozłącza kamerę. Kamera niedostępna w Home Assistant zostaje w oknie z ostatnim obrazkiem,
+przygaszonym, z napisem **Kamera jest niedostępna** i bez NA ŻYWO; napis znika sam, gdy kamera wróci. Obrazek, który
+się nie wczytał, okno próbuje pobrać co 5 sekund.
 
 Przycisk obok mówi do obszaru kamery. Pojawia się, gdy [intercom](#11-intercom) jest skonfigurowany, a ten obszar
-należy do jego obszarów.
+należy do jego obszarów. **Ustawienia dashboardu → Mówienie w oknie kamery → Głośnik kamery** zmienia go na mówienie
+przez głośnik samej kamery, gdy kamera go ma (integracja eufy-sdk, przełącznik `…_speaker`). Mikrofon działa tylko
+przez HTTPS albo w aplikacji Home Assistant. Kamera z rejestratora, np. Frigate, nie ma własnego głośnika ani przycisków obracania. W
+**Ustawienia dashboardu → Ta sama kamera w innej integracji** wybierz najpierw kamerę z dashboardu, potem tę samą
+kamerę z innej integracji (lista pokazuje tylko kamery innych integracji) i dotknij **Połącz**. Od tej chwili okno tej
+kamery mówi i obraca się przez drugą (`cameras.controls`). Powiązania są wypisane nad wyborem, a krzyżyk usuwa
+powiązanie. Zmiany zapisuje **Zapisz**.
 
-![Kamera](screenshots/pl/camera.png)
+| Telefon pionowo | Telefon poziomo |
+|---|---|
+| ![Kamera pionowo](screenshots/pl/camera.png) | ![Kamera poziomo](screenshots/pl/camera-landscape.png) |
+
+### Sterowanie i mówienie każdej kamery
+
+![Ustawienia dashboardu](screenshots/pl/settings.png)
+
+**Ustawienia dashboardu → Sterowanie i mówienie każdej kamery** pokazuje przy każdej kamerze, co znaleziono do jej
+obracania. Dotknięcie kamery rozwija wybór.
+
+| Sterowanie | Co robi |
+|---|---|
+| **Automatycznie** | po kolei: gotowe ustawienie eufy, ONVIF, przyciski urządzenia nazwane np. `pan_left`, `tilt_up`, `go_to_preset` |
+| **eufy (gotowe ustawienie)** | przyciski integracji eufy-sdk, rozpoznane po kluczach tłumaczeń, więc działają też przy polskich nazwach encji |
+| **ONVIF** | usługa `onvif.ptz` kamery z integracji ONVIF; pozycje wpisujesz jako tokeny po przecinku |
+| **Wybrane ręcznie** | dowolne przyciski, skrypty albo sceny dla czterech kierunków oraz lista pozycji i przycisk przejścia |
+| **Bez sterowania** | kamera nie ma przycisku sterowania |
+
+| Mówienie | Co robi |
+|---|---|
+| **Automatycznie** | głośnik kamery, gdy integracja go oferuje (niżej), a gdy nie, interkom pokoju |
+| **Przez go2rtc** | osobne połączenie WebRTC z samym mikrofonem; działa z kamerami z rozmową w obie strony (ONVIF Profile T, Tapo, Dahua, Hikvision i inne), nie z kamerą `generic` |
+| **Interkom pokoju** | zawsze interkom |
+| **Bez mówienia** | bez przycisku |
+
+Głośnik w nagłówku jest aktywny tylko wtedy, gdy coś gra i ma dźwięk. Kamera bez mikrofonu zostawia go szarym.
+
+Przez głośnik kamery mówisz dopiero wtedy, gdy podgląd na żywo naprawdę ruszy, czyli widzisz, do kogo mówisz. Wcześniej
+przycisk jest zablokowany, a koniec podglądu kończy też mówienie. Kamera, która potrzebuje chwili na połączenie
+głośnika, pokazuje szary przycisk z napisem „Łączę z głośnikiem kamery, możesz już mówić”, a czerwony, gdy już słucha.
+
+**Dla autorów integracji:** dashboard mówi przez kamerę każdej integracji, która na urządzeniu kamery ma encję z
+atrybutem `talk_path`, np. `talk_path: /api/moja/talk/brama`. Dashboard podpisuje tę ścieżkę, dopisuje `?rate=<Hz>`,
+otwiera WebSocket i wysyła binarne ramki PCM s16le mono, a na koniec tekst `stop`. Integracja odpowiada JSON-em
+`{"ok": true}` albo `{"ok": false, "error": "busy" | "no_speaker" | "unreachable" | "failed"}` i zamyka połączenie.
+Tak działają eufy-sdk i Neolink.
+
+### Obracanie, ustawienia i nagrania
+
+- **Obracanie**: kamera, której urządzenie ma przyciski ruchu (np. `button.…_pan_left`, `…_pan_right`, `…_tilt_up`,
+  `…_tilt_down`), dostaje w nagłówku, obok głośnika, przycisk ze strzałkami. Jego dotknięcie kładzie na obrazie, po
+  prawej, koło ze strzałkami, a lista **Pozycja** staje w lewym dolnym rogu; ponowne dotknięcie je chowa. Wiek
+  zdjęcia jest w lewym górnym rogu, a przy podglądzie w tym miejscu pojawia się NA ŻYWO. Odtworzenie nagrania chowa
+  sterowanie, bo nagraniem nie da się obracać. Okno wygląda więc tak samo dla każdej kamery, a sterowanie
+  działa też w trakcie podglądu na żywo i przy kamerze z nagraniami. Lista `select.…_preset` z przyciskiem
+  `…_go_to_preset` daje pod kołem listę zapisanych pozycji; puste pozycje („empty”) się nie pokazują.
+- **Ustawienia**: trybik w oknie kamery otwiera okno z ustawieniami i stanem kamery zamiast okna Home Assistant:
+  **Ustawienia** (przełączniki, listy, suwaki), **Stan** (czujniki) i **Akcje** (pozostałe przyciski), zebrane z
+  encji urządzenia kamery. Własny wybór encji dla kamery:
+
+  ```yaml
+  cameras:
+    settings:
+      camera.garden: [switch.garden_microphone, select.garden_night_vision, sensor.garden_battery]
+  ```
+
+- **Nagrania** (kamery Frigate): pod nazwą kamery jest tydzień z dniami; dni z nagraniami są jasne, strzałki
+  zmieniają tydzień. Na dole okna jest linia czasu wybranego dnia: jasne odcinki to nagrania, pomarańczowe kropki to
+  zdarzenia, a pomarańczowa pionowa kreska to wybrana chwila, z godziną nad linią. Przesuń linię palcem w lewo lub w
+  prawo, a nagranie zacznie się od tej chwili; w przerwie między nagraniami zacznie się od następnego. Dotknięcie
+  kropki odtwarza zdarzenie. Po lewej jest **odtwarzanie i pauza**, po prawej **NA ŻYWO**. Odtwarzanie nigdy nie
+  włącza podglądu na żywo: za ostatnim nagraniem odtwarza to ostatnie, a po jego końcu okno wraca do ostatniego
+  zdjęcia. Kamerę budzi tylko **NA ŻYWO**.
+- **Szybkie przewijanie**: przytrzymaj linię chwilę bez ruchu, a zmieści się na niej cała doba. Gdy ruszysz palcem,
+  kreska staje pod palcem: lewy brzeg linii to północ, prawy koniec doby. Wskaż palcem godzinę, np. 4:00, i puść: linia wraca do zwykłej skali w tym miejscu i odtwarza nagranie.
+  Potem dokładnie poprawiasz chwilę zwykłym przesunięciem.
+- **Tygodnie**: przesuń palcem po dniach w prawo, aby cofnąć się o tydzień, albo w lewo, aby wrócić.
+- **Telefon poziomo**: obraz kamery zajmuje cały ekran, a nazwa i przyciski leżą na nim w rogach. Miniatury innych
+  kamer się chowają. **Kalendarz** w nagłówku wysuwa dni przy górnej krawędzi (kalendarz i NA ŻYWO chowają się
+  wtedy z nagłówka), a **zegar z osią** w prawym dolnym rogu wysuwa linię czasu w miejsce przycisku. Chowasz je tym samym przyciskiem, przesunięciem palcem (dni w górę, linię w dół) albo stuknięciem w obraz,
+  które chowa oba naraz. Po
+  wybraniu dnia pasek dni sam się chowa. **NA ŻYWO** jest zawsze u góry, obok głośnika. Na linii czasu po obu stronach
+  przycisku odtwarzania są **⏮** i **⏭**: skok do poprzedniego i następnego nagrania tego dnia, od razu odtwarzanego. Przycisków zamiast
+  przeciągania od krawędzi używamy dlatego, że na iPhonie gesty od górnej i dolnej krawędzi należą do systemu
+  (powiadomienia i przełączanie aplikacji).
+- **Jeden obraz**: zdjęcie, podgląd na żywo i nagranie pokazują się w tym samym miejscu i zastępują się nawzajem.
+  Przejście z podglądu na żywo do nagrania kończy połączenie z kamerą, więc kamera na baterię nie traci energii.
+  Każda kamera ma ten sam układ: kamera bez nagrań ma wyszarzone dni i pustą linię, a podgląd na żywo włącza
+  **NA ŻYWO** albo odtwarzanie na linii.
+- **Dźwięk**: przycisk z głośnikiem obok trybika włącza i wyłącza dźwięk podglądu i nagrania. Przytrzymanie go
+  pokazuje suwak głośności. Na iPhonie i iPadzie głośność ustawia się przyciskami urządzenia, więc tam przycisk
+  tylko włącza i wyłącza dźwięk.
+- **Nagrane podglądy kamer na baterię (eufy)**: gdy w ustawieniach kamery (trybik → Ustawienia) włączysz
+  **Nagrywaj podgląd** (przełącznik z integracji eufy-sdk, domyślnie wyłączony), most eufy zapisuje każdy podgląd
+  tej kamery do `/media/eufy/<numer seryjny>/<dzień>/`, kto by go nie otworzył (dashboard, okno Home Assistant,
+  HomeKit). Most nigdy nie budzi kamery sam, nagrywa tylko to, co i tak płynie. W trakcie podglądu
+  plakietka na obrazie mówi **REC · NA ŻYWO**. Dni i linia czasu pokazują te nagrania z ostatnich 14 dni; starsze zostają na
+  dysku. Inny folder mediów ustawisz w `cameras.recordings_folder` (np.
+  `media-source://media_source/local/eufy`).
+- **Nagrane podglądy kamer Reolink (Neolink)**: tak samo działa przełącznik **Nagrywaj podgląd** z integracji
+  Neolink (aplikacja Neolink 0.2.0 lub nowsza). Pliki trafiają do `/media/neolink/<kamera>/<dzień>/`, a przełącznik
+  sam podaje ten folder w atrybucie `recordings_path`, więc `cameras.recordings_folder` go nie zmienia.
+- Kamera Frigate jest rozpoznawana sama, także przez obraz z tego samego urządzenia. Dane i nagrania pochodzą z
+  integracji Frigate w Home Assistant.
 
 ### Tryb gościa i prywatność
 
@@ -331,24 +443,49 @@ entities:
 
 ### Edytor bloków
 
-Trzy kropki na stronie głównej → **Bloki** (administratorzy) pokazuje wszystkie skróty i dotyczy wszystkich osób. Tu dodasz nowy blok, ustawisz ich
+Trzy kropki na stronie głównej → **Odznaki podsumowania** (administratorzy) pokazuje wszystkie skróty i dotyczy wszystkich osób. Tu dodasz nowy blok, ustawisz ich
 kolejność, a ołówek otwiera formularz. Formularz mają Status, Odjazdy, Maszyny (`kind: host`), Blok (`kind: panel`), Strona i
 Rok szkolny, razem z sekcjami, wierszami i przyciskami. Encje podpowiadają się same, a kartę Home Assistant wpisujesz jako
 YAML w jej polu. Blok stojący w pokoju otworzysz z edycji pokoju: kafelek → **Edytuj blok**. Skrót może mieć `label`, czyli mały tekst nad nazwą.
 Opcje, których formularz nie zna, zostają w bloku bez zmian. Po zmianie nazwy reguły **Dostępu użytkowników** idą za blokiem, a kolejność i ukrycie w
 czyimś **Moim układzie** trzeba ustawić od nowa.
 
-| Bloki | Formularz |
+| Odznaki podsumowania | Formularz |
 |---|---|
-| ![Bloki](screenshots/pl/blocks.png) | ![Formularz](screenshots/pl/block-editor.png) |
+| ![Odznaki podsumowania](screenshots/pl/blocks.png) | ![Formularz](screenshots/pl/block-editor.png) |
+
+### Ustawienia i edycja urządzenia
+
+Każde okno urządzenia ma w prawym górnym rogu dwa przyciski:
+
+- **Trybik** otwiera ustawienia urządzenia w zakładkach, zebrane z jego pozostałych encji: **Ustawienia**
+  (przełączniki, listy, suwaki, np. czas przejścia lampy), **Stan** (czujniki, np. moc), **Akcje** (przyciski, np.
+  Identyfikuj) i **Aktywność** (dziennik tego urządzenia z 1, 6 albo 24 godzin). Grupa, np. grupa świateł, ma
+  najpierw zakładkę **Członkowie** z przełącznikami. Widać tylko zakładki z zawartością, Aktywność zawsze. Trybik w
+  tym oknie otwiera pełne okno Home Assistant.
+- **Ołówek** (tylko administratorzy) zmienia **nazwę**, **obszar**, **etykiety** i to, czy urządzenie jest
+  **włączone**. Encja bez urządzenia zmienia się sama. Wyłączone urządzenie znika z Home Assistant i z dashboardu;
+  włączysz je z powrotem w Ustawienia → Urządzenia.
+
+Oba okna mają wygląd motywu z **Wygląd → Okna**, jak wszystkie okna dashboardu.
 
 ### Lewe menu
 
-Trzy kreski otwierają menu: strony, Twoje grupy, ustawienia i obszary. Administrator układa grupy przyciskiem **Edytuj menu**
+Trzy kreski otwierają menu: strony, obszary, Twoje grupy i ustawienia. Administrator układa grupy przyciskiem **Edytuj menu**
 na samym dole. Grupa może mieć tytuł, a wpis to nazwa, ikona i jedno z trzech: **Adres** strony Home Assistant (podpowiada
 panele, np. `/config`), **Skrót** po nazwie albo **Akcja** `notifications`, która otwiera okno powiadomień z listą na żywo i odrzucaniem. **Tylko
 administratorzy** chowa wpis przed resztą, a **Kto to widzi** ogranicza wpis do zaznaczonych osób (`users`, brak zaznaczeń to wszyscy), a **Ukryj w trybie gościa** chowa go, gdy tryb gościa obowiązuje na tym koncie:
 użyj tego przy kamerach, żeby wpis nie omijał blokady. Bez własnej konfiguracji menu pokazuje skróty i podstawowe linki.
+
+Pod **Edytuj menu** jest **Profil** z imieniem zalogowanej osoby: otwiera profil Home Assistant.
+
+Menu Home Assistant jest schowane, dopóki otwarty jest dashboard, także na szerokim telefonie w poziomie i na
+tablecie, więc dashboard zajmuje cały ekran. To nie zmienia Twojego ustawienia: na innych stronach Home Assistant menu
+wraca takie, jak było. Telefon w poziomie zostaje przy układzie telefonu, z trzema kafelkami w rzędzie.
+
+W aplikacji Home Assistant przesunięcie palcem od lewej krawędzi otwiera na stronie głównej to menu zamiast menu Home
+Assistant. W każdym innym miejscu ten sam gest cofa: otwarte okno się zamyka, a pokój albo inna strona wraca na stronę
+główną.
 
 Wpisy z adresem `/history` i `/logbook` otwierają się w oknach dashboardu. Dziennik pokazuje urządzenia z dashboardu z
 ostatniej godziny, 6 lub 24 godzin, a Historia wykresy encji, które każdy wybiera dla siebie.
@@ -394,7 +531,7 @@ shortcuts:
 ### Aplikacje w oknie
 
 Dodatek z interfejsem WWW, np. Frigate, otworzy się w oknie dashboardu. W menu wpisz w polu **Aplikacja** jego identyfikator,
-pole podpowiada zainstalowane dodatki. Jako skrót na stronie głównej to **Bloki → Aplikacja**:
+pole podpowiada zainstalowane dodatki. Jako skrót na stronie głównej to **Odznaki podsumowania → Aplikacja**:
 
 ```yaml
 shortcuts:
@@ -539,7 +676,7 @@ Lista Osoby, Urządzenia i Strefy leży na mapie: na telefonie to panel, który 
 
 Strona Muzyka otworzy dodatek Music Assistant także na kontach bez administratora: `music: {addon: abcd1234_music_assistant}`. Z `fullscreen: true` dolny pasek znika, a przycisk **Home Assistant** w menu Music Assistant wraca na stronę główną.
 
-Stronę Media ułożysz we własne grupy przez `media.sections` albo w formularzu **Bloki → Kategorie mediów** (zrzut niżej). Kafelki wpisuje się jak w pokoju, także `kind: tv` i
+Stronę Media ułożysz we własne grupy przez `media.sections` albo w formularzu **Odznaki podsumowania → Kategorie mediów** (zrzut niżej). Kafelki wpisuje się jak w pokoju, także `kind: tv` i
 `kind: panel`. Te, które stoją też w układzie pokoju, pokazują się w filtrze Media na stronie głównej, w swoim pokoju:
 
 ```yaml
@@ -559,18 +696,20 @@ media:
 
 ### Trzy kropki na stronie głównej
 
-Na dole menu trzech kropek jest pięć pozycji. Część zmienia dashboard tylko dla Ciebie, część dla domowników:
+Na dole menu trzech kropek są, po kolei: **Dostęp użytkowników**, **Tło tego ekranu**, **Mój układ** i **Odznaki
+podsumowania**; w pokoju zamiast dwóch ostatnich **Mój widok** i **Edytuj ten ekran**. **Wygląd** jest w menu bocznym.
+Część zmienia dashboard tylko dla Ciebie, część dla domowników:
 
 | Pozycja | Kto ją widzi | Co ustawia | Dla kogo i gdzie się zapisuje | Gdzie widać zmianę |
 |---|---|---|---|---|
 | **Mój układ** | każdy | kolejność i ukrycie kamer, obszarów, plakietek i scen, własne ulubione, ukryte wpisy menu, start dashboardu | dla Ciebie, na koncie HA, czyli na wszystkich Twoich urządzeniach; administrator w Obszarach i Ulubionych może zaznaczyć **Dla wszystkich** | strona główna, pokoje, menu, Ochrona (kamery) |
-| **Bloki** | administratorzy | lista skrótów (bloków): dodanie nowego, kolejność, edycja w formularzu, kategorie mediów | dla wszystkich, w konfiguracji dashboardu | skróty na stronie głównej, w menu i w pokojach; kategorie na stronie Muzyka |
+| **Odznaki podsumowania** | administratorzy | lista skrótów (bloków): dodanie nowego, kolejność, edycja w formularzu, kategorie mediów | dla wszystkich, w konfiguracji dashboardu | skróty na stronie głównej, w menu i w pokojach; kategorie na stronie Muzyka |
 | **Dostęp użytkowników** | administratorzy | co zabrać wybranej osobie albo wszystkim oprócz Ciebie: kamery, obszary, sekcje pokoi, plakietki, światła, media, ochronę, sceny i inne | dla tej osoby, w konfiguracji dashboardu (`access`); ona nie może tego przywrócić | wszędzie w tym dashboardzie, u tej osoby |
-| **Wygląd** | każdy, na każdej stronie | wyrazistość tła, odbicie przewijania, wygląd przycisków (krycie, zaokrąglenie, kolor na całym przycisku albo tylko na ikonie, kolory dla rodzajów przycisków) i własne ikony urządzeń; administrator także motywy | dla Ciebie, na koncie HA; administrator z **Dla wszystkich** ustawia wygląd wspólny (`appearance`) | cały dashboard |
+| **Wygląd** | każdy, w menu bocznym | wyrazistość tła, odbicie przewijania, wygląd przycisków (krycie, zaokrąglenie, kolor na całym przycisku albo tylko na ikonie, kolory dla rodzajów przycisków) i własne ikony urządzeń; administrator także motywy | dla Ciebie, na koncie HA; administrator z **Dla wszystkich** ustawia wygląd wspólny (`appearance`) | cały dashboard |
 | **Tło tego ekranu** | każdy | tło strony, na której jesteś, osobno dla jasnego i ciemnego wyglądu, oraz Twój wygląd: Systemowy, Jasny, Ciemny | dla Ciebie na koncie; z **Dla wszystkich** (administratorzy) jako tło domyślne w konfiguracji | tylko ta strona: główna albo pokój, w którym jesteś |
 
 Kolejność ważności: najpierw **Dostęp użytkowników** (czego nie ma, tego nie przywróci żaden układ), potem ustawienia
-**Dla wszystkich**, na końcu **Mój układ** i własne tło danej osoby. Szczegóły każdej pozycji są niżej, a **Bloki**
+**Dla wszystkich**, na końcu **Mój układ** i własne tło danej osoby. Szczegóły każdej pozycji są niżej, a **Odznaki podsumowania**
 w części [Edytor bloków](#edytor-bloków).
 
 | Tło | Mój układ | Dostęp użytkowników |
@@ -585,7 +724,9 @@ go po połączeniu z Home Assistant.
 Administrator w zakładkach **Obszary** i **Ulubione** zaznacza **Dla wszystkich** i ustawia wtedy wspólną kolejność
 obszarów, ich ukrycie oraz wspólne ulubione, od których zaczyna każdy. Zmiany zapisuje **Zapisz dla wszystkich**. Obszar
 ukryty dla wszystkich zostaje na tej liście, więc da się go przywrócić. To jedyne miejsce tych ustawień: okno
-**Ustawienia dashboardu** ma już tylko powrót po bezczynności, start na tym urządzeniu i edytor konfiguracji.
+**Ustawienia dashboardu** ma powrót po bezczynności, start na tym urządzeniu, mówienie w oknie kamery, powiązanie
+kamer z rejestratora z tymi samymi kamerami w innej integracji, edytor konfiguracji i na dole **Wczytaj aplikację od
+nowa**: pobiera świeże pliki dashboardu i otwiera stronę od nowa, gdy aplikacja, np. poza domem, pokazuje starą wersję.
 
 **Mój widok** (trzy kropki w pokoju, dla każdego): ukrywa dla Ciebie całą sekcję albo pojedynczy kafelek, także grupę
 **Sceny**. Ukryty kafelek znika z pokoju i z jego miejsca na stronie głównej. **Pokaż wszystko w tym pokoju** przywraca
@@ -627,7 +768,7 @@ backgrounds:
 
 ### Wygląd
 
-**Wygląd** (trzy kropki na każdej stronie, dla każdego) ma trzy zakładki, a przy **Dla wszystkich** czwartą: **Motywy**. Administrator ma zaznaczone **Dla
+**Wygląd** (menu boczne, nad **Ustawieniami dashboardu**, dla każdego) ma trzy zakładki, a przy **Dla wszystkich** czwartą: **Motywy**. Administrator ma zaznaczone **Dla
 wszystkich** i wtedy zmienia wygląd wspólny, który zapisuje **Zapisz dla wszystkich**. Bez tego znacznika, i u każdej
 innej osoby, zmiany są tylko Twoje. Zapisuje się wyłącznie to, czym różnisz się od wyglądu wspólnego, więc to, czego nie
 ruszasz, dalej podąża za zmianami administratora. **Wróć do wyglądu dla wszystkich** usuwa Twoje zmiany.
@@ -770,7 +911,7 @@ zapamiętuje także tła Twoich stron.
 
 Jak tego używać:
 
-1. **Wybierz bazę.** Trzy kropki → **Wygląd** → **Motywy** i **Użyj** przy **Home Dashboard** albo **Apple Home**.
+1. **Wybierz bazę.** Menu → **Wygląd** → **Motywy** i **Użyj** przy **Home Dashboard** albo **Apple Home**.
    Możesz też zacząć od obecnego wyglądu: wpisz nazwę, np. „Nasz dom”, i wybierz **Zachowaj obecny wygląd jako
    motyw**.
 2. **Dostosuj.** W zakładkach **Tło**, **Przyciski** i **Ikony** zmień, co chcesz, i zapisz **Zapisz dla wszystkich**;
@@ -804,7 +945,7 @@ Szczegółowy poradnik, od instalacji po przygotowanie teł i palety kolorów, j
 
 ![Apple Home na tablecie](screenshots/pl/apple-tablet.png)
 
-1. **Włącz motyw.** Trzy kropki → **Wygląd**, zaznacz **Dla wszystkich**, zakładka **Motywy** → **Użyj** przy
+1. **Włącz motyw.** Menu → **Wygląd**, zaznacz **Dla wszystkich**, zakładka **Motywy** → **Użyj** przy
    **Apple Home**. Przyciski, górne bloki, pasek i okna stają się szkłem, napisy białe, a strony bez własnego tła
    dostają niebieski gradient.
 2. **Dodaj tła.** Na stronie głównej i w każdym pokoju: trzy kropki → **Tło tego ekranu**, zdjęcie dla **Jasnego**

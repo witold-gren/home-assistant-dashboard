@@ -306,17 +306,20 @@ class ActivityWindow extends LitElement {
 export class HomeDashboardLogbook extends ActivityWindow {
   static properties = {
     ...ActivityWindow.properties,
+    // The entities of one device, for its window; otherwise everything the dashboard shows.
+    entityIds: { attribute: false },
     _entries: { state: true },
   };
 
   updated() {
     const hours = this._hours ?? LOGBOOK_HOURS[0];
-    if (!this.hass || !this.config || this._loaded === hours) return;
-    this._loaded = hours;
-    this._load(hours);
+    const key = `${hours}|${(this.entityIds ?? []).join(",")}`;
+    if (!this.hass || !this.config || this._loaded === key) return;
+    this._loaded = key;
+    this._load(hours, key);
   }
 
-  async _load(hours) {
+  async _load(hours, key) {
     this._entries = null;
     const now = Date.now();
     const entries = await this.hass
@@ -324,10 +327,10 @@ export class HomeDashboardLogbook extends ActivityWindow {
         type: "logbook/get_events",
         start_time: new Date(now - hours * HOUR_MS).toISOString(),
         end_time: new Date(now).toISOString(),
-        entity_ids: selectEntities(this.hass, this.config).entityIds,
+        entity_ids: this.entityIds ?? selectEntities(this.hass, this.config).entityIds,
       })
       .catch(() => []);
-    if (this._loaded === hours) this._entries = entries ?? [];
+    if (this._loaded === key) this._entries = Array.isArray(entries) ? entries : [];
   }
 
   _dayTitle(date) {

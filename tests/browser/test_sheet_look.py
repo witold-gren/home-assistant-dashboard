@@ -46,8 +46,8 @@ def test_a_window_of_a_device_is_see_through_and_blurred(phone):
 
 def test_the_look_sheet_shows_the_windows_before_saving(phone):
     mount_admin(phone, {})
-    phone.locator("home-dashboard-page [data-rooms]").click()
-    phone.locator(f"{SHEET} [data-sheet-look]").click()
+    phone.locator("home-dashboard-page [data-menu]").click()
+    phone.locator("[data-drawer] [data-look]").click()
     phone.locator(f"{SHEET} [data-tab='sheets']").click()
     phone.locator(f"{SHEET} [data-look='sheet-blur'] input").fill("24")
     phone.wait_for_function("""() => document.querySelector('home-dashboard-chrome').shadowRoot

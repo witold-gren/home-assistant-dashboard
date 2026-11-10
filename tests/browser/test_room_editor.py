@@ -17,7 +17,7 @@ MOUNT_ADMIN = """async ({ dashboard, room }) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard }, title: "x" };
             }
-            if (!["frontend/get_user_data", "config/auth/list"].includes(message.type)) window.saved.push(message);
+            if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
     });
