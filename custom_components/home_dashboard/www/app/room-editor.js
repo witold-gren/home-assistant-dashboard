@@ -82,6 +82,14 @@ export function renameTile(room, tab, at, name) {
   });
 }
 
+// A tile flat (one row, the default) or tall (two rows).
+export function resizeTile(room, tab, at, size) {
+  return changeLists(room, tab, (lists) => {
+    const { size: previous, ...item } = lists[at.list].tiles[at.index];
+    lists[at.list].tiles[at.index] = size === "tall" ? { ...item, size } : item;
+  });
+}
+
 export function replaceTile(room, tab, at, item) {
   return changeLists(room, tab, (lists) => {
     lists[at.list].tiles[at.index] = item;

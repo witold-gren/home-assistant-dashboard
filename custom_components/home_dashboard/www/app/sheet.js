@@ -25,7 +25,9 @@ import { createRecorder } from "./intercom.js";
 import {
   buildCameras,
   cameraMoves,
+  cameraQuickControls,
   controlEntityIds,
+  domainOf,
   loadTranslationKeys,
   presetCalls,
   cameraSettingsPanel,
@@ -65,6 +67,7 @@ import {
 import { tileCandidates } from "./room-editor.js";
 import { localDay, recordingSource } from "./recordings.js";
 import { createSoundMixer, hasSound } from "./sound.js";
+import { clipFor, PictureZoom } from "./zoom.js";
 import { startTalk, talkMode, TALK_LIMIT_MS } from "./talk.js";
 import {
   activeTheme,
@@ -112,11 +115,25 @@ const VOLUME_HOLD_MS = 1500;
 const SHEET_LEAVE_MS = 240;
 const SHEET_DRAG_START_PX = 8;
 // Whatever handles a finger itself keeps it: a slider, a dial or a card with its own gestures.
+// Places whose own gestures come first: a drag down there does not close the window. A zoomed camera picture is
+// one of them, as the finger moves the picture; unzoomed, a drag down on it closes the window as before.
 const OWN_GESTURES =
-  "[data-slider], .dial, .panel-card, .live, input, textarea, select, iframe, video, home-dashboard-timeline";
+  "[data-slider], .dial, .panel-card, .live, input, textarea, select, iframe, video, home-dashboard-timeline, .stage.zoomed";
 const LIVE_LIMIT_MS = 120000;
 // How often a waking live view is checked for a moving video.
 const LIVE_WATCH_MS = 200;
+// Turning a quick button's entity on or off: a siren by its own service, a script by running it, the rest generally.
+function onOff(entityId, on) {
+  const domain = domainOf(entityId);
+  if (domain === "siren") return { domain, service: on ? "turn_on" : "turn_off", data: { entity_id: entityId } };
+  if (domain === "script") return { domain, service: on ? "turn_on" : "turn_off", data: { entity_id: entityId } };
+  return { domain: "homeassistant", service: on ? "turn_on" : "turn_off", data: { entity_id: entityId } };
+}
+
+// A picture narrower than this is not one yet (still loading, or none): the buttons keep to the screen's edges.
+const MEDIA_MIN_PX = 100;
+// How often the pictures of the list of cameras are asked for again.
+const CAMERA_CARDS_REFRESH_MS = 30_000;
 // How often a camera's picture that did not load is asked for again.
 const PICTURE_RETRY_MS = 5000;
 // How long, and how often, a starting live view is made to take the sound before its stream connects.
@@ -198,6 +215,7 @@ const ENTITY_FREE_KINDS = new Set([
   "app",
   "background",
   "block-edit",
+  "cameras",
   "blocks",
   "departures",
   "group",
@@ -232,6 +250,10 @@ export class HomeDashboardSheet extends LitElement {
     _live: { state: true },
     _liveShown: { state: true },
     _heard: { state: true },
+    _zoomScale: { state: true },
+    _quickMenu: { state: true },
+    _tileSize: { state: true },
+    _sirenAsk: { state: true },
     _talkState: { state: true },
     _pictureFailed: { state: true },
     _pictureTry: { state: true },
@@ -280,6 +302,7 @@ export class HomeDashboardSheet extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     clearTimeout(this._pictureRetry);
+    clearTimeout(this._cardsTimer);
     this._stopTalk();
     this._stopLive();
     clearInterval(this._ticker);
@@ -287,6 +310,7 @@ export class HomeDashboardSheet extends LitElement {
     clearTimeout(this._soundHold);
     this._stopVolume();
     this.removeEventListener("touchstart", this._touchStart);
+    window.removeEventListener("resize", this._onResize);
     this.removeEventListener("touchmove", this._touchMove);
     this.removeEventListener("touchend", this._touchEnd);
     this.removeEventListener("touchcancel", this._touchEnd);
@@ -295,6 +319,7 @@ export class HomeDashboardSheet extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener("touchstart", this._touchStart, { passive: true });
+    window.addEventListener("resize", this._onResize);
     this.addEventListener("touchmove", this._touchMove, { passive: false });
     this.addEventListener("touchend", this._touchEnd);
     this.addEventListener("touchcancel", this._touchEnd);
@@ -307,6 +332,9 @@ export class HomeDashboardSheet extends LitElement {
       if (cameraId && this.hass.states[cameraId]?.state === "unavailable") this._stopLive();
     }
     if (changed.has("sheet")) {
+      this._quickMenu = null;
+      this._tileSize = undefined;
+      this._sirenAsk = false;
       clearTimeout(this._pictureRetry);
       this._pictureFailed = null;
       this._pictureTry = 0;
@@ -361,7 +389,39 @@ export class HomeDashboardSheet extends LitElement {
     if (this._liveCard) this._liveCard.hass = this.hass;
   }
 
+  // A phone turned: the picture lies elsewhere, measured again once the new layout is drawn.
+  _onResize = () => requestAnimationFrame(() => this._measureMedia());
+
+  // Where the picture's right edge lies from the screen's, for the ring to stand wholly on it on a phone on its side.
+  _measureMedia() {
+    const body = this.renderRoot.querySelector(".camera-body");
+    const stage = body?.querySelector(".stage");
+    const element = this.renderRoot.querySelector(".stage > .picture, .stage > .live-wrap, .stage > video.clip");
+    if (!stage || !element || this._zoomScale > 1) return;
+    const stageBox = stage.getBoundingClientRect();
+    const box = element.getBoundingClientRect();
+    const content = this._zoomContent(element, box);
+    let left = content ? box.left + content.left : box.left;
+    let right = content ? box.left + content.left + content.width : box.right;
+    // No picture yet (not loaded, the camera away): the buttons keep to the edges of the screen, not to an empty box.
+    if (right - left < MEDIA_MIN_PX) [left, right] = [stageBox.left, stageBox.right];
+    // On the window, so both columns, the ring and the button of the line of time keep to the picture.
+    const set = (name, value) => {
+      const px = `${Math.max(0, Math.round(value))}px`;
+      if (body.style.getPropertyValue(name) !== px) body.style.setProperty(name, px);
+    };
+    set("--media-left", left - stageBox.left);
+    set("--media-right", stageBox.right - right);
+  }
+
   updated(changed) {
+    if (this.sheet?.kind === "camera") requestAnimationFrame(() => this._measureMedia());
+    // Another camera, or the picture, the live view and a recording taking each other's place: back to the whole view.
+    const shown = this.sheet?.kind === "camera" ? `${this.sheet.entityId}|${this._live}|${this._clip?.url ?? ""}` : null;
+    if (shown !== this._zoomShown) {
+      this._zoomShown = shown;
+      if (this._zoomer && this._zoomScale > 1) this._zoomer.reset();
+    }
     // The Look sheet shows its own windows as they will be, before anything is saved.
     if (this.sheet?.kind === "look" && this._look) {
       this.setAttribute("style", sheetVariables(this._look));
@@ -523,7 +583,11 @@ export class HomeDashboardSheet extends LitElement {
     const editable = details ? this._editTarget() : null;
     return html`
       <header class=${dark ? "dark" : ""}>
-        <button aria-label=${this._t("close")} @click=${this._close}><ha-icon icon="mdi:close"></ha-icon></button>
+        ${this.sheet?.kind === "camera" && this.sheet.back
+          ? html`<button aria-label=${this._t("back")} data-back @click=${() => this._change(this.sheet.back)}>
+              <ha-icon icon="mdi:arrow-left"></ha-icon>
+            </button>`
+          : html`<button aria-label=${this._t("close")} @click=${this._close}><ha-icon icon="mdi:close"></ha-icon></button>`}
         <h2>${title}</h2>
         ${extra}
         ${editable
@@ -1312,7 +1376,79 @@ export class HomeDashboardSheet extends LitElement {
 
   // On a phone on its side a tap on the picture puts the days and the line of time away; the buttons lying on it keep
   // their taps. Upright the bars do not hide, so a tap there does nothing.
+  // Pinching zooms into the picture (zoom.js); the buttons lying over it keep their taps.
+  get _pictureZoom() {
+    this._zoomer ??= new PictureZoom(
+      () => this.renderRoot.querySelector(".stage > .picture, .stage > .live-wrap, .stage > video.clip"),
+      (view) => this._showZoom(view),
+      (element, box) => this._zoomContent(element, box),
+    );
+    return this._zoomer;
+  }
+
+  // Fingers go through touch events, which always list the fingers on the screen; a mouse or a pen through pointers.
+  _zoomTouch = (event) => {
+    const onControl = event.composedPath().some((node) => ["button", "select", "input"].includes(node.localName));
+    if (onControl && event.type === "touchstart" && event.touches.length === 1) return;
+    this._pictureZoom.touch(event);
+    // Two fingers, or one on a zoomed picture, move the picture and never the page.
+    if (event.type === "touchmove" && event.cancelable && (event.touches.length > 1 || this._zoomScale > 1)) event.preventDefault();
+  };
+
+  _zoomDown = (event) => {
+    if (event.pointerType === "touch") return;
+    if (event.composedPath().some((node) => ["button", "select", "input"].includes(node.localName))) return;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer the browser does not track (a made-up one): the gesture goes on without capture.
+    }
+    this._pictureZoom.down(event);
+  };
+
+  _zoomWheel = (event) => {
+    if (this._pictureZoom.wheel(event)) event.preventDefault();
+  };
+
+  _showZoom(view) {
+    const { scale, x, y } = view;
+    const picture = this.renderRoot.querySelector(".stage > .picture, .stage > .live-wrap, .stage > video.clip");
+    if (picture) {
+      picture.style.transform = scale > 1 ? `translate(${x}px, ${y}px) scale(${scale})` : "";
+      // Zoomed, the picture keeps to where it lay: on a phone on its side it does not spill over the whole screen.
+      picture.style.clipPath = clipFor(view, picture.offsetWidth, picture.offsetHeight, this._zoomer?.rect ?? undefined);
+    }
+    this._zoomScale = Math.round(scale * 10) / 10;
+  }
+
+  // Where the picture itself lies in the zoomed element, in its own pixels: a live view or a recording is shown
+  // smaller than its element (bands on the sides or at the top), the stored picture fills its own.
+  _zoomContent(element, box) {
+    const shown = element.classList.contains("live-wrap")
+      ? (this._videos().find((video) => video.videoWidth > 0) ?? element.querySelector(".poster"))
+      : element.localName === "video"
+        ? element
+        : element.querySelector("img");
+    if (!shown) return null;
+    const rect = shown.getBoundingClientRect();
+    let { left, top, width, height } = rect;
+    const naturalWidth = shown.videoWidth || shown.naturalWidth;
+    const naturalHeight = shown.videoHeight || shown.naturalHeight;
+    if (naturalWidth && naturalHeight && width && height) {
+      // Shown whole inside its box ("contain"): the bands around it are not the picture.
+      const fit = Math.min(width / naturalWidth, height / naturalHeight);
+      left += (width - naturalWidth * fit) / 2;
+      top += (height - naturalHeight * fit) / 2;
+      width = naturalWidth * fit;
+      height = naturalHeight * fit;
+    }
+    if (!width || !height) return null;
+    return { left: left - box.left, top: top - box.top, width, height };
+  }
+
   _tapPicture(event) {
+    // A pinch, a move of a zoomed picture or a double tap is not also a tap on the picture.
+    if (this._zoomer?.takeGesture()) return;
     if (!window.matchMedia(LANDSCAPE_PHONE).matches || (!this._daysOpen && !this._lineOpen)) return;
     if (event.composedPath().some((node) => node.localName === "button" || node.localName === "select")) return;
     this._daysOpen = false;
@@ -1398,6 +1534,50 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  // All cameras of the page one under another, big, as the heading Cameras opens them. A tap opens the camera, whose
+  // window goes back here.
+  _renderCameraCards() {
+    const all = buildCameras(this.hass, this.config);
+    const cameras = (this.sheet.cameras ?? all.map((camera) => camera.entityId))
+      .map((id) => all.find((camera) => camera.entityId === id))
+      .filter(Boolean);
+    // The pictures are asked for again every half minute while the list is open, as on the page.
+    const tick = Math.floor(Date.now() / CAMERA_CARDS_REFRESH_MS);
+    clearTimeout(this._cardsTimer);
+    this._cardsTimer = setTimeout(() => this.sheet?.kind === "cameras" && this.requestUpdate(), CAMERA_CARDS_REFRESH_MS);
+    const url = (camera) => {
+      const full = this.hass.hassUrl(camera.picture);
+      return camera.updatedAt ? full : `${full}${full.includes("?") ? "&" : "?"}tick=${tick}`;
+    };
+    return html`
+      ${this._renderHeader(this._t("section_cameras"), true, false)}
+      <div class="camera-cards" data-camera-cards>
+        ${cameras.map((camera) => {
+          const off = camera.unavailable || camera.guest;
+          return html`
+            <button
+              class="camera-card ${off ? "off" : ""}"
+              data-camera-card=${camera.entityId}
+              aria-label=${camera.name}
+              ?disabled=${camera.guest}
+              @click=${() => this._change({ kind: "camera", entityId: camera.entityId, back: this.sheet })}
+            >
+              ${camera.picture ? html`<img src=${url(camera)} alt="" loading="lazy" />` : nothing}
+              <span class="camera-card-text">
+                <strong>${camera.name}</strong>
+                <small>
+                  ${off
+                    ? this._t(camera.guest ? "camera_guest" : "camera_unavailable")
+                    : pictureAge(this.hass.language, camera.updatedAt, Date.now())}
+                </small>
+              </span>
+            </button>
+          `;
+        })}
+      </div>
+    `;
+  }
+
   _renderCamera() {
     const all = buildCameras(this.hass, this.config);
     const cameras = all.filter((camera) => !camera.unavailable);
@@ -1420,6 +1600,9 @@ export class HomeDashboardSheet extends LitElement {
     const day = this._recordingDay ?? (recordings ? null : localDay(new Date()));
     // Turning is hidden behind a button, so a camera that turns has the same window as one that does not.
     const controls = cameraMoves(this.hass, this.sheet.entityId, this.config);
+    const quick = cameraQuickControls(this.hass, this.sheet.entityId, this.config);
+    // The positions belong to turning: they show while the camera is turned live.
+    const positions = controls.presets && this._ptzOpen && this._live ? controls.presets : null;
     const turns = Boolean(Object.keys(controls.moves).length || controls.presets);
     // The gear opens what the camera reports and what can be set on it, not the window of Home Assistant.
     const settings = () =>
@@ -1484,7 +1667,26 @@ export class HomeDashboardSheet extends LitElement {
                 this._playhead = null;
               }}
             ></home-dashboard-recording-days>
-        <div class="stage" @click=${this._tapPicture}>
+        <div
+          class="stage ${this._zoomScale > 1 ? "zoomed" : ""}"
+          @click=${this._tapPicture}
+          @pointerdown=${this._zoomDown}
+          @pointermove=${(event) => event.pointerType !== "touch" && this._pictureZoom.move(event)}
+          @pointerup=${(event) => event.pointerType !== "touch" && this._pictureZoom.up(event)}
+          @pointercancel=${(event) => event.pointerType !== "touch" && this._pictureZoom.cancel(event)}
+          @lostpointercapture=${(event) => event.pointerType !== "touch" && this._pictureZoom.cancel(event)}
+          @touchstart=${this._zoomTouch}
+          @touchmove=${this._zoomTouch}
+          @touchend=${this._zoomTouch}
+          @touchcancel=${this._zoomTouch}
+          @gesturestart=${(event) => event.preventDefault()}
+          @wheel=${this._zoomWheel}
+        >
+          ${this._zoomScale > 1
+            ? html`<button class="zoom-badge" aria-label=${this._t("zoom_reset")} data-zoom-reset @click=${() => this._pictureZoom.reset()}>
+                ${new Intl.NumberFormat(this.hass.language, { maximumFractionDigits: 1 }).format(this._zoomScale)}×
+              </button>`
+            : nothing}
           ${this._live
             ? html`<span class="live-pill ${recording ? "recording" : ""} ${this._liveShown ? "" : "waiting"}" data-live-pill>
                 ${recording ? html`<i class="rec" data-rec></i>REC · ` : nothing}${this._t("live")}
@@ -1515,7 +1717,10 @@ export class HomeDashboardSheet extends LitElement {
                     ? html`<img
                         src=${picture}
                         alt=""
-                        @load=${() => this._pictureLoaded(shown.entityId)}
+                        @load=${() => {
+                          this._pictureLoaded(shown.entityId);
+                          this._measureMedia();
+                        }}
                         @error=${() => this._pictureBroke(shown.entityId)}
                       />`
                     : html`<div class="no-picture"></div>`}
@@ -1544,7 +1749,7 @@ export class HomeDashboardSheet extends LitElement {
           ? html`<p class="hint battery-hint ${this._clip ? "faint" : ""}" data-battery-hint>${this._t("battery_hint")}</p>`
           : nothing}
         ${!this._live && !cameraId ? html`<p class="hint">${this._t("no_live")}</p>` : nothing}
-        ${this._renderCameraThumbs(cameras)}
+        ${this._renderCameraThumbs(cameras)} ${this._renderQuick(quick, positions)} ${this._renderSirenAsk(quick, shown.name)}
         <home-dashboard-timeline
               @pointerdown=${(event) => this._lineOpen && this._swipeAway(event, () => (this._lineOpen = false), 1)}
               .hass=${this.hass}
@@ -1578,7 +1783,7 @@ export class HomeDashboardSheet extends LitElement {
   }
 
   // A camera that can turn: a ring of arrows over the picture, and its saved positions in a list under it.
-  _renderCameraMoves({ moves, presets }) {
+  _renderCameraMoves({ moves }) {
     const run = (call) => this.hass.callService(call.domain, call.service, call.data);
     const arrow = (direction, icon) => html`
       <button
@@ -1591,10 +1796,6 @@ export class HomeDashboardSheet extends LitElement {
         <ha-icon icon=${icon}></ha-icon>
       </button>
     `;
-    const goTo = async (option) => {
-      for (const call of presetCalls(presets, option)) await run(call);
-    };
-    const known = presets?.options.includes(presets.current);
     return html`
       ${Object.keys(moves).length
         ? html`<div class="ptz-overlay" data-ptz-overlay>
@@ -1604,19 +1805,125 @@ export class HomeDashboardSheet extends LitElement {
             </div>
           </div>`
         : nothing}
-      ${presets
-        ? html`<select
-            class="presets"
-            aria-label=${this._t("ptz_preset")}
-            data-presets
-            @change=${(event) => goTo(event.target.value)}
-          >
-            ${known ? nothing : html`<option value="" selected disabled>${this._t("ptz_preset")}</option>`}
-            ${presets.options.map(
-              (option) => html`<option value=${option} ?selected=${option === presets.current}>${option}</option>`,
+    `;
+  }
+
+  // Quick buttons of a camera: siren, light, night vision and, while turning, its positions. Upright they stand in a
+  // row over the line of time from the right; on a phone on its side in a column in the bottom left corner, from the
+  // bottom. A list (night vision, positions) opens next to its button.
+  _renderQuick(quick, presets) {
+    const run = (call) => this.hass.callService(call.domain, call.service, call.data);
+    const state = (id) => this.hass.states[id]?.state;
+    const sirenOn = quick.siren && state(quick.siren) === "on";
+    const lightOn = quick.light && state(quick.light) === "on";
+    const night = quick.night;
+    const menu = this._quickMenu;
+    const button = (key, icon, label, { on = false, alarm = false, click }) => html`
+      <button
+        class="quick-button ${on ? "on" : ""} ${alarm ? "alarm" : ""}"
+        aria-label=${label}
+        aria-pressed=${on || alarm ? "true" : "false"}
+        data-quick=${key}
+        @click=${click}
+      >
+        <ha-icon .icon=${icon}></ha-icon>
+      </button>
+    `;
+    const list = (key, options, current, label, pick) =>
+      menu === key
+        ? html`<div class="quick-menu" data-quick-menu=${key} role="listbox" aria-label=${label}>
+            ${options.map(
+              (option) => html`<button
+                class=${option === current ? "chosen" : ""}
+                data-quick-option=${option}
+                @click=${() => {
+                  this._quickMenu = null;
+                  pick(option);
+                }}
+              >
+                ${key === "night" ? this._nightLabel(option) : option}
+              </button>`,
             )}
-          </select>`
-        : nothing}
+          </div>`
+        : nothing;
+    const toggleMenu = (key) => () => (this._quickMenu = menu === key ? null : key);
+    if (!quick.siren && !quick.light && !night && !presets) return nothing;
+    return html`
+      <div class="quick" data-quick-bar>
+        ${quick.siren
+          ? button("siren", "mdi:alarm-light-outline", this._t(sirenOn ? "quick_siren_off" : "quick_siren"), {
+              alarm: sirenOn,
+              click: () => (sirenOn ? run(onOff(quick.siren, false)) : (this._sirenAsk = true)),
+            })
+          : nothing}
+        ${quick.light
+          ? button("light", lightOn ? "mdi:lightbulb-on" : "mdi:lightbulb-outline", this._t("quick_light"), {
+              on: lightOn,
+              click: () => run(onOff(quick.light, !lightOn)),
+            })
+          : nothing}
+        ${night
+          ? html`<span class="quick-slot">
+              ${button("night", this._nightIcon(night.current), this._t("quick_night"), { on: menu === "night", click: toggleMenu("night") })}
+              ${list("night", night.options, night.current, this._t("quick_night"), (option) =>
+                run({ domain: domainOf(night.entity), service: "select_option", data: { entity_id: night.entity, option } }),
+              )}
+            </span>`
+          : nothing}
+        ${presets
+          ? html`<span class="quick-slot">
+              ${button("positions", "mdi:map-marker-radius-outline", this._t("ptz_preset"), {
+                on: menu === "positions",
+                click: toggleMenu("positions"),
+              })}
+              ${list("positions", presets.options, presets.current, this._t("ptz_preset"), async (option) => {
+                for (const call of presetCalls(presets, option)) await run(call);
+              })}
+            </span>`
+          : nothing}
+      </div>
+    `;
+  }
+
+  _nightLabel(option) {
+    const key = { off: "night_off", infrared: "night_infrared", "full color": "night_colour" }[String(option).toLowerCase()];
+    return key ? this._t(key) : option;
+  }
+
+  _nightIcon(option) {
+    return (
+      { off: "mdi:weather-sunny", infrared: "mdi:weather-night", "full color": "mdi:lightbulb-on-outline" }[
+        String(option).toLowerCase()
+      ] ?? "mdi:theme-light-dark"
+    );
+  }
+
+  // The siren asks first: it is loud, and a tap is easily made by mistake.
+  _renderSirenAsk(quick, name) {
+    if (!this._sirenAsk || !quick.siren) return nothing;
+    const close = () => (this._sirenAsk = false);
+    return html`
+      <div class="siren-ask" data-siren-ask role="alertdialog" aria-label=${this._t("siren_ask_title")}>
+        <div class="siren-card">
+          <ha-icon icon="mdi:alarm-light"></ha-icon>
+          <strong>${this._t("siren_ask_title")}</strong>
+          <p>${translate(this.hass.language, "siren_ask_text", { name })}</p>
+          <div class="siren-actions">
+            <button data-siren-cancel @click=${close}>${this._t("cancel")}</button>
+            <button
+              class="danger"
+              data-siren-confirm
+              @click=${() => {
+                close();
+                const call = onOff(quick.siren, true);
+                this.hass.callService(call.domain, call.service, call.data);
+              }}
+            >
+              ${this._t("siren_ask_confirm")}
+            </button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -2270,7 +2577,9 @@ export class HomeDashboardSheet extends LitElement {
         </div>
         <label class="field">
           <span>${this._t("background_colour")}</span>
-          <input type="color" data-colour @change=${(event) => this._pickBackground(event.target.value)} />
+          <span class="swatch-pick rainbow">
+            <input type="color" data-colour @change=${(event) => this._pickBackground(event.target.value)} />
+          </span>
         </label>
         <label class="field">
           <span>${this._t("background_picture")}</span>
@@ -2453,17 +2762,36 @@ export class HomeDashboardSheet extends LitElement {
     return html`
       <div class="field look-colour" data-look-field="${group}.${key}">
         <span>${this._t(`look_${group}_${key}`)}</span>
-        ${value
-          ? html`<button aria-label=${this._t("look_colour_clear")} data-look-field-clear @click=${() => this._setLookGroup(group, { [key]: null })}>
-              <ha-icon icon="mdi:close"></ha-icon>
-            </button>`
-          : html`<small>${this._t("look_colour_default")}</small>`}
-        <input
-          type="color"
-          .value=${value?.slice(0, 7) ?? "#808080"}
-          @change=${(event) => this._setLookGroup(group, { [key]: event.target.value + (value?.slice(7) ?? "") })}
-        />
+        ${this._renderSwatch(value, {
+          pick: (colour) => this._setLookGroup(group, { [key]: colour + (value?.slice(7) ?? "") }),
+          clear: () => this._setLookGroup(group, { [key]: null }),
+          clearData: "data-look-field-clear",
+        })}
       </div>
+    `;
+  }
+
+  // A chosen colour as a round sample on a checkerboard (a see-through colour shows as such) with its code next to
+  // it; no colour as an empty dashed ring, "Default". A tap on the sample opens the colour picker of the system.
+  _renderSwatch(value, { pick, clear = null, clearData = "data-swatch-clear" }) {
+    const hex = value?.slice(0, 7).toUpperCase();
+    const alpha = value?.length === 9 ? Math.round((parseInt(value.slice(7), 16) / 255) * 100) : null;
+    return html`
+      <small class="swatch-text">${value ? `${hex}${alpha === null ? "" : ` · ${alpha}%`}` : this._t("look_colour_default")}</small>
+      ${value && clear
+        ? html`<button
+            class="swatch-clear"
+            aria-label=${this._t("look_colour_clear")}
+            ?data-look-field-clear=${clearData === "data-look-field-clear"}
+            ?data-look-colour-clear=${clearData === "data-look-colour-clear"}
+            @click=${clear}
+          >
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>`
+        : nothing}
+      <label class="swatch-pick ${value ? "" : "unset"}" style=${value ? `--swatch: ${value}` : ""}>
+        <input type="color" .value=${value?.slice(0, 7) ?? "#808080"} @change=${(event) => pick(event.target.value)} />
+      </label>
     `;
   }
 
@@ -2622,12 +2950,11 @@ export class HomeDashboardSheet extends LitElement {
         return html`
           <div class="field look-colour" data-look-colour=${kind}>
             <span>${this._t(`look_kind_${kind}`)}</span>
-            ${colour
-              ? html`<button aria-label=${this._t("look_colour_clear")} data-look-colour-clear @click=${() => this._setKindColour(kind, null)}>
-                  <ha-icon icon="mdi:close"></ha-icon>
-                </button>`
-              : html`<small>${this._t("look_colour_default")}</small>`}
-            <input type="color" .value=${colour ?? "#808080"} @change=${(event) => this._setKindColour(kind, event.target.value)} />
+            ${this._renderSwatch(colour, {
+              pick: (value) => this._setKindColour(kind, value),
+              clear: () => this._setKindColour(kind, null),
+              clearData: "data-look-colour-clear",
+            })}
           </div>
         `;
       })}
@@ -3243,9 +3570,12 @@ export class HomeDashboardSheet extends LitElement {
   }
 
   _renderTileEdit() {
-    const { item, onRename, onRemove, onRule } = this.sheet;
+    const { item, onRename, onRemove, onRule, onResize } = this.sheet;
+    const size = this._tileSize ?? item.size ?? "flat";
     const save = () => {
       onRename(this.renderRoot.querySelector("[data-tile-name]").value);
+      if (onResize && size !== (item.size ?? "flat")) onResize(size);
+      this._tileSize = undefined;
       onRule?.(this._ruleResult);
       this._close();
     };
@@ -3258,6 +3588,21 @@ export class HomeDashboardSheet extends LitElement {
       <div class="rows">
         <input class="search" data-tile-name placeholder=${this._t("edit_tile_name")} .value=${item.name ?? ""} />
         <p class="hint">${item.entity ?? ""}</p>
+        ${onResize && item.kind !== "panel"
+          ? html`<h3 class="look-group">${this._t("tile_size")}</h3>
+              <div class="choices" data-tile-size>
+                ${["flat", "tall"].map(
+                  (key) => html`<button
+                    class="choice ${size === key ? "on" : ""}"
+                    data-choice=${key}
+                    @click=${() => (this._tileSize = key)}
+                  >
+                    <ha-icon icon=${key === "tall" ? "mdi:rectangle-outline" : "mdi:minus-box-outline"}></ha-icon>
+                    <span>${this._t(`tile_size_${key}`)}</span>
+                  </button>`,
+                )}
+              </div>`
+          : nothing}
         ${onRule ? this._renderRule() : nothing}
         <button class="row off" data-tile-save @click=${save}>
           <span class="row-icon"><ha-icon icon="mdi:check"></ha-icon></span>
@@ -4008,6 +4353,7 @@ export class HomeDashboardSheet extends LitElement {
       logbook: this._renderLogbook,
       notifications: this._renderNotifications,
       blocks: this._renderBlocks,
+      cameras: this._renderCameraCards,
       "block-edit": this._renderBlockEdit,
       overview: this._renderOverview,
       host: this._renderHost,
@@ -4283,12 +4629,53 @@ export class HomeDashboardSheet extends LitElement {
         color: inherit;
         background: transparent;
       }
-      .look-colour input[type="color"] {
-        width: 44px;
+      /* A colour: its code, a small cross back to the default, and a round sample that opens the picker. */
+      .look-colour .swatch-text {
+        margin-left: auto;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        color: var(--hd-text-muted);
+      }
+      .look-colour .swatch-clear {
+        display: grid;
+        place-items: center;
+        width: 32px;
         height: 32px;
-        padding: 0;
-        border: 0;
-        background: transparent;
+        --mdc-icon-size: 18px;
+        color: var(--hd-text-muted);
+      }
+      .swatch-pick {
+        position: relative;
+        flex: none;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        cursor: pointer;
+        /* The colour over a checkerboard, so a see-through one shows how see-through it is. */
+        background:
+          linear-gradient(var(--swatch, transparent), var(--swatch, transparent)),
+          repeating-conic-gradient(#c8c8c8 0% 25%, #ffffff 0% 50%) 50% / 10px 10px;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.25),
+          0 0 0 3px rgba(255, 255, 255, 0.35);
+      }
+      /* A colour still to be chosen: every colour around the circle. */
+      .swatch-pick.rainbow {
+        background: conic-gradient(#ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30);
+      }
+      .swatch-pick.unset {
+        background: none;
+        box-shadow: none;
+        border: 2px dashed var(--hd-text-muted);
+        box-sizing: border-box;
+      }
+      .swatch-pick input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
       }
       /* A copy of the tiles of the page, only what the look changes. */
       .theme-background > span:nth-child(2) {
@@ -5245,26 +5632,128 @@ export class HomeDashboardSheet extends LitElement {
       .ptz ha-icon {
         transform: rotate(-45deg);
       }
-      /* The positions of a camera wait in the bottom left corner, away from the ring and the intercom. */
-      .stage .presets {
-        position: absolute;
-        bottom: 8px;
-        left: 8px;
-        z-index: 1;
+      /* Quick buttons upright: a row over the line of time, from the right, round like those on the picture. */
+      .quick {
+        display: flex;
+        flex: none;
+        flex-direction: row-reverse;
+        gap: 10px;
+        align-self: stretch;
+        margin: 0 16px;
       }
-      .presets {
-        max-width: 132px;
-        padding: 7px 12px;
-        border: none;
-        border-radius: 16px;
-        font: inherit;
-        font-size: 14px;
+      .quick-slot {
+        position: relative;
+        display: flex;
+      }
+      .quick-button {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
         color: #ffffff;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(255, 255, 255, 0.12);
         -webkit-backdrop-filter: blur(12px);
         backdrop-filter: blur(12px);
-        appearance: none;
+        cursor: pointer;
+      }
+      .quick-button.on {
+        color: #17181a;
+        background: #ffd60a;
+      }
+      .quick-button.alarm {
+        color: #ffffff;
+        background: #d70015;
+        animation: pulse 1400ms ease-in-out infinite;
+      }
+      /* A list next to its button: above it upright, beside it on a phone on its side. */
+      .quick-menu {
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 8px);
+        z-index: 6;
+        display: grid;
+        align-content: start;
+        min-width: 150px;
+        /* A long list (many positions) scrolls instead of leaving the screen. */
+        max-height: 55dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 6px;
+        border-radius: 16px;
+        background: rgba(30, 31, 34, 0.94);
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .quick-menu button {
+        padding: 10px 12px;
+        border: 0;
+        border-radius: 10px;
+        font: inherit;
+        font-size: 15px;
+        text-align: left;
+        color: #ffffff;
+        background: none;
+        cursor: pointer;
+      }
+      .quick-menu button.chosen {
+        background: rgba(255, 255, 255, 0.14);
+      }
+      /* The siren asks first, in the middle of the window. */
+      .siren-ask {
+        position: fixed;
+        inset: 0;
+        z-index: 9;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.45);
+      }
+      .siren-card {
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+        width: min(100%, 340px);
+        padding: 20px;
+        border-radius: 24px;
         text-align: center;
+        color: #ffffff;
+        background: #2c2c2e;
+        --mdc-icon-size: 36px;
+      }
+      .siren-card ha-icon {
+        color: #ff453a;
+      }
+      .siren-card strong {
+        font-size: 18px;
+      }
+      .siren-card p {
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .siren-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+      }
+      .siren-actions button {
+        padding: 12px;
+        border: 0;
+        border-radius: 14px;
+        font: inherit;
+        font-weight: 600;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+        cursor: pointer;
+      }
+      .siren-actions .danger {
+        background: #d70015;
       }
       header .ptz-toggle {
         border-radius: 50%;
@@ -5476,6 +5965,88 @@ export class HomeDashboardSheet extends LitElement {
         .waking {
           animation-duration: 2400ms;
         }
+      }
+      /* Zooming: the picture is scaled from its top left corner within the stage, which cuts off what goes past it.
+         A finger moves the page as before until the picture is zoomed, then it moves the picture. */
+      .stage {
+        overflow: hidden;
+        touch-action: pan-y;
+      }
+      .stage.zoomed {
+        touch-action: none;
+      }
+      .stage > .picture,
+      .stage > .live-wrap,
+      .stage > video.clip {
+        transform-origin: 0 0;
+      }
+      .zoom-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 3;
+        padding: 3px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.55);
+      }
+      /* The list of cameras: big pictures one under another, two side by side on a tablet. */
+      /* The window scrolls as a whole, its heading with it, as a room does: no box of its own that cuts the cards. */
+      .camera-cards {
+        display: grid;
+        flex: none;
+        grid-template-columns: 1fr;
+        grid-auto-rows: max-content;
+        gap: 12px;
+        padding: 0 16px 8px;
+      }
+      @media (min-width: 900px) {
+        .camera-cards {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .camera-card {
+        position: relative;
+        display: block;
+        flex: none;
+        width: 100%;
+        overflow: hidden;
+        aspect-ratio: 16 / 9;
+        padding: 0;
+        border: 0;
+        border-radius: 24px;
+        color: #ffffff;
+        background: #2c2c2e;
+        cursor: pointer;
+      }
+      .camera-card img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .camera-card.off img {
+        transform: scale(1.1);
+        filter: blur(12px) brightness(0.5);
+      }
+      .camera-card-text {
+        position: absolute;
+        inset: auto 0 0 0;
+        display: grid;
+        gap: 2px;
+        padding: 32px 16px 14px;
+        text-align: left;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+      }
+      .camera-card-text strong {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .camera-card-text small {
+        font-size: 14px;
+        opacity: 0.85;
       }
       /* A camera that went away: its last picture, dimmed, with the reason in the middle. */
       .camera-down {
@@ -5726,7 +6297,8 @@ export class HomeDashboardSheet extends LitElement {
           max-height: 100dvh;
           --video-max-height: 100dvh;
         }
-        .camera-body .age {
+        .camera-body .age,
+        .camera-body .zoom-badge {
           top: 64px;
           bottom: auto;
         }
@@ -5790,26 +6362,58 @@ export class HomeDashboardSheet extends LitElement {
           -webkit-backdrop-filter: blur(12px);
           backdrop-filter: blur(12px);
         }
-        /* One column on the right: the ring, the intercom under it and the button of the line of time, all on
-           the axis of the ring. The positions take the bottom left corner, and step aside for the line of time. */
+        /* The right column mirrors the left one: from the bottom the button of the line of time and the talk button,
+           48 px with 12 px between. Both columns and the ring stand wholly on the picture, 12 px in from its edges:
+           --media-left and --media-right are how far the picture's edges lie from the screen's (bands beside it). */
         .camera-body .stage .voice {
-          right: calc(max(16px, env(safe-area-inset-right)) + 44px);
+          right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
           bottom: 76px;
+          width: 48px;
+          height: 48px;
         }
         .line-button {
-          right: calc(max(16px, env(safe-area-inset-right)) + 42px);
+          right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
         }
         .camera-body .ptz-overlay {
           top: auto;
-          right: max(16px, env(safe-area-inset-right));
-          bottom: 132px;
+          right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
+          bottom: 136px;
           transform: none;
         }
-        .camera-body .stage .presets {
+        /* On its side the quick buttons stand in a column in the bottom left corner, from the bottom, like the
+           column on the right; they step aside for the line of time. */
+        .camera-body .quick {
+          position: absolute;
           bottom: 16px;
-          left: max(16px, env(safe-area-inset-left));
+          left: max(16px, env(safe-area-inset-left), calc(var(--media-left, 0px) + 12px));
+          z-index: 4;
+          flex-direction: column-reverse;
+          gap: 12px;
+          margin: 0;
         }
-        .camera-body.line-open .stage .presets {
+        .camera-body .quick-button {
+          width: 48px;
+          height: 48px;
+          background: rgba(0, 0, 0, 0.5);
+        }
+        .camera-body .quick-button.on {
+          background: #ffd60a;
+        }
+        .camera-body .quick-button.alarm {
+          background: #d70015;
+        }
+        /* On its side a list stands on the bottom of the column, whichever button opened it, and reaches at most
+           up to under the header; a longer one scrolls. */
+        .camera-body .quick-slot {
+          position: static;
+        }
+        .camera-body .quick-menu {
+          right: auto;
+          bottom: 0;
+          left: calc(100% + 10px);
+          max-height: calc(100dvh - 120px);
+        }
+        .camera-body.line-open .quick {
           visibility: hidden;
         }
         .camera-body home-dashboard-recording-days {

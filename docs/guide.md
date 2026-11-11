@@ -171,6 +171,60 @@ device in Home Assistant has a battery level sensor (`device_class: battery`). T
 In the strip a single picture alternates with two smaller ones. A camera that stops working stays visible
 in a small picture, blurred and marked as unavailable. The Security chip lists all cameras one under another.
 
+### Siren, light, night vision and positions
+
+When the camera's device has them, its window gets round buttons. Upright they stand in a row over the line of time,
+from the right; on a phone on its side in a column in the bottom left corner, from the bottom (the siren lowest, the
+light, night vision and positions over it).
+
+- **Siren**: asks "Sound the siren?" first, glows red while it sounds, and a tap stops it.
+- **Light**: on and off, glowing yellow while on.
+- **Night vision**: a list of modes, e.g. Off (day), Infrared, Full colour (light).
+- **Positions** (while turning live): the camera's saved positions.
+
+**How they are found.** The dashboard looks among the entities of the camera's device, and for a recorder camera
+linked to the same camera in another integration among that camera's. It goes by what does not depend on the language
+or the name in Home Assistant:
+
+| Button | Entity it finds by itself | What a tap does |
+|---|---|---|
+| Siren | the first entity of the `siren` domain | after asking `siren.turn_on`, then `siren.turn_off` |
+| Light | a `light` entity, else a `switch` whose id ends in `_light`, `_spotlight`, `_floodlight` or `_lamp` | on and off |
+| Night vision | a `select` with `night_vision` in its id, else a list that offers infrared (`Infrared`) | opens the options of that entity |
+| Positions | the list of positions and its button from the camera's **turning** | goes to the chosen position |
+
+Hidden and unavailable entities are left out. A setting switch such as `…_spotlight_enabled` is not taken for a light.
+
+**Other cameras and own entities.** In **Dashboard settings → Turning and talking of each camera** open a camera: the
+fields **Siren button**, **Light button** and **Night vision button** offer **Automatic** (with what was found beside
+it), **None** or any entity. That is how the buttons go on a camera of any integration, also to devices that are not
+part of the camera, such as a lamp in the garden or the siren of an alarm:
+
+| Button | Entities to choose from |
+|---|---|
+| Siren | `siren`, `switch`, `input_boolean`, `script` |
+| Light | `light`, `switch`, `input_boolean` |
+| Night vision | `select`, `input_select` |
+
+The same in the configuration (`cameras.quick`, keyed by the camera of the dashboard):
+
+```yaml
+cameras:
+  quick:
+    camera.garden:
+      siren: switch.garden_alarm
+      light: light.garden_floodlight
+      night: none                 # no night vision button
+```
+
+The buttons work at any time, without the live view too; only the positions need it, as the arrows of turning do.
+
+### All cameras
+
+A tap on the heading **Cameras ›** on Home or in a room opens all cameras one under another, big, with their name and
+the age of the picture (two side by side on a tablet). Their order and hiding are those of the page. A tap on a camera
+opens its window, and the arrow at the top left goes back to the list.
+
 ### Live view
 
 Tapping a picture opens it without a stream. **LIVE** at the bottom starts one, from a camera on the same device or
@@ -185,6 +239,12 @@ video moves. DISCONNECT ends the live view without closing the window, so the re
 once. Moving the line of time lets the camera go at once too. A camera unavailable in Home Assistant stays in the
 window with its last picture, dimmed, saying **The camera is unavailable**, without LIVE; the words go by themselves
 once the camera is back. A picture that did not load is asked for again every 5 seconds.
+
+**Zooming:** spread two fingers on the picture to zoom in (up to 4×) and pinch to zoom out. One finger moves a zoomed
+picture, and a double tap zooms 2.5× in at that point or back to the whole picture. On a computer ctrl with the wheel
+or a trackpad pinch does it. A badge at the top right shows the zoom, and a tap on it goes back to 1×. It is a digital
+zoom: the picture, the live view and a recording are enlarged as they came, and the camera does not move. Another
+camera, or going between the picture, the live view and a recording, brings the whole picture back.
 
 The button next to it speaks to the camera's area. It appears when the [intercom](#11-intercom) is set up and
 that area is one of its areas. **Dashboard settings → Talking in a camera window → The camera's speaker** turns it into

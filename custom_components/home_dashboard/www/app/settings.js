@@ -6,6 +6,7 @@ import { translate } from "./i18n.js";
 import {
   buildCameras,
   cameraLinks,
+  cameraQuickControls,
   cameraMoves,
   controlEntityIds,
   domainOf,
@@ -13,6 +14,7 @@ import {
   loadTranslationKeys,
   normalizeConfig,
   PTZ_MODES,
+  QUICK_DOMAINS,
 } from "./model.js";
 import { reloadApp } from "./reload.js";
 import { tokens } from "./styles.js";
@@ -379,6 +381,7 @@ export class HomeDashboardSettings extends LitElement {
                     />
                   </label>`
                 : nothing}
+              ${this._renderQuickChoices(entityId, config)}
               <label class="field-row">
                 <span>${this._t("talk_with")}</span>
                 <select data-talk-with @change=${(event) => this._setCamera("talk_with", entityId, event.target.value)}>
@@ -391,6 +394,41 @@ export class HomeDashboardSettings extends LitElement {
           : nothing}
       </div>
     `;
+  }
+
+  // The quick buttons on the picture (siren, light, night vision): found on the camera's device, or chosen by hand
+  // from any entity, or none. Kept in `cameras.quick`.
+  _setQuick(entityId, key, value) {
+    const current = this._draft.cameras?.quick?.[entityId] ?? {};
+    const next = { ...current, [key]: value };
+    if (!value) delete next[key];
+    this._setCamera("quick", entityId, Object.keys(next).length ? next : null);
+  }
+
+  _renderQuickChoices(entityId, config) {
+    const chosen = config.cameras.quick?.[entityId] ?? {};
+    const automatic = cameraQuickControls(this.hass, entityId, { ...config, cameras: { ...config.cameras, quick: {} } });
+    const device = new Set(controlEntityIds(this.hass, entityId, config));
+    const name = (id) => this.hass.states[id]?.attributes?.friendly_name ?? id;
+    return ["siren", "light", "night"].map((key) => {
+      const found = key === "night" ? automatic.night?.entity : automatic[key];
+      const ids = Object.keys(this.hass.states)
+        .filter((id) => QUICK_DOMAINS[key].includes(domainOf(id)))
+        .sort((a, b) => Number(device.has(b)) - Number(device.has(a)) || name(a).localeCompare(name(b)));
+      const value = chosen[key] ?? "";
+      return html`
+        <label class="field-row">
+          <span>${this._t(`quick_choice_${key}`)}</span>
+          <select data-quick-choice=${key} @change=${(event) => this._setQuick(entityId, key, event.target.value)}>
+            <option value="" ?selected=${!value}>
+              ${found ? `${this._t("ptz_mode_auto")}: ${name(found)}` : `${this._t("ptz_mode_auto")}: ${this._t("ptz_found_nothing")}`}
+            </option>
+            <option value="none" ?selected=${value === "none"}>${this._t("quick_choice_none")}</option>
+            ${ids.map((id) => html`<option value=${id} ?selected=${value === id}>${name(id)}</option>`)}
+          </select>
+        </label>
+      `;
+    });
   }
 
   _renderCameraControls() {

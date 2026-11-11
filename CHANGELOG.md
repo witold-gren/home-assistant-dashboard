@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0 (2026-11-11)
+
+- Pinch to zoom into the picture of a camera window, upright and on its side: up to 4×, one finger moves a zoomed
+  picture, a double tap zooms in or back out, ctrl with the wheel on a computer; a badge shows the zoom and takes it
+  back to the whole picture. The picture, the live view and a recording zoom alike; what lies over them stays.
+  A zoomed picture keeps to where it lay (on a phone on its side it does not spill over the bands), a finger that
+  stays after a pinch only moves it, and a drag down on a zoomed picture moves it instead of closing the window.
+- A tile can be tall: two rows, the icon at the top and the name and state at the bottom, the flat tiles filling the
+  room beside it (`size: tall`, or the tile → Size in the editor of a room).
+- The siren, light and night vision buttons of a camera can be chosen by hand from any entity, or left out, in
+  Dashboard settings → Turning and talking of each camera (`cameras.quick`), so any camera gets them; the guide
+  explains how they are found by themselves.
+- Quick buttons in a camera window for what the camera has: siren (asks first, glows red, a tap stops it), light
+  and night vision (a list: off, infrared, full colour), and the positions as a button with a list instead of a select.
+  Upright they stand over the line of time from the right; on a phone on its side in a column in the bottom left
+  corner, from the bottom. Found by the siren domain, a light or a `…_light` switch and a list offering infrared, also
+  through a linked camera.
+- A long list of quick options (many positions) no longer runs off the screen: it scrolls, upright above its button
+  and on a phone on its side from the bottom of the column up to under the header.
+- On a phone on its side the right column mirrors the left one: the button of the line of time and the talk button
+  from the bottom, 48 px and 12 px apart, as far from the edge; the ring over them stays wholly on the picture, off
+  the bands beside it.
+- The heading Cameras opens all cameras one under another (two side by side on a tablet), big, with their name and
+  the age of the picture, in the order and with the hiding of Home; a camera opened from there goes back to the list.
+- Colours in Look show as round samples on a checkerboard with their code (a see-through one with its percent), and
+  no colour as a dashed ring saying Default, instead of the stretched colour fields of the system.
+
 ## 0.2.0 (2026-11-10)
 
 - Tapping LIVE no longer moves the window by a few pixels: the time over the line hides but keeps its room.

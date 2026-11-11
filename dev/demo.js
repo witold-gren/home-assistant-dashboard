@@ -220,6 +220,11 @@ function buildHass() {
   Object.entries(cameras).forEach(([name, [area, title]]) => {
     add(`camera.${name}`, area, "recording", { friendly_name: title, entity_picture: `/dev/demo-pictures/${name}.jpg`, camera_name: name, client_id: "frigate" }, "frigate");
   });
+  // The driveway's siren, floodlight and night vision, put on its camera by hand (cameras.quick below); no area, so
+  // they stay out of the rooms.
+  add("siren.driveway_alarm", null, "off", { friendly_name: say("Driveway siren", "Syrena podjazdu") });
+  add("light.driveway_floodlight", null, "on", { friendly_name: say("Driveway floodlight", "Reflektor podjazdu") });
+  add("select.driveway_night_vision", null, "Infrared", { friendly_name: say("Driveway night vision", "Noktowizja podjazdu"), options: ["Off", "Infrared", "Full Color"] });
   const areas = Object.fromEntries(
     [
       ["living", say("Living room", "Salon")],
@@ -494,7 +499,10 @@ const DASHBOARD = {
       },
     ],
   },
-  cameras: { snapshot_platforms: ["frigate"] },
+  cameras: {
+    snapshot_platforms: ["frigate"],
+    quick: { "camera.driveway": { siren: "siren.driveway_alarm", light: "light.driveway_floodlight", night: "select.driveway_night_vision" } },
+  },
   intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"] },
   visibility: { "light.shelf": { only: ["kid"] }, "switch.coffee": { except: ["kid"] } },
   layout: [

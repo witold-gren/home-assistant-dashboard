@@ -59,6 +59,7 @@ layout:
 | `name`, `icon` | own name and icon (the icon also changes in **Look → Icons**) |
 | `tap_toggle: true` | one tap toggles instead of opening a window |
 | `calm: true` | no colour while on; for things that are on nearly all the time |
+| `size: tall` | a tall tile over two rows, the icon at the top, the name and state at the bottom; in the editor: tile → **Size** |
 | `action: script.x` | a tap runs a script |
 | `active_only: true` | the tile shows only while the device is doing something |
 | `turn_on_only: true` | can only be turned on; turning off with a PIN through `off_pin` |

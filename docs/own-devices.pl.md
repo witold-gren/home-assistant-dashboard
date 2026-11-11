@@ -59,6 +59,7 @@ layout:
 | `name`, `icon` | własna nazwa i ikona (ikonę zmienisz też w **Wygląd → Ikony**) |
 | `tap_toggle: true` | jedno dotknięcie przełącza zamiast otwierać okno |
 | `calm: true` | bez koloru, gdy włączone; dla rzeczy prawie zawsze włączonych |
+| `size: tall` | wysoki kafelek na dwa wiersze, ikona u góry, nazwa i stan na dole; w edytorze: kafelek → **Rozmiar** |
 | `action: script.x` | dotknięcie uruchamia skrypt |
 | `active_only: true` | kafelek widać tylko, gdy urządzenie coś robi |
 | `turn_on_only: true` | można tylko włączyć; wyłączenie przez PIN z `off_pin` |

@@ -114,6 +114,7 @@ strategy:
     live: {image.korytarz_dzwonek_last_screen: camera.dzwonek}
     controls: {camera.hall_frigate: camera.hall}   # ta sama kamera w innej integracji: obraca i mówi (np. obraz z Frigate)
     talk: camera                       # mówienie przez głośnik kamery zamiast intercomu (domyślnie intercom)
+    quick: {camera.garden: {siren: switch.garden_alarm, light: light.garden_floodlight}}   # przyciski syreny/światła/noktowizji
     battery_platforms: [my_platform]   # tylko kamery, które nie zgłaszają baterii
     snapshot_platforms: [frigate]
   entities:

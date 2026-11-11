@@ -127,7 +127,7 @@ export function normalizeConfig(config = {}) {
     appearance: config.appearance ?? {},
     access: config.access ?? {},
     visibility: config.visibility ?? {},
-    cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
+    cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, quick: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
     intercom: {
       script: null,
       areas: [],
@@ -364,6 +364,8 @@ function serviceCall([domain, service], entityId) {
   return { domain, service, data: { entity_id: entityId } };
 }
 
+export const TILE_SIZES = ["tall"];
+
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
 export function layoutTile(hass, item, roomName, config, layout) {
@@ -373,7 +375,8 @@ export function layoutTile(hass, item, roomName, config, layout) {
   if (!tile || (item.active_only && INACTIVE_STATES.has(hass.states[item.entity].state))) return null;
   // An icon chosen in the look of the page wins over the one of the layout.
   const icon = config.appearance?.icons?.[item.entity] ?? item.icon ?? tile.icon;
-  const shown = { ...tile, name: item.name ?? tile.name, icon };
+  // A tall tile takes two rows of the grid, its icon at the top and its name at the bottom.
+  const shown = { ...tile, name: item.name ?? tile.name, icon, size: TILE_SIZES.includes(item.size) ? item.size : null };
   if (tile.item) shown.item = { ...tile.item, name: shown.name };
   // Something that is on nearly all the time must not shine: only being off stands out.
   if (item.calm) {
@@ -951,6 +954,54 @@ export function cameraMoves(hass, entityId, config) {
     if (controls) return { mode: "names", ...controls };
   }
   return { ...none, mode };
+}
+
+// Quick buttons of a camera: its siren, its light and its night vision, from the entities of the device that turns
+// it (so a Frigate picture borrows them from the same camera in its own integration). Found by what does not depend
+// on the language: the siren domain, a light or a switch named for the light, a list offering infrared.
+const LIGHT_SWITCH = /(^|_)(light|spotlight|floodlight|flood_light|lamp)$/;
+const NIGHT_VISION = /night_?vision/;
+
+// What may stand behind each quick button when it is chosen by hand (`cameras.quick`): a siren or anything turned on
+// and off, a lamp or a switch, a list.
+export const QUICK_DOMAINS = {
+  siren: ["siren", "switch", "input_boolean", "script"],
+  light: ["light", "switch", "input_boolean"],
+  night: ["select", "input_select"],
+};
+
+export function cameraQuickControls(hass, entityId, config) {
+  const ids = controlEntityIds(hass, entityId, config).filter(
+    (id) => !hass.entities[id].hidden && hass.states[id]?.state !== "unavailable",
+  );
+  // `cameras.quick` chooses by hand: an entity of any device (another camera's, a lamp in the garden), or "none".
+  const chosen = config.cameras.quick?.[entityId] ?? {};
+  const pick = (key, found) => {
+    const value = chosen[key];
+    if (value === "none") return null;
+    if (value && hass.states[value] && QUICK_DOMAINS[key].includes(domainOf(value))) return value;
+    return found();
+  };
+  const siren = pick("siren", () => ids.find((id) => domainOf(id) === "siren") ?? null);
+  const light = pick(
+    "light",
+    () =>
+      ids.find((id) => domainOf(id) === "light") ??
+      ids.find((id) => domainOf(id) === "switch" && LIGHT_SWITCH.test(id.split(".")[1])) ??
+      null,
+  );
+  const night = pick(
+    "night",
+    () =>
+      ids.find((id) => domainOf(id) === "select" && NIGHT_VISION.test(id)) ??
+      ids.find((id) => domainOf(id) === "select" && (hass.states[id].attributes.options ?? []).some((o) => /infrared/i.test(o))) ??
+      null,
+  );
+  return {
+    siren,
+    light,
+    night: night ? { entity: night, options: hass.states[night].attributes.options ?? [], current: hass.states[night].state } : null,
+  };
 }
 
 /** The entities a camera's turning uses, which its window of settings leaves out. */

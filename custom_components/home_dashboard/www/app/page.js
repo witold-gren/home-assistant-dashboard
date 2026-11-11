@@ -68,6 +68,7 @@ import {
   removeTile,
   renameSection,
   renameTile,
+  resizeTile,
   replaceTile,
   roomDraft,
   SCENE_DOMAINS,
@@ -515,7 +516,7 @@ export class HomeDashboardPage extends LitElement {
     const tinted = tint ? `--tile-background: rgba(${tint}, 0.18); --tile-icon: rgba(${tint}, 0.75)` : null;
     return html`
       <button
-        class="tile ${tile.tone} ${tile.available ? "" : "unavailable"} ${tile.stats?.length ? "wide" : ""} ${ran ? "ran" : ""} ${tile.dormant ? "dormant" : ""}"
+        class="tile ${tile.tone} ${tile.available ? "" : "unavailable"} ${tile.stats?.length ? "wide" : ""} ${tile.size === "tall" && !tile.stats?.length ? "tall" : ""} ${ran ? "ran" : ""} ${tile.dormant ? "dormant" : ""}"
         style=${chosen ?? tinted ?? nothing}
         data-kind=${tile.kind ?? nothing}
         data-entity=${tile.entityId}
@@ -578,7 +579,16 @@ export class HomeDashboardPage extends LitElement {
     const anyWorking = cameras.some((camera) => !camera.unavailable);
     return html`
       <section>
-        <h2>${translate(this._hass.language, "section_cameras")}</h2>
+        <h2>
+          <button
+            class="section-link"
+            data-cameras-all
+            aria-label=${translate(this._hass.language, "cameras_all")}
+            @click=${() => openSheet(this, { kind: "cameras", cameras: cameras.map((camera) => camera.entityId) })}
+          >
+            ${translate(this._hass.language, "section_cameras")}<ha-icon icon="mdi:chevron-right"></ha-icon>
+          </button>
+        </h2>
         <div class="cameras">
           ${cameraColumns(cameras).map(
             (column) => html`
@@ -922,6 +932,7 @@ export class HomeDashboardPage extends LitElement {
         this._edit = { ...this._edit, ...withVisibility(this._edit, key, rule) };
       },
       onRename: (name) => this._updateRoom(renameTile(this._edit.room, tab, at, name)),
+      onResize: (size) => this._updateRoom(resizeTile(this._edit.room, tab, at, size)),
       onBlock: (block) => this._updateRoom(replaceTile(this._edit.room, tab, at, block)),
       onRemove: () => this._updateRoom(removeTile(this._edit.room, tab, at)),
     });
@@ -970,7 +981,7 @@ export class HomeDashboardPage extends LitElement {
     const dragged = this._drag?.from.list === list && this._drag.from.index === index;
     return html`
       <div
-        class="tile edit-tile ${tile.tone} ${mark ?? ""} ${dropping ? "drop" : ""} ${dragged ? "dragged" : ""}"
+        class="tile edit-tile ${tile.tone} ${item.size === "tall" ? "tall" : ""} ${mark ?? ""} ${dropping ? "drop" : ""} ${dragged ? "dragged" : ""}"
         data-slot=${index}
         data-list=${list}
         data-edit-tile=${tile.name}
@@ -1808,6 +1819,22 @@ export class HomeDashboardPage extends LitElement {
         line-height: 24px;
         font-weight: 500;
       }
+      /* A heading that opens its whole list, as Cameras does. */
+      .section-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0;
+        border: 0;
+        font: inherit;
+        color: inherit;
+        background: none;
+        cursor: pointer;
+        --mdc-icon-size: 20px;
+      }
+      .section-link ha-icon {
+        opacity: 0.6;
+      }
       .soon {
         color: var(--hd-text-muted);
       }
@@ -1901,7 +1928,25 @@ export class HomeDashboardPage extends LitElement {
       .tiles {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        /* A tall tile leaves a gap beside it; the next flat tiles fill it, as on a phone's home screen. */
+        grid-auto-flow: row dense;
         gap: 8px;
+      }
+      /* Tall: two rows, the icon at the top and the name and state at the bottom. */
+      .tiles:not(.row) > .tile.tall {
+        grid-row: span 2;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 14px;
+      }
+      .tile.tall .text {
+        width: 100%;
+      }
+      .tile.tall .icon {
+        width: 48px;
+        height: 48px;
+        --mdc-icon-size: 28px;
       }
       .tiles.row {
         display: flex;

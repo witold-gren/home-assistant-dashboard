@@ -118,6 +118,11 @@ def make(browser, base: str, language: str) -> None:
     page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
     take(page, folder, "camera-landscape")
 
+    # All cameras one under another, as the heading Cameras opens them.
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-cameras-all]")
+    take(page, folder, "cameras")
+
     # The dashboard settings, with turning and talking of a camera opened.
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page [data-menu]")

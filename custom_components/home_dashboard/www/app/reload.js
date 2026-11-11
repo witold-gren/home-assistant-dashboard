@@ -37,6 +37,7 @@ export const APP_FILES = [
   "talk.js",
   "theme.js",
   "weather.js",
+  "zoom.js",
 ];
 const OTHER_FILES = ["../loader.js", "../vendor/lit-all.min.js", "../vendor/js-yaml.js"];
 

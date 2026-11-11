@@ -307,3 +307,37 @@ def test_a_colour_may_be_see_through(phone):
     look = run(phone, "return a.mergeAppearance({ tiles: { icon_background: '#ffffff26', background: '#ffffff2' } }).tiles;")
     assert look["icon_background"] == "#ffffff26"
     assert look["background"] is None
+
+
+def test_a_colour_shows_as_a_round_sample_with_its_code(phone):
+    open_look(phone, {"appearance": {"buttons": {"background": "#ffffff26"}}})
+    phone.locator(f"{SHEET} [data-tab='colours']").click()
+    chosen = phone.locator(f"{SHEET} [data-look-field='buttons.background']")
+    # A see-through colour says how see-through it is, and its sample lies on a checkerboard.
+    assert chosen.locator(".swatch-text").inner_text() == "#FFFFFF · 15%"
+    sample = chosen.locator(".swatch-pick")
+    assert "--swatch: #ffffff26" in sample.get_attribute("style")
+    assert "repeating-conic-gradient" in sample.evaluate("(element) => getComputedStyle(element).backgroundImage")
+    size = sample.bounding_box()
+    assert round(size["width"]) == round(size["height"]) == 34
+    # No colour chosen: a dashed ring and "Default", without a cross.
+    default = phone.locator(f"{SHEET} [data-look-field='text.title']")
+    assert default.locator(".swatch-text").inner_text() == "Domyślny"
+    assert "unset" in default.locator(".swatch-pick").get_attribute("class")
+    assert default.locator("[data-look-field-clear]").count() == 0
+
+
+def test_the_cross_takes_a_colour_back_to_the_default(phone):
+    open_look(phone, {"appearance": {"buttons": {"background": "#ffffff26"}}})
+    phone.locator(f"{SHEET} [data-tab='colours']").click()
+    field = phone.locator(f"{SHEET} [data-look-field='buttons.background']")
+    field.locator("[data-look-field-clear]").click()
+    assert field.locator(".swatch-text").inner_text() == "Domyślny"
+
+
+def test_picking_a_colour_keeps_its_see_through_part(phone):
+    open_look(phone, {"appearance": {"buttons": {"background": "#ffffff26"}}})
+    phone.locator(f"{SHEET} [data-tab='colours']").click()
+    field = phone.locator(f"{SHEET} [data-look-field='buttons.background']")
+    field.locator("input[type='color']").evaluate("(input) => { input.value = '#336699'; input.dispatchEvent(new Event('change')); }")
+    assert field.locator(".swatch-text").inner_text() == "#336699 · 15%"

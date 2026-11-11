@@ -113,6 +113,7 @@ strategy:
     live: {image.front_door_last_screen: camera.front_door}
     controls: {camera.hall_frigate: camera.hall}   # the same camera in another integration: turns and talks (e.g. Frigate picture)
     talk: camera                       # talk through the camera's speaker instead of the intercom (default intercom)
+    quick: {camera.garden: {siren: switch.garden_alarm, light: light.garden_floodlight}}   # siren/light/night vision buttons
     battery_platforms: [my_platform]   # only cameras that do not report a battery
     snapshot_platforms: [frigate]
   entities:

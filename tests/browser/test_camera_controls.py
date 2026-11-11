@@ -274,8 +274,10 @@ def test_the_arrows_and_presets_press_the_buttons(phone):
     go_live(phone)
     phone.locator(f"{SHEET} [data-ptz-toggle]").click()
     phone.locator(f"{SHEET} [data-ptz='left']").click()
-    assert phone.locator(f"{SHEET} [data-presets] option").all_inner_texts() == ["0 · HOME", "1 · GATE"]
-    phone.locator(f"{SHEET} [data-presets]").select_option("1 · GATE")
+    phone.locator(f"{SHEET} [data-quick='positions']").click()
+    assert phone.locator(f"{SHEET} [data-quick-menu='positions'] [data-quick-option]").all_inner_texts() == ["0 · HOME", "1 · GATE"]
+    phone.locator(f"{SHEET} [data-quick-option='1 · GATE']").click()
+    assert phone.locator(f"{SHEET} [data-quick-menu]").count() == 0
     phone.wait_for_function("window.hass.calls.filter((c) => c.type === 'service').length >= 3")
     calls = phone.evaluate("window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])")
     assert calls == [
@@ -334,23 +336,78 @@ def test_the_age_is_top_left_and_the_positions_bottom_left(phone):
     go_live(phone, wide_picture=True)
     phone.locator(f"{SHEET} [data-ptz-toggle]").click()
     picture = phone.locator(f"{SHEET} .stage").bounding_box()
-    positions = phone.locator(f"{SHEET} [data-presets]").bounding_box()
+    positions = phone.locator(f"{SHEET} [data-quick='positions']").bounding_box()
+    line = phone.locator(f"{SHEET} home-dashboard-timeline").bounding_box()
     ring = phone.locator(f"{SHEET} [data-ptz-overlay]").bounding_box()
-    assert picture["y"] + picture["height"] - (positions["y"] + positions["height"]) < 20
-    assert positions["x"] - picture["x"] < 20
+    # Upright the positions are a round button in the row over the line of time.
+    assert positions["y"] + positions["height"] <= line["y"]
+    assert positions["y"] > picture["y"] + picture["height"]
     assert ring["x"] > picture["x"] + picture["width"] / 2
 
 
-def test_on_its_side_the_ring_stands_over_the_button_of_the_line_and_positions_step_aside(phone):
+MANY_POSITIONS = [str(number) for number in range(1, 21)]
+
+
+def open_many_positions(page, viewport: dict) -> dict:
+    """Open the positions of a camera with 20 of them; return the box of the list."""
+    page.set_viewport_size(viewport)
+    page.evaluate(ADD_DEVICE)
+    page.evaluate(
+        "(options) => { const state = window.dashboard.snapshot.states['select.slup_preset']; state.state = options[0]; state.attributes.options = options; }",
+        MANY_POSITIONS,
+    )
+    mount_admin(page, {"cameras": {"tiles": ["image.slup_last_screen"]}})
+    page.evaluate("""() => document.querySelector('home-dashboard-chrome')
+        .open({ type: 'sheet', sheet: { kind: 'camera', entityId: 'image.slup_last_screen' } })""")
+    page.wait_for_selector(f"{SHEET} [data-ptz-toggle]")
+    go_live(page, wide_picture=True)
+    page.locator(f"{SHEET} [data-ptz-toggle]").click()
+    page.locator(f"{SHEET} [data-quick='positions']").click()
+    return page.locator(f"{SHEET} [data-quick-menu='positions']").bounding_box()
+
+
+def test_a_long_list_of_positions_on_its_side_stays_under_the_header_and_scrolls(phone):
+    menu = open_many_positions(phone, {"width": 874, "height": 402})
+    header = phone.locator(f"{SHEET} header").bounding_box()
+    assert menu["y"] >= header["y"] + header["height"] - 1, "the list covers the header"
+    assert menu["y"] + menu["height"] <= 402, "the list leaves the screen"
+    last = phone.locator(f"{SHEET} [data-quick-option='20']")
+    last.scroll_into_view_if_needed()
+    last.click()
+    phone.wait_for_function("window.hass.calls.filter((c) => c.type === 'service').length >= 2")
+    assert ["select", "select_option", {"entity_id": "select.slup_preset", "option": "20"}] in phone.evaluate(
+        "window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])"
+    )
+
+
+def test_a_long_list_of_positions_upright_stays_on_the_screen(phone):
+    menu = open_many_positions(phone, {"width": 402, "height": 874})
+    assert menu["y"] >= 0 and menu["y"] + menu["height"] <= 874
+    assert phone.locator(f"{SHEET} [data-quick-menu='positions']").evaluate("(e) => e.scrollHeight > e.clientHeight")
+
+
+def test_on_its_side_the_right_column_mirrors_the_left_and_the_ring_stays_on_the_picture(phone):
     phone.set_viewport_size({"width": 874, "height": 402})
     open_slup(phone)
-    go_live(phone)
+    go_live(phone, wide_picture=True)
     phone.locator(f"{SHEET} [data-ptz-toggle]").click()
-    ring = phone.locator(f"{SHEET} [data-ptz-overlay]").bounding_box()
+    phone.wait_for_timeout(100)
     line = phone.locator(f"{SHEET} [data-open-line]").bounding_box()
-    assert abs((ring["x"] + ring["width"] / 2) - (line["x"] + line["width"] / 2)) < 3
-    assert ring["y"] + ring["height"] <= line["y"]
-    positions = phone.locator(f"{SHEET} [data-presets]").bounding_box()
-    assert positions["x"] < 60 and positions["y"] > 300
+    ring = phone.locator(f"{SHEET} [data-ptz-overlay]").bounding_box()
+    poster = phone.locator(f"{SHEET} .poster").bounding_box()
+    # The button of the line of time at the bottom right, wholly on the picture, 12 px in from its right edge.
+    shown = min(poster["width"], poster["height"] * 16 / 9)
+    right = poster["x"] + (poster["width"] + shown) / 2
+    assert abs((line["x"] + line["width"]) - (right - 12)) < 2
+    assert round(line["width"]) == 48
+    # The ring over the column (room for the talk button between), wholly on the picture, not on the band beside it.
+    assert ring["y"] + ring["height"] <= line["y"] - 60
+    # The 16:9 picture is shown whole in its box ("contain"): its own right edge, not the box's.
+    assert right < 874 - 16, "the picture leaves a band on the right"
+    assert ring["x"] + ring["width"] <= right + 1
+    positions = phone.locator(f"{SHEET} [data-quick='positions']").bounding_box()
+    # The left column too stands on the picture, 12 px in from its left edge.
+    left = poster["x"] + (poster["width"] - shown) / 2
+    assert abs(positions["x"] - (left + 12)) < 2 and positions["y"] > 250
     phone.locator(f"{SHEET} [data-open-line]").click()
-    assert phone.locator(f"{SHEET} [data-presets]").evaluate("(e) => getComputedStyle(e).visibility") == "hidden"
+    assert phone.locator(f"{SHEET} [data-quick-bar]").evaluate("(e) => getComputedStyle(e).visibility") == "hidden"

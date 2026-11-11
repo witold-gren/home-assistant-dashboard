@@ -291,3 +291,14 @@ def test_states_on_the_way_are_passed_on_and_only_the_outcome_ends_the_talk(phon
         window.socket.onmessage({{ data: JSON.stringify({{ ok: false, error: 'busy' }}) }});
         return {{ states, during, ended }}; }}""")
     assert result == {"states": ["connecting", "connected"], "during": "not yet", "ended": "busy"}
+
+
+def test_on_its_side_the_talk_button_stands_over_the_button_of_the_line(phone):
+    phone.set_viewport_size({"width": 874, "height": 402})
+    open_hall(phone)
+    talk = phone.locator(f"{SHEET} .stage [data-camera-talk]").bounding_box()
+    line = phone.locator(f"{SHEET} [data-open-line]").bounding_box()
+    # One column at the right edge, from the bottom, as the quick buttons on the left: 48 px, 12 px apart.
+    assert abs((talk["x"] + talk["width"]) - (line["x"] + line["width"])) < 2
+    assert round(talk["width"]) == round(line["width"]) == 48
+    assert abs(line["y"] - (talk["y"] + talk["height"]) - 12) < 2

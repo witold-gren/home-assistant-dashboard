@@ -169,6 +169,60 @@ każdej marki. `battery_platforms` jest potrzebne tylko dla kamer, które bateri
 W pasku duży obraz przeplata się z dwoma mniejszymi. Kamera, która przestała działać, zostaje widoczna w małym
 okienku, rozmyta i oznaczona jako niedostępna. Chip Ochrona pokazuje wszystkie kamery jedna pod drugą.
 
+### Syrena, światło, noktowizja i pozycje
+
+Jeśli urządzenie kamery je ma, okno kamery dostaje okrągłe przyciski. Pionowo stoją w rzędzie nad linią czasu, od
+prawej; na telefonie trzymanym poziomo w kolumnie w lewym dolnym rogu, od dołu (syrena najniżej, nad nią światło,
+noktowizja i pozycje).
+
+- **Syrena**: najpierw pyta „Włączyć syrenę?”, po włączeniu świeci na czerwono, a dotknięcie wyłącza.
+- **Światło**: włącza i wyłącza, włączone świeci na żółto.
+- **Noktowizja**: lista trybów, np. Wyłączona (dzień), Podczerwień, Pełny kolor (doświetlanie).
+- **Pozycje** (przy włączonym sterowaniu na żywo): lista zapisanych pozycji kamery.
+
+**Jak są rozpoznawane.** Dashboard szuka ich wśród encji urządzenia kamery, a dla kamery z rejestratora powiązanej z tą
+samą kamerą w innej integracji wśród encji tamtej kamery. Bierze pod uwagę to, co nie zależy od języka ani od nazwy
+w Home Assistant:
+
+| Przycisk | Encja, którą znajduje automatycznie | Co robi dotknięcie |
+|---|---|---|
+| Syrena | pierwsza encja domeny `siren` | po potwierdzeniu `siren.turn_on`, ponownie `siren.turn_off` |
+| Światło | encja `light`, a bez niej przełącznik `switch`, którego id kończy się na `_light`, `_spotlight`, `_floodlight` albo `_lamp` | włącza i wyłącza |
+| Noktowizja | lista `select` z `night_vision` w id, a bez niej lista, która ma opcję podczerwieni (`Infrared`) | otwiera listę opcji tej encji |
+| Pozycje | lista pozycji i przycisk przejścia ze **sterowania** kamery | przejście do wybranej pozycji |
+
+Ukryte i niedostępne encje są pomijane. Przełącznik ustawienia, np. `…_spotlight_enabled`, nie jest brany za światło.
+
+**Inne kamery i własne encje.** W **Ustawienia dashboardu → Sterowanie i mówienie każdej kamery** rozwiń kamerę: pola
+**Przycisk syreny**, **Przycisk światła** i **Przycisk noktowizji** mają do wyboru **Automatycznie** (obok widać, co
+znaleziono), **Brak** albo dowolną encję. Tak podepniesz przyciski do kamery każdej integracji, także do urządzeń,
+które nie są częścią kamery, np. lampy w ogrodzie albo syreny alarmu:
+
+| Przycisk | Encje do wyboru |
+|---|---|
+| Syrena | `siren`, `switch`, `input_boolean`, `script` |
+| Światło | `light`, `switch`, `input_boolean` |
+| Noktowizja | `select`, `input_select` |
+
+To samo w konfiguracji (`cameras.quick`, klucz to kamera z dashboardu):
+
+```yaml
+cameras:
+  quick:
+    camera.garden:
+      siren: switch.garden_alarm
+      light: light.garden_floodlight
+      night: none                 # bez przycisku noktowizji
+```
+
+Przyciski działają zawsze, także bez podglądu na żywo; tylko pozycje wymagają podglądu, jak strzałki sterowania.
+
+### Wszystkie kamery
+
+Dotknięcie nagłówka **Kamery ›** na stronie głównej albo w pokoju otwiera wszystkie kamery jedna pod drugą, duże, z
+nazwą i wiekiem obrazka (na tablecie dwie obok siebie). Kolejność i ukrycia są te same co na stronie. Dotknięcie
+kamery otwiera jej okno, a strzałka w lewym górnym rogu wraca do listy.
+
 ### Podgląd na żywo
 
 Dotknięcie obrazu otwiera go bez strumienia. **NA ŻYWO** na dole uruchamia strumień z kamery tego samego urządzenia
@@ -183,6 +237,12 @@ przygaszony, więc okno nie skacze.
 linii czasu też od razu rozłącza kamerę. Kamera niedostępna w Home Assistant zostaje w oknie z ostatnim obrazkiem,
 przygaszonym, z napisem **Kamera jest niedostępna** i bez NA ŻYWO; napis znika sam, gdy kamera wróci. Obrazek, który
 się nie wczytał, okno próbuje pobrać co 5 sekund.
+
+**Powiększanie:** rozsuń dwa palce na obrazie, żeby go przybliżyć (do 4×), i zsuń, żeby oddalić. Powiększony obraz
+przesuwasz jednym palcem, a podwójne dotknięcie przybliża w tym miejscu 2,5× albo wraca do całego obrazu. Na komputerze
+działa Ctrl z kółkiem albo szczypanie na gładziku. Plakietka w prawym górnym rogu pokazuje powiększenie, a jej dotknięcie
+wraca do 1×. To powiększenie cyfrowe: zdjęcie, podgląd na żywo i nagranie są powiększane tak, jak przyszły, a kamera się
+nie rusza. Zmiana kamery albo przejście między zdjęciem, podglądem i nagraniem wraca do całego obrazu.
 
 Przycisk obok mówi do obszaru kamery. Pojawia się, gdy [intercom](#11-intercom) jest skonfigurowany, a ten obszar
 należy do jego obszarów. **Ustawienia dashboardu → Mówienie w oknie kamery → Głośnik kamery** zmienia go na mówienie
