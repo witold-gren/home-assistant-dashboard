@@ -290,7 +290,7 @@ def test_a_full_screen_sheet_also_covers_the_area_under_the_system_bars(device, 
     mount(page)
     page.locator("home-dashboard-page .camera").first.click()
     page.wait_for_selector("home-dashboard-sheet section.panel")
-    box = page.locator("home-dashboard-sheet .cover").evaluate(
+    box = page.locator("home-dashboard-sheet .backdrop").evaluate(
         "(cover) => { const box = cover.getBoundingClientRect(); return [box.top, box.bottom - innerHeight]; }"
     )
     assert box[0] < -100
@@ -300,7 +300,7 @@ def test_a_full_screen_sheet_also_covers_the_area_under_the_system_bars(device, 
 def test_a_centred_sheet_on_a_tablet_keeps_the_page_visible_around_it(tablet):
     add_entity(tablet, "sensor.machine", "ready")
     open_block(tablet, room_with(block()))
-    assert tablet.locator("home-dashboard-sheet .cover").is_hidden()
+    assert tablet.locator("home-dashboard-sheet .backdrop").is_hidden()
 
 
 def test_a_web_page_opens_on_the_whole_screen_of_a_tablet(tablet):

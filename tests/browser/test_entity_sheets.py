@@ -107,6 +107,22 @@ def test_a_switch_opens_the_sheet_of_the_dashboard_and_toggles(phone, entity):
     assert service_calls(phone) == [("homeassistant", "toggle")]
 
 
+def test_an_automation_is_switched_in_the_sheet_and_set_up_behind_the_cog(phone):
+    open_entity(phone, "automation.a", "on", {"friendly_name": "Praca zdalna", "last_triggered": None})
+    assert phone.locator(f"{SHEET} section.panel").get_attribute("data-kind") == "switch"
+    assert "Jeszcze nie uruchomiona" in phone.locator(f"{SHEET} .info").inner_text()
+    phone.locator(f"{SHEET} [data-big-switch]").click()
+    assert service_calls(phone) == [("homeassistant", "toggle")]
+    assert phone.locator(f"{SHEET} [data-details]").is_visible()
+
+
+def test_an_automation_says_when_it_last_ran(phone):
+    phone.evaluate("window.ranAt = new Date(Date.now() - 35 * 60000).toISOString()")
+    ran = phone.evaluate("window.ranAt")
+    open_entity(phone, "automation.a", "on", {"friendly_name": "Praca zdalna", "last_triggered": ran})
+    assert "Ostatnio uruchomiona 35 minut temu" in phone.locator(f"{SHEET} .info").inner_text()
+
+
 ALARM = {"supported_features": 55, "code_format": None, "friendly_name": "Działka"}
 
 

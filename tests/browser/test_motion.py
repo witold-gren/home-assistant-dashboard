@@ -191,7 +191,7 @@ def test_a_sheet_follows_the_light_or_dark_page_and_a_camera_stays_black(phone):
     open_tile(phone, find_id(phone, "cover."))
     page_colour = phone.evaluate("getComputedStyle(window.card).backgroundColor")
     # On a phone the cover under the panel carries the background, so a see-through look is laid once.
-    assert as_rgb(phone.locator(f"{SHEET} .cover").evaluate(colour)) == page_colour
+    assert as_rgb(phone.locator(f"{SHEET} .backdrop").evaluate(colour)) == page_colour
     phone.locator(f"{SHEET} header button").first.click()
     phone.wait_for_selector(f"{SHEET} section.panel", state="detached")
     phone.locator("home-dashboard-page .camera").first.click()
@@ -204,7 +204,7 @@ def test_a_sheet_on_a_tablet_stays_a_window_in_the_middle(tablet):
     open_tile(tablet, find_id(tablet, "cover."))
     box = settled_box(tablet, f"{SHEET} section.panel")
     assert box["width"] == 520
-    assert tablet.locator(f"{SHEET} .cover").is_hidden()
+    assert tablet.locator(f"{SHEET} .backdrop").is_hidden()
 
 
 def test_the_handle_takes_the_sheet_down_with_a_mouse(phone):

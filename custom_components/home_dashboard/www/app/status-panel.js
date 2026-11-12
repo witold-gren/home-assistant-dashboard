@@ -291,7 +291,7 @@ export class HomeDashboardStatusPanel extends LitElement {
       today && Number.isFinite(today.templow) && Number.isFinite(today.temperature)
         ? this._t("status_today", { low: this._number(today.templow, 0), high: this._number(today.temperature, 0) })
         : Number.isFinite(humidity)
-          ? this._t("status_humidity", { value: this._number(humidity, 0) })
+          ? this._t("status_humidity_short", { value: this._number(humidity, 0) })
           : "",
     ].filter(Boolean);
     const rain = nextPrecipitation(this._hourly, this._now);

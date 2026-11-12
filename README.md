@@ -151,8 +151,11 @@ by touch and offers only scenes and scripts. A tile can have `name` and `icon`.
 `{kind: page, name: Media, icon: mdi:play-box-multiple-outline, page: media}`. Such a shortcut opens the
 page in a sheet that can be pulled down. `music` takes `card`, `frame`
 and `admin_card`, like a block. A shortcut with `kind: host` shows machines from `columns`, each with
-`title`, `icon`, `subtitle`, `status`, `bars`, `info`, `machines` and a `graph` card. A block with
-`card_open: true` shows its card without a button.
+`title`, `icon`, `subtitle`, `status`, `bars`, `info`, `machines` and a `graph` card. A column's `power`
+shows its smart plug: `entity` (W), `voltage`, `current`, `energy` (kWh, also counted since midnight) and
+`switch` (its state only: the plug of a server is never switched from here), with a chart of the power.
+A room tile `{shortcut: Host, column: Proxmox, entity: sensor.nuc_power, name: Intel NUC}` shows the
+power and opens that one machine. A block with `card_open: true` shows its card without a button.
 
 ### A device's own card
 

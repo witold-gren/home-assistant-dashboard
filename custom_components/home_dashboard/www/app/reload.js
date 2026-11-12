@@ -37,6 +37,7 @@ export const APP_FILES = [
   "settings.js",
   "sheet.js",
   "sound.js",
+  "state-history.js",
   "status-panel.js",
   "status.js",
   "styles.js",

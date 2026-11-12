@@ -34,7 +34,7 @@ def test_a_window_of_a_device_is_see_through_and_blurred(phone):
     open_lamp(phone, GLASS)
     styles = phone.evaluate("""() => {
         const sheet = document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet');
-        const cover = getComputedStyle(sheet.shadowRoot.querySelector('.cover'));
+        const cover = getComputedStyle(sheet.shadowRoot.querySelector('.backdrop'));
         const panel = getComputedStyle(sheet.shadowRoot.querySelector('.panel'));
         return [cover.backdropFilter, cover.backgroundColor, panel.backgroundColor, panel.color];
     }""")

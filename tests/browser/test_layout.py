@@ -575,6 +575,23 @@ def test_status_grades_the_air(phone):
     assert status_of(phone, {"sensor.a": ["1500", {"device_class": "carbon_dioxide"}]})["air"][2] == "climate"
 
 
+def test_a_list_of_blinds_shows_its_rows(phone):
+    """A row of a blind wears the tone "cover", which must not take the look of the sheet's backdrop."""
+    mount(phone, None, "home")
+    ids = ids_of(phone, "cover.", 2)
+    phone.evaluate("""(ids) => document.querySelector('home-dashboard-chrome')
+        .open({ type: 'sheet', sheet: { kind: 'group', title: 'Rolety', ids } })""", ids)
+    rows = phone.locator(f"{SHEET} [data-row]")
+    rows.first.wait_for()
+    assert rows.count() == 2
+    assert all(rows.nth(index).is_visible() for index in range(2))
+
+
+def test_the_humidity_icon_is_named_in_full(phone):
+    status = status_of(phone, {"sensor.a": ["55", {"device_class": "humidity"}]})
+    assert status["humidity"][:2] == ["Wilgotność", "55%"]
+
+
 def test_status_counts_in_polish(phone):
     status = status_of(
         phone,

@@ -195,7 +195,7 @@ def test_the_change_reaches_an_open_sheet(phone):
     phone.locator("[data-rooms]").click()
     phone.wait_for_selector("home-dashboard-sheet section.panel")
     push_mode(phone, "dark")
-    background = phone.locator("home-dashboard-sheet .cover").evaluate(
+    background = phone.locator("home-dashboard-sheet .backdrop").evaluate(
         "(cover) => getComputedStyle(cover).backgroundColor"
     )
     assert as_rgb(background) == "rgb(18, 19, 22)"

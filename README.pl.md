@@ -152,8 +152,11 @@ edytować je dotykiem i podpowiada tylko sceny i skrypty. Kafelek może mieć `n
 `{kind: page, name: Media, icon: mdi:play-box-multiple-outline, page: media}`. Taki skrót otwiera stronę
 w oknie, które można zsunąć. `music` przyjmuje `card`, `frame`
 i `admin_card`, tak jak blok. Skrót `kind: host` pokazuje maszyny z `columns`, każda ma `title`, `icon`,
-`subtitle`, `status`, `bars`, `info`, `machines` i kartę `graph`. Blok z `card_open: true` pokazuje
-kartę bez przycisku.
+`subtitle`, `status`, `bars`, `info`, `machines` i kartę `graph`. `power` kolumny pokazuje jej gniazdko:
+`entity` (W), `voltage`, `current`, `energy` (kWh, liczone też od północy) i `switch` (tylko stan: gniazdka
+serwera nie da się stąd wyłączyć), z wykresem mocy. Kafelek w pokoju
+`{shortcut: Host, column: Proxmox, entity: sensor.nuc_moc, name: Intel NUC}` pokazuje moc i otwiera tylko
+tę jedną maszynę. Blok z `card_open: true` pokazuje kartę bez przycisku.
 
 ### Własna karta urządzenia
 

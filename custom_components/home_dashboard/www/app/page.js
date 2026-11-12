@@ -83,7 +83,16 @@ import { backgroundStyle, isDark, screenShape, tokens, viewBackgroundFor, WIDE_Q
 
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
 const MEDIA_BROWSER_PATH = "/media-browser/browser";
-const SHEET_KINDS = { alarm_control_panel: "alarm", input_boolean: "switch", media_player: "player" };
+const SHEET_KINDS = {
+  alarm_control_panel: "alarm",
+  automation: "switch",
+  binary_sensor: "binary",
+  input_boolean: "switch",
+  input_select: "select",
+  media_player: "player",
+  select: "select",
+  sensor: "sensor",
+};
 const PICTURE_REFRESH_MS = 30000;
 const SHORTCUT_TONES = ["green", "purple", "teal", "pink"];
 const DRAG_EDGE = 72;

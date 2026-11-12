@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 (2026-11-12)
+
+- Sensors and lists open the dashboard's own windows instead of Home Assistant's: something on or off (a leak, smoke,
+  a door) shows its state, when it changed, its device's battery and a strip of the day or week with each time it
+  was on; a list (a coffee machine's drink) shows every option as a button, its raw "none" said in words; a number
+  shows its value and its line. The cog still opens Home Assistant's window.
+- A switch whose device measures its power (a smart plug) shows under the switch the power now, the energy in total
+  and a line of the power over 6 hours, a day or a week.
+- A machine of the window of servers shows its smart plug (`power`): what it draws now, voltage, current, energy
+  today and in total, whether the plug is on (never switched from here) and a chart of the power. A room tile
+  `{shortcut: Host, column: <title>}` opens that one machine: two columns on a tablet, the power first on a phone.
+- An automation opens the dashboard's own window: a big switch to turn it on or off and when it last ran; the cog
+  opens Home Assistant's window with its settings.
+- The window of a status icon for blinds lists them again (a blind's row had the look of the window's backdrop and
+  was hidden).
+- The humidity icon of a room is named in full ("Humidity", not "humidity %"): a key of the translations was written
+  twice; a test now keeps every key single.
+
 ## 0.5.0 (2026-11-12)
 
 - A tile `{shortcut: <name>}` without an entity passes the YAML editor and has a key of its own, as does a scale

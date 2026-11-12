@@ -38,7 +38,20 @@ const TOGGLE_ON_ICON = new Set(["light", "switch", "input_boolean", "fan", "auto
 const RUN_SERVICES = { scene: ["scene", "turn_on"], script: ["script", "turn_on"], button: ["button", "press"] };
 const ALERT_CLASSES = new Set(["moisture", "smoke", "gas", "carbon_monoxide", "safety", "problem"]);
 const OPENING_CLASSES = new Set(["window", "door", "opening", "garage_door"]);
-const SHEET_DOMAINS = new Set(["alarm_control_panel", "climate", "cover", "input_boolean", "light", "lock", "media_player", "switch"]);
+const SHEET_DOMAINS = new Set([
+  "alarm_control_panel",
+  "automation",
+  "binary_sensor",
+  "climate",
+  "cover",
+  "input_boolean",
+  "input_select",
+  "light",
+  "lock",
+  "media_player",
+  "select",
+  "switch",
+]);
 const SECURITY_COVERS = new Set(["garage", "gate", "door"]);
 const ROOM_SECTIONS = [
   { key: "climate", title: "chip_climate", domains: ["climate", "fan"] },
@@ -315,7 +328,20 @@ function tileStateText(hass, domain, stateObj) {
   }
   if (domain === "media_player" && state === "playing" && attributes.media_title) return attributes.media_title;
   if (domain in RUN_SERVICES) return translate(language, "run");
+  if (domain === "select" || domain === "input_select") return optionLabel(hass, stateObj, state);
   return formatted;
+}
+
+/** The name of an option of a list, as Home Assistant translates it; its raw "none" is said in words. */
+export function optionLabel(hass, stateObj, option) {
+  const label = hass.formatEntityState?.(stateObj, option) ?? option;
+  return label === "none" ? translate(hass.language, "select_none") : label;
+}
+
+/** A sensor with a number, drawn as a line in the dashboard's own window. */
+export function isNumericSensor(stateObj) {
+  const { attributes = {}, state } = stateObj ?? {};
+  return (attributes.unit_of_measurement != null || attributes.state_class != null) && Number.isFinite(Number.parseFloat(state));
 }
 
 // A code cannot be typed on the slider, and the regular dialog would allow unlocking.
@@ -326,6 +352,7 @@ function tapAction(domain, stateObj, layout, config) {
   }
   // A code cannot be typed in the sheet of an alarm either.
   if (domain === "alarm_control_panel" && stateObj.attributes?.code_format) return "more-info";
+  if (domain === "sensor") return isNumericSensor(stateObj) ? "sheet" : "more-info";
   return SHEET_DOMAINS.has(domain) ? "sheet" : "more-info";
 }
 
@@ -428,6 +455,11 @@ export function layoutTile(hass, given, roomName, config, layout) {
   }
   if (item.kind === "tv") {
     return { ...shown, item, iconAction: null, tapAction: "tv" };
+  }
+  // A machine of the window of servers (`{shortcut: Host, column: Proxmox}`): its own column of that window.
+  if (item.kind === "host") {
+    const columns = item.column ? (item.columns ?? []).filter(({ title }) => title === item.column) : (item.columns ?? []);
+    return { ...shown, iconAction: null, tapAction: "block", item: { ...item, name: shown.name, columns } };
   }
   if (item.turn_on_only) {
     const off = hass.states[item.entity].state === "off";

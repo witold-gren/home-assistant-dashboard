@@ -1,4 +1,5 @@
-// The machines of the house: load bars, facts, virtual machines and history. Read-only.
+// The machines of the house: load bars, facts, virtual machines and history, and what the plug of each one measures.
+// Read-only: the plug of a server is never switched from here, as that would switch off the house's own server.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
@@ -64,11 +65,42 @@ export function infoValue(hass, row, now = Date.now()) {
   return `${formatNumber(hass, value, row.digits)} ${unit}`.trim();
 }
 
+/** The energy meters of the plugs of these columns. */
+export const plugMeters = (columns) => (columns ?? []).map((column) => column.power?.energy).filter(Boolean);
+
+/** What each meter counted since midnight, from the daily statistics of the recorder. */
+export function energySince(stats, meters) {
+  return Object.fromEntries(meters.map((id) => [id, (stats?.[id] ?? []).reduce((sum, row) => sum + (row.change ?? 0), 0)]));
+}
+
 export class HomeDashboardHost extends LitElement {
   static properties = {
     hass: { attribute: false },
     item: { attribute: false },
+    _today: { state: true },
   };
+
+  willUpdate(changed) {
+    if (changed.has("item") && this.hass) this._loadToday();
+  }
+
+  async _loadToday() {
+    const meters = plugMeters(this.item?.columns);
+    if (!meters.length) return;
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const stats = await this.hass
+      .callWS({
+        type: "recorder/statistics_during_period",
+        start_time: midnight.toISOString(),
+        end_time: new Date().toISOString(),
+        statistic_ids: meters,
+        period: "day",
+        types: ["change"],
+      })
+      .catch(() => null);
+    this._today = stats ? energySince(stats, meters) : null;
+  }
 
   async firstUpdated() {
     const helpers = await window.loadCardHelpers?.();
@@ -126,6 +158,52 @@ export class HomeDashboardHost extends LitElement {
     `;
   }
 
+  _number(entity, digits, unit) {
+    const stateObj = this.hass.states[entity];
+    const value = Number.parseFloat(stateObj?.state);
+    if (Number.isNaN(value)) return NO_VALUE;
+    return `${formatNumber(this.hass, value, digits)} ${unit ?? stateObj.attributes.unit_of_measurement ?? ""}`.trim();
+  }
+
+  _renderPower(power) {
+    const t = (key) => translate(this.hass.language, key);
+    const plug = power.switch ? isOnline(this.hass, power.switch) : null;
+    const today = this._today?.[power.energy];
+    const watts = Number.parseFloat(this.hass.states[power.entity]?.state);
+    const facts = [
+      power.voltage && [t("host_voltage"), this._number(power.voltage, 0)],
+      power.current && [t("host_amps"), this._number(power.current, 2)],
+      power.energy && [t("host_energy_today"), today == null ? NO_VALUE : `${formatNumber(this.hass, today, 2)} kWh`],
+      power.energy && [t("host_energy_total"), this._number(power.energy, 1)],
+    ].filter(Boolean);
+    // The same chart each time, or every new state of the house would load its history again.
+    this._charts ??= new Map();
+    if (!this._charts.has(power.entity)) {
+      this._charts.set(power.entity, { mode: "lines", now: false, lines: [{ id: power.entity, name: t("chart_power"), unit: "W" }] });
+    }
+    const chart = this._charts.get(power.entity);
+    return html`
+      <section class="card power" data-power=${power.entity}>
+        <header>
+          <ha-icon icon="mdi:power-plug-outline"></ha-icon>
+          <div>
+            <h3>${t("host_power")} ${plug === null ? nothing : this._dot(plug)}</h3>
+            ${plug === null ? nothing : html`<small data-plug>${t(plug ? "host_plug_on" : "host_plug_off")}</small>`}
+          </div>
+          <span class="watts" data-watts>
+            ${Number.isNaN(watts) ? NO_VALUE : formatNumber(this.hass, watts, 1)}<small>W</small>
+          </span>
+        </header>
+        ${facts.length
+          ? html`<div class="power-facts">
+              ${facts.map(([name, value]) => html`<span><small>${name}</small><strong>${value}</strong></span>`)}
+            </div>`
+          : nothing}
+        <home-dashboard-history-chart .hass=${this.hass} .chart=${chart}></home-dashboard-history-chart>
+      </section>
+    `;
+  }
+
   _renderColumn(column, index) {
     const language = this.hass.language;
     const machines = column.machines ?? [];
@@ -158,6 +236,7 @@ export class HomeDashboardHost extends LitElement {
               </div>`
             : nothing}
         </section>
+        ${column.power?.entity ? this._renderPower(column.power) : nothing}
         ${column.graph ? html`<div class="graph" data-graph=${index}></div>` : nothing}
       </div>
     `;
@@ -165,7 +244,11 @@ export class HomeDashboardHost extends LitElement {
 
   render() {
     if (!this.hass || !this.item) return nothing;
-    return html`<div class="columns">${this.item.columns.map((column, index) => this._renderColumn(column, index))}</div>`;
+    // A single machine, opened from its tile, stands on two columns of its own on a tablet.
+    const single = this.item.columns.length === 1;
+    return html`<div class="columns ${single ? "single" : ""}">
+      ${this.item.columns.map((column, index) => this._renderColumn(column, index))}
+    </div>`;
   }
 
   static styles = [
@@ -185,6 +268,56 @@ export class HomeDashboardHost extends LitElement {
         flex-direction: column;
         gap: 8px;
         min-width: 0;
+      }
+      /* Opened from the tile of its plug, a phone shows first what the tile showed. */
+      @media (max-width: 899px) {
+        .columns.single .power {
+          order: -1;
+        }
+      }
+      @media (min-width: 900px) {
+        .columns.single .column {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          align-items: start;
+          gap: 12px;
+        }
+        .columns.single .column > .card:first-child {
+          grid-row: span 2;
+        }
+      }
+      .power header {
+        --mdc-icon-size: 28px;
+      }
+      .power header > div {
+        flex: 1;
+      }
+      .watts {
+        font-size: 30px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .watts small {
+        margin-left: 3px;
+        font-size: 15px;
+      }
+      .power-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 8px;
+      }
+      .power-facts span {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: var(--hd-off-icon);
+      }
+      .power-facts strong {
+        font-size: 16px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
       }
       .card {
         display: flex;

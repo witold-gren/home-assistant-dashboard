@@ -301,7 +301,8 @@ export class HomeDashboardHistoryChart extends LitElement {
           ${indexes.length === 1 ? this._renderFacts(this._data.series[indexes[0]], lines[indexes[0]].unit ?? this._unitOf(lines[indexes[0]].id)) : nothing}`,
       );
     }
-    return html`${this._renderNow()} ${this._renderRanges()} ${body}`;
+    // A window that shows the value itself above the chart leaves out the chart's own (`now: false`).
+    return html`${this.chart.now === false ? nothing : this._renderNow()} ${this._renderRanges()} ${body}`;
   }
 
   static styles = [

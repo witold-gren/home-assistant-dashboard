@@ -40,6 +40,7 @@ import {
   buildPlayer,
   buildTile,
   canUnlock,
+  optionLabel,
   personalChoices,
   sharedLayoutChoices,
   backgroundSlot,
@@ -177,12 +178,17 @@ const DIAL_SIZE = 280;
 const DIAL_RADIUS = 124;
 const TILE_SHEETS = {
   alarm_control_panel: "alarm",
+  automation: "switch",
+  binary_sensor: "binary",
   climate: "climate",
   cover: "cover",
   input_boolean: "switch",
   light: "light",
   lock: "lock",
   media_player: "player",
+  input_select: "select",
+  select: "select",
+  sensor: "sensor",
   switch: "switch",
 };
 const CHOICE_LIMIT = 12;
@@ -1094,15 +1100,18 @@ export class HomeDashboardSheet extends LitElement {
 
   // Switch ----------------------------------------------------------------------------------
 
+  // An automation is only switched on and off here; what it does is set in Home Assistant, behind the cog.
   _renderSwitch() {
     const { attributes, state } = this._stateObj;
+    const automation = this.sheet.entityId.startsWith("automation.");
     const on = state === "on";
     const label = this.hass.formatEntityState?.(this._stateObj) ?? state;
+    const power = automation ? null : this._deviceSensor(this.sheet.entityId, "power");
     return html`
       ${this._renderHeader(this.sheet.name ?? attributes.friendly_name)}
       <div class="body center">
         <button
-          class="big-switch ${on ? "on" : ""}"
+          class="big-switch ${on ? "on" : ""} ${power ? "short" : ""}"
           role="switch"
           aria-checked=${on}
           aria-label=${this.sheet.name ?? attributes.friendly_name}
@@ -1113,7 +1122,133 @@ export class HomeDashboardSheet extends LitElement {
           <span class="big-thumb"><ha-icon icon="mdi:power"></ha-icon></span>
         </button>
       </div>
-      ${this._renderInfo([{ icon: "mdi:toggle-switch-outline", text: label }])}
+      ${this._renderInfo([
+        { icon: "mdi:toggle-switch-outline", text: label },
+        automation && { icon: "mdi:history", text: this._lastTriggered(attributes.last_triggered) },
+      ])}
+      ${power ? this._renderSwitchPower(power) : nothing}
+    `;
+  }
+
+  _lastTriggered(iso) {
+    return iso ? this._t("automation_last", { when: this._ago(iso) }) : this._t("automation_never");
+  }
+
+  _ago(iso) {
+    const minutes = Math.round((new Date(iso) - Date.now()) / 60000);
+    const format = new Intl.RelativeTimeFormat(this.hass.language, { numeric: "auto" });
+    if (minutes > -60) return format.format(minutes, "minute");
+    return minutes > -1440 ? format.format(Math.round(minutes / 60), "hour") : format.format(Math.round(minutes / 1440), "day");
+  }
+
+  // Sensors and lists ---------------------------------------------------------------------------
+
+  // The battery of the device of an entity: a leak sensor says nothing when it is flat.
+  _deviceBattery(entityId) {
+    const value = Number.parseFloat(this.hass.states[this._deviceSensor(entityId, "battery")]?.state);
+    return Number.isFinite(value) ? Math.round(value) : null;
+  }
+
+  /** A sensor of this class on the same device as the entity (the power of a plug, the battery of a sensor). */
+  _deviceSensor(entityId, deviceClass) {
+    const device = this.hass.entities?.[entityId]?.device_id;
+    if (!device) return null;
+    return (
+      Object.keys(this.hass.entities).find(
+        (other) =>
+          this.hass.entities[other].device_id === device &&
+          domainOf(other) === "sensor" &&
+          !this.hass.entities[other].hidden &&
+          this.hass.states[other]?.attributes?.device_class === deviceClass,
+      ) ?? null
+    );
+  }
+
+  // A plug that measures what it lets through: the power now, the energy so far and a line of the power.
+  _renderSwitchPower(power) {
+    const energy = this._deviceSensor(this.sheet.entityId, "energy");
+    const number = (id, digits) => {
+      const stateObj = this.hass.states[id];
+      const value = Number.parseFloat(stateObj?.state);
+      if (!Number.isFinite(value)) return "–";
+      const text = value.toLocaleString(this.hass.language, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      return `${text} ${stateObj.attributes.unit_of_measurement ?? ""}`.trim();
+    };
+    this._sensorCharts ??= new Map();
+    if (!this._sensorCharts.has(power)) {
+      this._sensorCharts.set(power, { mode: "lines", now: false, lines: [{ id: power, name: this._t("chart_power"), unit: "W" }] });
+    }
+    return html`
+      <div class="switch-power" data-switch-power=${power}>
+        <div class="switch-power-facts">
+          <span><small>${this._t("chart_power")}</small><strong data-switch-watts>${number(power, 1)}</strong></span>
+          ${energy ? html`<span><small>${this._t("host_energy_total")}</small><strong>${number(energy, 2)}</strong></span>` : nothing}
+        </div>
+        <home-dashboard-history-chart .hass=${this.hass} .chart=${this._sensorCharts.get(power)}></home-dashboard-history-chart>
+      </div>
+    `;
+  }
+
+  _changedInfo(stateObj) {
+    return stateObj.last_changed ? { icon: "mdi:history", text: this._t("state_changed", { when: this._ago(stateObj.last_changed) }) } : null;
+  }
+
+  // Something on or off (a leak, smoke, a door): its state at a glance, then when it was on.
+  _renderBinary() {
+    const stateObj = this._stateObj;
+    const tile = buildTile(this.hass, this.sheet.entityId, null, this.config, this.layout);
+    const battery = this._deviceBattery(this.sheet.entityId);
+    const on = stateObj.state === "on";
+    return html`
+      ${this._renderHeader(this.sheet.name ?? stateObj.attributes.friendly_name)}
+      <div class="body center state-body">
+        <span class="state-badge ${on ? tile.tone : "off"}" data-state-badge><ha-icon .icon=${tile.icon}></ha-icon></span>
+        <strong class="state-text" data-state-text>${tile.stateText}</strong>
+      </div>
+      ${this._renderInfo([
+        this._changedInfo(stateObj),
+        battery !== null && { icon: battery < 20 ? "mdi:battery-alert-variant-outline" : "mdi:battery", text: this._t("state_battery", { value: battery }) },
+      ])}
+      <home-dashboard-state-history class="sheet-history" .hass=${this.hass} .entity=${this.sheet.entityId}
+        ?alarm=${tile.tone === "security"}></home-dashboard-state-history>
+    `;
+  }
+
+  // A list to choose from (a drink of a coffee machine, a mode): every option as a button.
+  _renderSelect() {
+    const stateObj = this._stateObj;
+    const tile = buildTile(this.hass, this.sheet.entityId, null, this.config, this.layout);
+    const options = stateObj.attributes.options ?? [];
+    const row = {
+      entity: this.sheet.entityId,
+      name: this._t("select_choose"),
+      labels: Object.fromEntries(options.map((option) => [option, optionLabel(this.hass, stateObj, option)])),
+    };
+    return html`
+      ${this._renderHeader(this.sheet.name ?? stateObj.attributes.friendly_name)}
+      ${this._renderInfo([{ icon: tile.icon, text: tile.stateText }, this._changedInfo(stateObj)])}
+      <div class="rows select-body">${this._renderChoices(row, stateObj)}</div>
+    `;
+  }
+
+  // A number: its value and its line, in the dashboard's own chart.
+  _renderSensor() {
+    const stateObj = this._stateObj;
+    const tile = buildTile(this.hass, this.sheet.entityId, null, this.config, this.layout);
+    this._sensorCharts ??= new Map();
+    const id = this.sheet.entityId;
+    if (!this._sensorCharts.has(id)) {
+      const unit = stateObj.attributes.unit_of_measurement;
+      this._sensorCharts.set(id, { mode: "lines", now: false, lines: [{ id, name: this.sheet.name ?? stateObj.attributes.friendly_name, unit }] });
+    }
+    return html`
+      ${this._renderHeader(this.sheet.name ?? stateObj.attributes.friendly_name)}
+      <div class="body center state-body">
+        <span class="state-badge off"><ha-icon .icon=${tile.icon}></ha-icon></span>
+        <strong class="state-text" data-state-text>${tile.stateText}</strong>
+      </div>
+      ${this._renderInfo([this._changedInfo(stateObj)])}
+      <home-dashboard-history-chart class="sheet-history" .hass=${this.hass} .chart=${this._sensorCharts.get(id)}></home-dashboard-history-chart>
     `;
   }
 
@@ -5441,6 +5576,9 @@ export class HomeDashboardSheet extends LitElement {
       access: this._renderAccess,
       light: this._renderLight,
       switch: this._renderSwitch,
+      binary: this._renderBinary,
+      select: this._renderSelect,
+      sensor: this._renderSensor,
       alarm: this._renderAlarm,
     };
     const wall = this.sheet.kind === "cameras" && window.matchMedia(TABLET).matches;
@@ -5458,7 +5596,7 @@ export class HomeDashboardSheet extends LitElement {
     const roomy = this.sheet.kind === "panel" && !whole && !item?.card && !item?.tabs && (item?.groups?.length ?? 0) >= 2;
     return html`
       <div class="scrim" @click=${this._close}></div>
-      <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}"></div>
+      <div class="backdrop ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}"></div>
       <section class="panel ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""} ${roomy ? "roomy" : ""}" data-kind=${this.sheet.kind}>
         <div
           class="grip"
@@ -5487,7 +5625,7 @@ export class HomeDashboardSheet extends LitElement {
         pointer-events: none;
       }
       :host(.settling) .scrim,
-      :host(.settling) .cover,
+      :host(.settling) .backdrop,
       :host(.settling) .panel {
         transition:
           transform 240ms cubic-bezier(0.3, 0, 0.2, 1),
@@ -5503,7 +5641,7 @@ export class HomeDashboardSheet extends LitElement {
         animation: fade 240ms ease-out;
       }
       /* iOS draws the page under its bars, where a panel with inset: 0 does not reach. */
-      .cover {
+      .backdrop {
         position: fixed;
         inset: -120px 0;
         z-index: 7;
@@ -5513,10 +5651,10 @@ export class HomeDashboardSheet extends LitElement {
         backdrop-filter: blur(var(--hd-sheet-blur, 0px));
         animation: rise 320ms cubic-bezier(0.2, 0.9, 0.25, 1);
       }
-      .cover.dark {
+      .backdrop.dark {
         background: #17181a;
       }
-      .cover.floating {
+      .backdrop.floating {
         background: rgba(0, 0, 0, 0.12);
         -webkit-backdrop-filter: blur(28px);
         backdrop-filter: blur(28px);
@@ -5591,7 +5729,7 @@ export class HomeDashboardSheet extends LitElement {
       }
       @media (prefers-reduced-motion: reduce) {
         .scrim,
-        .cover,
+        .backdrop,
         .panel {
           animation: none !important;
         }
@@ -6266,6 +6404,46 @@ export class HomeDashboardSheet extends LitElement {
       .field.effect {
         align-self: stretch;
       }
+      .state-body {
+        gap: 12px;
+        padding: 12px 16px 4px;
+      }
+      .state-badge {
+        display: grid;
+        place-items: center;
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        color: var(--hd-off-ink, var(--hd-text));
+        background: var(--hd-off);
+        --mdc-icon-size: 44px;
+      }
+      .state-badge.security {
+        color: #ffffff;
+        background: var(--hd-security-icon);
+      }
+      .state-badge.climate {
+        color: #ffffff;
+        background: var(--hd-climate-icon);
+      }
+      .state-badge.appliance {
+        color: #ffffff;
+        background: var(--hd-appliance-icon);
+      }
+      .state-text {
+        font-size: 24px;
+        font-weight: 500;
+        text-align: center;
+      }
+      .state-text::first-letter {
+        text-transform: uppercase;
+      }
+      .sheet-history {
+        padding: 8px 16px 16px;
+      }
+      .select-body .choice {
+        flex-basis: calc(33.33% - 6px);
+      }
       .big-switch {
         position: relative;
         width: 120px;
@@ -6278,6 +6456,34 @@ export class HomeDashboardSheet extends LitElement {
       }
       .big-switch.on {
         background: var(--hd-appliance);
+      }
+      /* Room for the power of the plug under it. */
+      .big-switch.short {
+        width: 104px;
+        height: min(220px, 28vh);
+      }
+      .switch-power {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 16px 16px;
+      }
+      .switch-power-facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+      }
+      .switch-power-facts span {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: var(--hd-off);
+      }
+      .switch-power-facts strong {
+        font-size: 17px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
       }
       .big-thumb {
         position: absolute;
@@ -7807,7 +8013,7 @@ export class HomeDashboardSheet extends LitElement {
         display: none;
       }
       @media (min-width: 900px) {
-        .cover:not(.whole) {
+        .backdrop:not(.whole) {
           display: none;
         }
         .panel[data-kind="chart"] {
