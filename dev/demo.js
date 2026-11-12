@@ -225,6 +225,31 @@ function buildHass() {
   add("siren.driveway_alarm", null, "off", { friendly_name: say("Driveway siren", "Syrena podjazdu") });
   add("light.driveway_floodlight", null, "on", { friendly_name: say("Driveway floodlight", "Reflektor podjazdu") });
   add("select.driveway_night_vision", null, "Infrared", { friendly_name: say("Driveway night vision", "Noktowizja podjazdu"), options: ["Off", "Infrared", "Full Color"] });
+  // Its pan and tilt, with the positions saved on it (cameras.ptz below, by hand).
+  for (const direction of ["left", "right", "up", "down"]) {
+    add(`button.driveway_pan_${direction}`, null, "unknown", { friendly_name: say(`Driveway ${direction}`, `Podjazd ${direction}`) });
+  }
+  add("select.driveway_position", null, say("Gate", "Brama"), {
+    friendly_name: say("Driveway position", "Pozycja podjazdu"),
+    options: [say("Gate", "Brama"), say("Drive", "Podjazd"), say("Garden", "Ogród")],
+  });
+  add("button.driveway_go_to_position", null, "unknown", { friendly_name: say("Driveway go to position", "Podjazd do pozycji") });
+  // The garden camera runs on a battery and says when a stream of it is open: the red dot and its connections.
+  entities["camera.garden"].device_id = "garden_camera";
+  add("binary_sensor.garden_streaming", null, "on", { friendly_name: say("Garden streaming", "Ogród strumień") });
+  entities["binary_sensor.garden_streaming"].device_id = "garden_camera";
+  add("binary_sensor.balcony_door", null, "on", { friendly_name: say("Balcony door", "Drzwi balkonowe"), device_class: "door" });
+  // The three phases of the grid meter, for the Energy page (energy.phases below).
+  [[612, 230.8, 2.9, 0.94], [1460, 233.1, 6.4, 0.97], [228, 248.6, 1.2, 0.81]].forEach(([watts, volts, amps, factor], index) => {
+    const phase = index + 1;
+    add(`sensor.meter_l${phase}_power`, null, String(watts), { friendly_name: `L${phase}`, unit_of_measurement: "W", device_class: "power" });
+    add(`sensor.meter_l${phase}_voltage`, null, String(volts), { friendly_name: `L${phase}`, unit_of_measurement: "V", device_class: "voltage" });
+    add(`sensor.meter_l${phase}_current`, null, String(amps), { friendly_name: `L${phase}`, unit_of_measurement: "A", device_class: "current" });
+    add(`sensor.meter_l${phase}_factor`, null, String(factor), { friendly_name: `L${phase}`, device_class: "power_factor" });
+  });
+  add("sensor.meter_frequency", null, "50.02", { friendly_name: say("Frequency", "Częstotliwość"), unit_of_measurement: "Hz" });
+  add("sensor.heat_pump_power", null, "1180", { friendly_name: say("Heat pump", "Pompa ciepła"), unit_of_measurement: "W", device_class: "power" });
+  add("sensor.computer_power", null, "164", { friendly_name: say("Computer", "Komputer"), unit_of_measurement: "W", device_class: "power" });
   const areas = Object.fromEntries(
     [
       ["living", say("Living room", "Salon")],
@@ -263,6 +288,7 @@ function buildHass() {
         },
         "energy/info": { cost_sensors: {} },
         "recorder/statistics_during_period": message.type === "recorder/statistics_during_period" ? demoStatistics(message) : null,
+        "history/history_during_period": message.type === "history/history_during_period" ? demoHistory(message, states) : null,
         ...demoFrigate(message),
         "media_source/browse_media": {
           children: [
@@ -309,6 +335,35 @@ function demoFrigate(message) {
     return at < until ? [{ id: `demo-${index}`, start_time: at, end_time: at + 40, label: labels[index % labels.length] }] : [];
   });
   return { [message.type]: JSON.stringify(events) };
+}
+
+// The history of the last hours: a wave around the state of a number, and for a stream the times it was open, one of
+// them left open for long.
+function demoHistory(message, states) {
+  const start = Date.parse(message.start_time) / 1000;
+  const end = Date.parse(message.end_time) / 1000;
+  const rows = (id) => {
+    if (id.startsWith("binary_sensor.")) {
+      const sessions = [[0.18, 0.4], [0.31, 12.5], [0.52, 0.7], [0.71, 2.3], [0.9, 0.5]];
+      return [
+        { s: "off", lu: start },
+        ...sessions.flatMap(([at, minutes]) => {
+          const on = start + (end - start) * at;
+          return [{ s: "on", lu: on }, { s: "off", lu: on + minutes * 60 }];
+        }),
+        { s: "on", lu: end - 95 },
+      ];
+    }
+    const value = Number(states[id]?.state);
+    if (!Number.isFinite(value)) return [];
+    const steps = 96;
+    const swing = id.includes("voltage") ? 0.012 : 0.35;
+    return Array.from({ length: steps + 1 }, (_, index) => ({
+      s: String(+(value * (1 + swing * Math.sin(index / 7) * Math.cos(index / 17))).toFixed(1)),
+      lu: start + ((end - start) * index) / steps,
+    }));
+  };
+  return Object.fromEntries(message.entity_ids.map((id) => [id, rows(id)]));
 }
 
 function demoLogbook(say) {
@@ -388,6 +443,7 @@ const DASHBOARD = {
       name: say("Vacuum", "Odkurzacz"),
       icon: "mdi:robot-vacuum",
       entity: "vacuum.robot",
+      fullscreen: true,
       stats: [
         { name: say("Last clean", "Ostatnie sprzątanie"), entity: "sensor.vacuum_area", unit: "m²", digits: 0 },
         { name: say("Filter", "Filtr"), entity: "sensor.vacuum_filter", unit: "%", digits: 0 },
@@ -424,7 +480,7 @@ const DASHBOARD = {
           items: [
             { name: say("Cold room", "Zimno w pokoju"), icon: "mdi:snowflake", entities: ["sensor.bedroom_temperature"], below: 19, unit: "°" },
             { name: say("Low fuel", "Mało paliwa"), icon: "mdi:gas-station", entities: ["sensor.car_range"], below: 100 },
-            { name: say("Batteries", "Baterie"), icon: "mdi:battery-alert", auto: "battery", below: 11 },
+            { name: say("Batteries", "Baterie"), icon: "mdi:battery-alert", auto: "battery", notify: true, below: 11 },
           ],
         },
         {
@@ -501,9 +557,36 @@ const DASHBOARD = {
   },
   cameras: {
     snapshot_platforms: ["frigate"],
+    ptz: {
+      "camera.driveway": {
+        mode: "manual",
+        left: "button.driveway_pan_left",
+        right: "button.driveway_pan_right",
+        up: "button.driveway_pan_up",
+        down: "button.driveway_pan_down",
+        select: "select.driveway_position",
+        button: "button.driveway_go_to_position",
+      },
+    },
     quick: { "camera.driveway": { siren: "siren.driveway_alarm", light: "light.driveway_floodlight", night: "select.driveway_night_vision" } },
   },
-  intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"] },
+  intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"], upload: "/api/intercom/message" },
+  energy: {
+    phases: [1, 2, 3].map((phase) => ({
+      power: `sensor.meter_l${phase}_power`,
+      voltage: `sensor.meter_l${phase}_voltage`,
+      current: `sensor.meter_l${phase}_current`,
+      factor: `sensor.meter_l${phase}_factor`,
+    })),
+  },
+  status_panel: {
+    doors: ["lock.front", "binary_sensor.balcony_door"],
+    now: [{ entity: "sensor.washer_phase", detail: "sensor.washer_program", remaining: "sensor.washer_left", icon: "mdi:washing-machine", name: say("Washer", "Pralka") }],
+    power: [
+      { entity: "sensor.heat_pump_power", name: say("Heat pump", "Pompa ciepła") },
+      { entity: "sensor.computer_power", name: say("Computer", "Komputer") },
+    ],
+  },
   visibility: { "light.shelf": { only: ["kid"] }, "switch.coffee": { except: ["kid"] } },
   layout: [
     {
@@ -614,11 +697,18 @@ const DEMO_CARDS = {
     return graph;
   },
   map: streetMap,
+  // A live view of a camera: its picture.
+  "picture-entity": (config) => {
+    const picture = document.createElement("img");
+    picture.src = `/dev/demo-pictures/${config.entity.split(".")[1]}.jpg`;
+    picture.style.cssText = "display:block;width:100%;height:100%;object-fit:cover";
+    return picture;
+  },
   "demo-floor-plan": floorPlan,
 };
 
 window.loadCardHelpers = async () => ({
-  createCardElement: (config) => DEMO_CARDS[config.type]?.() ?? document.createElement("div"),
+  createCardElement: (config) => DEMO_CARDS[config.type]?.(config) ?? document.createElement("div"),
 });
 
 // ?theme=apple shows the Apple Home theme that comes with Home Dashboard, with example backgrounds.
@@ -645,6 +735,13 @@ if (params.get("theme") === "apple") {
   // In Home Assistant the view under the side bar of a tablet carries the background; here the page does.
   const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   document.body.style.background = theme.appearance.page[dark ? "background_dark" : "background_light"];
+}
+
+// ?status=1 turns on the status bar of a tablet on its side.
+// Its hint about holding the button has been seen.
+if (params.get("status")) {
+  DASHBOARD.appearance = { ...DASHBOARD.appearance, status: { shown: true } };
+  localStorage.setItem("home-dashboard-status-hint", "3");
 }
 
 if (params.get("room")) window.history.replaceState(null, "", `?${params}`);

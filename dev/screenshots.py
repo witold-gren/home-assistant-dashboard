@@ -23,6 +23,8 @@ PHONE = {"width": 402, "height": 874}
 TABLET = {"width": 1180, "height": 820}
 LANDSCAPE = {"width": 874, "height": 402}
 SHEET = "home-dashboard-sheet"
+# A made-up microphone, so the intercom shows its wave instead of the field for typing.
+FAKE_MICROPHONE = ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
 
 
 class Quiet(SimpleHTTPRequestHandler):
@@ -75,6 +77,37 @@ def tap(page: Page, selector: str) -> None:
     page.wait_for_timeout(600)
 
 
+# The made-up home has no camera to stream from: its picture plays as the live video, so the window shows
+# what it shows once a camera answers (no waking ring, DISCONNECT, turning).
+SHOW_LIVE = """async () => {
+    const root = document.querySelector('home-dashboard-chrome').shadowRoot
+        .querySelector('home-dashboard-sheet').shadowRoot;
+    const poster = root.querySelector('[data-live-poster]');
+    const picture = new Image();
+    picture.src = poster.src;
+    await picture.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = picture.naturalWidth;
+    canvas.height = picture.naturalHeight;
+    const draw = () => { canvas.getContext('2d').drawImage(picture, 0, 0); requestAnimationFrame(draw); };
+    draw();
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.style.cssText = 'display: block; width: 100%; height: 100%; object-fit: contain;';
+    video.srcObject = canvas.captureStream(15);
+    root.querySelector('[data-live]').replaceChildren(video);
+    await video.play();
+}"""
+
+
+def show_live(page: Page, button: str = "[data-corner-live]") -> None:
+    tap(page, f"{SHEET} {button}")
+    page.evaluate(SHOW_LIVE)
+    page.wait_for_selector(f"{SHEET} .live-wrap.shown")
+    page.wait_for_timeout(300)
+
+
 def make(browser, base: str, language: str) -> None:
     folder = OUTPUT / language
     folder.mkdir(parents=True, exist_ok=True)
@@ -111,12 +144,30 @@ def make(browser, base: str, language: str) -> None:
     page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
     take(page, folder, "camera")
 
-    # A phone on its side: the camera fills the screen, the line of time comes out with its button.
+    # A phone on its side: the camera fills the screen, live, with every button: the quick ones and the
+    # positions on the left, turning, talking and the line of time on the right.
     page = open_page(browser, base, language, LANDSCAPE)
     tap(page, "home-dashboard-page .camera")
+    show_live(page)
+    tap(page, f"{SHEET} [data-ptz-toggle]")
+    take(page, folder, "camera-landscape")
+
+    # The positions saved on the camera, chosen from the left column.
+    page = open_page(browser, base, language, LANDSCAPE)
+    tap(page, "home-dashboard-page .camera")
+    show_live(page)
+    tap(page, f"{SHEET} [data-ptz-toggle]")
+    tap(page, f"{SHEET} [data-quick='positions']")
+    take(page, folder, "camera-landscape-positions")
+
+    # The same with the line of time out.
+    page = open_page(browser, base, language, LANDSCAPE)
+    tap(page, "home-dashboard-page .camera")
+    show_live(page)
+    tap(page, f"{SHEET} [data-ptz-toggle]")
     tap(page, f"{SHEET} [data-open-line]")
     page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
-    take(page, folder, "camera-landscape")
+    take(page, folder, "camera-landscape-line")
 
     # All cameras one under another, as the heading Cameras opens them.
     page = open_page(browser, base, language, PHONE)
@@ -237,6 +288,7 @@ def make(browser, base: str, language: str) -> None:
 
     make_look(browser, base, language, folder)
     make_apple(browser, base, language, folder)
+    make_tablet(browser, base, language, folder)
 
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
@@ -343,12 +395,65 @@ def make_apple(browser, base: str, language: str, folder: Path) -> None:
     take(open_page(browser, base, language, TABLET, query=apple), folder, "apple-tablet")
 
 
+CHROME = "document.querySelector('home-dashboard-chrome')"
+
+
+def open_sheet(page: Page, sheet: str) -> None:
+    page.evaluate(f"{CHROME}.open({{ type: 'sheet', sheet: {sheet} }})")
+    page.wait_for_timeout(800)
+
+
+# What a tablet on its side and a few newer windows look like: the status bar, the Energy page with the
+# phases of the meter and its own charts, all cameras in a grid or with one big one, the camera window, the
+# intercom and the connections of a camera on a battery.
+def make_tablet(browser, base: str, language: str, folder: Path) -> None:
+    status = "&status=1"
+    take(open_page(browser, base, language, TABLET, query=status), folder, "tablet-status")
+    take(open_page(browser, base, language, TABLET, query=f"{status}&page=energy"), folder, "energy-tablet")
+
+    page = open_page(browser, base, language, TABLET, query="&page=energy")
+    tap(page, "home-dashboard-page home-dashboard-energy [data-energy-phase='1']")
+    page.wait_for_selector(f"{SHEET} home-dashboard-history-chart svg")
+    take(page, folder, "energy-chart")
+
+    page = open_page(browser, base, language, TABLET)
+    page.evaluate("localStorage.setItem('home-dashboard-camera-layout', 'grid')")
+    tap(page, "home-dashboard-page [data-cameras-all]")
+    take(page, folder, "cameras-tablet")
+
+    page = open_page(browser, base, language, TABLET)
+    page.evaluate("localStorage.setItem('home-dashboard-camera-layout', 'featured')")
+    tap(page, "home-dashboard-page [data-cameras-all]")
+    page.wait_for_selector(f"{SHEET} .camera-cell.big [data-wall-live] img")
+    take(page, folder, "cameras-featured")
+
+    page = open_page(browser, base, language, TABLET)
+    tap(page, "home-dashboard-page .camera")
+    show_live(page, "[data-play-live]")
+    take(page, folder, "camera-tablet")
+
+    page = open_page(browser, base, language, TABLET, query=status)
+    tap(page, "home-dashboard-status-panel [data-status-widget='weather']")
+    take(page, folder, "weather-tablet")
+
+    page = open_page(browser, base, language, PHONE)
+    tap(page, "home-dashboard-page [data-intercom-all]")
+    take(page, folder, "intercom")
+
+    page = open_page(browser, base, language, PHONE)
+    open_sheet(page, "{ kind: 'camera', entityId: 'camera.garden' }")
+    tap(page, f"{SHEET} header button[data-details]")
+    tap(page, f"{SHEET} [data-tab='connections']")
+    page.wait_for_selector(f"{SHEET} [data-conn-totals]")
+    take(page, folder, "connections")
+
+
 def main() -> None:
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Quiet, directory=str(ROOT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_port}"
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="chrome", headless=True)
+        browser = playwright.chromium.launch(channel="chrome", headless=True, args=FAKE_MICROPHONE)
         for language in ("en", "pl"):
             make(browser, base, language)
         browser.close()

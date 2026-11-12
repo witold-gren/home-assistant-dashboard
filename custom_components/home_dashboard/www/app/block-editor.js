@@ -35,7 +35,11 @@ const ITEM_FIELDS = {
     { key: "attribute", type: "text" },
     { key: "unit", type: "text" },
   ],
-  battery: [{ key: "below", type: "number" }],
+  battery: [
+    { key: "below", type: "number" },
+    { key: "platforms", type: "strings" },
+    { key: "device_has", type: "text" },
+  ],
   list: [
     {
       key: "list",
@@ -65,7 +69,7 @@ const ITEM_SEEDS = {
   device: { entity: "", state: [] },
   text: { text: "" },
 };
-const ITEM_COMMON = ["name", "icon", "weekdays", "months"];
+const ITEM_COMMON = ["name", "icon", "notify", "weekdays", "months"];
 
 export const BLOCK_KINDS = {
   overview: [
@@ -81,7 +85,7 @@ export const BLOCK_KINDS = {
       ],
     },
   ],
-  departures: [...BASE, { key: "entities", type: "entities" }],
+  departures: [...BASE, { key: "entities", type: "entities" }, { key: "news", type: "entity" }],
   news: [
     ...BASE,
     {
@@ -412,6 +416,7 @@ export class HomeDashboardBlockEditor extends LitElement {
     const fields = [
       { key: "name", type: "text" },
       { key: "icon", type: "text" },
+      { key: "notify", type: "boolean" },
       ...ITEM_FIELDS[kind],
       { key: "weekdays", type: "numbers" },
       { key: "months", type: "numbers" },

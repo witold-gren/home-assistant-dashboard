@@ -60,6 +60,8 @@ def test_defaults_keep_the_page_as_it_was(phone):
         "player": {"background": None, "text": None, "opacity": 100, "blur": 0, "radius": 16, "paused_minutes": 10},
         "nav": {"items": None, "style": "docked", "background": None, "icon": None, "active": None,
                 "opacity": 100, "blur": 0},
+        "status": {"shown": False, "widgets": None, "colourful": False, "background": None, "text": None, "opacity": 100,
+                   "blur": 30},
     }
     assert run(phone, "return a.backgroundVeil(a.mergeAppearance());") == 0.6
 

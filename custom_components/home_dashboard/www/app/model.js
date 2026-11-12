@@ -127,7 +127,7 @@ export function normalizeConfig(config = {}) {
     appearance: config.appearance ?? {},
     access: config.access ?? {},
     visibility: config.visibility ?? {},
-    cameras: { hero: null, tiles: [], hide: [], order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, quick: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
+    cameras: { hero: null, tiles: [], hide: [], columns: 3, layout: "grid", order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, quick: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
     intercom: {
       script: null,
       areas: [],
@@ -135,6 +135,8 @@ export function normalizeConfig(config = {}) {
       text_field: "text",
       file_field: "file",
       played_field: null,
+      // An endpoint that takes the recording and plays it itself (the Intercom integration's `/api/intercom/message`).
+      upload: null,
       media_folder: null,
       ...config.intercom,
     },
@@ -144,6 +146,10 @@ export function normalizeConfig(config = {}) {
     lights: { prefer_groups: true, ...config.lights },
     security: { unlock_on_tablet: false, group: null, ...config.security },
     idle: { return_after: DEFAULT_IDLE_SECONDS, ...config.idle },
+    // Where the facts of the status bar of a tablet come from; what it shows is part of the look.
+    status_panel: { doors: [], now: [], power: [], departures: null, ...config.status_panel },
+    // The phases of the grid meter on the Energy page, found by themselves unless listed here.
+    energy: { phases: null, voltage_range: null, ...config.energy },
   };
 }
 
@@ -365,6 +371,10 @@ function serviceCall([domain, service], entityId) {
 }
 
 export const TILE_SIZES = ["tall"];
+// How many cameras stand in a row of the window of all cameras on a tablet.
+export const CAMERA_COLUMNS = [2, 3, 4, 5];
+// How the window of all cameras lays them out on a tablet: all the same size, or one big and live with the rest small.
+export const CAMERA_LAYOUTS = ["grid", "featured"];
 
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
@@ -581,7 +591,11 @@ export function buildCameras(hass, config) {
   return inOrder(ids, order)
     .filter((id) => isGridSafe(hass, id, config) && hasPicture(hass, id) && !hiddenFromGuests(hass, id, config))
     .filter((id) => !hide.includes(id) && !isInDeniedArea(hass, id, config) && !isPrivate(hass, id, config))
-    .map((id) => cameraEntry(hass, id));
+    .map((id) => {
+      const entry = cameraEntry(hass, id);
+      const streams = cameraStreamSensors(hass, id, config);
+      return { ...entry, streams, streaming: cameraStreaming(hass, streams) };
+    });
 }
 
 // Who sees what comes first: what an administrator took away cannot be brought back by the person,
@@ -804,6 +818,21 @@ export function cameraDeviceId(hass, entityId, config) {
   return hass.entities[cameraId]?.device_id ?? hass.entities[entityId]?.device_id ?? null;
 }
 
+// What says a camera on a battery is connected: eufy's "streaming", Neolink's link to the camera and its recording of a
+// live view. Each one on is the camera awake and its battery going.
+const STREAM_SENSOR = /_(streaming|camera_link|recording_live_view)$/;
+
+/** The sensors that say a stream of this camera is open: on its device, or on the device it is linked to. */
+export function cameraStreamSensors(hass, entityId, config) {
+  const devices = new Set([cameraDeviceId(hass, entityId, config), controlDeviceId(hass, entityId, config)].filter(Boolean));
+  return Object.keys(hass.entities)
+    .filter((id) => id.startsWith("binary_sensor.") && STREAM_SENSOR.test(id) && devices.has(hass.entities[id].device_id))
+    .sort();
+}
+
+/** Whether a stream of the camera is open now, from Home Assistant or anything else asking the bridge. */
+export const cameraStreaming = (hass, sensors) => sensors.some((id) => hass.states[id]?.state === "on");
+
 const deviceEntities = (hass, deviceId) =>
   deviceId ? Object.keys(hass.entities).filter((id) => hass.entities[id].device_id === deviceId && hass.states[id]) : [];
 
@@ -958,9 +987,10 @@ export function cameraMoves(hass, entityId, config) {
 
 // Quick buttons of a camera: its siren, its light and its night vision, from the entities of the device that turns
 // it (so a Frigate picture borrows them from the same camera in its own integration). Found by what does not depend
-// on the language: the siren domain, a light or a switch named for the light, a list offering infrared.
+// on the language: the siren domain, a light or a switch named for the light, a list named for night vision or
+// infrared (Neolink: auto/on/off) or offering infrared.
 const LIGHT_SWITCH = /(^|_)(light|spotlight|floodlight|flood_light|lamp)$/;
-const NIGHT_VISION = /night_?vision/;
+const NIGHT_VISION = /night_?vision|infrared/;
 
 // What may stand behind each quick button when it is chosen by hand (`cameras.quick`): a siren or anything turned on
 // and off, a lamp or a switch, a list.
@@ -1064,11 +1094,15 @@ export function deviceSettingsPanel(hass, entityId, title, { deviceId, exclude =
 // A camera's window of settings leaves out its buttons for turning, which have their own place.
 export function cameraSettingsPanel(hass, entityId, config, title) {
   const cameraId = liveCameraFor(hass, entityId, config) ?? entityId;
-  return deviceSettingsPanel(hass, cameraId, title, {
+  const panel = deviceSettingsPanel(hass, cameraId, title, {
     deviceId: cameraDeviceId(hass, entityId, config),
     exclude: cameraMoveEntities(cameraMoves(hass, entityId, config)),
     chosen: config.cameras.settings?.[cameraId],
   });
+  // A camera that says when it is streaming gets a log of its connections: when and for how long it was awake.
+  const sensors = cameraStreamSensors(hass, entityId, config);
+  if (!sensors.length) return panel;
+  return { ...panel, groups: [...panel.groups, { key: "connections", title: translate(hass.language, "conn_title"), rows: [], connections: sensors }] };
 }
 
 export function liveCameraFor(hass, imageId, config) {

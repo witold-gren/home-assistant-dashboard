@@ -133,6 +133,12 @@ weather:
 
 `weather: false` usuwa chip. **Dostęp użytkowników** ukrywa go przed jedną osobą, w zakładce **Plakietki**.
 
+Na tablecie w poziomie pogoda zajmuje cały ekran. Z lewej jest bieżąca temperatura z dzisiejszym maksimum i
+minimum, wschód i zachód słońca (z `sun.sun`) oraz odczyty. Z prawej najbliższe 24 godziny jako wykres temperatury,
+a pod nim opady każdej godziny w mm: niebieskie to deszcz, białe śnieg, fioletowe deszcz ze śniegiem, z sumą na
+dobę. Pod spodem najbliższe dni jako kolumny ze wspólną skalą temperatury i sumą opadów. Prognoza podaje ilość
+opadów, ale nie ich prawdopodobieństwo. Telefon i tablet w pionie zostają przy układzie listy.
+
 ![Pogoda](screenshots/pl/weather.png)
 
 ## 5. Kamery
@@ -167,7 +173,8 @@ każdej marki. `battery_platforms` jest potrzebne tylko dla kamer, które bateri
 | Dokładnie ta lista i nic więcej | `cameras.hero` i `cameras.tiles` |
 
 W pasku duży obraz przeplata się z dwoma mniejszymi. Kamera, która przestała działać, zostaje widoczna w małym
-okienku, rozmyta i oznaczona jako niedostępna. Chip Ochrona pokazuje wszystkie kamery jedna pod drugą.
+okienku, rozmyta i oznaczona jako niedostępna; dotknięcie otwiera jej okno z nazwą, więc widać, która przestała
+działać. Chip Ochrona pokazuje wszystkie kamery jedna pod drugą.
 
 ### Syrena, światło, noktowizja i pozycje
 
@@ -219,14 +226,139 @@ Przyciski działają zawsze, także bez podglądu na żywo; tylko pozycje wymaga
 
 ### Wszystkie kamery
 
+| Wszystkie kamery na tablecie | Jedna duża kamera |
+|---|---|
+| ![Wszystkie kamery na tablecie](screenshots/pl/cameras-tablet.png) | ![Jedna duża kamera](screenshots/pl/cameras-featured.png) |
+
 Dotknięcie nagłówka **Kamery ›** na stronie głównej albo w pokoju otwiera wszystkie kamery jedna pod drugą, duże, z
-nazwą i wiekiem obrazka (na tablecie dwie obok siebie). Kolejność i ukrycia są te same co na stronie. Dotknięcie
-kamery otwiera jej okno, a strzałka w lewym górnym rogu wraca do listy.
+nazwą i wiekiem obrazka. Kolejność i ukrycia są te same co na stronie. Dotknięcie kamery otwiera jej okno, a strzałka
+w lewym górnym rogu wraca do listy.
+
+Na tablecie kamery wypełniają cały ekran na czarnym tle, po trzy w rzędzie. Przycisk z liczbą w nagłówku przełącza
+2, 3, 4 i 5 w rzędzie na tym urządzeniu. Drugi przycisk w nagłówku przełącza na jedną dużą kamerę i resztę małych
+wokół niej: duża sama uruchamia podgląd na żywo, dotknięcie małej przenosi ją na miejsce dużej i rozłącza poprzednią,
+a przycisk w rogu każdej kamery otwiera jej okno. Kamera na baterię jako duża zatrzymuje się po dwóch minutach, a
+dotknięcie uruchamia ją znowu. **Ustawienia dashboardu → Układ wszystkich kamer na tablecie**
+(`cameras.layout: featured`) wybiera to dla każdego tabletu. **Ustawienia dashboardu → Kolumny wszystkich kamer na tablecie**
+(`cameras.columns: 4`) ustawia to dla każdego tabletu, który nie wybrał własnej liczby.
+
+Na tablecie w poziomie (ekran dotykowy) okno kamery zajmuje cały ekran, jak na telefonie w poziomie: obraz na całą
+szerokość, nagłówek w pasie nad nim, wszystkie przyciski na obrazie, a pierścień obracania w połowie jego wysokości.
+Przycisk kamery w nagłówku wysuwa z dołu pozostałe kamery, a przeciągnięcie w dół je chowa.
+
+### Ostrzeżenia na stronie głównej
+
+Ostrzeżenia to elementy ekranu **Status**. Element z włączonym `notify` pokazuje się dodatkowo jako karta na stronie
+głównej, pod chipami, dopóki ma coś do zgłoszenia. Karta podaje nazwę elementu i krótką listę tego, czego dotyczy,
+np. „Salon Termostat Bateria 25 %”. Przy jednym urządzeniu **Więcej informacji** otwiera jego szczegóły. Te same
+ostrzeżenia są zawsze na ekranie Status, więc da się do nich wrócić po zamknięciu karty.
+
+**Zamykanie i wyciszanie**
+
+| Co | Działanie |
+|---|---|
+| Krzyżyk na karcie | chowa ją do końca dnia; wraca od razu, gdy na liście pojawi się nowe urządzenie, i następnego dnia, jeśli problem trwa |
+| Ustawienia dashboardu → Ostrzeżenia na stronie głównej → **Wycisz na tydzień** | chowa wszystkie karty na 7 dni na Twoim koncie, na każdym urządzeniu; potem wracają same, a **Pokaż znowu** przywraca je wcześniej |
+
+Zamknięcie zapamiętuje dane urządzenie (w przeglądarce, do końca dnia), a wyciszenie jest zapisane w danych
+użytkownika w Home Assistant.
+
+**Budowa konfiguracji**
+
+Ekran Status to skrót `kind: overview`. Ma listę sekcji (`sections`), a każda sekcja listę elementów (`items`). Element
+mówi, czego szukać i kiedy coś zgłosić:
+
+| Pole | Znaczenie |
+|---|---|
+| `name`, `icon` | tytuł karty i jej ikona |
+| `notify: true` | pokazuj też jako kartę na stronie głównej |
+| `below` | zgłoś wartości poniżej tej liczby (np. 20 dla baterii w %, 80 dla zasięgu w km) |
+| `entities` | wybrane encje, np. `sensor.volvo_xc90_distance_to_empty_tank` |
+| `auto: battery` | zamiast listy encji: każdy poziom baterii w %, bez zużycia baterii (`…_health`) i bez urządzeń niedostępnych |
+| `platforms` | przy `auto: battery`: tylko encje tych integracji, np. `[zha]`, `[netatmo]`, `[eufy_sdk, neolink]` |
+| `device_has` | przy `auto: battery`: tylko urządzenia, które mają też encję tej domeny, np. `camera` (kamery, bez czujników tej samej integracji) |
+
+Przykład, sekcja „Wymaga uwagi” z ostrzeżeniami:
+
+```yaml
+shortcuts:
+  - kind: overview
+    name: Status
+    icon: mdi:clipboard-pulse-outline
+    sections:
+      - title: Wymaga uwagi
+        alert: true
+        items:
+          - name: Mało paliwa
+            icon: mdi:gas-station
+            entities: [{ entity: sensor.volvo_xc90_distance_to_empty_tank, name: Volvo XC90 }]
+            below: 80
+            notify: true
+          - name: Kamery na baterię
+            icon: mdi:battery-alert-variant-outline
+            auto: battery
+            platforms: [eufy_sdk, neolink]
+            device_has: camera
+            below: 20
+            notify: true
+          - name: "Zigbee: słaba bateria"
+            icon: mdi:battery-alert
+            auto: battery
+            platforms: [zha]
+            below: 10
+            notify: true
+```
+
+**Gdzie to edytować**
+
+1. **W aplikacji, bez YAML (zalecane).** Na stronie głównej trzy kropki → **Odznaki podsumowania** → przy bloku
+   **Status** ołówek. Rozwiń sekcję i element. **Pokazuj, gdy** → „bateria jest słaba” daje pola **Poniżej**, **Tylko te integracje**
+   (po przecinku, np. `zha, netatmo`) i **Tylko urządzenia, które mają też** (np. `camera`). Każdy element ma
+   przełącznik **Pokazuj też jako ostrzeżenie na stronie głównej**. **Zapisz** zapisuje od razu.
+2. **Cała konfiguracja jako YAML.** Menu → **Ustawienia dashboardu** → **Edytuj konfigurację**. Status jest na liście
+   `shortcuts`, jak w przykładzie powyżej.
+3. **Nazwę integracji** do pola `platforms` widać w Home Assistant: Ustawienia → Urządzenia i usługi → Encje, kolumna
+   „Integracja” (np. `zha`, `netatmo`, `sonoff`, `eufy_sdk`, `neolink`).
+
+### Otwarte połączenia kamer na baterię
+
+| Połączenia kamery | Okno kamery na tablecie |
+|---|---|
+| ![Połączenia kamery](screenshots/pl/connections.png) | ![Okno kamery na tablecie](screenshots/pl/camera-tablet.png) |
+
+Czerwona, migająca kropka w prawym górnym rogu obrazu (na stronie głównej, we wszystkich kamerach i w oknie kamery)
+mówi, że strumień tej kamery jest teraz otwarty: z dashboardu, innego okna Home Assistant albo czegokolwiek, co pyta
+most. Kamera jest wtedy wybudzona i zużywa baterię. Dashboard bierze to z czujników urządzenia kamery: eufy
+`binary_sensor.*_streaming`, Neolink `*_camera_link` i `*_recording_live_view`.
+
+W ustawieniach kamery (trybik) zakładka **Połączenia** pokazuje z historii Home Assistant ostatnie 24 godziny albo 7 dni:
+liczbę wybudzeń (strumieni), łączny czas i ile trwało ponad 5 minut, a pod tym każde połączenie z godziną początku,
+końca i długością. Połączenia dłuższe niż 5 minut są czerwone; trwające ma kropkę i napis „teraz”.
+
+### Nagrania na dysku
+
+Przycisk z filmem pozwala znaleźć nagrania z linii czasu bez przewijania jej: w pionie stoi z lewej nad linią czasu, w
+poziomie obok przycisku linii. Pokazuje nagrania według dni, najnowsze u góry (dla Frigate jego wykrycia z
+obrazkami), a kolejne dni doczytuje, gdy lista dojdzie do końca. Dotknięcie wraca do kamery w miejscu tego nagrania:
+wybiera jego dzień, przesuwa linię czasu i odtwarza je. Pliki nagrań z dysku (eufy, Neolink) nie mają własnych obrazków,
+więc dashboard bierze kadr z pierwszej sekundy pliku (dwa pliki naraz) i zapamiętuje go na tym urządzeniu: przy
+następnym otwarciu miniatury są od razu.
+
+### Nagrania z karty kamery
+
+Kamera, która trzyma nagrania na własnej karcie i to zgłasza (atrybut `sd_recordings` z poleceniami `list` i
+`download`, np. integracja Neolink), ma w oknie przycisk karty. Otwiera on nagrania według dni, najnowsze u góry, z
+małym obrazkiem każdego. Obrazki są pobierane tylko dla widocznych nagrań, bo każdy budzi kamerę. Lista zapamiętana
+przez integrację pokazuje się od razu, a sama karta jest sprawdzana w tle. Przycisk pobierania ściąga nagranie do
+folderu linii czasu, a zielony znacznik nagrania, które już tam jest, otwiera linię czasu w jego miejscu. Przycisk przy
+dniu pobiera wszystkie nagrania z tego dnia, których jeszcze nie ma na dysku, od najstarszego, a gdy są już wszystkie,
+pokazuje podwójny znacznik. Z karty nic nie jest kasowane.
 
 ### Podgląd na żywo
 
 Dotknięcie obrazu otwiera go bez strumienia. **NA ŻYWO** na dole uruchamia strumień z kamery tego samego urządzenia
-albo z `cameras.live: {image.door_last_screen: camera.door}`. Dopóki kamera się budzi, okno pokazuje jej ostatni
+albo z `cameras.live: {image.door_last_screen: camera.door}`. To samo robi duży przycisk odtwarzania na środku obrazu,
+widoczny, dopóki podgląd nie działa (znika przy przybliżonym obrazie). Dopóki kamera się budzi, okno pokazuje jej ostatni
 obrazek z kółkiem ładowania na środku, a plakietka NA ŻYWO jest szara. Podgląd zastępuje obrazek dopiero wtedy, gdy
 wideo naprawdę ruszy, a plakietka nabiera koloru. Głośnik i sterowanie kamerą są przygaszone, dopóki nic nie gra
 (sterowanie działa tylko na żywo). Napis o kamerze na baterię zostaje w pionie cały czas, a przy nagraniu jest
@@ -256,6 +388,15 @@ powiązanie. Zmiany zapisuje **Zapisz**.
 | Telefon pionowo | Telefon poziomo |
 |---|---|
 | ![Kamera pionowo](screenshots/pl/camera.png) | ![Kamera poziomo](screenshots/pl/camera-landscape.png) |
+
+W poziomie obraz wypełnia ekran. Nagłówek biegnie przez cały ekran: zamknięcie w lewym rogu, a ustawienia w prawym,
+nad ciemnymi pasami obok węższego obrazu. Przyciski samej kamery (nagrania z dni, NA ŻYWO, obracanie, dźwięk, edycja)
+stoją lekko odsunięte od ustawień. Wszystko, czym sterujesz kamerą, zostaje na obrazie: z lewej, od dołu, syrena,
+światło, noktowizja i pozycje; z prawej, od dołu, linia czasu, mówienie i pierścień obracania.
+
+| Pozycje kamery | Linia czasu |
+|---|---|
+| ![Pozycje poziomo](screenshots/pl/camera-landscape-positions.png) | ![Linia czasu poziomo](screenshots/pl/camera-landscape-line.png) |
 
 ### Sterowanie i mówienie każdej kamery
 
@@ -340,8 +481,8 @@ Tak działają eufy-sdk i Neolink.
   **Nagrywaj podgląd** (przełącznik z integracji eufy-sdk, domyślnie wyłączony), most eufy zapisuje każdy podgląd
   tej kamery do `/media/eufy/<numer seryjny>/<dzień>/`, kto by go nie otworzył (dashboard, okno Home Assistant,
   HomeKit). Most nigdy nie budzi kamery sam, nagrywa tylko to, co i tak płynie. W trakcie podglądu
-  plakietka na obrazie mówi **REC · NA ŻYWO**. Dni i linia czasu pokazują te nagrania z ostatnich 14 dni; starsze zostają na
-  dysku. Inny folder mediów ustawisz w `cameras.recordings_folder` (np.
+  plakietka na obrazie mówi **REC · NA ŻYWO**. Dni i linia czasu pokazują każdy dzień, który jest na
+  dysku, także klipy sprzed tygodni pobrane z karty kamery. Inny folder mediów ustawisz w `cameras.recordings_folder` (np.
   `media-source://media_source/local/eufy`).
 - **Nagrane podglądy kamer Reolink (Neolink)**: tak samo działa przełącznik **Nagrywaj podgląd** z integracji
   Neolink (aplikacja Neolink 0.2.0 lub nowsza). Pliki trafiają do `/media/neolink/<kamera>/<dzień>/`, a przełącznik
@@ -414,6 +555,16 @@ Ten sam blok może stać w pokoju: wstaw go między kafelki w `layout`.
 | `frame` | Strona WWW na cały ekran. |
 | `tone` | Kolor ikony skrótu: green, purple, teal lub pink. |
 
+Gdy kartą jest mapa odkurzacza z trybem sprzątania pokoi (`vacuum_clean_segment` z `predefined_selections`), na
+tablecie w poziomie pokoje stają jako przyciski w lewej kolumnie razem z liczbą powtórzeń i przyciskiem **Sprzątaj
+wybrane**. Własne przyciski karty są wtedy schowane, a mapa stoi sama, wyśrodkowana, na przezroczystym tle i zmniejsza
+się, gdyby nie mieściła się na ekranie.
+
+Blok na całym ekranie (`fullscreen: true`) z otwartą kartą (`card_open: true`), np. odkurzacz z mapą, na tablecie w
+poziomie stoi w dwóch kolumnach: z lewej jego wiersze, liczby jako kafelki (udział w `%` z paskiem pod spodem) i
+przyciski na dole, a karta na reszcie ekranu. W pionie i na telefonie zostaje jedna kolumna. Obrót tabletu nie
+uruchamia karty od nowa.
+
 Ekran stanu domu to `kind: overview`: zegar, data i tylko to, co teraz warto zobaczyć. Pozycja bez niczego do pokazania znika, a razem
 z ostatnią pozycją znika cała sekcja. Sekcja z `alert: true` liczy się do podsumowania przy zegarze, a `bottom: true` stoi zawsze na samym dole. `title` można pominąć. Dotknięcie encji
 otwiera jej szczegóły.
@@ -465,7 +616,12 @@ shortcuts:
 
 Odjazdy tramwajów i autobusów to `kind: departures`. Najbliższy odjazd jest duży, a pod nim każda linia z kolejnymi
 godzinami i opóźnieniem. Encje muszą trzymać odjazdy w atrybucie `list` (`line`, `direction`, `departure`,
-`time_to_departure`, `delay`):
+`time_to_departure`, `delay`). Na tablecie w poziomie odjazdy zajmują cały ekran: najbliższy duży z informacją, czy
+jedzie o czasie, wszystkie odjazdy wszystkich linii w jednej kolejności, najbliższa godzina (do dwóch, gdy ostatni
+odjazd jest później) jako oś czasu z wierszem na linię oraz karta każdej linii ze wszystkimi godzinami z rozkładu. Każda
+linia ma swój kolor; `colors: {"8": "#ff9f0a"}` wybiera go ręcznie. Ile godzin przychodzi na linię, decyduje źródło
+danych (np. serwer MPK), a nie dashboard. `news: binary_sensor.impk_news` dodaje komunikaty przewoźnika (objazdy,
+utrudnienia) z atrybutu `list`: pomarańczowa karta nad odjazdami, tylko gdy są komunikaty.
 
 ```yaml
 shortcuts:
@@ -698,6 +854,10 @@ children:
 |---|---|---|---|
 | ![Muzyka](screenshots/pl/music.png) | ![Energia](screenshots/pl/energy.png) | ![Mapa](screenshots/pl/map.png) | ![Odtwarzacz](screenshots/pl/player.png) |
 
+| Energia na tablecie | Wykres fazy |
+|---|---|
+| ![Energia na tablecie](screenshots/pl/energy-tablet.png) | ![Wykres fazy](screenshots/pl/energy-chart.png) |
+
 Obraz Muzyki zastępuje tu Twoją aplikację muzyczną, a obrazy Energii i Mapy karty Home Assistant, z wymyślonymi
 liczbami.
 
@@ -721,6 +881,34 @@ odtwarzacz nie pokazuje się na Energii ani na Mapie, żeby nie zasłaniać doł
 **Ustawienia → Dashboardy → Energia**: licznik dodaj jako źródło sieciowe, a urządzenia w sekcji
 **Poszczególne urządzenia**. Jeśli urządzenie jest podłączone do innego mierzonego urządzenia, ustaw je tam jako
 podrzędne, inaczej policzy się podwójnie.
+
+Licznik z fazami (np. ZAMEL MEW-01 przez SUPLA i MQTT) daje więcej:
+
+- **Teraz**: moc całego mieszkania, suma faz, i częstotliwość sieci.
+- **Zużycie** z porównaniem do poprzedniego okresu: dla bieżącego dnia „wczoraj o tej porze”, dla tygodnia i miesiąca
+  „do tej pory”. Wykres pokazuje poprzedni okres przygaszony za słupkami.
+- **Koszt** z ceną za kWh, a **Z pomiarem / bez**: jaka część zużycia przypada na urządzenia z pomiarem. Reszta jest
+  na liście jako **Pozostałe (bez pomiaru)**.
+- **Fazy L1–L3**: moc, natężenie, cos φ i napięcie na skali 207–253 V (230 V ±10%). Napięcie jest zielone w normie,
+  pomarańczowe blisko jej końców i czerwone poza nią. Dotknięcie fazy otwiera okno z wykresem jej mocy i
+  napięcia (z pasem normy), a dotknięcie urządzenia, **Zużycia** albo **Teraz** wykres zużycia lub mocy faz. Zakresy:
+  6 h, 24 h, 7 dni (moc) albo 24 h, 7 dni, 30 dni (energia); palec na wykresie pokazuje wartość w tej chwili, pod
+  wykresem są najmniej, średnio i najwięcej.
+
+Fazy znajdują się same na urządzeniu pierwszego licznika sieci, po numerze fazy w nazwach czujników (`faza_1`,
+`phase_2`, `_l3`) i po tym, co mierzą. Inaczej wskaż je w YAML dashboardu:
+
+```yaml
+energy:
+  phases:
+    - power: sensor.licznik_faza_1_moc
+      voltage: sensor.licznik_faza_1_napiecie
+      current: sensor.licznik_faza_1_prad
+      factor: sensor.licznik_faza_1_wspolczynnik
+  voltage_range: [207, 253]   # domyślnie
+```
+
+Na tablecie poziomo liczby stoją w jednym rzędzie, wykres obok faz, a urządzenia są kafelkami po cztery w rzędzie.
 
 **Mapa** rysuje trasy osób z ostatnich godzin, razem ze strefami, na mapie Home Assistant. Nad mapą są dwa rzędy
 przycisków: **czyje trasy** (Wszyscy, każda osoba i wybrane urządzenia) oraz **zakres**: 6 h, 24 h, 3 dni albo 7 dni.
@@ -864,6 +1052,7 @@ przezroczystość zostaje.
 | **Pasek** | pozycje: od 2 do 5 z listy Dom, Media albo Muzyka, Energia, Mapa, Sceny, Menu i pokoje; kolejność strzałkami | Dom, Media/Muzyka, Energia, Mapa | pokój i Sceny są podświetlone, gdy są otwarte; w innym pokoju podświetlony jest Dom |
 | **Pasek** | **Przy krawędzi / Pływający** | Przy krawędzi | pływający pasek to zaokrąglona pigułka nad dolną krawędzią, jak w Apple Home; tablet zawsze ma pasek z boku |
 | **Pasek** | tło, ikony i podpisy, oznaczenie otwartej strony, krycie, rozmycie | kolory wyglądu, 100%, 0 px | przy mniejszym kryciu i rozmyciu strona pod paskiem prześwituje jak przez matowe szkło |
+| **Pasek** | **Pasek statusu**: włączony, części i ich kolejność, kolorowe ikony, tło, tekst, krycie, rozmycie | wyłączony; pogoda, w domu, uwaga, teraz, odjazdy, pobór mocy; białe ikony na szkle | tylko tablet poziomo; opis w rozdziale 10 |
 | **Pasek** | **Odtwarzacz**: wstrzymany zostaje (0-120 min), tło, napisy i ikony, krycie, rozmycie, zaokrąglenie | 10 min, kolory wyglądu, 100%, 0 px, 16 px | mały odtwarzacz nad paskiem; pokazuje tylko to, co gra albo zostało wstrzymane niedawno; 0 chowa wstrzymane od razu, a × zamyka go do czasu, aż coś zacznie grać |
 | **Okna** | tło, napisy i ikony, przyciski i pola, tło kart Home Assistant, krycie, rozmycie (0-40 px), przyciemnienie strony (0-80%) | kolory wyglądu, 100%, 0 px, 45% | wszystkie okna otwierane nad stroną: lampa, roleta, termostat, odtwarzacz, menu trzech kropek, Pogoda, Status, Host, Rok szkolny, odjazdy, Wiadomości, Media, odkurzacz; tło kart Home Assistant `#00000000` usuwa np. szare tło mapy odkurzacza; wybrane zakładki i wyróżnione wydarzenia dostają jaśniejsze i żółte szkło; przy mniejszym kryciu strona prześwituje rozmyta; arkusz Wygląd pokazuje zmianę od razu, przed zapisem |
 | **Ikony** | ikona urządzenia | ikona z HA | wyszukaj urządzenie, potem ikonę (np. `led strip`) i wybierz ją; lista pod wyszukiwarką pokazuje Twoje ikony |
@@ -913,6 +1102,14 @@ appearance:
     active: "#4a4f9a"
     opacity: 55             # 20-100, domyślnie 100
     blur: 20                # 0-30 px, domyślnie 0
+  status:                   # pasek statusu na tablecie poziomo
+    shown: true             # domyślnie false
+    widgets: [weather, home, alerts, now, departures, power]   # części i ich kolejność
+    colourful: false        # true = kolorowe ikony, linie tramwajów i wykresy
+    background: "#17181c"   # bez koloru: szkło jak kafelki (czarne 26%)
+    text: "#ffffff"
+    opacity: 95             # 20-100, domyślnie 100; dotyczy wybranego koloru
+    blur: 30                # 0-30 px, domyślnie 30
   sheets:                   # okna nad stroną
     background: "#1d2c5c"
     text: "#ffffff"
@@ -1042,7 +1239,73 @@ encji, więc ta sama osoba dojdzie do nich w innym dashboardzie. Jeśli to ważn
   **Ustawienia → Aplikacja Companion → Debugowanie → Resetuj pamięć podręczną interfejsu**.
 - Gdy strona powiększa się palcami, wyłącz powiększanie gestem w ustawieniach aplikacji Companion.
 
+### Pasek statusu na tablecie
+
+| Pasek statusu | Pogoda z paska statusu |
+|---|---|
+| ![Pasek statusu](screenshots/pl/tablet-status.png) | ![Pogoda z paska statusu](screenshots/pl/weather-tablet.png) |
+
+Tablet poziomo może zamiast wąskiego paska pokazać kolumnę 320 px (szerokość menu) z godziną, datą, pogodą i tym, co się dzieje, na
+szybkie spojrzenie z drugiego końca pokoju. Strony (Dom, Muzyka, Energia, Mapa) zostają w rzędzie na dole kolumny.
+
+- **Włączenie:** menu → **Wygląd** → zakładka **Pasek** → **Pasek statusu** → **Pokaż pasek statusu**. Jak cały
+  wygląd: dla wszystkich (administrator) albo tylko dla siebie. Telefon i tablet pionowo zostają bez zmian.
+- **Części i kolejność:** w tym samym miejscu, strzałkami, × usuwa część, lista dodaje ją z powrotem. Do tego tło,
+  tekst, krycie i rozmycie. Domyślnie pasek jest szkłem jak kafelki, z białymi ikonami; kolor ma tylko ikona
+  ostrzeżenia. **Kolorowe ikony, linie i wykresy** przywraca kolory. Część, która nie ma nic do pokazania, sama znika: **Uwaga** bez ostrzeżeń, **Teraz** gdy
+  nic nie pracuje, w **W domu** zamknięte drzwi i okna oraz zero świateł.
+- **Przycisk u góry po prawej** zwija kolumnę do zwykłego wąskiego paska; tablet to zapamiętuje. Zwinięty pasek ma ten
+  przycisk na górze, a menu i asystenta na dole.
+- **Dotknięcie części** otwiera jej okno: pogoda okno pogody, **W domu** ekran Status (pierwszy blok Statusu; bez
+  niego szczegóły drzwi), tramwaje okno rozkładu, pobór mocy stronę Energia, a **Uwaga** i **Teraz** szczegóły
+  urządzenia.
+- **Przytrzymanie tego przycisku** otwiera menu: pierścień wokół przycisku wypełnia się przez pół sekundy. Pierwsze
+  trzy razy podpowiada to dymek. Strzałka w menu wraca do paska. Pod przyciskiem jest mikrofon asystenta.
+
+Części:
+
+| Część | Co pokazuje | Skąd |
+|---|---|---|
+| **Pogoda** | temperatura, opis, dziś min/maks, najbliższy deszcz lub śnieg w 12 h | encja pogody z rozdziału 4 |
+| **W domu** | włączone światła i urządzenia, otwarte drzwi i okna | pokoje dashboardu, `status_panel.doors` |
+| **Uwaga** | te same ostrzeżenia co karty na stronie głównej | pozycje Statusu z `notify: true` |
+| **Teraz** | to, co pracuje albo się dzieje (pralka, msza w niedzielę, odkurzacz) | `status_panel.now` |
+| **Odjazdy** | każda linia z minutami (powyżej godziny: godzina odjazdu) i trzema godzinami | pierwszy blok odjazdów albo `status_panel.departures` |
+| **Pobór mocy** | moc teraz i wykres z 6 godzin | `status_panel.power` |
+
+Dane ustawia się w YAML dashboardu (**Ustawienia → Dashboardy → Home Dashboard → ⋮ → Edytuj dashboard → ⋮ → Edytor
+surowej konfiguracji**, w bloku `strategy:`):
+
+```yaml
+status_panel:
+  doors:                          # tylko te drzwi i okna; pokój dziecka się nie liczy
+    - binary_sensor.drzwi_wejsciowe
+    - entity: binary_sensor.balkon_contact
+      name: Balkon
+  now:                            # pozycja pokazuje się, gdy encja nie spoczywa
+    - entity: sensor.msza_najblizsza # "—" = nic; inaczej najbliższa godzina
+      name: Msza
+      icon: mdi:church
+    - entity: sensor.pralka_faza
+      name: Pralka
+      icon: mdi:washing-machine
+      detail: sensor.pralka_program     # dopisane po stanie
+      remaining: sensor.pralka_pozostalo # po prawej
+    - vacuum.odkurzacz
+  power:
+    - entity: sensor.serwer_moc
+      name: Serwer
+      color: "#76b900"
+    - sensor.nuc_moc
+  departures: null                # null = pierwszy blok odjazdów
+```
+
+Pozycja **Teraz** spoczywa przy stanach `off`, `idle`, `docked`, `standby`, `unavailable`, `unknown`, `—`, `none`,
+`nie` (wielkość liter bez znaczenia). Własną listę daje `resting: [Off, Ready]`.
+
 ## 11. Intercom
+
+![Interkom](screenshots/pl/intercom.png)
 
 Gdy masz skrypt, który mówi w wybranych obszarach, dashboard doda przyciski na stronie głównej, w pokojach i na ekranie
 kamery:
@@ -1056,6 +1319,20 @@ intercom:
 ```
 
 Skrypt dostaje obszary i tekst w tych polach. Nagrywanie wiadomości głosowej wymaga HTTPS.
+
+Z integracją **Intercom** (domena `intercom`) nagranie idzie prosto do niej, a ona sama je odtwarza:
+
+```yaml
+intercom:
+  script: intercom.announce     # tekst
+  areas_field: areas
+  text_field: message
+  played_field: played          # pusta lista = brak głośnika, dashboard to zgłasza
+  upload: /api/intercom/message # nagranie: POST z WAV, obszary w adresie (?areas=a,b)
+```
+
+Z `upload` nagrywać może każdy zalogowany, także konto tabletu na ścianie. Bez tej opcji nagranie trafia do
+`media_folder`, do którego pliki może wgrać tylko administrator.
 
 ## 12. Gdy coś nie działa
 

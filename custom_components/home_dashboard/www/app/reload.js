@@ -4,15 +4,19 @@
 
 // Every module of the app, the loader and the bundled libraries. A test keeps this list equal to the folder.
 export const APP_FILES = [
+  "alerts.js",
   "activity.js",
   "app-frame.js",
   "appearance.js",
   "block-editor.js",
   "builtin-themes.js",
   "chrome.js",
+  "clip-thumbs.js",
+  "connections.js",
   "controls.js",
   "departures.js",
   "energy.js",
+  "history-chart.js",
   "host.js",
   "i18n.js",
   "intercom.js",
@@ -32,6 +36,7 @@ export const APP_FILES = [
   "settings.js",
   "sheet.js",
   "sound.js",
+  "status-panel.js",
   "status.js",
   "styles.js",
   "talk.js",

@@ -135,6 +135,25 @@ export class HomeDashboardNews extends LitElement {
       .release {
         text-align: center;
       }
+      /* A tablet: the whole width, the news in two columns so a line stays easy to read. */
+      @media (min-width: 900px) {
+        .content {
+          max-width: none;
+        }
+        section {
+          display: block;
+          column-count: 2;
+          column-gap: 16px;
+        }
+        section h3 {
+          margin-bottom: 8px;
+          column-span: all;
+        }
+        article {
+          margin-bottom: 12px;
+          break-inside: avoid;
+        }
+      }
       .empty {
         margin: 48px 16px;
         color: var(--hd-text-muted);

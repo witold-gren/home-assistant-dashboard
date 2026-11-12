@@ -102,8 +102,6 @@ export async function clipUrl(hass, frigate, clip, hls = playsHls()) {
 
 // Where a camera's recordings come from ----------------------------------------------------------
 
-// Recorded live views of a camera are kept on disk for longer; the window offers only the last two weeks.
-const FILE_DAYS = 14;
 const FILE_NAME = /^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})\.mp4$/;
 // The media folder of Home Assistant: without a folder of its own Home Assistant names it "local"; one named
 // in media_dirs is tried next.
@@ -187,12 +185,10 @@ function fileSource(hass, { sn, toggle }, folders) {
     toggle,
     // A live view becomes a file only once it ends.
     refreshAfterLive: true,
+    // Every day on the disk: a recording brought down from a camera's card may be weeks old.
     async days() {
-      const oldest = shiftDay(localDay(new Date()), -(FILE_DAYS - 1));
       const folder = await browse(sn);
-      return (folder?.children ?? [])
-        .map((child) => child.title)
-        .filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= oldest);
+      return (folder?.children ?? []).map((child) => child.title).filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day));
     },
     async day(day) {
       const folder = await browse(`${sn}/${day}`);
@@ -200,6 +196,12 @@ function fileSource(hass, { sn, toggle }, folders) {
       return { ranges: ranges.sort((a, b) => a.start - b.start), events: [] };
     },
     clipAt: fileClipAt,
+    /** The media id of `file` (`YYYY-MM-DD/HHMMSS-HHMMSS.mp4`) where the folders keep it, or null. */
+    async fileId(file) {
+      const [day, name] = file.split("/");
+      const folder = await browse(`${sn}/${day}`);
+      return (folder?.children ?? []).find((child) => child.title === name)?.media_content_id ?? null;
+    },
     async url(clip) {
       const { url } = await hass.callWS({ type: "media_source/resolve_media", media_content_id: clip.id });
       return hass.hassUrl(url);
@@ -798,7 +800,7 @@ export class HomeDashboardTimeline extends LitElement {
       .time.quiet {
         visibility: hidden;
       }
-      @media (orientation: landscape) and (max-height: 500px) {
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
         .time.quiet {
           display: none;
         }
@@ -858,7 +860,7 @@ export class HomeDashboardTimeline extends LitElement {
         height: 100%;
         --mdc-icon-size: 24px;
       }
-      @media (orientation: landscape) and (max-height: 500px) {
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
         .skip {
           display: grid;
         }

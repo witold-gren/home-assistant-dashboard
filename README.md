@@ -9,55 +9,18 @@ itself and kept as a theme you can share; two come with it: **Home Dashboard** a
 
 Status: early version.
 
-| Apple Home | Apple Home: room | Apple Home: lamp | Apple Home: energy |
-|---|---|---|---|
-| ![Apple Home](docs/screenshots/en/apple-home.png) | ![Apple Home: room](docs/screenshots/en/apple-room.png) | ![Apple Home: lamp](docs/screenshots/en/apple-light.png) | ![Apple Home: energy](docs/screenshots/en/apple-energy.png) |
+<p align="center">
+  <img src="docs/screenshots/en/home.png" alt="Home on an iPhone" height="380">
+  <img src="docs/screenshots/en/tablet-status.png" alt="Home on an iPad with the status bar" height="380">
+  <img src="docs/screenshots/en/apple-home.png" alt="The Apple Home theme on an iPhone" height="380">
+</p>
 
-| Home | Room | Dark mode | Tile editor |
-|---|---|---|---|
-| ![Home](docs/screenshots/en/home.png) | ![Room](docs/screenshots/en/room.png) | ![Dark mode](docs/screenshots/en/dark.png) | ![Tile editor](docs/screenshots/en/editor.png) |
+<p align="center">
+  <a href="docs/gallery.md"><img src="https://img.shields.io/badge/Gallery-all_screenshots-2c6fb7?style=for-the-badge" alt="Gallery"></a>
+</p>
 
-| Light | Thermostat | Tablet |
-|---|---|---|
-| ![Light](docs/screenshots/en/light.png) | ![Thermostat](docs/screenshots/en/thermostat.png) | ![Tablet](docs/screenshots/en/tablet.png) |
-
-| Weather | Player | Music | Media |
-|---|---|---|---|
-| ![Weather](docs/screenshots/en/weather.png) | ![Player](docs/screenshots/en/player.png) | ![Music](docs/screenshots/en/music.png) | ![Media](docs/screenshots/en/media.png) |
-
-| Map | Menu | Choosing an area | Vacuum |
-|---|---|---|---|
-| ![Map](docs/screenshots/en/map.png) | ![Menu](docs/screenshots/en/menu.png) | ![Choosing an area](docs/screenshots/en/rooms.png) | ![Vacuum](docs/screenshots/en/vacuum.png) |
-
-| Blind | Switch | Screen background | My layout |
-|---|---|---|---|
-| ![Blind](docs/screenshots/en/blind.png) | ![Switch](docs/screenshots/en/switch.png) | ![Screen background](docs/screenshots/en/background.png) | ![My layout](docs/screenshots/en/layout.png) |
-
-| User access | Energy | Camera | Dashboard settings |
-|---|---|---|---|
-| ![User access](docs/screenshots/en/access.png) | ![Energy](docs/screenshots/en/energy.png) | ![Camera](docs/screenshots/en/camera.png) | ![Dashboard settings](docs/screenshots/en/settings.png) |
-
-| Camera on a phone on its side |
-|---|
-| ![Camera on its side](docs/screenshots/en/camera-landscape.png) |
-
-| Status | Departures | School year | Chips |
-|---|---|---|---|
-| ![Status](docs/screenshots/en/status.png) | ![Departures](docs/screenshots/en/departures.png) | ![School year](docs/screenshots/en/school.png) | ![Chips](docs/screenshots/en/chips.png) |
-
-| Notifications | App in a window | Summary badges | Block editor |
-|---|---|---|---|
-| ![Notifications](docs/screenshots/en/notifications.png) | ![App in a window](docs/screenshots/en/app.png) | ![Summary badges](docs/screenshots/en/blocks.png) | ![Block editor](docs/screenshots/en/block-editor.png) |
-
-| Menu editor | Media categories | Logbook | History |
-|---|---|---|---|
-| ![Menu editor](docs/screenshots/en/menu-editor.png) | ![Media categories](docs/screenshots/en/media-editor.png) | ![Logbook](docs/screenshots/en/logbook.png) | ![History](docs/screenshots/en/history.png) |
-
-| News | My view of a room | My scenes |
-|---|---|---|
-| ![News](docs/screenshots/en/news.png) | ![My view of a room](docs/screenshots/en/my-view.png) | ![My scenes](docs/screenshots/en/my-scenes.png) |
-
-**[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
+**[Open the gallery](docs/gallery.md)** for every screen: cameras, energy with the phases of the meter, the intercom,
+the Apple Home theme, the editors and the look. **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
 
 The screenshots show a made-up home from `dev/demo.js`, and the camera pictures are free CC0 photos of
 other homes ([credits](dev/demo-pictures/CREDITS.md)). The backgrounds in the Apple Home pictures were made by the
@@ -349,13 +312,15 @@ intercom:
   played_field: played
   media_folder: media-source://media_source/media/messages
   areas: [living_room, bedroom]
+  upload: /api/intercom/message   # optional: an endpoint that takes the recording and plays it itself
 ```
 
 Without `script` the buttons stay hidden. Without `areas` the list of rooms comes from Assist
 satellites and players matching `media.group_patterns`. Home has a button for the whole house, a room
 page has one in its header that speaks only in that room, and the camera screen has one for that
 camera's room. Recording needs HTTPS and an administrator account; otherwise a text field opens, where
-keyboard dictation works.
+keyboard dictation works. With `upload` (e.g. the Intercom integration's `/api/intercom/message`) the WAV goes there
+with the areas in the address, and anyone signed in may record. Details are in the [guide](docs/guide.md#11-intercom).
 
 ## Dark mode
 
@@ -368,6 +333,44 @@ to Automatic turns dark at dusk. The map picks its colours when it opens. Each p
 A tablet left alone closes what is open and goes back to Home after 3 minutes. Change it in the
 settings or with `idle: {return_after: 300}` in seconds; `0` turns it off. Phones stay where they are.
 A message being written, the settings, a web page and a robot's control card are never closed.
+
+## Status bar on a tablet
+
+A tablet on its side can show a 320 px column instead of the narrow bar: the time and date, the weather with the next
+rain, what is on and open at home, the warnings, what runs now (a washer, a vacuum), the departures and the power of
+chosen devices. A part with nothing to say is left out, and a tap on a part opens its window. Turn it on in menu →
+**Look** → **Bar** → **Status bar**, which also chooses its parts, their order and colours (`appearance.status`).
+Its facts come from `status_panel`:
+
+```yaml
+status_panel:
+  doors: [binary_sensor.front_door, binary_sensor.balcony_door]
+  now:
+    - {entity: sensor.washer_phase, detail: sensor.washer_program, remaining: sensor.washer_left}
+    - vacuum.robot
+  power: [sensor.heat_pump_power, sensor.computer_power]
+  departures: [sensor.tram_4]          # without it: the first departures block
+```
+
+Its button folds it back to the narrow bar on that tablet, and holding the button opens the menu. Details are in the
+[guide](docs/guide.md#the-status-bar-of-a-tablet).
+
+## Energy
+
+The Energy page builds itself from Home Assistant's energy settings: Now, Used against the period before, Cost and the
+share measured by devices, a chart with the period before behind it, and the devices. A grid meter with phases (e.g.
+ZAMEL MEW-01) adds a card per phase with its power, current, power factor and voltage on the 207–253 V range; the
+phases are found on the meter's device, or listed by hand:
+
+```yaml
+energy:
+  phases:
+    - {power: sensor.meter_l1_power, voltage: sensor.meter_l1_voltage, current: sensor.meter_l1_current, factor: sensor.meter_l1_power_factor}
+  voltage_range: [207, 253]
+```
+
+A tap on a phase, a device or a tile opens a chart of the dashboard's own, with ranges and the lowest, average and
+highest value. Details are in the [guide](docs/guide.md#8-music-energy-and-map).
 
 ## Cameras
 
@@ -412,6 +415,12 @@ speaker, go2rtc, the intercom) is chosen in **Dashboard settings → Turning and
 through a camera works only once the live view moves. A camera unavailable in Home Assistant stays in its window with
 its last picture dimmed, saying "The camera is unavailable". On a phone on its side the picture fills the screen, and
 buttons bring out the days and the line of time. Details are in the [guide](docs/guide.md#5-cameras).
+
+On a tablet all cameras fill the screen, 2 to 5 in a row (`cameras.columns`), or one big camera live with the rest
+small (`cameras.layout: featured`). A camera on a battery shows a red, blinking dot while a stream of it is open, and
+its settings have a **Connections** tab: how many times and how long it was awake in the last 24 hours or 7 days.
+The film button lists the recordings on the disk by day with a picture of each, and a camera that offers recordings
+on its own card (`sd_recordings`, e.g. Neolink) gets a card button that brings them down.
 
 ## Locks on a wall tablet
 

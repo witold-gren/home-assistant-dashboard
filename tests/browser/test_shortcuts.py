@@ -42,6 +42,7 @@ HOST = {
     "icon": "mdi:server",
     "groups": [{"title": "HA", "rows": [{"entity": "sensor.cpu"}]}],
 }
+AVATAR = "data:image/svg+xml," + "%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'/%3E"
 SCHOOL = {"kind": "school", "name": "Rok szkolny", "icon": "mdi:school", "children": ["Lena", "Maja"]}
 LESSON = {"number": 1, "start": "08:00", "end": "08:45", "subject": "Matematyka", "classroom": "12", "teacher": "Pani"}
 
@@ -77,7 +78,7 @@ def add_school(page) -> None:
         "week_start": "2026-11-02",
         "week_end": "2026-11-08",
         "children": [
-            {"child": "Ola", "child_color": "#f5ec00", "set": "Salon", "color": "#77bb41", "tasks": ["Kurze", "Zakupy"]},
+            {"child": "Ola", "child_color": "#f5ec00", "avatar": AVATAR, "set": "Salon", "color": "#77bb41", "tasks": ["Kurze", "Zakupy"]},
             {"child": "Kuba", "set": "Zmywarka", "color": "#112233", "tasks": ["Naczynia"]},
             {"child": "Ewa", "free_week": True},
         ],
@@ -85,7 +86,19 @@ def add_school(page) -> None:
     later = {"week_start": "2026-11-09", "week_end": "2026-11-15", "children": [{"child": "Ola", "set": "Kuchnia", "tasks": []}]}
     add_entity(page, "sensor.rodzinnik_obowiazki", "x", {**week, "next_week": later})
     add_entity(page, "sensor.rodzinnik_prace", "1", {"jobs": [{"name": "Grabienie", "reward_label": "5 do 10 zł", "description": "Liście"}]})
-    add_entity(page, "sensor.rodzinnik_bank", "1", {"currency": "PLN", "children": [{"child": "Ola", "balance": 65, "savings": 10, "debt": 0}]})
+    allowance = {"amount": 11.0, "period_label": "co tydzień", "next_payment": "2026-11-16"}
+    operations = [
+        {"booked_at": f"2026-11-{day:02d}T07:29:14+01:00", "amount": amount, "title": title, "kind_label": "Zakup", "reversed": False}
+        for day, amount, title in [
+            (9, -70.0, "Prezent"), (8, 11.0, "Kieszonkowe"), (7, -5.0, "Lody"), (6, 20.0, "Grabienie"),
+            (5, -3.0, "Naklejki"), (4, 11.0, "Najstarsza"),
+        ]
+    ]
+    operations[1]["reversed"] = True
+    add_entity(page, "sensor.rodzinnik_bank", "1", {"currency": "PLN", "children": [
+        {"child": "Ola", "balance": 65, "savings": 10, "debt": 0, "allowance": allowance, "recent_transactions": operations},
+        {"child": "Ewa", "balance": 7, "savings": 0, "debt": 0},
+    ]})
 
 
 def open_school(page) -> None:
@@ -414,9 +427,33 @@ def test_jobs_and_bank(phone):
     tab(phone, "tab", "jobs")
     assert "5 do 10 zł" in phone.locator("home-dashboard-school [data-job]").inner_text()
     tab(phone, "tab", "bank")
-    text = phone.locator("home-dashboard-school [data-account]").inner_text()
+    text = phone.locator("home-dashboard-school [data-account='Ola']").inner_text()
     assert "65,00" in text
     assert "oszczędności" in text
+
+
+def test_the_bank_shows_the_face_the_allowance_and_the_last_five_operations(phone):
+    open_school(phone)
+    tab(phone, "tab", "bank")
+    account = phone.locator("home-dashboard-school [data-account='Ola']")
+    # The face from the duties, without the coloured bar of a duty
+    assert account.locator(".avatar img").get_attribute("src") == AVATAR
+    assert account.evaluate("(e) => getComputedStyle(e).borderTopWidth") in ("0px", "")
+    allowance = account.locator("[data-allowance]").inner_text()
+    assert "11,00" in allowance and "co tydzień" in allowance
+    assert "najbliższa wypłata" in allowance and "16.11" in allowance
+    operations = account.locator("[data-operation]")
+    assert operations.count() == 5
+    assert "Prezent" in operations.nth(0).inner_text() and "-70,00" in operations.nth(0).inner_text().replace("\u2212", "-")
+    assert "Najstarsza" not in account.inner_text()
+    # Money in is green, a reversed operation is crossed out
+    assert "in" in operations.nth(3).locator(".amount").get_attribute("class")
+    assert "reversed" in operations.nth(1).get_attribute("class")
+    # A child without an allowance or operations still has a card, with the first letter for a face
+    other = phone.locator("home-dashboard-school [data-account='Ewa']")
+    assert "Brak operacji" in other.inner_text()
+    assert other.locator("[data-allowance]").count() == 0
+    assert other.locator(".avatar").inner_text().strip() == "E"
 
 
 def test_the_school_screen_sends_nothing(phone):
@@ -960,6 +997,14 @@ def test_a_shortcut_opens_a_page_in_a_sheet_without_leaving_home(phone):
     assert phone.locator(f"{SHEET} [data-grip]").is_visible()
 
 
+def test_a_page_in_a_sheet_lies_on_the_sheet_without_a_background_of_its_own(phone):
+    mount(phone, {**MEDIA_SHORTCUT, "backgrounds": {"media": {"light": "/local/media.jpg", "dark": "/local/media.jpg"}}})
+    phone.locator("[data-shortcut='Media']").click()
+    phone.wait_for_selector(f"{EMBEDDED} .sources")
+    assert phone.locator(EMBEDDED).evaluate("(page) => getComputedStyle(page).backgroundColor") == "rgba(0, 0, 0, 0)"
+    assert phone.locator(f"{EMBEDDED} .backdrop").count() == 0
+
+
 def test_a_page_in_a_sheet_has_no_top_bar_and_keeps_the_navigation_on_home(phone):
     open_media(phone)
     assert phone.locator(f"{EMBEDDED} .top-bar").count() == 0
@@ -1009,12 +1054,100 @@ def test_a_block_can_keep_its_card_open_under_the_actions(phone):
     assert action["y"] < card["y"]
 
 
-def test_an_open_card_is_not_stretched_on_a_tablet(tablet):
-    item = {"kind": "panel", "name": "Odkurzacz", "fullscreen": True, "card": {"type": "custom:map"}, "card_open": True}
-    mount(tablet, {"shortcuts": [item]})
-    tablet.locator("[data-shortcut='Odkurzacz']").dispatch_event("click")
-    tablet.wait_for_selector("[data-card='custom:map']", state="attached")
+VACUUM = {
+    "kind": "panel",
+    "name": "Odkurzacz",
+    "fullscreen": True,
+    "card": {"type": "custom:map"},
+    "card_open": True,
+    "stats": [{"name": "Filtr", "entity": "sensor.vacuum_filter", "unit": "%"}],
+    "actions": [{"name": "Start", "entity": "vacuum.robot", "service": "vacuum.start"}],
+    "groups": [{"rows": [{"entity": "vacuum.robot", "name": "Stan"}]}],
+}
+
+
+def open_vacuum(page) -> None:
+    add_entity(page, "vacuum.robot", "docked")
+    add_entity(page, "sensor.vacuum_filter", "71", {"unit_of_measurement": "%"})
+    mount(page, {"shortcuts": [VACUUM]})
+    page.locator("[data-shortcut='Odkurzacz']").dispatch_event("click")
+    page.wait_for_selector("[data-card='custom:map']", state="attached")
+
+
+def test_an_open_card_is_not_stretched_on_an_upright_tablet(tablet):
+    tablet.set_viewport_size({"width": 820, "height": 1180})
+    open_vacuum(tablet)
     assert tablet.locator(f"{SHEET} [data-live]").evaluate("(card) => getComputedStyle(card).maxWidth") == "760px"
+
+
+def test_on_a_tablet_on_its_side_the_panel_stands_beside_its_card(tablet):
+    open_vacuum(tablet)
+    # A map as tall as a real one.
+    tablet.locator(f"{SHEET} [data-card='custom:map']").evaluate("(card) => (card.style.height = '640px')")
+    tablet.wait_for_timeout(50)
+    card = tablet.locator(f"{SHEET} [data-live]").bounding_box()
+    stats = tablet.locator(f"{SHEET} [data-panel-stats]").bounding_box()
+    action = tablet.locator(f"{SHEET} [data-action='vacuum.robot']").bounding_box()
+    # A column of the panel's parts on the left, the card on the rest of the screen beside it.
+    assert stats["x"] + stats["width"] <= card["x"]
+    assert action["x"] + action["width"] <= card["x"]
+    assert card["width"] > 700
+    # The buttons end with the card, the share of the filter as a bar.
+    assert abs((action["y"] + action["height"]) - (card["y"] + card["height"])) <= 1
+    assert card["x"] + card["width"] > 1180 - 20
+    assert tablet.locator(f"{SHEET} .share u").get_attribute("style") == "width: 71%"
+
+
+def test_a_map_taller_than_the_screen_is_narrowed_until_the_window_fits(tablet):
+    open_vacuum(tablet)
+    # A map whose height follows its width, like a real one: taller than the screen at the column's width.
+    tablet.locator(f"{SHEET} [data-card='custom:map']").evaluate(
+        "(card) => { card.style.aspectRatio = '1 / 1'; card.style.width = '100%'; }")
+    tablet.wait_for_timeout(400)
+    card = tablet.locator(f"{SHEET} [data-live]").bounding_box()
+    action = tablet.locator(f"{SHEET} [data-action='vacuum.robot']").bounding_box()
+    assert card["y"] + card["height"] <= 820
+    assert action["y"] + action["height"] <= 820
+
+
+ROOMS_CARD = {"type": "custom:map", "entity": "vacuum.robot", "map_modes": [{
+    "template": "vacuum_clean_segment", "max_repeats": 3,
+    "service_call_schema": {"service": "vacuum.send_command", "service_data": {
+        "command": "app_segment_clean", "entity_id": "[[entity_id]]",
+        "params": [{"segments": "[[selection]]", "repeat": "[[repeats]]"}]}},
+    "predefined_selections": [{"id": 16, "label": {"text": "Pokój dzieci"}}, {"id": 17, "label": {"text": "Salon"}}],
+}]}
+
+
+def test_the_rooms_of_the_map_are_chosen_beside_it_and_cleaned(tablet):
+    add_entity(tablet, "vacuum.robot", "docked")
+    mount(tablet, {"shortcuts": [{**VACUUM, "card": ROOMS_CARD}]})
+    tablet.locator("[data-shortcut='Odkurzacz']").dispatch_event("click")
+    tablet.wait_for_selector(f"{SHEET} [data-room-picker]")
+    go = tablet.locator(f"{SHEET} [data-room-go]")
+    assert go.is_disabled()
+    tablet.locator(f"{SHEET} [data-room='17']").click()
+    tablet.locator(f"{SHEET} [data-room='16']").click()
+    tablet.locator(f"{SHEET} [data-room-repeats]").click()
+    go.click()
+    sent = [call for call in calls(tablet) if call.get("service") == "send_command"]
+    assert sent[-1]["data"] == {"command": "app_segment_clean", "entity_id": "vacuum.robot",
+                                "params": [{"segments": [17, 16], "repeat": 2}]}
+    # Chosen again from nothing after it went.
+    assert tablet.locator(f"{SHEET} [data-room].on").count() == 0
+
+
+def test_turning_the_tablet_keeps_the_card_without_starting_it_again(tablet):
+    open_vacuum(tablet)
+    tablet.set_viewport_size({"width": 820, "height": 1180})
+    tablet.wait_for_function(f"""() => !document.querySelector('home-dashboard-chrome').shadowRoot
+        .querySelector('{SHEET}').shadowRoot.querySelector('.panel-split.split')""")
+    # Upright: the numbers and the buttons above the card, the rows under it, as on a phone.
+    card = tablet.locator(f"{SHEET} [data-live]").bounding_box()
+    assert tablet.locator(f"{SHEET} [data-panel-stats]").bounding_box()["y"] < card["y"]
+    assert tablet.locator(f"{SHEET} .panel-group").bounding_box()["y"] > card["y"]
+    assert tablet.locator(f"{SHEET} [data-card='custom:map']").count() == 1
+    assert tablet.evaluate("window.createdCards.filter((card) => card.type === 'custom:map').length") == 1
 
 
 # Host --------------------------------------------------------------------------------------------

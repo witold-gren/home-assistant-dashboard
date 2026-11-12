@@ -248,3 +248,17 @@ def test_english_day_names_and_dates_find_the_weekend(phone):
         return [shownDays(named).map((day) => day.name), shownDays(dated).map((day) => day.name)];
     }""")
     assert result == [["Monday"], ["Lundi"]]
+
+
+def test_a_battery_item_is_set_up_as_a_warning_on_home_in_the_editor(phone):
+    open_block(phone, [STATUS], "Status")
+    phone.locator(f"{EDITOR} summary").first.click()
+    phone.locator(f"{EDITOR} [data-block-field='items'] summary").first.click()
+    phone.locator(f"{EDITOR} [data-block-field='kind'] select").select_option("battery")
+    fill(phone, "below", "20")
+    fill(phone, "platforms", "eufy_sdk, neolink")
+    fill(phone, "device_has", "camera")
+    field(phone, "notify").locator("input").check()
+    item = saved(phone)["shortcuts"][0]["sections"][0]["items"][0]
+    assert item["auto"] == "battery" and item["below"] == 20 and item["notify"] is True
+    assert item["platforms"] == ["eufy_sdk", "neolink"] and item["device_has"] == "camera"

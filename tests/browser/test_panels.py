@@ -525,13 +525,26 @@ def test_the_document_behind_the_page_takes_its_colour_and_gives_it_back(phone):
     assert phone.evaluate("""document.querySelector('meta[name="theme-color"]').content""") == "#03a9f4"
 
 
-def test_security_lists_cameras_in_two_columns_on_a_tablet(tablet):
+def camera_rows(page) -> list:
+    return page.evaluate("""() => [...window.card.shadowRoot.querySelectorAll(".camera-list .camera")]
+        .map((camera) => Math.round(camera.getBoundingClientRect().top))""")
+
+
+def test_security_lists_four_cameras_in_a_row_on_a_tablet_on_its_side(tablet):
     tablet.evaluate("window.history.replaceState(null, '', '?filter=security')")
     mount(tablet)
-    lefts = tablet.evaluate("""() => [...window.card.shadowRoot.querySelectorAll(".camera-list .camera")]
-        .slice(0, 3).map((camera) => Math.round(camera.getBoundingClientRect().left))""")
-    assert lefts[0] < lefts[1]
-    assert lefts[2] == lefts[0]
+    tops = camera_rows(tablet)
+    assert len(tops) >= 5
+    assert tops[:4] == [tops[0]] * 4
+    assert tops[4] > tops[0]
+
+
+def test_security_lists_two_cameras_in_a_row_on_an_upright_tablet(tablet):
+    tablet.set_viewport_size({"width": 900, "height": 1180})
+    tablet.evaluate("window.history.replaceState(null, '', '?filter=security')")
+    mount(tablet)
+    tops = camera_rows(tablet)
+    assert tops[0] == tops[1] and tops[2] > tops[0]
 
 
 # Return to Home ----------------------------------------------------------------------------------

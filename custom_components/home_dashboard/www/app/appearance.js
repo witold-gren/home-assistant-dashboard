@@ -61,6 +61,8 @@ export const NAV_PAGES = ["home", "media", "music", "energy", "map", "scenes", "
 export const NAV_STYLES = ["docked", "floating"];
 export const NAV_RANGE = [2, 5];
 export const isNavItem = (value) => typeof value === "string" && (NAV_PAGES.includes(value) || /^room:[\w-]+$/.test(value));
+// The parts of the status bar of a tablet; the clock is always there.
+export const STATUS_PARTS = ["weather", "home", "alerts", "now", "departures", "power"];
 
 // Everything the look can say, with its default. An empty group name is the top level. A colour
 // without a value keeps the colour of the light or the dark look.
@@ -110,6 +112,17 @@ export const APPEARANCE_FIELDS = {
     active: colour(),
     opacity: number(20, 100, 100),
     blur: number(0, 30, 0),
+  },
+  // The status bar beside the pages on a tablet on its side: whether there is one, its parts in order, its colours.
+  status: {
+    shown: flag(false),
+    widgets: list((value) => STATUS_PARTS.includes(value), 1, STATUS_PARTS.length),
+    // Quiet white icons by default; colours bring back the yellow lights, the coloured lines and the like.
+    colourful: flag(false),
+    background: colour(),
+    text: colour(),
+    opacity: number(20, 100, 100),
+    blur: number(0, 30, 30),
   },
 };
 // Lists keyed by a kind of tile or by a device.
@@ -291,7 +304,7 @@ export const panelVariables = (appearance) => sheetVariables(appearance).replace
 
 // The bar is outside the page, so it gets properties of its own.
 export function navVariables(appearance) {
-  const { nav, player } = mergeAppearance(appearance);
+  const { nav, player, status } = mergeAppearance(appearance);
   const variables = {
     "--hd-player-opacity": `${player.opacity}%`,
     "--hd-player-blur": `${player.blur}px`,
@@ -304,6 +317,10 @@ export function navVariables(appearance) {
     "--hd-nav-bg": nav.background,
     "--hd-nav-icon": nav.icon,
     "--hd-nav-active": nav.active,
+    "--hd-status-blur": `${status.blur}px`,
+    // Without a chosen colour the bar is glass, as the tiles: black let through.
+    "--hd-status-paint": status.background && `color-mix(in srgb, ${status.background} ${status.opacity}%, transparent)`,
+    "--hd-status-text": status.text,
   };
   return Object.entries(variables)
     .filter(([, value]) => value)

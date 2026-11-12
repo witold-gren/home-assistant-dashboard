@@ -65,3 +65,15 @@ def test_talking_is_chosen_for_the_camera(phone):
     phone.locator(f"{ROW} .camera-row").click()
     phone.locator(f"{ROW} [data-talk-with]").select_option("go2rtc")
     assert saved_cameras(phone)["talk_with"] == {"image.slup_last_screen": "go2rtc"}
+
+
+def test_the_columns_of_all_cameras_are_saved(phone):
+    open_settings(phone)
+    phone.locator("home-dashboard-settings [data-camera-columns]").select_option("4")
+    assert saved_cameras(phone)["columns"] == 4
+
+
+def test_the_layout_of_all_cameras_is_saved(phone):
+    open_settings(phone)
+    phone.locator("home-dashboard-settings select[data-camera-layout]").select_option("featured")
+    assert saved_cameras(phone)["layout"] == "featured"

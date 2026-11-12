@@ -18,6 +18,9 @@ import { HomeDashboardNews } from "./news.js";
 import { HomeDashboardNotifications } from "./notifications.js";
 import { HomeDashboardOverview } from "./overview.js";
 import { HomeDashboardWeather } from "./weather.js";
+import { HomeDashboardStatusPanel } from "./status-panel.js";
+import { HomeDashboardHistoryChart } from "./history-chart.js";
+import { HomeDashboardConnections } from "./connections.js";
 
 const PAGES = ["home", "room", "media", "music", "energy", "map"];
 
@@ -44,6 +47,9 @@ define("home-dashboard-host", HomeDashboardHost);
 define("home-dashboard-energy", HomeDashboardEnergy);
 define("home-dashboard-recording-days", HomeDashboardRecordingDays);
 define("home-dashboard-timeline", HomeDashboardTimeline);
+define("home-dashboard-status-panel", HomeDashboardStatusPanel);
+define("home-dashboard-history-chart", HomeDashboardHistoryChart);
+define("home-dashboard-connections", HomeDashboardConnections);
 
 export function generateDashboard(config, hass) {
   return {

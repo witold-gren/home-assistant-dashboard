@@ -79,6 +79,26 @@ export function colourStyle(colour) {
   return `background: ${colour}; color: ${light ? "#1b1b1f" : "#ffffff"}`;
 }
 
+// The avatar of each child from the duties (the bank sends none), by name.
+export function childAvatars(duties) {
+  const weeks = [duties, duties?.previous_week, duties?.next_week];
+  const avatars = {};
+  for (const week of weeks) {
+    for (const child of week?.children ?? []) {
+      if (child.child && child.avatar && !avatars[child.child]) avatars[child.child] = child.avatar;
+    }
+  }
+  return avatars;
+}
+
+// A date of the family app (YYYY-MM-DD or a timestamp) as "pon. 16.11".
+export function dayLabel(language, value) {
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value ?? "") ? `${value}T12:00:00` : value);
+  if (Number.isNaN(date.getTime())) return "";
+  const weekday = date.toLocaleDateString(language, { weekday: "short" });
+  return `${weekday} ${date.getDate()}.${date.getMonth() + 1}`;
+}
+
 export function formatMoney(language, value, currency) {
   return Number(value ?? 0).toLocaleString(language, { style: "currency", currency });
 }
@@ -96,6 +116,21 @@ export class HomeDashboardSchool extends LitElement {
 
   get _sources() {
     return { ...DEFAULT_SOURCES, ...this.item.sources };
+  }
+
+  // A tablet shows the whole week at once; turned or resized past it, the screen draws again.
+  _wide = window.matchMedia("(min-width: 900px)");
+
+  _redraw = () => this.requestUpdate();
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._wide.addEventListener("change", this._redraw);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._wide.removeEventListener("change", this._redraw);
   }
 
   _t(key, values) {
@@ -161,26 +196,15 @@ export class HomeDashboardSchool extends LitElement {
     `;
   }
 
-  _renderPlan(name) {
-    const days = shownDays(this._child("plan", name)?.days ?? []);
-    if (!days.length) return html`<p class="empty">${this._t("school_no_data")}</p>`;
-    const index = Math.min(this._day ?? currentDayIndex(days), days.length - 1);
-    const lessons = days[index].lessons ?? [];
-    const events = days[index].events ?? [];
+  _renderLessons(day) {
+    const lessons = day.lessons ?? [];
+    const events = day.events ?? [];
     return html`
-      ${this._tabs(
-        String(index),
-        days.map((day, key) => ({ key: String(key), label: day.is_today ? `● ${day.name}` : day.name })),
-        (key) => {
-          this._day = Number(key);
-        },
-        "day",
-      )}
       ${events.map((event) => this._renderEventRow(event))}
       ${lessons.length || events.length ? nothing : html`<p class="empty">${this._t("school_no_lessons")}</p>`}
       ${lessons.map(
         (lesson) => html`
-          <div class="row ${lesson.canceled || (days[index].no_lessons && lesson.type !== "extra") ? "canceled" : ""}" data-lesson>
+          <div class="row ${lesson.canceled || (day.no_lessons && lesson.type !== "extra") ? "canceled" : ""}" data-lesson>
             <span class="time">${lesson.start}<small>${lesson.end}</small></span>
             <span class="main">
               <strong>${lesson.number != null ? `${lesson.number}. ` : ""}${lesson.subject}</strong>
@@ -193,6 +217,38 @@ export class HomeDashboardSchool extends LitElement {
           </div>
         `,
       )}
+    `;
+  }
+
+  // One day at a time on a phone; on a tablet the whole week side by side, a column a day.
+  _renderPlan(name) {
+    const days = shownDays(this._child("plan", name)?.days ?? []);
+    if (!days.length) return html`<p class="empty">${this._t("school_no_data")}</p>`;
+    const index = Math.min(this._day ?? currentDayIndex(days), days.length - 1);
+    if (this._wide.matches) {
+      return html`
+      <div class="plan-week" data-plan-week style="--days: ${days.length}">
+        ${days.map(
+          (day) => html`
+            <div class="plan-day ${day.is_today ? "today" : ""}" data-plan-day=${day.name}>
+              <h4>${day.is_today ? `● ${day.name}` : day.name}</h4>
+              ${this._renderLessons(day)}
+            </div>
+          `,
+        )}
+      </div>
+      `;
+    }
+    return html`
+      ${this._tabs(
+        String(index),
+        days.map((day, key) => ({ key: String(key), label: day.is_today ? `● ${day.name}` : day.name })),
+        (key) => {
+          this._day = Number(key);
+        },
+        "day",
+      )}
+      ${this._renderLessons(days[index])}
     `;
   }
 
@@ -353,7 +409,7 @@ export class HomeDashboardSchool extends LitElement {
   _renderJobs() {
     const jobs = this._attribute("jobs", "jobs") ?? [];
     if (!jobs.length) return html`<p class="empty">${this._t("school_no_data")}</p>`;
-    return jobs.map(
+    return html`<div class="cards" data-cards="jobs">${jobs.map(
       (job) => html`
         <div class="row" data-job>
           <span class="main">
@@ -363,7 +419,7 @@ export class HomeDashboardSchool extends LitElement {
           <b class="average">${job.reward_label}</b>
         </div>
       `,
-    );
+    )}</div>`;
   }
 
   _renderBank() {
@@ -371,25 +427,56 @@ export class HomeDashboardSchool extends LitElement {
     const money = (value) => formatMoney(this.hass.language, value, currency);
     const children = this._attribute("bank", "children") ?? [];
     if (!children.length) return html`<p class="empty">${this._t("school_no_data")}</p>`;
-    return children.map(
-      (child) => html`
-        <div class="row" data-account>
-          <span class="main">
+    const avatars = childAvatars(this.hass.states[this._sources.duties]?.attributes);
+    return html`<div class="cards" data-cards="bank">${children.map((child) => {
+      const allowance = child.allowance;
+      const notes = [
+        child.savings ? this._t("school_savings", { value: money(child.savings) }) : "",
+        child.debt ? this._t("school_debt", { value: money(child.debt) }) : "",
+      ].filter(Boolean);
+      const operations = (child.recent_transactions ?? []).slice(0, 5);
+      return html`
+        <div class="row account" data-account=${child.child}>
+          <div class="account-head">
+            <span class="avatar">
+              ${child.child?.[0] ?? ""}
+              ${avatars[child.child]
+                ? html`<img src=${avatars[child.child]} alt="" loading="lazy" @error=${(event) => event.target.remove()} />`
+                : nothing}
+            </span>
             <strong>${child.child}</strong>
-            <small>
-              ${[
-                child.savings ? this._t("school_savings", { value: money(child.savings) }) : "",
-                child.debt ? this._t("school_debt", { value: money(child.debt) }) : "",
-                child.allowance?.next_payment ? this._t("school_next", { date: child.allowance.next_payment }) : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </small>
-          </span>
-          <b class="average">${money(child.balance)}</b>
+            <b class="average">${money(child.balance)}</b>
+          </div>
+          ${notes.length ? html`<small class="account-notes">${notes.join(" · ")}</small>` : nothing}
+          ${allowance
+            ? html`<div class="allowance" data-allowance>
+                <ha-icon icon="mdi:cash-sync"></ha-icon>
+                <span>
+                  <strong>${money(allowance.amount)} ${allowance.period_label ?? ""}</strong>
+                  ${allowance.next_payment
+                    ? html`<small>${this._t("school_payday", { date: dayLabel(this.hass.language, allowance.next_payment) })}</small>`
+                    : nothing}
+                </span>
+              </div>`
+            : nothing}
+          ${operations.length
+            ? html`<ul class="operations" data-operations>
+                ${operations.map(
+                  (operation) => html`
+                    <li class=${operation.reversed ? "reversed" : ""} data-operation>
+                      <span class="when">${dayLabel(this.hass.language, operation.booked_at)}</span>
+                      <span class="what">${operation.title || operation.kind_label || ""}</span>
+                      <span class="amount ${operation.amount > 0 ? "in" : ""}">
+                        ${operation.amount > 0 ? "+" : ""}${money(operation.amount)}
+                      </span>
+                    </li>
+                  `,
+                )}
+              </ul>`
+            : html`<small class="empty">${this._t("school_no_operations")}</small>`}
         </div>
-      `,
-    );
+      `;
+    })}</div>`;
   }
 
   render() {
@@ -609,6 +696,146 @@ export class HomeDashboardSchool extends LitElement {
         border-radius: 8px;
         font-size: 14px;
         font-weight: 500;
+      }
+      .cards,
+      .plan-day {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .plan-day h4 {
+        margin: 0;
+        padding: 4px 2px;
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .plan-day.today h4 {
+        color: var(--hd-media-accent, inherit);
+      }
+      /* A tablet: the whole width; the week side by side; jobs and accounts as tiles, four in a row. */
+      @media (min-width: 900px) {
+        .content {
+          max-width: none;
+        }
+        .plan-week {
+          display: grid;
+          grid-template-columns: repeat(var(--days, 5), minmax(0, 1fr));
+          gap: 10px;
+          align-items: start;
+        }
+        .plan-day .row {
+          gap: 8px;
+          padding: 8px 10px;
+        }
+        .plan-day .time {
+          width: 42px;
+          font-size: 13px;
+        }
+        .plan-day .main strong {
+          font-size: 14px;
+        }
+        .plan-day small {
+          font-size: 12px;
+        }
+        .cards {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .cards .row {
+          flex-direction: column;
+          align-items: stretch;
+          justify-content: space-between;
+          gap: 12px;
+          min-height: 128px;
+          padding: 16px;
+          border-radius: 18px;
+        }
+        .cards .main strong {
+          font-size: 17px;
+        }
+        .cards .average {
+          font-size: 22px;
+          text-align: right;
+        }
+      }
+      /* The bank: one card a child, the allowance and the last operations under the balance. */
+      .row.account {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 10px;
+      }
+      .account-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .account-head strong {
+        flex: 1;
+        min-width: 0;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      .account-notes {
+        color: var(--hd-text-muted);
+      }
+      .allowance {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: var(--hd-pill);
+      }
+      .allowance span {
+        display: flex;
+        flex-direction: column;
+      }
+      .allowance strong {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .allowance small {
+        color: var(--hd-text-muted);
+      }
+      .operations {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+      }
+      .operations li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .operations .when {
+        flex: none;
+        width: 76px;
+        color: var(--hd-text-muted);
+      }
+      .operations .what {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .operations .amount {
+        flex: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .operations .amount.in {
+        color: var(--hd-ok, #34c759);
+      }
+      .operations .reversed .what,
+      .operations .reversed .amount {
+        text-decoration: line-through;
+        opacity: 0.6;
       }
       .duty ul {
         margin: 0;

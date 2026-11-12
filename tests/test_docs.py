@@ -17,6 +17,8 @@ DOCS = [
     "docs/apple-home.pl.md",
     "docs/own-devices.md",
     "docs/own-devices.pl.md",
+    "docs/gallery.md",
+    "docs/gallery.pl.md",
 ]
 LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 

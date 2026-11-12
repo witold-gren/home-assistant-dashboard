@@ -1,5 +1,107 @@
 # Changelog
 
+## 0.4.0 (2026-11-12)
+
+- The README shows three pictures (a phone, a tablet with the status bar, the Apple Home theme) and a Gallery button;
+  the gallery (`docs/gallery.md`) holds every screenshot by subject, with new ones of the status bar, the Energy page
+  on a tablet and a chart of a phase, all cameras in a grid and with one big camera, the camera window on a tablet,
+  the weather on a tablet, the intercom and the connections of a camera on a battery. The guide shows them in their
+  chapters, and the README describes the status bar, the phases of the meter and the newer camera options.
+- The intercom can send a recording to the Intercom integration (`intercom.upload`, e.g. `/api/intercom/message`), which
+  plays it itself: the WAV as the body, the areas in the address. With it anyone signed in may record, not only an
+  administrator; an answer that played nowhere says there is no speaker.
+- A red, blinking dot on a camera on a battery while a stream of it is open (Home, all cameras, the camera window), and a
+  Connections tab in its settings: how many times and how long it was awake in the last 24 hours or 7 days, each
+  connection with its times, the ones over 5 minutes in red.
+- A recording asked for from a camera's card that the camera turned down no longer turns for ever: once nothing is
+  being copied it comes back as one to bring down, and the window says the camera may have been busy.
+- The Energy page opens charts of its own instead of the details window of Home Assistant: a phase its power and its
+  voltage with the band of the range, a device or Used its energy as bars, Now the power of each phase, with ranges, a
+  finger showing the value at a moment, and the lowest, average and highest. On a tablet the chart beside the phases
+  is as tall as they are.
+- The Energy page on a tablet on its side: the periods beside the dates, the numbers in one row, the chart beside the
+  phases and the devices as tiles four in a row. A meter with phases gives the power now, each phase with its current,
+  power factor and voltage on the range of 207–253 V (green, orange near its ends, red out of it), found by themselves
+  on the meter's device or listed in `energy.phases`. Used is weighed against the period before (by this time for the
+  current one), which the chart shows faintly behind. The share measured by devices, and the rest as its own entry.
+- A tram leaving now says "now" in the status bar instead of "-1 min".
+- The age of the picture stands in its top left corner on a tablet on its side, where the header is above the picture;
+  on a phone on its side it stays under the header that lies over the picture.
+- A camera window has a big play button in the middle of its picture while it is not live: a tap starts the live view,
+  with the same loading ring as LIVE, which stays. It fades on an enlarged picture and two fingers on it still zoom.
+- A camera window of a camera that is away keeps its place on a tablet or a phone on its side: the dark space of its
+  picture is as large as the picture would be, so the header and the buttons stay where they always are, and the
+  window says that the camera is unavailable.
+- The recordings on disk show a picture of each file: a frame from its first second, taken in the browser two files
+  at a time and kept on the device, so the next look has them at once.
+- Recorded clips older than two weeks show again: the days, the line of time and the recordings on disk offer every
+  day in the folder, so clips brought down from a camera's card from weeks ago can be found.
+- A status bar for a tablet on its side, in place of the narrow bar: the time and date, the weather (today's low and
+  high, the next rain or snow), what is on and open at home, the warnings of Home, what runs now (a washer, mass on
+  Sunday, a vacuum), the departures and the power of chosen devices with a line of 6 hours. A part with nothing to say
+  is left out. The look turns it on and chooses its parts, their order and colours (`appearance.status`), its facts
+  come from `status_panel`. Its button folds it to the narrow bar on each tablet, and a hold on it opens the menu,
+  with a filling ring and a hint the first times; the assistant sits under it. It is as wide as the menu, glass as the tiles
+  with white icons (coloured ones are an option of the look) unless the look chooses a colour. A tap on a part opens its window: the weather, the Status screen,
+  the timetable or the Energy page. The menu has a back arrow and the name of Home Assistant at its top.
+- The Bank of the school screen: each child's card has the face from the duties (no coloured bar), the
+  allowance with how often and the next payment day, and the last five operations (money in green, a
+  reversed one crossed out).
+- A camera window on a phone on its side: the header runs across the whole screen, close in the far left corner and
+  the settings in the far right one (over the dark bands beside a narrower picture), the camera's own buttons set a
+  little apart from the settings. What works the camera stays on the picture.
+- An unavailable camera opens on a tap, to its window that says so under its name, so it is known which one went
+  away.
+- A camera window on a tablet on its side (a touch screen) takes the whole screen, like a phone on its side: the
+  picture at the full width, the live view the same size, every button on it, the ring that turns the camera halfway
+  down it and the header in the band above it. The other cameras come up from the bottom with the camera button in
+  the header and a drag down puts them away. A computer with a mouse keeps its window.
+- All cameras on a tablet fill the whole screen on black, 2 to 5 in a row: a button in the header chooses on this
+  device, `cameras.columns` (Dashboard settings → Columns of all cameras on a tablet) for every tablet. The name
+  stands at the top of each picture.
+- All cameras on a tablet can show one big camera, live by itself, with the rest small: a tap puts a small one in the
+  big place and lets the other go, the corner button opens a camera's window (`cameras.layout: featured`, or the
+  button in the header on this device).
+- A camera window on a tablet on its side can no longer be scrolled off its header (the put-away line of time showed
+  at the bottom).
+- A block on the whole screen with its card open (a vacuum with its map) stands in two columns on a tablet on its
+  side: its rows, its numbers as tiles with a bar for a share and its buttons on the left, the card beside them.
+- On a tablet the school year, the news and the status use the whole screen: jobs and accounts as tiles four in a
+  row, the whole week of lessons side by side (a column a day), the news in two columns, and what the status lists
+  side by side.
+- Recordings on a camera's own card: a camera that offers them (`sd_recordings`, e.g. Neolink) gets a card button in
+  its window, which lists them by day with small pictures; a tap brings one down to the disk, and one already there
+  opens the line of time at it, and a button by each day brings down the whole day. Nothing on the card is removed.
+- The Security filter lists four cameras in a row on a tablet on its side (two upright).
+- Recordings on the disk: a film button in a camera window lists the recordings of its line of time by day, newest
+  first, reading more days as it is scrolled; a tap goes back to the camera at that recording, its day chosen and the
+  line moved to it.
+- The intercom opens as a card of its own over a blurred page, on every page and room: "To: <where>", the voice as a
+  live wave, one big button to send ("Done") and a close button to cancel; typing stays where there is no microphone.
+- Warnings on Home: a Status item with `notify: true` shows as a card under the chips while it has something to
+  say, listing what it names; with one device "More information" opens it. Closed, it stays away until tomorrow unless
+  another device joins; Dashboard settings mute all of them for a week. Battery items can keep some integrations
+  (`platforms`), devices with a camera (`device_has: camera`), and leave a battery's wear out.
+- The weather on a tablet on its side takes the whole screen: now with today's high and low, sunrise and sunset and
+  the facts on the left; the next 24 hours as a temperature chart over the precipitation of each hour, coloured by
+  rain, snow or both, with the day's total; and the next days as columns on one scale of temperature, with their
+  precipitation.
+- A vacuum map card beside its panel on a tablet on its side: the rooms its room mode offers stand as buttons in the
+  left column, with the times over and "Clean the chosen"; the card's own buttons are put away and the map stands
+  alone, centred, on a clear background, narrowed when it would run past the screen.
+- A recording can be deleted from the disk of Home Assistant with the bin on it, after asking: in the recordings on
+  the disk, and for the copy of a recording from the camera's card (the card itself is not touched). Administrators
+  only, as Home Assistant requires.
+- A page opened in a window (Sources) lies on the window's background like every other window, without a background of
+  its own.
+- The departures on a tablet on its side take the whole screen: the next one large with whether it is on time, every
+  departure of all lines in one order, the next hour (up to two) as a line of time a row per line, and a card per
+  line with every time the timetable gives. Each line keeps a colour of its own (`colors: {"8": "#ff9f0a"}` chooses).
+  `news` names an entity whose `list` holds the timetable's notices (diversions, disruptions): a warm card shows them
+  above the departures while there are any.
+- The guide shows a camera on its side with every button, its positions and its line of time; the made-up home's
+  driveway camera turns and has saved positions.
+
 ## 0.3.0 (2026-11-11)
 
 - Pinch to zoom into the picture of a camera window, upright and on its side: up to 4×, one finger moves a zoomed

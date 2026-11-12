@@ -24,6 +24,7 @@ import { loadPrefs, PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { stopWatchingPresses, watchPresses } from "./press.js";
 import { backgroundVeil, navVariables, sheetVariables } from "./appearance.js";
 import { applyColorMode, backgroundTop, DARK_SCHEME, isDark, pageColour, tokens, viewBackground } from "./styles.js";
+import { STATUS_WIDTH } from "./status-panel.js";
 
 // A phone on its side is wide but low, and stays a phone.
 export const TABLET_MEDIA_QUERY = "(min-width: 900px) and (min-height: 501px)";
@@ -66,6 +67,14 @@ const LINKS = MENU_LINKS;
 const CAMERA_BAND = "#17181a";
 const BAND_REPEAT_MS = 800;
 const PLAYER_SPACE = "88px";
+// The status bar of a tablet: open or folded on this device, the hold on its button that opens the menu, and the hint
+// that tells about the hold the first few times the bar shows.
+const STATUS_OPEN_KEY = "home-dashboard-status-open";
+const STATUS_HINT_KEY = "home-dashboard-status-hint";
+const STATUS_HOLD_MS = 550;
+const STATUS_HINT_TIMES = 3;
+const STATUS_HINT_MS = 6000;
+const RAIL_SPACE = "88px";
 const DISMISSED_PLAYER_KEY = "home_dashboard_dismissed_player";
 const NO_PLAYER_SPACE = "16px";
 const APP_COLOURS = [
@@ -107,7 +116,7 @@ export const rootStyle = () => `
   }
   ${viewBackground()}
   @media ${TABLET_MEDIA_QUERY} {
-    #view { padding-left: 88px !important; }
+    #view { padding-left: var(--hd-rail-space, 88px) !important; }
   }
 `;
 
@@ -250,6 +259,9 @@ export class HomeDashboardChrome extends LitElement {
     _left: { state: true },
     _report: { state: true },
     _overlay: { state: true },
+    _statusFolded: { state: true },
+    _holding: { state: true },
+    _hint: { state: true },
   };
 
   shouldUpdate(changed) {
@@ -257,6 +269,9 @@ export class HomeDashboardChrome extends LitElement {
     if (changed.size === 1 && changed.has("hass")) {
       const previous = changed.get("hass");
       if (previous?.language !== this.hass.language || this._overlay) return true;
+      // The status bar follows every change by itself, without the rest of the chrome.
+      const panel = this.renderRoot?.querySelector("home-dashboard-status-panel");
+      if (panel) panel.hass = this.hass;
       const before = this._playerId;
       this._refreshPlayer();
       return before !== this._playerId || previous?.states[this._playerId] !== this.hass.states[this._playerId];
@@ -456,6 +471,13 @@ export class HomeDashboardChrome extends LitElement {
       this._observer.observe(this.root);
       window.addEventListener("click", this._followRoot, { capture: true, passive: true });
     }
+    this._tablet = window.matchMedia(TABLET_MEDIA_QUERY);
+    try {
+      this._statusFolded = localStorage.getItem(STATUS_OPEN_KEY) === "0";
+    } catch {
+      this._statusFolded = false;
+    }
+    this._tablet.addEventListener("change", this._onLayout);
     // Turning the phone resizes the window; the sidebar of Home Assistant comes and goes with that width.
     window.addEventListener("resize", this._followRoot, { passive: true });
   }
@@ -494,6 +516,10 @@ export class HomeDashboardChrome extends LitElement {
     window.removeEventListener("location-changed", this._onLocation);
     this._unlockZoom();
     this._restoreSidebar();
+    this._tablet?.removeEventListener("change", this._onLayout);
+    clearTimeout(this._holdTimer);
+    clearTimeout(this._hintTimer);
+    (this.root ?? document.documentElement).style.removeProperty("--hd-rail-space");
     this._menuTarget?.removeEventListener("hass-toggle-menu", this._onMenuGesture, { capture: true });
     this._menuTarget = null;
     stopWatchingPresses();
@@ -568,11 +594,178 @@ export class HomeDashboardChrome extends LitElement {
     if (view) view.style.overscrollBehaviorY = this._appearance.bounce ? "contain" : "none";
   }
 
+  _onLayout = () => this.requestUpdate();
+
+  // Music Assistant on the whole page of a tablet has it to itself: its Home Assistant button brings the bar back.
+  get _navGone() {
+    return Boolean(this.navTucked && this.page === "music" && this._config?.music?.fullscreen && this._tablet?.matches);
+  }
+
+  // Only a tablet on its side has room for it, and only when the look asks for it. Music Assistant has the whole
+  // page to itself, and the bar comes back with Home.
+  get _statusShown() {
+    return Boolean(this._appearance.status?.shown) && Boolean(this._tablet?.matches) && this.page !== "music";
+  }
+
+  get _statusOpen() {
+    return this._statusShown && !this._statusFolded;
+  }
+
+  _foldStatus(folded) {
+    this._statusFolded = folded;
+    this._hint = false;
+    try {
+      localStorage.setItem(STATUS_OPEN_KEY, folded ? "0" : "1");
+    } catch {
+      // Private browsing: it stays as it is until the page reloads.
+    }
+  }
+
+  // A hold on the button opens the menu, a tap folds or unfolds the bar. The ring round the button fills while it is
+  // held, so it is clear that something comes.
+  _holdDown = () => {
+    clearTimeout(this._holdTimer);
+    this._held = false;
+    this._holding = true;
+    this._holdTimer = setTimeout(() => {
+      this._holding = false;
+      this._held = true;
+      this._hint = false;
+      this._hintDone();
+      this.open({ type: "drawer" });
+    }, STATUS_HOLD_MS);
+  };
+
+  _holdUp = () => {
+    clearTimeout(this._holdTimer);
+    this._holding = false;
+  };
+
+  _foldClick = () => {
+    if (this._held) {
+      this._held = false;
+      return;
+    }
+    this._foldStatus(this._statusOpen);
+  };
+
+  _hintCount() {
+    try {
+      return Number(localStorage.getItem(STATUS_HINT_KEY)) || 0;
+    } catch {
+      return STATUS_HINT_TIMES;
+    }
+  }
+
+  _hintDone() {
+    try {
+      localStorage.setItem(STATUS_HINT_KEY, String(STATUS_HINT_TIMES));
+    } catch {
+      // Nothing to remember it in.
+    }
+  }
+
+  // Once per load, for the first few times: after the menu has been opened by the hold it never comes again.
+  _offerHint() {
+    if (!this._statusOpen || this._hintOffered || this._overlay) return;
+    this._hintOffered = true;
+    const count = this._hintCount();
+    if (count >= STATUS_HINT_TIMES) return;
+    try {
+      localStorage.setItem(STATUS_HINT_KEY, String(count + 1));
+    } catch {
+      return;
+    }
+    this._hint = true;
+    this._hintTimer = setTimeout(() => (this._hint = false), STATUS_HINT_MS);
+  }
+
+  _renderFold(language, open) {
+    return html`
+      <button
+        class="fold ${this._holding ? "holding" : ""} ${open ? "" : "rail-only"}"
+        data-status-fold
+        aria-label=${translate(language, open ? "status_fold" : "status_unfold")}
+        @pointerdown=${this._holdDown}
+        @pointerup=${this._holdUp}
+        @pointercancel=${this._holdUp}
+        @pointerleave=${this._holdUp}
+        @contextmenu=${(event) => event.preventDefault()}
+        @click=${this._foldClick}
+      >
+        <svg class="ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22"></circle></svg>
+        <ha-icon icon="mdi:dock-left"></ha-icon>
+      </button>
+    `;
+  }
+
+  _renderVoice(language, className) {
+    return html`
+      <button
+        class=${className}
+        data-assist
+        aria-label=${translate(language, "voice")}
+        @click=${() =>
+          this._fire("hass-action", {
+            config: { tap_action: { action: "assist", start_listening: true } },
+            action: "tap",
+          })}
+      >
+        <ha-icon icon="mdi:microphone"></ha-icon>
+      </button>
+    `;
+  }
+
+  // What a part of the status bar opens: the window of the weather, the Status screen for what is on and open, the
+  // timetable for the trams and the Energy page for the power. Without a Status screen a door opens its own details.
+  _openFromStatus = ({ detail }) => {
+    const shortcuts = this._config?.shortcuts ?? [];
+    if (detail.kind === "weather" && detail.weather) {
+      this.open({ type: "sheet", sheet: { kind: "weather", entityId: detail.weather.entity, item: detail.weather } });
+    } else if (detail.kind === "status") {
+      const screen = shortcuts.find((item) => item?.kind === "overview");
+      if (screen) this._openShortcut(screen);
+      else if (detail.entity) this._fire("hass-more-info", { entityId: detail.entity });
+    } else if (detail.kind === "departures") {
+      const block = detail.block ?? shortcuts.find((item) => item?.kind === "departures");
+      if (block) this._openShortcut(block);
+    } else if (detail.kind === "energy") {
+      this._navigate(PAGES.find((page) => page.key === "energy"));
+    }
+  };
+
+  _renderStatusPanel(language) {
+    return html`
+      <home-dashboard-status-panel
+        @status-open=${this._openFromStatus}
+        .hass=${this.hass}
+        .config=${this._config}
+        .selection=${this._selection}
+        .widgets=${this._appearance.status.widgets}
+        ?colourful=${this._appearance.status.colourful}
+      >
+        <div class="status-actions" slot="actions">
+          ${this._renderFold(language, true)} ${this._renderVoice(language, "status-voice")}
+          ${this._hint
+            ? html`<div class="hold-hint" data-status-hint>
+                <strong>${translate(language, "status_hint_title")}</strong>${translate(language, "status_hint")}
+              </div>`
+            : nothing}
+        </div>
+      </home-dashboard-status-panel>
+    `;
+  }
+
   updated(changed) {
     this._applyBounce();
     // A floating bar leaves a gap under it, which the page and the player make room for.
     (this.root ?? document.documentElement).style.setProperty("--hd-nav-gap", this._appearance.nav.style === "floating" ? "8px" : "0px");
     if (changed.has("pageBackground") || changed.has("_overlay")) this._paintBand();
+    (this.root ?? document.documentElement).style.setProperty(
+      "--hd-rail-space",
+      this._navGone ? "0px" : this._statusOpen ? `${STATUS_WIDTH}px` : RAIL_SPACE,
+    );
+    this._offerHint();
     const space = this._showsPlayer ? PLAYER_SPACE : NO_PLAYER_SPACE;
     (this.root ?? document.documentElement).style.setProperty("--hd-player-space", space);
     if (this._debug && !this._timer) {
@@ -816,6 +1009,13 @@ export class HomeDashboardChrome extends LitElement {
     return html`
       <div class="scrim" @click=${() => this.close()}></div>
       <aside class="drawer" data-drawer>
+        <div class="drawer-head">
+          <button class="drawer-back" data-drawer-back aria-label=${translate(language, "back")} @click=${() => this.close()}>
+            <ha-icon icon="mdi:chevron-left"></ha-icon>
+          </button>
+          <ha-icon class="drawer-logo" icon="mdi:home-assistant"></ha-icon>
+          <strong>Home Assistant</strong>
+        </div>
         <ul>
           ${this._pages.map(
             (page) => html`
@@ -931,44 +1131,37 @@ export class HomeDashboardChrome extends LitElement {
     const language = this.hass?.language;
     const look = this._appearance;
     const entries = this._navEntries;
+    const status = this._statusShown && this.hass;
+    const open = status && this._statusOpen;
+    const menu = html`
+      <button class="rail-only" data-menu aria-label=${translate(language, "menu")} @click=${() => this.open({ type: "drawer" })}>
+        <ha-icon icon="mdi:menu"></ha-icon>
+      </button>
+    `;
+    const items = entries.map(
+      (entry) => html`
+        <button
+          class="item ${this._isActive(entry, entries) ? "active" : ""}"
+          data-page=${entry.key}
+          @click=${() => this._goTo(entry)}
+        >
+          <span class="pill"><ha-icon .icon=${entry.icon}></ha-icon></span>
+          <span class="label">${entry.name ?? translate(language, entry.label)}</span>
+        </button>
+      `,
+    );
     return html`
       ${this.hass ? this._renderMiniPlayer(language) : nothing}
       <nav
-        class="${this.navTucked ? "tucked" : ""} ${look.nav.style}"
-        style="--hd-left: ${this._left ?? 0}px; ${navVariables(look)}"
+        class="${this.navTucked ? "tucked" : ""} ${this._navGone ? "gone" : ""} ${look.nav.style} ${status ? "has-status" : ""} ${open ? "status-open" : ""}"
+        style="--hd-left: ${this._left ?? 0}px; --hd-status-width: ${STATUS_WIDTH}px; ${navVariables(look)}"
       >
-        <button
-          class="rail-only"
-          data-menu
-          aria-label=${translate(language, "menu")}
-          @click=${() => this.open({ type: "drawer" })}
-        >
-          <ha-icon icon="mdi:menu"></ha-icon>
-        </button>
-        ${entries.map(
-          (entry) => html`
-            <button
-              class="item ${this._isActive(entry, entries) ? "active" : ""}"
-              data-page=${entry.key}
-              @click=${() => this._goTo(entry)}
-            >
-              <span class="pill"><ha-icon .icon=${entry.icon}></ha-icon></span>
-              <span class="label">${entry.name ?? translate(language, entry.label)}</span>
-            </button>
-          `,
-        )}
-        <span class="rail-only spacer"></span>
-        <button
-          class="rail-only"
-          aria-label=${translate(language, "voice")}
-          @click=${() =>
-            this._fire("hass-action", {
-              config: { tap_action: { action: "assist", start_listening: true } },
-              action: "tap",
-            })}
-        >
-          <ha-icon icon="mdi:microphone"></ha-icon>
-        </button>
+        ${open
+          ? html`${this._renderStatusPanel(language)}
+              <div class="status-pages">${items}</div>`
+          : html`${status ? this._renderFold(language, false) : menu} ${items}
+              <span class="rail-only spacer"></span>
+              ${status ? menu : nothing} ${this._renderVoice(language, "rail-only")}`}
       </nav>
       ${this.hass ? this._renderOverlay(language) : nothing}
       ${this._renderDebug()}
@@ -1122,7 +1315,7 @@ export class HomeDashboardChrome extends LitElement {
         bottom: 0;
         left: 0;
         box-sizing: border-box;
-        width: min(320px, 86vw);
+        width: min(var(--hd-status-width, 320px), 86vw);
         padding: 0 12px calc(var(--hd-safe-bottom) + 16px);
         overflow-y: auto;
         background: var(--hd-background);
@@ -1137,6 +1330,30 @@ export class HomeDashboardChrome extends LitElement {
         height: calc(var(--hd-safe-top) + 16px);
         margin: 0 -12px;
         background: var(--hd-background);
+      }
+      .drawer-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 4px 8px;
+        font-size: 18px;
+      }
+      .drawer-head strong {
+        font-weight: 500;
+      }
+      .drawer-logo {
+        --mdc-icon-size: 28px;
+        color: #41bdf5;
+      }
+      .drawer .drawer-back {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        min-height: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+        background: var(--hd-pill);
       }
       .drawer ul {
         margin: 0;
@@ -1184,8 +1401,15 @@ export class HomeDashboardChrome extends LitElement {
         pointer-events: none;
       }
       @media ${unsafeCSS(TABLET_MEDIA_QUERY)} {
-        nav.tucked {
+        /* The side bar stays for a player opened in Music Assistant, floating or not. */
+        nav.tucked,
+        nav.floating.tucked {
           transform: none;
+        }
+        /* Music Assistant on the whole page: the bar slides away to the left, and the page takes its room. */
+        nav.gone,
+        nav.floating.gone {
+          transform: translateX(calc(-100% - var(--hd-left, 0px)));
         }
         nav,
         nav.floating {
@@ -1220,6 +1444,114 @@ export class HomeDashboardChrome extends LitElement {
           bottom: 24px;
           left: auto;
           width: 340px;
+        }
+        /* The status bar takes the place of the narrow one, with the pages in a row under it. */
+        nav.status-open {
+          gap: 0;
+          width: var(--hd-status-width);
+          padding: 0 0 calc(var(--hd-safe-bottom) + 4px);
+          /* Glass by default, as the tiles; the look chooses a colour. */
+          color: var(--hd-status-text, #ffffff);
+          background: var(--hd-status-paint, rgba(0, 0, 0, 0.26));
+          -webkit-backdrop-filter: blur(var(--hd-status-blur, 0px));
+          backdrop-filter: blur(var(--hd-status-blur, 0px));
+        }
+        home-dashboard-status-panel {
+          flex: 1;
+          min-height: 0;
+        }
+        .status-pages {
+          display: flex;
+          justify-content: space-around;
+          padding: 10px 6px 6px;
+          border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+        }
+        .status-pages .item {
+          flex: 1;
+          min-height: 52px;
+        }
+        .status-pages .pill {
+          width: 52px;
+        }
+        .status-actions {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 18px;
+        }
+        .fold {
+          position: relative;
+          display: grid;
+          place-items: center;
+          align-self: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: color-mix(in srgb, currentColor 14%, transparent);
+          -webkit-touch-callout: none;
+          user-select: none;
+        }
+        .fold.rail-only {
+          min-height: 40px;
+          margin: 8px 0;
+        }
+        .ring {
+          position: absolute;
+          inset: -5px;
+          width: 50px;
+          height: 50px;
+          transform: rotate(-90deg);
+          pointer-events: none;
+        }
+        .ring circle {
+          fill: none;
+          stroke: var(--hd-nav-active, #5ab0ff);
+          stroke-width: 3;
+          stroke-linecap: round;
+          stroke-dasharray: 138.3;
+          stroke-dashoffset: 138.3;
+          opacity: 0;
+        }
+        .fold.holding .ring circle {
+          stroke-dashoffset: 0;
+          opacity: 1;
+          transition:
+            stroke-dashoffset ${unsafeCSS(STATUS_HOLD_MS)}ms linear,
+            opacity 120ms ease;
+        }
+        .status-voice {
+          display: grid;
+          place-items: center;
+          width: 40px;
+          height: 32px;
+          opacity: 0.55;
+        }
+        .hold-hint {
+          position: absolute;
+          z-index: 1;
+          top: 2px;
+          right: 54px;
+          width: 136px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          color: #1b1b1f;
+          background: #ffffff;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+          font-size: 12.5px;
+          line-height: 16px;
+        }
+        .hold-hint::after {
+          content: "";
+          position: absolute;
+          top: 12px;
+          right: -6px;
+          border: 6px solid transparent;
+          border-right: 0;
+          border-left-color: #ffffff;
+        }
+        .hold-hint strong {
+          display: block;
         }
       }
     `,

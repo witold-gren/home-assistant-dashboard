@@ -2,6 +2,8 @@
 // kind, so a stream can never outlive its sheet: closing removes the card that holds it.
 
 import { LitElement, css, html, nothing, svg } from "../vendor/lit-all.min.js";
+import { clipThumbnail } from "./clip-thumbs.js";
+import { streamDot, streamDotStyles } from "./connections.js";
 import {
   arcPath,
   clamp,
@@ -24,6 +26,8 @@ import { personalPrefs, savePrefs } from "./prefs.js";
 import { createRecorder } from "./intercom.js";
 import {
   buildCameras,
+  CAMERA_COLUMNS,
+  CAMERA_LAYOUTS,
   cameraMoves,
   cameraQuickControls,
   controlEntityIds,
@@ -31,6 +35,8 @@ import {
   loadTranslationKeys,
   presetCalls,
   cameraSettingsPanel,
+  cameraStreaming,
+  cameraStreamSensors,
   buildPlayer,
   buildTile,
   canUnlock,
@@ -66,6 +72,8 @@ import {
 } from "./panel.js";
 import { tileCandidates } from "./room-editor.js";
 import { localDay, recordingSource } from "./recordings.js";
+import { WIDE_WEATHER } from "./weather.js";
+import { WIDE_DEPARTURES } from "./departures.js";
 import { createSoundMixer, hasSound } from "./sound.js";
 import { clipFor, PictureZoom } from "./zoom.js";
 import { startTalk, talkMode, TALK_LIMIT_MS } from "./talk.js";
@@ -92,6 +100,7 @@ import {
   NAV_RANGE,
   NAV_STYLES,
   sheetVariables,
+  STATUS_PARTS,
   mergeAppearance,
   searchIcons,
   TILE_FILLS,
@@ -118,7 +127,7 @@ const SHEET_DRAG_START_PX = 8;
 // Places whose own gestures come first: a drag down there does not close the window. A zoomed camera picture is
 // one of them, as the finger moves the picture; unzoomed, a drag down on it closes the window as before.
 const OWN_GESTURES =
-  "[data-slider], .dial, .panel-card, .live, input, textarea, select, iframe, video, home-dashboard-timeline, .stage.zoomed";
+  "[data-slider], .dial, .panel-card, .live, input, textarea, select, iframe, video, home-dashboard-timeline, .stage.zoomed, .cameras-open .thumbs";
 const LIVE_LIMIT_MS = 120000;
 // How often a waking live view is checked for a moving video.
 const LIVE_WATCH_MS = 200;
@@ -134,6 +143,21 @@ function onOff(entityId, on) {
 const MEDIA_MIN_PX = 100;
 // How often the pictures of the list of cameras are asked for again.
 const CAMERA_CARDS_REFRESH_MS = 30_000;
+// A tablet: the cameras fill a black screen, in as many columns as chosen, on this device or in the settings.
+const TABLET = "(min-width: 900px)";
+const CAMERA_COLUMNS_KEY = "home-dashboard-camera-columns";
+const CAMERA_LAYOUT_KEY = "home-dashboard-camera-layout";
+// The recordings on a camera's own card: asked for again this often while their window is open (what is on the disk,
+// what is coming down, new pictures), and at most this many pictures asked for at once, each waking the camera.
+const SD_POLL_MS = 3000;
+// A copy asked for that has not started by then was turned down by the camera.
+const SD_GIVE_UP_MS = 20_000;
+const SD_THUMBNAILS_AT_ONCE = 24;
+// The recordings on the disk are read a few days at a time, newest first, as the list is scrolled to its end.
+const DISK_MIN_CLIPS = 24;
+const DISK_DAYS_AT_ONCE = 7;
+// A panel with a card beside its own parts: a wide screen on its side, a tablet's.
+const SPLIT_PANEL = "(orientation: landscape) and (min-width: 900px) and (min-height: 501px)";
 // How often a camera's picture that did not load is asked for again.
 const PICTURE_RETRY_MS = 5000;
 // How long, and how often, a starting live view is made to take the sound before its stream connects.
@@ -142,7 +166,9 @@ const LIVE_HEAR_TICK_MS = 50;
 // A long press on the sound button opens its slider.
 const SOUND_HOLD_MS = 500;
 // A phone on its side: the camera fills the screen and the days and the line of time wait at its edges.
-const LANDSCAPE_PHONE = "(orientation: landscape) and (max-height: 500px)";
+// The camera on the whole screen: a phone on its side, and a tablet on its side (a touch screen, so a computer with a
+// mouse keeps its window).
+const LANDSCAPE_PHONE = "(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse)";
 const SWIPE_AWAY_PX = 40;
 const PLAYER_TICK_MS = 1000;
 const DIAL_SIZE = 280;
@@ -212,6 +238,9 @@ const BACKGROUNDS = [
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const ENTITY_FREE_KINDS = new Set([
   "access",
+  "chart",
+  "sd",
+  "disk",
   "app",
   "background",
   "block-edit",
@@ -271,6 +300,16 @@ export class HomeDashboardSheet extends LitElement {
     _talkProblem: { state: true },
     _daysOpen: { state: true },
     _lineOpen: { state: true },
+    _camerasOpen: { state: true },
+    _wallBig: { state: true },
+    _sd: { state: true },
+    _rooms: { state: true },
+    _deleting: { state: true },
+    _sdError: { state: true },
+    _sdTurnedDown: { state: true },
+    _sdQueued: { state: true },
+    _disk: { state: true },
+    _wallPaused: { state: true },
     _tick: { state: true },
     _voice: { state: true },
     _pending: { state: true },
@@ -305,6 +344,8 @@ export class HomeDashboardSheet extends LitElement {
     clearTimeout(this._cardsTimer);
     this._stopTalk();
     this._stopLive();
+    this._stopWallLive();
+    this._stopSd();
     clearInterval(this._ticker);
     clearTimeout(this._commitTimer);
     clearTimeout(this._soundHold);
@@ -339,11 +380,20 @@ export class HomeDashboardSheet extends LitElement {
       this._pictureFailed = null;
       this._pictureTry = 0;
       this._stopLive();
+      this._wallPaused = false;
+      this._stopSd();
+      this._rooms = { selected: [], repeats: 1 };
+      this._deleting = null;
+      if (this.sheet?.kind === "sd") this._startSd();
+      this._diskObserver?.disconnect();
+      this._diskObserver = undefined;
+      if (this.sheet?.kind === "disk") this._startDisk();
       this._recordingDay = null;
       this._stopTalk();
       this._talkProblem = null;
       this._daysOpen = false;
       this._lineOpen = false;
+      this._camerasOpen = false;
       this._edit = null;
       if (this.sheet?.kind === "device-edit") this._loadEdit();
       this._clip = null;
@@ -387,12 +437,18 @@ export class HomeDashboardSheet extends LitElement {
       this._motion = followCover(this._motion, this._stateObj, Date.now());
     }
     if (this._liveCard) this._liveCard.hass = this.hass;
+    if (this._wallLive?.card) this._wallLive.card.hass = this.hass;
   }
 
   // A phone turned: the picture lies elsewhere, measured again once the new layout is drawn.
-  _onResize = () => requestAnimationFrame(() => this._measureMedia());
+  _onResize = () =>
+    requestAnimationFrame(() => {
+      this._measureMedia();
+      if (["panel", "weather", "departures"].includes(this.sheet?.kind)) this.requestUpdate();
+    });
 
-  // Where the picture's right edge lies from the screen's, for the ring to stand wholly on it on a phone on its side.
+  // Where the picture's edges lie from the screen's, for the buttons to stand wholly on it on a phone or a tablet on
+  // its side.
   _measureMedia() {
     const body = this.renderRoot.querySelector(".camera-body");
     const stage = body?.querySelector(".stage");
@@ -403,18 +459,81 @@ export class HomeDashboardSheet extends LitElement {
     const content = this._zoomContent(element, box);
     let left = content ? box.left + content.left : box.left;
     let right = content ? box.left + content.left + content.width : box.right;
+    let top = content ? box.top + content.top : box.top;
+    let bottom = content ? box.top + content.top + content.height : box.bottom;
     // No picture yet (not loaded, the camera away): the buttons keep to the edges of the screen, not to an empty box.
-    if (right - left < MEDIA_MIN_PX) [left, right] = [stageBox.left, stageBox.right];
-    // On the window, so both columns, the ring and the button of the line of time keep to the picture.
+    if (right - left < MEDIA_MIN_PX) {
+      [left, right, top, bottom] = [stageBox.left, stageBox.right, stageBox.top, stageBox.bottom];
+    }
+    // On the whole window, so the header, both columns, the ring and the button of the line of time keep to the
+    // picture.
+    const panel = body.closest(".panel") ?? body;
     const set = (name, value) => {
       const px = `${Math.max(0, Math.round(value))}px`;
-      if (body.style.getPropertyValue(name) !== px) body.style.setProperty(name, px);
+      if (panel.style.getPropertyValue(name) !== px) panel.style.setProperty(name, px);
     };
     set("--media-left", left - stageBox.left);
     set("--media-right", stageBox.right - right);
+    set("--media-top", top - stageBox.top);
+    set("--media-bottom", stageBox.bottom - bottom);
+  }
+
+  // A card beside a panel's parts (a vacuum's map) grows with its width, and a map as wide as the column can run past
+  // the screen: it is narrowed, in proportion, until the window fits, watched as the card loads and the screen turns.
+  _fitSplitCard() {
+    const split = this.renderRoot.querySelector(".panel-split.split");
+    const live = split?.querySelector(":scope > .live");
+    const card = live?.firstElementChild;
+    if (!split || !card) {
+      this._splitObserver?.disconnect();
+      this._splitObserver = undefined;
+      return;
+    }
+    if (!this._splitObserver) {
+      this._splitObserver = new ResizeObserver(() => requestAnimationFrame(() => this._fitSplitCard()));
+      this._splitObserver.observe(card);
+    }
+    // The card's own buttons, put away where the rooms stand beside it.
+    const root = card.shadowRoot;
+    if (root && split.querySelector("[data-room-picker]") && !root.querySelector("style[data-home-dashboard]")) {
+      const style = document.createElement("style");
+      style.dataset.homeDashboard = "";
+      style.textContent = ".controls-wrapper, .tiles-wrapper, .vacuum-controls { display: none !important; }";
+      root.appendChild(style);
+    }
+    const panel = split.closest(".panel");
+    const side = split.querySelector(":scope > .side");
+    const style = getComputedStyle(split);
+    const column = split.clientWidth - side.offsetWidth - parseFloat(style.columnGap || 0)
+      - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    // The room under the window's header: a centred card is measured against the whole row, not where it stands.
+    const room = panel.clientHeight - (split.getBoundingClientRect().top - panel.getBoundingClientRect().top)
+      - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - parseFloat(getComputedStyle(panel).paddingBottom || 0);
+    const width = live.offsetWidth;
+    const height = card.offsetHeight;
+    if (!width || !height || room <= 0) return;
+    // A card whose height does not follow its width (no map yet, a fixed card) is left as it is.
+    const last = this._splitLast;
+    if (last && last.width > width && height >= last.height) return;
+    const wanted = Math.round(Math.min(column, (width * room) / height));
+    if (Math.abs(wanted - width) < 4) return;
+    this._splitLast = { width, height };
+    live.style.maxWidth = `${wanted}px`;
   }
 
   updated(changed) {
+    // The big camera of all cameras: the one just drawn plays, and only it.
+    this._syncWallLive();
+    if (changed.has("sheet")) {
+      this._splitObserver?.disconnect();
+      this._splitObserver = undefined;
+      this._splitLast = undefined;
+    }
+    if (this.sheet?.kind === "panel") requestAnimationFrame(() => this._fitSplitCard());
+    else if (this._splitObserver) {
+      this._splitObserver.disconnect();
+      this._splitObserver = undefined;
+    }
     if (this.sheet?.kind === "camera") requestAnimationFrame(() => this._measureMedia());
     // Another camera, or the picture, the live view and a recording taking each other's place: back to the whole view.
     const shown = this.sheet?.kind === "camera" ? `${this.sheet.entityId}|${this._live}|${this._clip?.url ?? ""}` : null;
@@ -431,8 +550,9 @@ export class HomeDashboardSheet extends LitElement {
       this._previewingLook = false;
     }
     if (this.sheet?.kind === "pin" && this._stateObj?.state === "off") this._close();
+    if (changed.has("sheet") && this.sheet?.kind === "camera" && this.sheet.at) this._seekWhenLoaded(this.sheet.at);
     if (changed.has("sheet") && this.sheet?.kind === "camera") {
-      this.renderRoot.querySelector(".camera-thumb.current")?.scrollIntoView({ block: "nearest", inline: "center" });
+      this._centreThumb();
       // A ready-made way of turning finds its buttons by translation keys, read from the registry once.
       const ids = controlEntityIds(this.hass, this.sheet.entityId, this.config);
       loadTranslationKeys(this.hass, ids).then((loaded) => loaded && this.requestUpdate());
@@ -583,7 +703,7 @@ export class HomeDashboardSheet extends LitElement {
     const editable = details ? this._editTarget() : null;
     return html`
       <header class=${dark ? "dark" : ""}>
-        ${this.sheet?.kind === "camera" && this.sheet.back
+        ${["camera", "sd", "disk"].includes(this.sheet?.kind) && this.sheet.back
           ? html`<button aria-label=${this._t("back")} data-back @click=${() => this._change(this.sheet.back)}>
               <ha-icon icon="mdi:arrow-left"></ha-icon>
             </button>`
@@ -1177,10 +1297,25 @@ export class HomeDashboardSheet extends LitElement {
     this._voice = { room, recorder: createRecorder(this.hass, this.config) };
   }
 
+  // The current camera in the middle of the list of cameras, by scrolling only the list: scrolling it into view would
+  // also move the window when the list lies hidden below it (a phone or a tablet on its side).
+  _centreThumb() {
+    const thumb = this.renderRoot.querySelector(".camera-thumb.current");
+    const list = thumb?.parentElement;
+    if (!list) return;
+    const at = thumb.getBoundingClientRect();
+    const around = list.getBoundingClientRect();
+    list.scrollLeft += at.left + at.width / 2 - (around.left + around.width / 2);
+  }
+
   _renderCameraThumbs(cameras) {
     if (cameras.length < 2) return nothing;
     return html`
-      <div class="thumbs" data-thumbs>
+      <div
+        class="thumbs"
+        data-thumbs
+        @pointerdown=${(event) => this._camerasOpen && this._swipeAway(event, () => (this._camerasOpen = false), 1)}
+      >
         ${cameras.map(
           (camera) => html`
             <button
@@ -1449,10 +1584,11 @@ export class HomeDashboardSheet extends LitElement {
   _tapPicture(event) {
     // A pinch, a move of a zoomed picture or a double tap is not also a tap on the picture.
     if (this._zoomer?.takeGesture()) return;
-    if (!window.matchMedia(LANDSCAPE_PHONE).matches || (!this._daysOpen && !this._lineOpen)) return;
+    if (!window.matchMedia(LANDSCAPE_PHONE).matches || (!this._daysOpen && !this._lineOpen && !this._camerasOpen)) return;
     if (event.composedPath().some((node) => node.localName === "button" || node.localName === "select")) return;
     this._daysOpen = false;
     this._lineOpen = false;
+    this._camerasOpen = false;
   }
 
   _renderTalk(talk) {
@@ -1536,6 +1672,546 @@ export class HomeDashboardSheet extends LitElement {
 
   // All cameras of the page one under another, big, as the heading Cameras opens them. A tap opens the camera, whose
   // window goes back here.
+  // Recordings on the camera's own card ------------------------------------------------------------------------
+  // A camera that keeps recordings on its card says how to reach them (`sd_recordings`: its list and its download
+  // commands). The window lists them by day; one on the disk of Home Assistant shows on the line of time, the rest
+  // can be brought down. Nothing on the card is ever removed.
+
+  _sdSource(cameraId) {
+    const source = cameraId && this.hass.states[cameraId]?.attributes?.sd_recordings;
+    return source?.list && source?.download ? source : null;
+  }
+
+  _renderSdButton(shown, cameraId) {
+    if (!this._sdSource(cameraId)) return nothing;
+    return html`<button
+      aria-label=${this._t("sd_open")}
+      data-sd-open
+      @click=${() => this._change({ kind: "sd", entityId: cameraId, name: shown.name, back: { ...this.sheet, at: undefined } })}
+    >
+      <ha-icon icon="mdi:sd"></ha-icon>
+    </button>`;
+  }
+
+  _startSd() {
+    this._sd = null;
+    this._sdError = null;
+    this._sdTurnedDown = false;
+    this._sdQueued = new Set();
+    this._sdWanted = new Set();
+    const source = this._sdSource(this.sheet.entityId);
+    if (!source) return;
+    const sheet = this.sheet;
+    // What was remembered comes at once; the card itself is asked once in the background, which wakes the camera.
+    this._sdLoad(source, false);
+    this._sdLoad(source, true);
+    this._sdTimer = setInterval(() => this.sheet === sheet && this._sdLoad(source, false), SD_POLL_MS);
+  }
+
+  _stopSd() {
+    clearInterval(this._sdTimer);
+    this._sdTimer = undefined;
+    this._sdObserver?.disconnect();
+    this._sdObserver = undefined;
+  }
+
+  async _sdLoad(source, refresh) {
+    const sheet = this.sheet;
+    const message = { type: source.list, entity_id: sheet.entityId, refresh };
+    if (!refresh && this._sdWanted?.size) {
+      message.thumbnails = [...this._sdWanted].slice(0, SD_THUMBNAILS_AT_ONCE);
+      for (const file of message.thumbnails) this._sdWanted.delete(file);
+    }
+    try {
+      const answer = await this.hass.callWS(message);
+      if (this.sheet !== sheet) return;
+      this._sd = answer;
+      this._sdError = answer.error ?? null;
+      const shown = new Set((answer.recordings ?? []).filter((clip) => clip.downloading || clip.local).map((clip) => clip.file));
+      for (const file of this._sdQueued) if (shown.has(file)) this._sdQueued.delete(file);
+      // A copy the camera turned down never shows as coming: once it has had its time it is given up, and said so,
+      // so the button does not turn for ever.
+      const now = Date.now();
+      // Only while nothing is coming: one waiting behind a long copy is not given up.
+      const idle = !(answer.recordings ?? []).some((clip) => clip.downloading);
+      const failed = idle
+        ? [...this._sdQueued].filter((file) => !shown.has(file) && now - (this._sdAskedAt?.get(file) ?? now) > SD_GIVE_UP_MS)
+        : [];
+      if (failed.length) {
+        for (const file of failed) {
+          this._sdQueued.delete(file);
+          this._sdAskedAt.delete(file);
+        }
+        this._sdTurnedDown = true;
+      }
+    } catch (error) {
+      if (this.sheet === sheet) this._sdError = error?.message ?? String(error);
+    }
+  }
+
+  // One recording, or every one of a day not yet on the disk, oldest first: the integration queues them.
+  async _sdDownload(files) {
+    const source = this._sdSource(this.sheet.entityId);
+    if (!source || !files.length) return;
+    this._sdQueued = new Set([...this._sdQueued, ...files]);
+    this._sdAskedAt ??= new Map();
+    this._sdTurnedDown = false;
+    for (const file of files) this._sdAskedAt.set(file, Date.now());
+    try {
+      await this.hass.callWS({ type: source.download, entity_id: this.sheet.entityId, files });
+    } catch (error) {
+      this._sdError = error?.message ?? String(error);
+      for (const file of files) this._sdQueued.delete(file);
+      this.requestUpdate();
+    }
+  }
+
+  // Pictures are asked for only for the recordings in sight: each one wakes the camera.
+  _watchSdThumbnails() {
+    this._sdObserver ??= new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        this._sdWanted.add(entry.target.dataset.sdClip);
+        this._sdObserver.unobserve(entry.target);
+      }
+    });
+    for (const clip of this.renderRoot.querySelectorAll(".sd-clip.waiting:not([data-watched])")) {
+      clip.dataset.watched = "";
+      this._sdObserver.observe(clip);
+    }
+  }
+
+  // Opened at a moment (a recording from the card now on the disk): the day of it, then the recording itself once
+  // the line of time has found that day's recordings.
+  _seekWhenLoaded(at) {
+    const sheet = this.sheet;
+    this._recordingDay = localDay(new Date(at * 1000));
+    const started = Date.now();
+    clearInterval(this._seekTimer);
+    this._seekTimer = setInterval(() => {
+      const timeline = this.renderRoot.querySelector("home-dashboard-timeline");
+      const clip = timeline?._ranges?.length ? timeline.clipFrom(at) : null;
+      if (clip) {
+        timeline._moveTo(at);
+        this._playClip(clip);
+      }
+      if (clip || this.sheet !== sheet || Date.now() - started > 15000) clearInterval(this._seekTimer);
+    }, 250);
+  }
+
+  // The whole day at once: what is not on the disk yet and not coming, oldest first; a mark once all of it is.
+  _renderSdDayDownload(list) {
+    const missing = list
+      .filter((clip) => !clip.local && !clip.downloading && !this._sdQueued?.has(clip.file))
+      .map((clip) => clip.file)
+      .reverse();
+    const busy = list.some((clip) => !clip.local && (clip.downloading || this._sdQueued?.has(clip.file)));
+    if (!missing.length) {
+      return busy
+        ? html`<span class="sd-day-action busy" data-sd-day-busy><ha-icon icon="mdi:progress-download"></ha-icon></span>`
+        : html`<span class="sd-day-action done" data-sd-day-done><ha-icon icon="mdi:check-all"></ha-icon></span>`;
+    }
+    return html`<button
+      class="sd-day-action"
+      aria-label=${this._t("sd_download_day", { count: missing.length })}
+      data-sd-day-download
+      @click=${() => this._sdDownload(missing)}
+    >
+      <ha-icon icon="mdi:download-multiple"></ha-icon><span>${missing.length}</span>
+    </button>`;
+  }
+
+  _renderSd() {
+    const answer = this._sd;
+    const clips = [...(answer?.recordings ?? [])].reverse();
+    const days = new Map();
+    for (const clip of clips) {
+      const day = clip.start.slice(0, 10);
+      days.set(day, [...(days.get(day) ?? []), clip]);
+    }
+    const { language } = this.hass;
+    const clock = (value) => new Date(value).toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit" });
+    const seconds = (clip) => Math.max(0, Math.round((new Date(clip.end) - new Date(clip.start)) / 1000));
+    const status = this._sdError
+      ? this._t("sd_error", { error: this._sdError })
+      : answer?.refreshing
+        ? this._t("sd_refreshing")
+        : answer?.updated
+          ? this._t("sd_updated", {
+              time: new Date(answer.updated).toLocaleString(language, { dateStyle: "medium", timeStyle: "short" }),
+            })
+          : answer
+            ? this._t("sd_never")
+            : this._t("sd_loading");
+    requestAnimationFrame(() => this.sheet?.kind === "sd" && this._watchSdThumbnails());
+    return html`
+      ${this._renderHeader(`${this._t("sd_title")} · ${this.sheet.name ?? ""}`, true, false)}
+      <p class="sd-status ${this._sdError ? "error" : ""}" data-sd-status>${status}</p>
+      ${this._sdTurnedDown ? html`<p class="sd-status error" data-sd-turned-down>${this._t("sd_copy_failed")}</p>` : nothing}
+      ${answer && !clips.length ? html`<p class="hint">${this._t("sd_empty")}</p>` : nothing}
+      <div class="sd-days">
+        ${[...days].map(
+          ([day, list]) => html`
+            <section class="sd-day" data-sd-day=${day}>
+              <h3>
+                ${new Date(`${day}T12:00:00`).toLocaleDateString(language, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                <small>${list.length}</small>
+                ${this._renderSdDayDownload(list)}
+              </h3>
+              <div class="sd-grid">
+                ${list.map((clip) => {
+                  const coming = clip.downloading || this._sdQueued?.has(clip.file);
+                  const at = Math.floor(new Date(clip.start).getTime() / 1000);
+                  return html`
+                    <div class="sd-clip ${clip.thumbnail ? "" : "waiting"}" data-sd-clip=${clip.file}>
+                      ${clip.thumbnail
+                        ? html`<img src=${clip.thumbnail} alt="" loading="lazy" />`
+                        : html`<ha-icon class="sd-placeholder" icon="mdi:filmstrip"></ha-icon>`}
+                      <span class="sd-text">
+                        <strong>${clock(clip.start)}</strong>
+                        <small>${[`${seconds(clip)} s`, clip.kinds].filter(Boolean).join(" · ")}</small>
+                      </span>
+                      ${clip.local
+                        ? this._renderRemove(`sd:${clip.file}`, new Date(clip.start).toLocaleTimeString(language), async () => {
+                            const back = this.sheet.back;
+                            const source = recordingSource(this.hass, back?.entityId, this.sheet.entityId, this.config);
+                            const id = await source?.fileId?.(clip.file);
+                            if (!id) throw new Error(this._t("remove_missing"));
+                            await this._removeFile(id);
+                            clip.local = false;
+                            this.requestUpdate();
+                          })
+                        : nothing}
+                      ${clip.local
+                        ? html`<button
+                            class="sd-mark local"
+                            aria-label=${this._t("sd_local")}
+                            data-sd-local=${clip.file}
+                            @click=${() => this._change({ ...this.sheet.back, at })}
+                          >
+                            <ha-icon icon="mdi:check"></ha-icon>
+                          </button>`
+                        : coming
+                          ? html`<span class="sd-mark busy" aria-label=${this._t("sd_downloading")} data-sd-busy=${clip.file}>
+                              <ha-icon icon="mdi:progress-download"></ha-icon>
+                            </span>`
+                          : html`<button
+                              class="sd-mark"
+                              aria-label=${this._t("sd_download")}
+                              data-sd-download=${clip.file}
+                              @click=${() => this._sdDownload([clip.file])}
+                            >
+                              <ha-icon icon="mdi:download"></ha-icon>
+                            </button>`}
+                    </div>
+                  `;
+                })}
+              </div>
+            </section>
+          `,
+        )}
+      </div>
+      ${this._renderRemoveAsk()}
+    `;
+  }
+
+  // Recordings on the disk ---------------------------------------------------------------------------------------
+  // The recordings of the line of time as a list by day, newest first, read a few days at a time as it is scrolled:
+  // a camera that records two or three times a week has its recordings found without searching along the line. A
+  // tap goes back to the camera at that recording, its day chosen and the line moved to it.
+
+  _renderDiskButton(shown, cameraId, recordings, where) {
+    if (!recordings) return nothing;
+    return html`<button
+      class="disk-button ${where} ${where === "side" ? "landscape-only" : "quick-button"}"
+      aria-label=${this._t("disk_open")}
+      data-disk-open=${where}
+      @click=${() =>
+        this._change({ kind: "disk", entityId: this.sheet.entityId, cameraId, name: shown.name, back: { ...this.sheet, at: undefined } })}
+    >
+      <ha-icon icon="mdi:movie-search-outline"></ha-icon>
+    </button>`;
+  }
+
+  async _startDisk() {
+    const sheet = this.sheet;
+    const source = recordingSource(this.hass, sheet.entityId, sheet.cameraId, this.config);
+    this._disk = { source, days: null, next: 0, days_loaded: [], loading: true, error: null };
+    try {
+      const days = [...((await source?.days()) ?? [])].sort().reverse();
+      if (this.sheet !== sheet) return;
+      this._disk = { ...this._disk, days, loading: false };
+      await this._loadDisk();
+    } catch (error) {
+      if (this.sheet === sheet) this._disk = { ...this._disk, loading: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  // The next days, until a screen's worth of recordings or the days run out.
+  async _loadDisk() {
+    const disk = this._disk;
+    if (!disk?.days || disk.loading || disk.next >= disk.days.length) return;
+    const sheet = this.sheet;
+    this._disk = { ...disk, loading: true };
+    const loaded = [];
+    let next = disk.next;
+    let clips = 0;
+    while (next < disk.days.length && (clips < DISK_MIN_CLIPS || loaded.length === 0) && loaded.length < DISK_DAYS_AT_ONCE) {
+      const day = disk.days[next++];
+      try {
+        const { ranges, events } = await disk.source.day(day);
+        // Frigate keeps one span a day of continuous recording: its detections are what is looked for.
+        const items = (events?.length ? events : ranges).map((item) => ({
+          start: item.start_time ?? item.start,
+          end: item.end_time ?? item.end,
+          label: item.sub_label ?? item.label ?? "",
+          thumbnail: item.thumbnail ? `data:image/jpeg;base64,${item.thumbnail}` : null,
+          // A file of the folder of recordings can be removed; a Frigate detection cannot.
+          id: events?.length ? null : item.id,
+        }));
+        items.sort((a, b) => b.start - a.start);
+        if (items.length) loaded.push({ day, items });
+        clips += items.length;
+      } catch {
+        // A day that does not open is left out.
+      }
+    }
+    if (this.sheet !== sheet) return;
+    this._disk = { ...this._disk, next, loading: false, days_loaded: [...this._disk.days_loaded, ...loaded] };
+    requestAnimationFrame(() => this._watchDiskEnd());
+    this._takeDiskThumbnails(loaded, disk.source, sheet);
+  }
+
+  // A recorded file has no picture of its own: one is taken from its start, in the order they show.
+  _takeDiskThumbnails(days, source, sheet) {
+    this._diskThumbs ??= new Map();
+    for (const { items } of days) {
+      for (const item of items) {
+        if (item.thumbnail || !item.id || this._diskThumbs.has(item.id)) continue;
+        clipThumbnail(item.id, () => source.url({ id: item.id })).then((picture) => {
+          if (!picture || this.sheet !== sheet) return;
+          this._diskThumbs.set(item.id, picture);
+          this.requestUpdate();
+        });
+      }
+    }
+  }
+
+  _watchDiskEnd() {
+    const end = this.renderRoot.querySelector("[data-disk-more]");
+    if (!end) return;
+    this._diskObserver ??= new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) this._loadDisk();
+    });
+    this._diskObserver.disconnect();
+    this._diskObserver.observe(end);
+  }
+
+  // Removing a recording from the disk of Home Assistant, asked first; an administrator's, as Home Assistant demands.
+  _canRemove() {
+    return Boolean(this.hass.user?.is_admin);
+  }
+
+  _renderRemove(key, label, remove) {
+    if (!this._canRemove()) return nothing;
+    return html`<button
+      class="remove-button"
+      aria-label=${this._t("remove")}
+      data-remove=${key}
+      @click=${(event) => {
+        event.stopPropagation();
+        this._deleting = { key, label, remove };
+      }}
+    >
+      <ha-icon icon="mdi:trash-can-outline"></ha-icon>
+    </button>`;
+  }
+
+  // Asked the way the siren asks: a card over the window, cancel or delete.
+  _renderRemoveAsk() {
+    const asking = this._deleting;
+    if (!asking) return nothing;
+    const close = () => (this._deleting = null);
+    return html`
+      <div class="siren-ask" data-remove-ask role="alertdialog" aria-label=${this._t("remove_title")}>
+        <div class="siren-card">
+          <ha-icon icon="mdi:trash-can-outline"></ha-icon>
+          <strong>${this._t("remove_title")}</strong>
+          <p>${this._t("remove_ask", { time: asking.label })}</p>
+          <div class="siren-actions">
+            <button data-remove-no @click=${close}>${this._t("cancel")}</button>
+            <button
+              class="danger"
+              data-remove-yes
+              @click=${async () => {
+                close();
+                try {
+                  await asking.remove();
+                } catch (error) {
+                  this._sdError = error?.message ?? String(error);
+                }
+              }}
+            >
+              ${this._t("remove")}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async _removeFile(id) {
+    await this.hass.callWS({ type: "media_source/local_source/remove", media_content_id: id });
+  }
+
+  _renderDisk() {
+    const disk = this._disk;
+    const { language } = this.hass;
+    const clock = (seconds) => new Date(seconds * 1000).toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit" });
+    const seconds = (at) => new Date(at * 1000).toLocaleTimeString(language);
+    const length = (item) => {
+      const seconds = Math.max(0, Math.round((item.end ?? item.start) - item.start));
+      return seconds >= 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60} s` : `${seconds} s`;
+    };
+    const more = disk?.days && disk.next < disk.days.length;
+    return html`
+      ${this._renderHeader(`${this._t("disk_title")} · ${this.sheet.name ?? ""}`, true, false)}
+      ${disk?.error ? html`<p class="sd-status error">${this._t("sd_error", { error: disk.error })}</p>` : nothing}
+      ${disk?.days && !disk.days_loaded.length && !more && !disk.loading
+        ? html`<p class="hint" data-disk-empty>${this._t("disk_empty")}</p>`
+        : nothing}
+      <div class="sd-days">
+        ${(disk?.days_loaded ?? []).map(
+          ({ day, items }) => html`
+            <section class="sd-day" data-disk-day=${day}>
+              <h3>
+                ${new Date(`${day}T12:00:00`).toLocaleDateString(language, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                <small>${items.length}</small>
+              </h3>
+              <div class="sd-grid">
+                ${items.map(
+                  (item) => html`
+                    <div class="sd-clip" data-disk-clip=${item.start} @click=${() => this._change({ ...this.sheet.back, at: item.start })}>
+                      ${item.thumbnail || this._diskThumbs?.get(item.id)
+                        ? html`<img src=${item.thumbnail || this._diskThumbs.get(item.id)} alt="" data-disk-thumb />`
+                        : html`<ha-icon class="sd-placeholder" icon="mdi:play-circle-outline"></ha-icon>`}
+                      <span class="sd-text">
+                        <strong>${clock(item.start)}</strong>
+                        <small>${[length(item), item.label].filter(Boolean).join(" · ")}</small>
+                      </span>
+                      ${item.id
+                        ? this._renderRemove(`disk:${item.id}`, seconds(item.start), async () => {
+                            await this._removeFile(item.id);
+                            this._disk = {
+                              ...this._disk,
+                              days_loaded: this._disk.days_loaded
+                                .map((entry) => ({ ...entry, items: entry.items.filter((other) => other.id !== item.id) }))
+                                .filter((entry) => entry.items.length),
+                            };
+                          })
+                        : nothing}
+                    </div>
+                  `,
+                )}
+              </div>
+            </section>
+          `,
+        )}
+      </div>
+      ${more || disk?.loading || !disk
+        ? html`<p class="sd-status disk-more" data-disk-more>${this._t("sd_loading")}</p>`
+        : nothing}
+      ${this._renderRemoveAsk()}
+    `;
+  }
+
+  // The columns of the window of all cameras: this device's own choice, else the settings'.
+  _cameraColumns() {
+    const own = Number(localStorage.getItem(CAMERA_COLUMNS_KEY));
+    return CAMERA_COLUMNS.includes(own) ? own : this.config.cameras.columns;
+  }
+
+  _setCameraColumns(columns) {
+    localStorage.setItem(CAMERA_COLUMNS_KEY, String(columns));
+    this.requestUpdate();
+  }
+
+  // The layout of the window of all cameras: this device's own choice, else the settings'.
+  _cameraLayout() {
+    const own = localStorage.getItem(CAMERA_LAYOUT_KEY);
+    return CAMERA_LAYOUTS.includes(own) ? own : this.config.cameras.layout;
+  }
+
+  _setCameraLayout(layout) {
+    localStorage.setItem(CAMERA_LAYOUT_KEY, layout);
+    this.requestUpdate();
+  }
+
+  // The big camera of the window of all cameras plays live by itself, and only it: another one taking its place lets
+  // it go. A camera on a battery stops after the same time as in its window, and a tap starts it again.
+  _syncWallLive() {
+    const want = this.sheet?.kind === "cameras" && !this._wallPaused ? this._wallWanted : null;
+    if (want === (this._wallLive?.entityId ?? null)) return;
+    this._stopWallLive();
+    if (want) this._startWallLive(want);
+  }
+
+  async _startWallLive(entityId) {
+    const cameraId = liveCameraFor(this.hass, entityId, this.config);
+    if (!cameraId) return;
+    const live = { entityId };
+    this._wallLive = live;
+    const helpers = await window.loadCardHelpers?.();
+    const card = helpers?.createCardElement({
+      type: "picture-entity",
+      entity: cameraId,
+      camera_view: "live",
+      show_name: false,
+      show_state: false,
+      tap_action: { action: "none" },
+    });
+    const box = this.renderRoot.querySelector("[data-wall-live]");
+    if (!card || !box || this._wallLive !== live) return;
+    card.hass = this.hass;
+    live.card = card;
+    box.replaceChildren(card);
+    // Its last picture stays until the video moves, so a waking camera never shows a black box.
+    live.watch = setInterval(() => {
+      const videos = this._deepFind(box, "video");
+      if (videos.some((video) => video.readyState >= 2 && video.videoWidth > 0 && !video.paused)) {
+        box.classList.add("shown");
+        clearInterval(live.watch);
+      }
+    }, LIVE_WATCH_MS);
+    if (isBatteryCamera(this.hass, cameraId, this.config)) {
+      live.timer = setTimeout(() => {
+        this._wallPaused = true;
+        this._stopWallLive();
+      }, LIVE_LIMIT_MS);
+    }
+  }
+
+  _stopWallLive() {
+    const live = this._wallLive;
+    if (!live) return;
+    clearInterval(live.watch);
+    clearTimeout(live.timer);
+    live.card?.remove();
+    this.renderRoot.querySelector("[data-wall-live]")?.classList.remove("shown");
+    this._wallLive = undefined;
+  }
+
+  _deepFind(root, name) {
+    return [...root.querySelectorAll("*")].flatMap((element) => [
+      ...(element.localName === name ? [element] : []),
+      ...(element.shadowRoot ? this._deepFind(element.shadowRoot, name) : []),
+    ]);
+  }
+
+  _openCameraWindow(entityId) {
+    this._change({ kind: "camera", entityId, back: this.sheet });
+  }
+
   _renderCameraCards() {
     const all = buildCameras(this.hass, this.config);
     const cameras = (this.sheet.cameras ?? all.map((camera) => camera.entityId))
@@ -1549,31 +2225,94 @@ export class HomeDashboardSheet extends LitElement {
       const full = this.hass.hassUrl(camera.picture);
       return camera.updatedAt ? full : `${full}${full.includes("?") ? "&" : "?"}tick=${tick}`;
     };
-    return html`
-      ${this._renderHeader(this._t("section_cameras"), true, false)}
-      <div class="camera-cards" data-camera-cards>
-        ${cameras.map((camera) => {
-          const off = camera.unavailable || camera.guest;
-          return html`
-            <button
-              class="camera-card ${off ? "off" : ""}"
-              data-camera-card=${camera.entityId}
-              aria-label=${camera.name}
-              ?disabled=${camera.guest}
-              @click=${() => this._change({ kind: "camera", entityId: camera.entityId, back: this.sheet })}
-            >
-              ${camera.picture ? html`<img src=${url(camera)} alt="" loading="lazy" />` : nothing}
-              <span class="camera-card-text">
-                <strong>${camera.name}</strong>
-                <small>
-                  ${off
-                    ? this._t(camera.guest ? "camera_guest" : "camera_unavailable")
+    const columns = this._cameraColumns();
+    const next = CAMERA_COLUMNS[(CAMERA_COLUMNS.indexOf(columns) + 1) % CAMERA_COLUMNS.length];
+    const wall = window.matchMedia(TABLET).matches;
+    const layout = wall ? this._cameraLayout() : "grid";
+    // One big camera, live, the first working one until another is tapped; the rest small after it.
+    const working = (camera) => !camera.unavailable && !camera.guest;
+    const big =
+      layout === "featured"
+        ? (cameras.find((camera) => camera.entityId === this._wallBig && working(camera)) ?? cameras.find(working))
+        : undefined;
+    this._wallWanted = big?.entityId ?? null;
+    const rest = big ? cameras.filter((camera) => camera !== big) : cameras;
+    const otherLayout = layout === "featured" ? "grid" : "featured";
+    const card = (camera, isBig = false) => {
+      const off = camera.unavailable || camera.guest;
+      // In the layout with one big camera a tap puts a camera in its place; the corner button opens its window.
+      const tap = () =>
+        layout === "featured" && !off
+          ? isBig
+            ? this._wallPaused && (this._wallPaused = false)
+            : ((this._wallBig = camera.entityId), (this._wallPaused = false))
+          : this._openCameraWindow(camera.entityId);
+      return html`
+        <div class="camera-cell ${isBig ? "big" : ""}">
+          <button
+            class="camera-card ${off ? "off" : ""}"
+            data-camera-card=${camera.entityId}
+            aria-label=${camera.name}
+            ?disabled=${camera.guest}
+            @click=${tap}
+          >
+            ${camera.picture ? html`<img src=${url(camera)} alt="" loading="lazy" />` : nothing}
+            ${streamDot(camera.streaming, this._t("stream_open"))}
+            ${isBig ? html`<div class="wall-live" data-wall-live></div>` : nothing}
+            ${isBig && this._wallPaused
+              ? html`<span class="wall-resume" data-wall-resume><ha-icon icon="mdi:play"></ha-icon></span>`
+              : nothing}
+            <span class="camera-card-text">
+              <strong>${camera.name}</strong>
+              <small>
+                ${off
+                  ? this._t(camera.guest ? "camera_guest" : "camera_unavailable")
+                  : isBig && !this._wallPaused
+                    ? this._t("live")
                     : pictureAge(this.hass.language, camera.updatedAt, Date.now())}
-                </small>
-              </span>
-            </button>
-          `;
-        })}
+              </small>
+            </span>
+          </button>
+          ${layout === "featured" && !camera.guest
+            ? html`<button
+                class="camera-expand"
+                aria-label=${this._t("camera_expand")}
+                data-camera-expand=${camera.entityId}
+                @click=${() => this._openCameraWindow(camera.entityId)}
+              >
+                <ha-icon icon="mdi:arrow-expand"></ha-icon>
+              </button>`
+            : nothing}
+        </div>
+      `;
+    };
+    return html`
+      ${this._renderHeader(
+        this._t("section_cameras"),
+        true,
+        false,
+        undefined,
+        wall
+          ? html`<button
+                class="columns"
+                aria-label=${this._t(`camera_layout_${otherLayout}`)}
+                data-camera-layout=${layout}
+                @click=${() => this._setCameraLayout(otherLayout)}
+              >
+                <ha-icon icon=${layout === "featured" ? "mdi:view-dashboard-outline" : "mdi:view-grid-outline"}></ha-icon>
+              </button>
+              <button
+                class="columns"
+                aria-label=${this._t("camera_columns", { columns: next })}
+                data-camera-columns=${columns}
+                @click=${() => this._setCameraColumns(next)}
+              >
+                <ha-icon icon="mdi:view-column-outline"></ha-icon><span>${columns}</span>
+              </button>`
+          : nothing,
+      )}
+      <div class="camera-cards ${layout}" data-camera-cards style="--camera-columns: ${columns}">
+        ${big ? card(big, true) : nothing} ${rest.map((camera) => card(camera))}
       </div>
     `;
   }
@@ -1617,7 +2356,21 @@ export class HomeDashboardSheet extends LitElement {
         true,
         true,
         settings,
-        html`<button
+        html`${cameras.length > 1
+            ? html`<button
+                class="landscape-only ${this._camerasOpen ? "on" : ""}"
+                aria-label=${this._t("cameras_other")}
+                aria-expanded=${this._camerasOpen ? "true" : "false"}
+                data-open-cameras
+                @click=${() => {
+                  this._camerasOpen = !this._camerasOpen;
+                  if (this._camerasOpen) this._lineOpen = false;
+                }}
+              >
+                <ha-icon icon="mdi:cctv"></ha-icon>
+              </button>`
+            : nothing}
+          <button
             class="landscape-only ${this._daysOpen ? "on" : ""}"
             aria-label=${this._t("recordings_days")}
             aria-expanded=${this._daysOpen ? "true" : "false"}
@@ -1634,9 +2387,14 @@ export class HomeDashboardSheet extends LitElement {
           >
             ${this._live && this._liveShown ? this._t("live_disconnect") : this._t("live")}
           </button>
-          ${turns ? this._renderPtzToggle() : nothing}${this._renderSound()}`,
+          ${this._renderSdButton(shown, cameraId)}${turns ? this._renderPtzToggle() : nothing}${this._renderSound()}`,
       )}
-      <div class="body camera-body ${this._daysOpen ? "days-open" : ""} ${this._lineOpen ? "line-open" : ""}">
+      <div
+        class="body camera-body ${this._daysOpen ? "days-open" : ""} ${this._lineOpen ? "line-open" : ""} ${this
+          ._camerasOpen
+          ? "cameras-open"
+          : ""}"
+      >
         ${this._volumeOpen
           ? html`<label class="sound-level" data-sound-level>
               <ha-icon icon="mdi:volume-low"></ha-icon>
@@ -1729,6 +2487,21 @@ export class HomeDashboardSheet extends LitElement {
           ${down
             ? html`<div class="camera-down" data-camera-down><span>${this._t("camera_is_unavailable")}</span></div>`
             : nothing}
+          ${streamDot(cameraStreaming(this.hass, cameraStreamSensors(this.hass, this.sheet.entityId, this.config)), this._t("stream_open"))}
+          ${!this._live && !this._clip && !down && cameraId
+            ? html`<button
+                class="play-live ${this._zoomScale > 1 ? "hidden" : ""}"
+                data-play-live
+                aria-label=${this._t("live")}
+                @click=${(event) => {
+                  // The picture under it zooms on a tap: this tap is for the live view only.
+                  event.stopPropagation();
+                  this._timelineLive(cameraId);
+                }}
+              >
+                <ha-icon icon="mdi:play"></ha-icon>
+              </button>`
+            : nothing}
           ${turns && this._ptzOpen && this._live ? this._renderCameraMoves(controls) : nothing}
           ${this._renderTalk(talk)}
         </div>
@@ -1749,7 +2522,7 @@ export class HomeDashboardSheet extends LitElement {
           ? html`<p class="hint battery-hint ${this._clip ? "faint" : ""}" data-battery-hint>${this._t("battery_hint")}</p>`
           : nothing}
         ${!this._live && !cameraId ? html`<p class="hint">${this._t("no_live")}</p>` : nothing}
-        ${this._renderCameraThumbs(cameras)} ${this._renderQuick(quick, positions)} ${this._renderSirenAsk(quick, shown.name)}
+        ${this._renderCameraThumbs(cameras)} ${this._renderQuick(quick, positions, this._renderDiskButton(shown, cameraId, recordings, "upright"))} ${this._renderSirenAsk(quick, shown.name)}
         <home-dashboard-timeline
               @pointerdown=${(event) => this._lineOpen && this._swipeAway(event, () => (this._lineOpen = false), 1)}
               .hass=${this.hass}
@@ -1774,10 +2547,14 @@ export class HomeDashboardSheet extends LitElement {
           aria-label=${this._t("recordings_line")}
           aria-expanded=${this._lineOpen ? "true" : "false"}
           data-open-line
-          @click=${() => (this._lineOpen = !this._lineOpen)}
+          @click=${() => {
+            this._lineOpen = !this._lineOpen;
+            if (this._lineOpen) this._camerasOpen = false;
+          }}
         >
           <ha-icon icon="mdi:timeline-clock-outline"></ha-icon>
         </button>
+        ${this._renderDiskButton(shown, cameraId, recordings, "side")}
       </div>
     `;
   }
@@ -1811,7 +2588,7 @@ export class HomeDashboardSheet extends LitElement {
   // Quick buttons of a camera: siren, light, night vision and, while turning, its positions. Upright they stand in a
   // row over the line of time from the right; on a phone on its side in a column in the bottom left corner, from the
   // bottom. A list (night vision, positions) opens next to its button.
-  _renderQuick(quick, presets) {
+  _renderQuick(quick, presets, disk = nothing) {
     const run = (call) => this.hass.callService(call.domain, call.service, call.data);
     const state = (id) => this.hass.states[id]?.state;
     const sirenOn = quick.siren && state(quick.siren) === "on";
@@ -1847,7 +2624,7 @@ export class HomeDashboardSheet extends LitElement {
           </div>`
         : nothing;
     const toggleMenu = (key) => () => (this._quickMenu = menu === key ? null : key);
-    if (!quick.siren && !quick.light && !night && !presets) return nothing;
+    if (!quick.siren && !quick.light && !night && !presets && disk === nothing) return nothing;
     return html`
       <div class="quick" data-quick-bar>
         ${quick.siren
@@ -1881,18 +2658,22 @@ export class HomeDashboardSheet extends LitElement {
               })}
             </span>`
           : nothing}
+        ${disk}
       </div>
     `;
   }
 
+  // Neolink's infrared offers auto / on / off: "on" is infrared, "auto" switches by the light.
   _nightLabel(option) {
-    const key = { off: "night_off", infrared: "night_infrared", "full color": "night_colour" }[String(option).toLowerCase()];
+    const key = { off: "night_off", auto: "night_auto", on: "night_infrared", infrared: "night_infrared", "full color": "night_colour" }[
+      String(option).toLowerCase()
+    ];
     return key ? this._t(key) : option;
   }
 
   _nightIcon(option) {
     return (
-      { off: "mdi:weather-sunny", infrared: "mdi:weather-night", "full color": "mdi:lightbulb-on-outline" }[
+      { off: "mdi:weather-sunny", on: "mdi:weather-night", infrared: "mdi:weather-night", "full color": "mdi:lightbulb-on-outline" }[
         String(option).toLowerCase()
       ] ?? "mdi:theme-light-dark"
     );
@@ -1970,20 +2751,29 @@ export class HomeDashboardSheet extends LitElement {
 
   // Intercom --------------------------------------------------------------------------------
 
+  // A chart of the dashboard's own, for what the Energy page shows, in place of the details window of Home Assistant.
+  _renderChart() {
+    const { chart } = this.sheet;
+    return html`
+      ${this._renderHeader(chart.title, false, false)}
+      ${chart.subtitle ? html`<p class="hint chart-subtitle">${chart.subtitle}</p>` : nothing}
+      <home-dashboard-history-chart .hass=${this.hass} .chart=${chart}></home-dashboard-history-chart>
+    `;
+  }
+
   _renderIntercom() {
     const { areas, label, recorder } = this.sheet;
+    // A card of its own, like a phone's intercom: whom it goes to, the voice as a wave, one button to send.
     return html`
-      ${this._renderHeader(label, false, false)}
-      <div class="rows">
-        <home-dashboard-intercom
-          .hass=${this.hass}
-          .config=${this.config}
-          .areas=${areas}
-          .label=${label}
-          .recorder=${recorder}
-          @intercom-close=${this._close}
-        ></home-dashboard-intercom>
-      </div>
+      <home-dashboard-intercom
+        card
+        .hass=${this.hass}
+        .config=${this.config}
+        .areas=${areas}
+        .label=${label}
+        .recorder=${recorder}
+        @intercom-close=${this._close}
+      ></home-dashboard-intercom>
     `;
   }
 
@@ -2896,7 +3686,7 @@ export class HomeDashboardSheet extends LitElement {
         this._setLookGroup("nav", { blur: value }),
       )}
       <p class="hint">${this._t("look_nav_blur_hint")}</p>
-      ${this._renderLookPlayer()}
+      ${this._renderLookStatus()} ${this._renderLookPlayer()}
     `;
   }
 
@@ -2912,6 +3702,70 @@ export class HomeDashboardSheet extends LitElement {
       ${this._renderSlider("sheet-blur", this._t("look_nav_blur"), sheets.blur, [0, 40], " px", (value) => set({ blur: value }))}
       ${this._renderSlider("sheet-scrim", this._t("look_sheets_scrim"), sheets.scrim, [0, 80], "%", (value) => set({ scrim: value }))}
       <p class="hint">${this._t("look_sheets_scrim_hint")}</p>
+    `;
+  }
+
+  // The status bar of a tablet: on or off, its parts in order and its colours.
+  _renderLookStatus() {
+    const { status } = this._look;
+    const set = (change) => this._setLookGroup("status", change);
+    const parts = status.widgets ?? STATUS_PARTS;
+    const setParts = (widgets) => set({ widgets });
+    const move = (index, delta) => {
+      const next = [...parts];
+      const [moved] = next.splice(index, 1);
+      next.splice(index + delta, 0, moved);
+      setParts(next);
+    };
+    const name = (key) => this._t(`status_part_${key}`);
+    return html`
+      <h3 class="look-group">${this._t("look_status_title")}</h3>
+      <label class="field" data-look-status-shown>
+        <span>${this._t("look_status_shown")}</span>
+        <input type="checkbox" .checked=${status.shown} @change=${(event) => set({ shown: event.target.checked })} />
+      </label>
+      <p class="hint">${this._t("look_status_hint")}</p>
+      ${status.shown
+        ? html`
+            <p class="hint">${this._t("look_status_widgets_hint")}</p>
+            ${parts.map(
+              (key, index) => html`
+                <div class="order-row" data-status-part=${key}>
+                  <span>${name(key)}</span>
+                  <button aria-label=${this._t("personal_remove")} data-status-part-remove ?disabled=${parts.length <= 1}
+                    @click=${() => setParts(parts.filter((part) => part !== key))}>
+                    <ha-icon icon="mdi:close"></ha-icon>
+                  </button>
+                  <button aria-label=${this._t("personal_up")} data-status-part-up ?disabled=${index === 0} @click=${() => move(index, -1)}>
+                    <ha-icon icon="mdi:arrow-up"></ha-icon>
+                  </button>
+                  <button aria-label=${this._t("personal_down")} data-status-part-down ?disabled=${index === parts.length - 1}
+                    @click=${() => move(index, 1)}>
+                    <ha-icon icon="mdi:arrow-down"></ha-icon>
+                  </button>
+                </div>
+              `,
+            )}
+            ${parts.length < STATUS_PARTS.length
+              ? html`<label class="field" data-status-part-add>
+                  <span>${this._t("look_status_add")}</span>
+                  <select @change=${(event) => event.target.value && setParts([...parts, event.target.value])}>
+                    <option value="">—</option>
+                    ${STATUS_PARTS.filter((key) => !parts.includes(key)).map((key) => html`<option value=${key}>${name(key)}</option>`)}
+                  </select>
+                </label>`
+              : nothing}
+            <label class="field" data-look-status-colourful>
+              <span>${this._t("look_status_colourful")}</span>
+              <input type="checkbox" .checked=${status.colourful} @change=${(event) => set({ colourful: event.target.checked })} />
+            </label>
+            ${this._renderColourField("status", "background")} ${this._renderColourField("status", "text")}
+            ${this._renderSlider("status-opacity", this._t("look_opacity_short"), status.opacity, [20, 100], "%", (value) =>
+              set({ opacity: value }),
+            )}
+            ${this._renderSlider("status-blur", this._t("look_nav_blur"), status.blur, [0, 30], " px", (value) => set({ blur: value }))}
+          `
+        : nothing}
     `;
   }
 
@@ -3873,7 +4727,9 @@ export class HomeDashboardSheet extends LitElement {
       ${this._renderHeader(item.name, false, true, () => this._showDetails(item.details))}
       <div class="rows" data-settings-tabs>
         ${this._renderTabs(tabs)}
-        ${group
+        ${group?.connections
+          ? html`<home-dashboard-connections .hass=${this.hass} .sensors=${group.connections}></home-dashboard-connections>`
+          : group
           ? group.rows.map((row) => this._renderPanelRow(row))
           : html`<home-dashboard-logbook
               class="settings-activity"
@@ -4039,6 +4895,7 @@ export class HomeDashboardSheet extends LitElement {
     }
     if (item.tabs) return this._renderSettingsTabs(item);
     const stats = panelStats(this.hass, item);
+    if (item.fullscreen && item.card && item.card_open && !item.card_last) return this._renderSplitPanel(item, stats);
     return html`
       ${this._renderHeader(item.name, false, Boolean(item.details), () => this._showDetails(item.details))}
       <div class="rows">
@@ -4069,6 +4926,116 @@ export class HomeDashboardSheet extends LitElement {
         ${item.card_last && item.card_open ? html`<div class="live panel-card" data-live></div>` : nothing}
       </div>
     `;
+  }
+
+  // A panel on the whole screen with its card always open, such as a vacuum's map: on a tablet on its side the
+  // panel's own parts (its rows, its numbers as tiles with a bar for a share, its buttons at the bottom) stand in a
+  // column beside the card, which keeps the rest of the screen; upright and on a phone they stand above it, as before.
+  // The card's box is the same element in both, so turning the tablet does not start the card again.
+  _renderSplitPanel(item, stats) {
+    const split = window.matchMedia(SPLIT_PANEL).matches;
+    const share = (index) => {
+      const stat = item.stats[index];
+      const value = Number(this.hass.states[stat.entity]?.state);
+      return stat.unit === "%" && Number.isFinite(value) ? Math.min(Math.max(value, 0), 100) : null;
+    };
+    return html`
+      ${this._renderHeader(item.name, false, Boolean(item.details), () => this._showDetails(item.details))}
+      <div class="rows panel-split ${split ? "split" : ""}">
+        <div class="side">
+          ${stats.length
+            ? html`<div class="stats" data-panel-stats>
+                ${stats.map(
+                  (stat, index) => html`<span>
+                    <b>${stat.value}</b><small>${stat.name}</small>
+                    ${split && share(index) !== null ? html`<i class="share"><u style="width: ${share(index)}%"></u></i>` : nothing}
+                  </span>`,
+                )}
+              </div>`
+            : nothing}
+          ${split ? this._renderRoomPicker(item) : nothing}
+          <div class="side-actions">${this._renderActions(item.actions)}</div>
+          ${(item.groups ?? []).map(
+            (group) => html`<div class="panel-group">
+              ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
+              ${group.layout === "summary" ? this._renderSummary(group) : nothing}
+              ${group.layout === "controls" ? this._renderControls(group.rows) : nothing}
+              ${group.layout ? nothing : group.rows.map((row) => this._renderPanelRow(row))}
+            </div>`,
+          )}
+        </div>
+        <div class="live panel-card" data-live></div>
+      </div>
+    `;
+  }
+
+  // The rooms a vacuum map card offers (its mode that cleans rooms, with the rooms set up in it), as buttons beside
+  // the map: the card's own buttons are put away on a tablet on its side, and its map stands alone.
+  _roomMode(item) {
+    const mode = (item.card?.map_modes ?? []).find(
+      (entry) => entry?.template === "vacuum_clean_segment" && entry.predefined_selections?.length && entry.service_call_schema,
+    );
+    return mode ? { ...mode, entity: item.card.entity } : null;
+  }
+
+  _renderRoomPicker(item) {
+    const mode = this._roomMode(item);
+    if (!mode) return nothing;
+    const { selected, repeats } = this._rooms ?? { selected: [], repeats: 1 };
+    const most = Number(mode.max_repeats) || 1;
+    const toggle = (id) =>
+      (this._rooms = {
+        repeats,
+        selected: selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id],
+      });
+    return html`
+      <div class="room-picker" data-room-picker>
+        <h3>${this._t("vacuum_rooms")}</h3>
+        <div class="room-chips">
+          ${mode.predefined_selections.map(
+            (room) => html`<button
+              class="room-chip ${selected.includes(room.id) ? "on" : ""}"
+              aria-pressed=${selected.includes(room.id) ? "true" : "false"}
+              data-room=${room.id}
+              @click=${() => toggle(room.id)}
+            >
+              ${room.label?.text ?? room.id}
+            </button>`,
+          )}
+        </div>
+        <div class="room-run">
+          <button
+            class="room-repeats"
+            aria-label=${this._t("vacuum_repeats")}
+            data-room-repeats
+            ?disabled=${most < 2}
+            @click=${() => (this._rooms = { selected, repeats: (repeats % most) + 1 })}
+          >
+            ×${repeats}
+          </button>
+          <button class="room-go" data-room-go ?disabled=${!selected.length} @click=${() => this._cleanRooms(mode)}>
+            <ha-icon icon="mdi:play"></ha-icon>${this._t("vacuum_clean_rooms", { count: selected.length })}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // The card's own call, its placeholders filled: [[entity_id]], [[selection]] (the rooms) and [[repeats]].
+  _cleanRooms(mode) {
+    const { selected, repeats } = this._rooms;
+    const fill = (value) => {
+      if (value === "[[selection]]") return selected;
+      if (value === "[[repeats]]") return repeats;
+      if (value === "[[entity_id]]") return mode.entity;
+      if (Array.isArray(value)) return value.map(fill);
+      if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fill(v)]));
+      return value;
+    };
+    const { service, service_data: data } = mode.service_call_schema;
+    const [domain, name] = service.split(".");
+    this.hass.callService(domain, name, fill(data ?? {}));
+    this._rooms = { selected: [], repeats };
   }
 
   // Remote ----------------------------------------------------------------------------------
@@ -4337,6 +5304,7 @@ export class HomeDashboardSheet extends LitElement {
       player: this._renderPlayer,
       group: this._renderGroup,
       intercom: this._renderIntercom,
+      chart: this._renderChart,
       panel: this._renderPanel,
       "device-edit": this._renderDeviceEdit,
       tv: this._renderTv,
@@ -4354,6 +5322,8 @@ export class HomeDashboardSheet extends LitElement {
       notifications: this._renderNotifications,
       blocks: this._renderBlocks,
       cameras: this._renderCameraCards,
+      sd: this._renderSd,
+      disk: this._renderDisk,
       "block-edit": this._renderBlockEdit,
       overview: this._renderOverview,
       host: this._renderHost,
@@ -4367,13 +5337,20 @@ export class HomeDashboardSheet extends LitElement {
       switch: this._renderSwitch,
       alarm: this._renderAlarm,
     };
-    const dark = this.sheet.kind === "camera";
+    const wall = this.sheet.kind === "cameras" && window.matchMedia(TABLET).matches;
+    const dark = ["camera", "sd", "disk"].includes(this.sheet.kind) || wall;
+    // The intercom floats as a card over the page, blurred behind it, like a phone's intercom.
+    const floating = this.sheet.kind === "intercom";
     const { item } = this.sheet;
-    const whole = dark || ["app", "block-edit", "blocks", "history", "host", "logbook", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    // The weather takes the whole screen of a tablet on its side, where it has room for a chart and the week.
+    const wideWeather =
+      (this.sheet.kind === "weather" && window.matchMedia(WIDE_WEATHER).matches) ||
+      (this.sheet.kind === "departures" && window.matchMedia(WIDE_DEPARTURES).matches);
+    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "history", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     return html`
       <div class="scrim" @click=${this._close}></div>
-      <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""}"></div>
-      <section class="panel ${dark ? "dark" : ""} ${whole ? "whole" : ""}" data-kind=${this.sheet.kind}>
+      <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}"></div>
+      <section class="panel ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}" data-kind=${this.sheet.kind}>
         <div
           class="grip"
           data-grip
@@ -4389,6 +5366,7 @@ export class HomeDashboardSheet extends LitElement {
 
   static styles = [
     tokens,
+    streamDotStyles,
     css`
       button {
         all: unset;
@@ -4428,6 +5406,24 @@ export class HomeDashboardSheet extends LitElement {
       }
       .cover.dark {
         background: #17181a;
+      }
+      .cover.floating {
+        background: rgba(0, 0, 0, 0.12);
+        -webkit-backdrop-filter: blur(28px);
+        backdrop-filter: blur(28px);
+      }
+      @media (max-width: 899px) {
+        .panel.floating {
+          inset: max(14dvh, calc(var(--hd-safe-top) + 24px)) 12px auto;
+          padding: 0;
+          overflow: visible;
+          border-radius: 34px;
+          background: var(--hd-sheet-bg, var(--hd-background));
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+        }
+      }
+      .panel.floating > .grip {
+        display: none;
       }
       .panel {
         position: fixed;
@@ -4519,6 +5515,157 @@ export class HomeDashboardSheet extends LitElement {
         font-size: 12px;
         line-height: 16px;
         color: var(--hd-text-muted);
+      }
+      /* Upright the parts keep the order of a panel: numbers, buttons, the card, then the rows. */
+      .panel-split .side {
+        display: contents;
+      }
+      .panel-split > .live {
+        order: 1;
+      }
+      .panel-split .panel-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        order: 2;
+      }
+      /* On its side: a column of 360 px for the panel's parts, the card beside it on the rest of the screen. */
+      .panel-split.split {
+        display: grid;
+        flex: 1;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 16px;
+        min-height: 0;
+        padding: 8px 16px 16px;
+      }
+      .panel-split.split .side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      .panel-split.split .panel-group {
+        order: 0;
+      }
+      .panel-split.split .stats {
+        order: 1;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 0;
+        background: none;
+      }
+      .panel-split.split .stats span {
+        padding: 14px 16px;
+        border-radius: var(--hd-radius);
+        background: var(--hd-off);
+      }
+      .panel-split.split .stats b {
+        font-size: 20px;
+      }
+      .room-picker {
+        order: 2;
+      }
+      .room-picker h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 500;
+      }
+      .room-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .room-chip {
+        padding: 8px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        background: var(--hd-off);
+        cursor: pointer;
+      }
+      .room-chip.on {
+        color: #ffffff;
+        background: var(--hd-appliance-icon, #2b6cb0);
+      }
+      .room-run {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .room-repeats,
+      .room-go {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        justify-content: center;
+        height: 44px;
+        padding: 0 14px;
+        border-radius: 22px;
+        background: var(--hd-off);
+        cursor: pointer;
+      }
+      .room-go {
+        flex: 1;
+        color: #ffffff;
+        background: var(--hd-appliance-icon, #2b6cb0);
+      }
+      .room-go[disabled],
+      .room-repeats[disabled] {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .share {
+        display: block;
+        height: 4px;
+        margin-top: 10px;
+        border-radius: 2px;
+        background: color-mix(in srgb, currentColor 20%, transparent);
+      }
+      .share u {
+        display: block;
+        height: 100%;
+        border-radius: 2px;
+        background: currentColor;
+      }
+      .panel-split.split .side-actions {
+        order: 3;
+        margin-top: auto;
+      }
+      .panel-split.split .block-actions {
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 12px;
+      }
+      .panel-split.split .block-action {
+        justify-content: center;
+        min-height: 96px;
+        font-size: 15px;
+        --mdc-icon-size: 30px;
+      }
+      /* The card takes the whole column (a window on the whole screen keeps other cards narrow and centred), and the row
+         is as tall as the card, so the buttons at the bottom of the column end with it. */
+      .panel.whole .rows.panel-split.split {
+        flex: none;
+        align-items: stretch;
+      }
+      .panel.whole .rows.panel-split.split > .live {
+        order: 0;
+        justify-self: center;
+        align-self: center;
+        width: 100%;
+        max-width: none;
+        /* The map on the window's own background. */
+        --map-card-zoomer-background: transparent;
+        --ha-card-background: transparent;
+        --ha-card-box-shadow: none;
+        margin: 0;
+        min-height: 0;
+      }
+      .panel.whole .rows.panel-split.split > .live > * {
+        display: block;
+        width: 100%;
+      }
+      .panel-split.split .side {
+        overflow: visible;
       }
       .block-actions {
         display: grid;
@@ -6002,10 +7149,204 @@ export class HomeDashboardSheet extends LitElement {
         gap: 12px;
         padding: 0 16px 8px;
       }
-      @media (min-width: 900px) {
-        .camera-cards {
-          grid-template-columns: 1fr 1fr;
+      .camera-cell {
+        position: relative;
+        min-width: 0;
+      }
+      /* The recordings on a camera's card: by day, newest first, small pictures in a grid. */
+      .sd-status {
+        margin: 0 16px 8px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .sd-status.error {
+        color: #ff6961;
+      }
+      .sd-days {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 0 16px 16px;
+      }
+      .sd-day {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 400px;
+      }
+      .sd-day h3 {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        margin: 0 0 8px;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      .sd-day h3::first-letter {
+        text-transform: uppercase;
+      }
+      .sd-day h3 small {
+        opacity: 0.6;
+      }
+      .remove-button {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.55);
+        cursor: pointer;
+        --mdc-icon-size: 18px;
+      }
+      .sd-clip {
+        cursor: pointer;
+      }
+      .disk-more {
+        padding: 16px;
+        text-align: center;
+      }
+      button.sd-clip {
+        cursor: pointer;
+        color: #ffffff;
+      }
+      /* Upright the recordings button stands alone at the left end of the row over the line of time (last in a row laid
+         from the right), the quick buttons stay at the right. */
+      .quick .disk-button.upright {
+        margin-right: auto;
+      }
+      .sd-day-action {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+        margin-left: auto;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+        --mdc-icon-size: 20px;
+      }
+      .sd-day-action.done {
+        color: #30d158;
+        background: none;
+      }
+      .sd-day-action.busy ha-icon {
+        animation: sd-pulse 1.2s ease-in-out infinite;
+      }
+      .sd-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 8px;
+      }
+      .sd-clip {
+        position: relative;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        aspect-ratio: 16 / 9;
+        border-radius: 12px;
+        background: #2c2c2e;
+      }
+      .sd-clip img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .sd-placeholder {
+        opacity: 0.35;
+        --mdc-icon-size: 32px;
+      }
+      .sd-text {
+        position: absolute;
+        inset: auto 0 0 0;
+        display: grid;
+        padding: 18px 8px 6px;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+      }
+      .sd-text strong {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .sd-text small {
+        overflow: hidden;
+        font-size: 11px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        opacity: 0.85;
+      }
+      .sd-mark {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.55);
+        --mdc-icon-size: 20px;
+      }
+      .sd-mark.local {
+        background: #30d158;
+      }
+      .sd-mark.busy ha-icon {
+        animation: sd-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes sd-pulse {
+        50% {
+          opacity: 0.3;
         }
+      }
+      /* The live view of the big camera lies over its last picture, unseen until its video moves. */
+      .wall-live {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .wall-live.shown {
+        opacity: 1;
+      }
+      .wall-live > * {
+        display: block;
+        width: 100%;
+        height: 100%;
+        --ha-card-border-radius: 0;
+        --ha-card-border-width: 0;
+      }
+      .wall-resume {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: grid;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        transform: translate(-50%, -50%);
+        --mdc-icon-size: 36px;
+      }
+      .camera-expand {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.5);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        --mdc-icon-size: 22px;
       }
       .camera-card {
         position: relative;
@@ -6048,7 +7389,80 @@ export class HomeDashboardSheet extends LitElement {
         font-size: 14px;
         opacity: 0.85;
       }
+      /* A tablet: the cameras on the whole screen, black around them, in the chosen number of columns. */
+      @media (min-width: 900px) {
+        .panel.dark[data-kind="cameras"] {
+          background: #000000;
+        }
+        .camera-cards {
+          grid-template-columns: repeat(var(--camera-columns, 3), minmax(0, 1fr));
+          gap: 10px;
+          padding: 0 10px 10px;
+        }
+        .camera-card {
+          border-radius: 14px;
+        }
+        .camera-card-text {
+          inset: 0 0 auto 0;
+          padding: 12px 14px 28px;
+          background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
+        }
+        .camera-card-text strong {
+          font-size: 16px;
+        }
+        .camera-card-text small {
+          font-size: 13px;
+        }
+        /* One big camera over two rows and two columns, the rest small around it. */
+        .camera-cards.featured .camera-cell.big {
+          grid-row: span 2;
+          grid-column: span 2;
+        }
+        .camera-cell.big .camera-card {
+          height: 100%;
+          aspect-ratio: auto;
+        }
+        header .columns {
+          display: flex;
+          gap: 4px;
+          align-items: center;
+          width: auto;
+          padding: 0 12px;
+          border-radius: 24px;
+          font-size: 16px;
+          font-weight: 600;
+        }
+      }
       /* A camera that went away: its last picture, dimmed, with the reason in the middle. */
+      /* A still picture of a working camera: a tap in its middle starts the live view, as LIVE does. */
+      /* Placed by its corner, not moved by a transform: the press of a finger scales it, and a transform it does not
+         keep would throw it off the finger, and iOS would then drop the tap. */
+      .play-live {
+        position: absolute;
+        z-index: 2;
+        top: calc(50% - 38px);
+        left: calc(50% - 38px);
+        display: grid;
+        place-items: center;
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.42);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        --mdc-icon-size: 46px;
+        transition: opacity 150ms ease;
+      }
+      /* Out of sight on an enlarged picture, but still there: two fingers that began on it go on moving the picture. */
+      .stage > .stream-dot {
+        top: calc(var(--media-top, 0px) + 12px);
+        right: calc(var(--media-right, 0px) + 12px);
+      }
+      .play-live.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
       .camera-down {
         position: absolute;
         inset: 0;
@@ -6219,6 +7633,9 @@ export class HomeDashboardSheet extends LitElement {
         .cover:not(.whole) {
           display: none;
         }
+        .panel[data-kind="chart"] {
+          width: min(760px, calc(100vw - 64px));
+        }
         .panel {
           inset: 50% auto auto 50%;
           width: 520px;
@@ -6244,15 +7661,17 @@ export class HomeDashboardSheet extends LitElement {
           backdrop-filter: none;
         }
       }
-      /* A phone on its side: the camera on the whole screen, its name and buttons over it, the days hidden above
-         and the line of time below, each brought out with its handle. LIVE stays in the corner. */
-      @media (orientation: landscape) and (max-height: 500px) {
+      /* A phone or a tablet on its side: the camera on the whole screen, its name and buttons over it, the days
+         hidden above, the line of time and the other cameras below, each brought out with its handle. LIVE stays in
+         the corner. */
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+        /* Clipped, not hidden: a hidden box can still be scrolled (a focused button, a list scrolled into view on
+           iOS), which slid the header off the top and the put-away line of time into view. */
         .panel[data-kind="camera"] {
           padding: 0;
-          overflow: hidden;
+          overflow: clip;
         }
         .panel[data-kind="camera"] > .grip,
-        .panel[data-kind="camera"] [data-thumbs],
         .panel[data-kind="camera"] .hint,
         .panel[data-kind="camera"] .live-pill {
           display: none;
@@ -6263,10 +7682,22 @@ export class HomeDashboardSheet extends LitElement {
           right: 0;
           left: 0;
           z-index: 4;
-          padding: 0 max(8px, env(safe-area-inset-right)) 12px max(8px, env(safe-area-inset-left));
+          /* Across the whole screen: close in the far left corner, the settings in the far right one (over the dark
+             bands beside a narrower picture), the camera's own buttons set a little apart from the settings. What
+             turns the camera stays on the picture. */
+          /* Over a band above the picture (a tablet) the header fills the band, its buttons in its middle. */
+          height: max(64px, var(--media-top, 0px));
+          padding: 0 max(12px, env(safe-area-inset-right)) max(0px, calc(12px - var(--media-top, 0px)))
+            max(12px, env(safe-area-inset-left));
           background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
         }
+        .panel[data-kind="camera"] header > button:last-of-type {
+          margin-left: 20px;
+        }
+        /* What stands at the bottom keeps to the picture's bottom edge, 16 px over it, when the picture leaves a band
+           under it (a tablet); on a phone the picture reaches the bottom of the screen. */
         .camera-body {
+          --media-foot: max(16px, calc(var(--media-bottom, 0px) + 12px));
           position: absolute;
           inset: 0;
           display: grid;
@@ -6287,6 +7718,10 @@ export class HomeDashboardSheet extends LitElement {
         .camera-body .picture img {
           width: auto;
         }
+        /* A camera away keeps the place of its picture, so the header and the buttons stay where they always are. */
+        .camera-body .no-picture {
+          width: min(100vw, 100dvh * 16 / 9);
+        }
         .camera-body .clip {
           height: 100dvh;
           aspect-ratio: auto;
@@ -6297,9 +7732,10 @@ export class HomeDashboardSheet extends LitElement {
           max-height: 100dvh;
           --video-max-height: 100dvh;
         }
+        /* Under the header where it lies over the picture (a phone); in the corner where the header stands above it. */
         .camera-body .age,
         .camera-body .zoom-badge {
-          top: 64px;
+          top: max(8px, calc(64px - var(--media-top, 0px)));
           bottom: auto;
         }
         .camera-body .sound-level {
@@ -6328,13 +7764,13 @@ export class HomeDashboardSheet extends LitElement {
           transform: translate(-50%, 0);
         }
         .camera-body home-dashboard-timeline {
-          bottom: 8px;
+          bottom: calc(var(--media-foot) - 8px);
           width: min(70%, 640px);
           box-sizing: border-box;
           padding: 4px 8px 8px;
           border-radius: 24px;
           background: rgba(23, 24, 26, 0.85);
-          transform: translate(-50%, calc(100% + 16px));
+          transform: translate(-50%, calc(100% + 16px + var(--media-bottom, 0px)));
         }
         .camera-body.line-open home-dashboard-timeline {
           transform: translate(-50%, 0);
@@ -6350,7 +7786,7 @@ export class HomeDashboardSheet extends LitElement {
         .line-button {
           position: absolute;
           right: max(16px, env(safe-area-inset-right));
-          bottom: 16px;
+          bottom: var(--media-foot);
           z-index: 4;
           display: grid;
           place-items: center;
@@ -6367,24 +7803,47 @@ export class HomeDashboardSheet extends LitElement {
            --media-left and --media-right are how far the picture's edges lie from the screen's (bands beside it). */
         .camera-body .stage .voice {
           right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
-          bottom: 76px;
+          bottom: calc(var(--media-foot) + 60px);
           width: 48px;
           height: 48px;
         }
         .line-button {
           right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
         }
+        /* On its side the recordings button stands beside the button of the line of time, to its left; the one in
+           the row of quick buttons, which stands in the left column here, is left out. */
+        .quick .disk-button.upright {
+          display: none;
+        }
+        .disk-button.side {
+          position: absolute;
+          right: calc(max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px)) + 60px);
+          bottom: var(--media-foot);
+          z-index: 4;
+          display: grid;
+          place-items: center;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          color: #ffffff;
+          background: rgba(0, 0, 0, 0.5);
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+        }
+        .camera-body:is(.line-open, .cameras-open) .disk-button.side {
+          visibility: hidden;
+        }
         .camera-body .ptz-overlay {
           top: auto;
           right: max(16px, env(safe-area-inset-right), calc(var(--media-right, 0px) + 12px));
-          bottom: 136px;
+          bottom: calc(var(--media-foot) + 120px);
           transform: none;
         }
         /* On its side the quick buttons stand in a column in the bottom left corner, from the bottom, like the
            column on the right; they step aside for the line of time. */
         .camera-body .quick {
           position: absolute;
-          bottom: 16px;
+          bottom: var(--media-foot);
           left: max(16px, env(safe-area-inset-left), calc(var(--media-left, 0px) + 12px));
           z-index: 4;
           flex-direction: column-reverse;
@@ -6413,7 +7872,31 @@ export class HomeDashboardSheet extends LitElement {
           left: calc(100% + 10px);
           max-height: calc(100dvh - 120px);
         }
-        .camera-body.line-open .quick {
+        .camera-body:is(.line-open, .cameras-open) .quick {
+          visibility: hidden;
+        }
+        /* The other cameras come up from the bottom, like the line of time, and a drag down puts them away. */
+        .camera-body .thumbs {
+          position: absolute;
+          bottom: calc(var(--media-foot) - 8px);
+          left: 50%;
+          z-index: 5;
+          width: min(92%, 1100px);
+          padding: 10px;
+          border-radius: 24px;
+          background: rgba(23, 24, 26, 0.85);
+          visibility: hidden;
+          transform: translate(-50%, calc(100% + 16px + var(--media-bottom, 0px)));
+          transition:
+            transform 260ms cubic-bezier(0.2, 0.9, 0.25, 1),
+            visibility 260ms;
+          touch-action: pan-x;
+        }
+        .camera-body.cameras-open .thumbs {
+          visibility: visible;
+          transform: translate(-50%, 0);
+        }
+        .camera-body.cameras-open .line-button {
           visibility: hidden;
         }
         .camera-body home-dashboard-recording-days {
@@ -6440,6 +7923,41 @@ export class HomeDashboardSheet extends LitElement {
         }
         .corner-live.on {
           color: #ff9f0a;
+        }
+      }
+      /* A tablet on its side has more screen than a picture has pixels: the picture grows to the width of the screen,
+         or to its height when it is the taller of the two, and never past either. */
+      @media (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+        /* The other cameras come out in the middle of the band under the picture, kept off the screen's edge when
+           there is no band; the line of time stays on the picture. */
+        .camera-body .thumbs {
+          bottom: max(40px, calc(var(--media-bottom, 0px) / 2));
+          padding: 6px;
+        }
+        .camera-body.cameras-open .thumbs {
+          transform: translate(-50%, 50%);
+        }
+        /* There they cover no button, so the buttons stay, the one of the line of time too, to put it away. */
+        .camera-body:is(.line-open, .cameras-open) :is(.quick, .line-button) {
+          visibility: visible;
+        }
+        /* The ring that turns the camera halfway down the picture, by its right edge. */
+        .camera-body .ptz-overlay {
+          top: calc((100% + var(--media-top, 0px) - var(--media-bottom, 0px)) / 2);
+          bottom: auto;
+          transform: translateY(-50%);
+        }
+        .camera-body .picture img,
+        .camera-body .live-wrap .poster {
+          width: 100vw;
+          height: auto;
+          max-width: 100vw;
+          max-height: 100dvh;
+          object-fit: contain;
+        }
+        .camera-body .no-picture {
+          width: 100vw;
+          max-height: 100dvh;
         }
       }
     `,

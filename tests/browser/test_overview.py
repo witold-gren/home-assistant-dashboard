@@ -195,10 +195,10 @@ def test_a_group_opens_by_itself_and_can_be_folded(phone):
     assert group.get_attribute("open") is None
 
 
-def test_a_tablet_keeps_the_window_of_the_other_screens(tablet):
+def test_a_tablet_shows_the_status_on_the_whole_screen(tablet):
     add_rooms(tablet)
     open_status(tablet, cold_section())
-    assert "whole" not in tablet.locator(f"{SHEET} section.panel").get_attribute("class")
+    assert "whole" in tablet.locator(f"{SHEET} section.panel").get_attribute("class")
 
 
 def bottom_section() -> dict:

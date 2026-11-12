@@ -151,8 +151,40 @@ def test_the_hours_scroll_inside_the_screen_on_a_phone(phone):
     assert phone.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
 
 
-def test_the_screen_opens_on_a_tablet(tablet):
+def test_an_upright_tablet_keeps_the_phone_screen(tablet):
+    tablet.set_viewport_size({"width": 820, "height": 1180})
     add_both(tablet)
     mount_weather(tablet)
     open_weather(tablet)
     assert tablet.locator(f"{WEATHER} [data-weather-day]").count() == 2
+    assert tablet.locator(f"{WEATHER} [data-weather-wide]").count() == 0
+
+
+def test_a_tablet_on_its_side_shows_the_weather_on_the_whole_screen(tablet):
+    add_both(tablet)
+    mount_weather(tablet)
+    open_weather(tablet)
+    assert tablet.locator(f"{WEATHER} [data-weather-wide]").count() == 1
+    assert "whole" in tablet.locator("home-dashboard-sheet section.panel").get_attribute("class")
+    # The next day as a chart: the rain of the first hour as a rain bar, and the total under it.
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-chart]")
+    assert tablet.locator(f"{WEATHER} [data-weather-rain]").evaluate_all("(bars) => bars.map((b) => b.dataset.weatherRain)") == ["rain"]
+    assert "1.5 mm" in tablet.locator(f"{WEATHER} [data-weather-total]").inner_text()
+    # The next days as columns side by side.
+    tops = tablet.locator(f"{WEATHER} [data-weather-column]").evaluate_all(
+        "(columns) => columns.map((c) => Math.round(c.getBoundingClientRect().top))")
+    assert len(tops) == 2 and tops[0] == tops[1]
+    # The chart reaches down at least to the end of the readings beside it.
+    chart = tablet.locator(f"{WEATHER} [data-weather-chart]").bounding_box()
+    side = tablet.locator(f"{WEATHER} .side").bounding_box()
+    assert chart["y"] + chart["height"] >= side["y"] + side["height"] - 1
+    # Everything on the screen, nothing below it.
+    last = tablet.locator(f"{WEATHER} [data-weather-column]").last.bounding_box()
+    assert last["y"] + last["height"] <= 820
+
+
+def test_snow_and_rain_with_snow_are_told_apart(phone):
+    kinds = phone.evaluate("""async () => { const w = await import('/custom_components/home_dashboard/www/app/weather.js');
+        return ['rainy', 'pouring', 'snowy', 'snowy-rainy'].map(w.precipitationKind); }""")
+    assert kinds == ["rain", "rain", "snow", "mix"]
+

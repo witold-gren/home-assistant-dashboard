@@ -132,6 +132,12 @@ weather:
   forecast: weather.forecast_home
 ```
 
+On a tablet on its side the weather takes the whole screen. On the left the temperature now with today's high and
+low, sunrise and sunset (from `sun.sun`) and the readings; on the right the next 24 hours as a temperature chart
+with the precipitation of each hour under it in mm (blue rain, white snow, purple both) and the day's total, and the
+next days as columns on one scale of temperature with their precipitation. The forecast gives the amount of
+precipitation, not its chance. A phone and an upright tablet keep the list.
+
 `weather: false` removes the chip. **User access** hides it from one person, under **Chips**.
 
 ![Weather](screenshots/en/weather.png)
@@ -169,7 +175,8 @@ device in Home Assistant has a battery level sensor (`device_class: battery`). T
 | Exactly this list and nothing else | `cameras.hero` and `cameras.tiles` |
 
 In the strip a single picture alternates with two smaller ones. A camera that stops working stays visible
-in a small picture, blurred and marked as unavailable. The Security chip lists all cameras one under another.
+in a small picture, blurred and marked as unavailable; a tap opens its window, with its name, so you see which one
+went away. The Security chip lists all cameras one under another.
 
 ### Siren, light, night vision and positions
 
@@ -221,14 +228,132 @@ The buttons work at any time, without the live view too; only the positions need
 
 ### All cameras
 
+| All cameras on a tablet | One big camera |
+|---|---|
+| ![All cameras on a tablet](screenshots/en/cameras-tablet.png) | ![One big camera](screenshots/en/cameras-featured.png) |
+
 A tap on the heading **Cameras ›** on Home or in a room opens all cameras one under another, big, with their name and
-the age of the picture (two side by side on a tablet). Their order and hiding are those of the page. A tap on a camera
-opens its window, and the arrow at the top left goes back to the list.
+the age of the picture. Their order and hiding are those of the page. A tap on a camera opens its window, and the
+arrow at the top left goes back to the list.
+
+On a tablet they fill the whole screen on black, three in a row. The button with the number in the header switches
+between 2, 3, 4 and 5 in a row on this device. The other button in the header switches to one big camera with the
+rest small around it: the big one plays live by itself, a tap on a small one puts it in the big place and lets the
+other go, and the corner button of each camera opens its window. On a battery the big camera stops after two minutes,
+and a tap starts it again. **Dashboard settings → Layout of all cameras on a tablet** (`cameras.layout: featured`)
+chooses it for every tablet. **Dashboard settings → Columns of all cameras on a tablet**
+(`cameras.columns: 4`) sets it for every tablet that has not chosen its own.
+
+On a tablet on its side (a touch screen) a camera window takes the whole screen like on a phone on its side: the
+picture at the full width, the header in the band above it, every button on the picture and the ring that turns the
+camera halfway down it. The camera button in the header brings the other cameras up from the bottom; a drag down
+puts them away.
+
+### Warnings on Home
+
+Warnings are items of the **Status** screen. An item with `notify` on also shows as a card on Home, under the chips,
+while it has something to say: the item's name and a short list of what it names, e.g. "Living room thermostat
+battery 25 %". With one device **More information** opens it. The same warnings always stay on the Status screen, so
+a card closed by mistake can be read again there.
+
+**Closing and muting**
+
+| What | Does |
+|---|---|
+| The cross on a card | hides it until the end of the day; it comes back at once when another device joins the list, and the next day while the problem lasts |
+| Dashboard settings → Warnings on Home → **Mute for a week** | hides every card for 7 days for you, on every device; then they come back by themselves, and **Show again** brings them back sooner |
+
+Closing remembers the devices (in the browser, until the day ends); muting is kept in your user data in Home
+Assistant.
+
+**How the configuration is built**
+
+The Status screen is a shortcut `kind: overview`. It has a list of sections (`sections`), each with a list of items
+(`items`). An item says what to look for and when to speak up:
+
+| Field | Meaning |
+|---|---|
+| `name`, `icon` | the card's title and icon |
+| `notify: true` | also show it as a card on Home |
+| `below` | report values below this number (e.g. 20 for a battery in %, 80 for a range in km) |
+| `entities` | chosen entities, e.g. `sensor.car_range` |
+| `auto: battery` | instead of a list: every battery level in %, without a battery's wear (`…_health`) and without unavailable devices |
+| `platforms` | with `auto: battery`: only entities of these integrations, e.g. `[zha]`, `[netatmo]`, `[eufy_sdk, neolink]` |
+| `device_has` | with `auto: battery`: only devices that also have an entity of this domain, e.g. `camera` (cameras, not the sensors of the same integration) |
+
+```yaml
+shortcuts:
+  - kind: overview
+    name: Status
+    icon: mdi:clipboard-pulse-outline
+    sections:
+      - title: Needs a look
+        alert: true
+        items:
+          - name: Low fuel
+            icon: mdi:gas-station
+            entities: [{ entity: sensor.car_range, name: Car }]
+            below: 80
+            notify: true
+          - name: Battery cameras
+            icon: mdi:battery-alert-variant-outline
+            auto: battery
+            platforms: [eufy_sdk, neolink]
+            device_has: camera
+            below: 20
+            notify: true
+```
+
+**Where to edit it**
+
+1. **In the app, without YAML (recommended).** On Home the three dots → **Summary badges** → the pencil by the
+   **Status** block. Open a section and an item. **Shown when** → "a battery is low" gives the fields **Below**, **Only these
+   integrations** (comma separated, e.g. `zha, netatmo`) and **Only devices that also have** (e.g. `camera`). Every
+   item has the switch **Also as a warning on Home**. **Save** saves at once.
+2. **The whole configuration as YAML.** Menu → **Dashboard settings** → **Edit configuration**. Status is in the list
+   `shortcuts`, as in the example above.
+3. **The integration's name** for `platforms` shows in Home Assistant: Settings → Devices & services → Entities, the
+   "Integration" column (e.g. `zha`, `netatmo`, `sonoff`).
+
+### Open connections of cameras on a battery
+
+| Connections of a camera | Camera window on a tablet |
+|---|---|
+| ![Connections of a camera](screenshots/en/connections.png) | ![Camera window on a tablet](screenshots/en/camera-tablet.png) |
+
+A red, blinking dot in the top right corner of a picture (on Home, in all cameras and in a camera window) says a stream
+of that camera is open now: from the dashboard, another window of Home Assistant or anything asking the bridge. The
+camera is awake then and uses its battery. The dashboard reads it from the sensors of the camera's device: eufy
+`binary_sensor.*_streaming`, Neolink `*_camera_link` and `*_recording_live_view`.
+
+In the camera's settings (the gear) the **Connections** tab shows, from the history of Home Assistant, the last 24 hours
+or 7 days: how many times it was woken (streams), for how long in all and how many lasted over 5 minutes, and under it
+each connection with its start, end and length. Connections over 5 minutes are red; one going on has a dot and "now".
+
+### Recordings on the disk
+
+The film button looks for the recordings on the line of time without searching along it: upright it stands at the
+left over the line of time, on its side beside the line's button. It lists them by day, newest first (for Frigate its
+detections, with their pictures), and reads more days as the list is scrolled to its end. A tap goes back to the
+camera at that recording: its day is chosen, the line moves to it and it plays. Recorded files on the disk (eufy,
+Neolink) have no pictures of their own, so the dashboard takes a frame from the first second of each file (two files at
+a time) and keeps it on this device: the next time the pictures are there at once.
+
+### Recordings on the camera's card
+
+A camera that keeps recordings on its own card and says so (the attribute `sd_recordings` with its `list` and
+`download` commands, e.g. the Neolink integration) has a card button in its window. It opens the recordings by day,
+newest first, with a small picture of each, asked for only for those in sight because each wakes the camera. The list
+remembered by the integration shows at once, while the card itself is read in the background. The download button
+brings a recording down into the folder of the line of time; the green mark of one already there opens the line of
+time at it. The button by a day brings down every recording of that day not on the disk yet, oldest first, and
+shows a double mark once all of it is there. Nothing on the card is removed.
 
 ### Live view
 
 Tapping a picture opens it without a stream. **LIVE** at the bottom starts one, from a camera on the same device or
-from `cameras.live: {image.door_last_screen: camera.door}`. While the camera wakes the window shows its last
+from `cameras.live: {image.door_last_screen: camera.door}`. The big play button in the middle of the picture does the
+same; it shows while there is no live view (and fades on an enlarged picture). While the camera wakes the window shows its last
 picture with a loading ring in its middle, and the LIVE pill is grey. The live view takes the picture's place only
 once the video really moves, and the pill takes its colour. The sound and turning buttons are greyed while nothing
 plays (turning works live only). The battery hint stays upright all the time, faint while a recording plays, so the
@@ -258,6 +383,16 @@ integrations), and tap **Link**. From then on the window of that camera talks an
 | Phone upright | Phone on its side |
 |---|---|
 | ![Camera upright](screenshots/en/camera.png) | ![Camera on its side](screenshots/en/camera-landscape.png) |
+
+On its side the picture fills the screen. The header runs across the whole screen: close in the far left corner and
+the settings in the far right one, over the dark bands beside a narrower picture, with the camera's own buttons
+(recordings by day, LIVE, turning, sound, editing) set a little apart from the settings. Everything that works the
+camera stays on the picture: on the left, from the bottom, the siren, the light, night vision and the positions; on
+the right, from the bottom, the line of time, talking and the ring that turns the camera.
+
+| Positions of the camera | The line of time |
+|---|---|
+| ![Positions on its side](screenshots/en/camera-landscape-positions.png) | ![Line of time on its side](screenshots/en/camera-landscape-line.png) |
 
 ### Turning and talking of each camera
 
@@ -343,8 +478,8 @@ The integration answers with JSON `{"ok": true}` or `{"ok": false, "error": "bus
   (gear → Settings; a switch of the eufy-sdk integration, off by default), the eufy bridge saves every live view of
   that camera to `/media/eufy/<serial number>/<day>/`, whoever opens it (the dashboard, the window of Home Assistant,
   HomeKit). The bridge never wakes the camera itself; it records only what flows anyway. During the live view the
-  pill on the picture says **REC · LIVE**. The days and the line of time show these recordings from the last 14 days;
-  older ones stay on disk. Another media folder is set with `cameras.recordings_folder` (e.g.
+  pill on the picture says **REC · LIVE**. The days and the line of time show every day on the
+  disk, also clips weeks old brought down from a camera's card. Another media folder is set with `cameras.recordings_folder` (e.g.
   `media-source://media_source/local/eufy`).
 - **Recorded live views of Reolink cameras (Neolink)**: the **Record live** switch of the Neolink integration works
   the same way (Neolink app 0.2.0 or newer). The files go to `/media/neolink/<camera>/<day>/`, and the switch names
@@ -417,6 +552,15 @@ The same block can stand in a room: put it among the tiles in `layout`.
 | `frame` | A web page on the whole screen. |
 | `tone` | Icon colour of a shortcut: green, purple, teal or pink. |
 
+When the card is a vacuum map with a room mode (`vacuum_clean_segment` with `predefined_selections`), on a tablet on its
+side the rooms stand as buttons in the left column with the times over and **Clean the chosen**. The card's own
+buttons are put away, and the map stands alone, centred, on a clear background, narrowed when it would not fit.
+
+A block on the whole screen (`fullscreen: true`) with its card open (`card_open: true`), such as a vacuum with its
+map, stands in two columns on a tablet on its side: its rows, its numbers as tiles (a share in `%` with a bar under
+it) and its buttons at the bottom on the left, the card on the rest of the screen. Upright and on a phone it keeps
+one column. Turning the tablet does not start the card again.
+
 The home overview is `kind: overview`: a clock, the date and only what is worth a look now. An item with nothing to show disappears,
 and a section goes with its last item. A section with `alert: true` counts towards the summary by the clock, and `bottom: true` always stands at the very
 bottom. `title` is optional. Tapping an
@@ -469,7 +613,12 @@ shortcuts:
 
 Tram and bus departures are `kind: departures`. The next one is large, and under it every line shows its coming
 times and any delay. The entities must keep the departures in a `list` attribute (`line`, `direction`, `departure`,
-`time_to_departure`, `delay`):
+`time_to_departure`, `delay`). On a tablet on its side they take the whole screen: the next one large with whether it
+is on time, every departure of all lines in one order, the next hour (up to two, when the last departure is later) as
+a line of time a row per line, and a card per line with every time the timetable gives. Each line has a colour of its
+own; `colors: {"8": "#ff9f0a"}` chooses it by hand. How many times come per line is up to the source of the data (such
+as the timetable's server), not the dashboard. `news: binary_sensor.impk_news` adds the carrier's notices (diversions,
+disruptions) from its `list` attribute: a warm card above the departures, only while there are any.
 
 ```yaml
 shortcuts:
@@ -702,6 +851,10 @@ children:
 |---|---|---|---|
 | ![Music](screenshots/en/music.png) | ![Energy](screenshots/en/energy.png) | ![Map](screenshots/en/map.png) | ![Player](screenshots/en/player.png) |
 
+| Energy on a tablet | Chart of a phase |
+|---|---|
+| ![Energy on a tablet](screenshots/en/energy-tablet.png) | ![Chart of a phase](screenshots/en/energy-chart.png) |
+
 The music picture stands in for your music app, and the Energy and Map pictures for Home Assistant's cards,
 with made-up numbers.
 
@@ -725,6 +878,35 @@ of the theme. The small player does not show on Energy or the Map, so the bottom
 **Settings → Dashboards → Energy**. Add your meter as the grid source and devices under
 **Individual devices**. If one device is plugged into another that is measured, set it as a child there, or it
 counts twice.
+
+A meter with phases (e.g. ZAMEL MEW-01 through SUPLA and MQTT) gives more:
+
+- **Now**: the power of the whole home, the phases added up, and the frequency of the grid.
+- **Used** against the period before: for the current day "yesterday by this time", for a week and a month "by now".
+  The chart shows the period before faintly behind the bars.
+- **Cost** with the price per kWh, and **Measured / not**: the share of the use that devices with a meter account for.
+  The rest is in the list as **The rest (not measured)**.
+- **Phases L1–L3**: power, current, cos φ and the voltage on the scale of 207–253 V (230 V ±10%). The voltage is green
+  within it, orange near its ends and red out of it. A tap on a phase opens a window with a chart of its power
+  and voltage (with the band of the range), and a tap on a device, **Used** or **Now** a chart of its energy or of the
+  power of the phases. Ranges: 6 h, 24 h, 7 days (power) or 24 h, 7 days, 30 days (energy); a finger on the chart
+  shows the value at that moment, and under it are the lowest, the average and the highest.
+
+The phases are found by themselves on the device of the first grid meter, by the number of the phase in the names of
+its sensors (`faza_1`, `phase_2`, `_l3`) and what they measure. Otherwise list them in the dashboard's YAML:
+
+```yaml
+energy:
+  phases:
+    - power: sensor.meter_phase_1_power
+      voltage: sensor.meter_phase_1_voltage
+      current: sensor.meter_phase_1_current
+      factor: sensor.meter_phase_1_power_factor
+  voltage_range: [207, 253]   # the default
+```
+
+On a tablet on its side the numbers stand in one row, the chart beside the phases, and the devices are tiles four in
+a row.
 
 **Map** draws the routes of people over the last hours, with the zones, on the map of Home Assistant. Over the map are
 two rows of buttons: **whose routes** (Everyone, each person and chosen devices) and **range**: 6 h, 24 h, 3 days or
@@ -869,6 +1051,7 @@ hue and keeps the see-through part.
 | **Bar** | entries: 2 to 5 of Home, Media or Music, Energy, Map, Scenes, Menu and the rooms; arrows set the order | Home, Media/Music, Energy, Map | a room and Scenes light up while open; in any other room Home does |
 | **Bar** | **At the edge / Floating** | At the edge | a floating bar is a rounded pill above the bottom edge, as in Apple Home; a tablet always keeps the bar on the side |
 | **Bar** | background, icons and labels, mark of the open page, opacity, blur | colours of the look, 100%, 0 px | with less opacity and some blur, the page under the bar shows through as frosted glass |
+| **Bar** | **Status bar**: on, its parts and their order, coloured icons, background, text, opacity, blur | off; weather, at home, heads up, now, departures, power; white icons on glass | a tablet on its side only; see chapter 10 |
 | **Bar** | **Player**: paused stays (0-120 min), background, writing and icons, opacity, blur, rounded corners | 10 min, colours of the look, 100%, 0 px, 16 px | the small player above the bar; it shows only what plays or was paused a short while ago; 0 hides anything paused at once, and × closes it until something plays |
 | **Windows** | background, writing and icons, buttons and fields, background of Home Assistant cards, opacity, blur (0-40 px), dimming of the page (0-80%) | colours of the look, 100%, 0 px, 45% | every window that opens over the page: a lamp, a blind, a thermostat, the player, the three dots menu, Weather, Status, Host, School year, departures, News, Media, a vacuum; `#00000000` for Home Assistant cards takes away e.g. the grey background of a vacuum map; chosen tabs and highlighted events get a lighter and a yellow glass; with less opacity the page shows through blurred; the Look sheet shows the change at once, before saving |
 | **Icons** | icon of a device | icon from HA | find a device, then an icon (e.g. `led strip`) and pick it; the list under the search shows your icons |
@@ -918,6 +1101,14 @@ appearance:
     active: "#4a4f9a"
     opacity: 55             # 20-100, default 100
     blur: 20                # 0-30 px, default 0
+  status:                   # the status bar of a tablet on its side
+    shown: true             # default false
+    widgets: [weather, home, alerts, now, departures, power]   # its parts in order
+    colourful: false        # true = coloured icons, tram lines and charts
+    background: "#17181c"   # without a colour: glass as the tiles (black 26%)
+    text: "#ffffff"
+    opacity: 95             # 20-100, default 100; for a chosen colour
+    blur: 30                # 0-30 px, default 30
   sheets:                   # windows over the page
     background: "#1d2c5c"
     text: "#ffffff"
@@ -1052,7 +1243,73 @@ so the same person can reach them in another dashboard. Hide those dashboards to
   **Settings → Companion App → Debugging → Reset frontend cache**.
 - If the page zooms with fingers, turn off pinch to zoom in the Companion app's settings.
 
+### The status bar of a tablet
+
+| Status bar | Weather from the status bar |
+|---|---|
+| ![Status bar](screenshots/en/tablet-status.png) | ![Weather from the status bar](screenshots/en/weather-tablet.png) |
+
+A tablet on its side can show, in place of the narrow bar, a 320 px column (the width of the menu) with the time, the date, the weather and
+what is going on, for a glance from across the room. The pages (Home, Music, Energy, Map) stay in a row at its bottom.
+
+- **Turning it on:** menu → **Look** → the **Bar** tab → **Status bar** → **Show the status bar**. Like the whole look:
+  for everyone (an administrator) or only for oneself. A phone and a tablet held upright stay as they were.
+- **Parts and order:** in the same place, with the arrows; × removes a part, the list adds it back. Also the
+  background, text, opacity and blur. By default the bar is glass as the tiles, with white icons; only the icon of a
+  warning has a colour. **Coloured icons, lines and charts** brings the colours back. A part with nothing to say is left out by itself: **Heads up** without warnings,
+  **Now** when nothing runs, closed doors and windows and no lights in **At home**.
+- **The button at the top right** folds the column to the usual narrow bar; the tablet remembers it. The folded bar has
+  this button on top and the menu and the assistant at the bottom.
+- **A tap on a part** opens its window: the weather its window, **At home** the Status screen (the first Status block;
+  without one, the door's details), the trams the timetable, the power the Energy page, and **Heads up** and **Now**
+  the device's details.
+- **Holding this button** opens the menu: a ring round it fills for half a second. A bubble tells about it the first
+  three times. The arrow in the menu goes back to the bar. Under the button is the assistant's microphone.
+
+Parts:
+
+| Part | What it shows | From |
+|---|---|---|
+| **Weather** | temperature, condition, today's low/high, the next rain or snow within 12 h | the weather entity of chapter 4 |
+| **At home** | lights and devices on, doors and windows open | the rooms of the dashboard, `status_panel.doors` |
+| **Heads up** | the same warnings as the cards on Home | Status items with `notify: true` |
+| **Now** | what runs or happens (a washer, Sunday mass, a vacuum) | `status_panel.now` |
+| **Departures** | each line with its minutes (past an hour: the hour it leaves) and three times | the first departures block or `status_panel.departures` |
+| **Power** | power now and a line of the last 6 hours | `status_panel.power` |
+
+The facts are set in the dashboard's YAML (**Settings → Dashboards → Home Dashboard → ⋮ → Edit dashboard → ⋮ → Raw
+configuration editor**, in the `strategy:` block):
+
+```yaml
+status_panel:
+  doors:                          # only these doors and windows; a child's room does not count
+    - binary_sensor.front_door
+    - entity: binary_sensor.balcony_contact
+      name: Balcony
+  now:                            # an item shows while its entity is not resting
+    - entity: sensor.mass_next    # "—" = nothing; otherwise the next hour
+      name: Mass
+      icon: mdi:church
+    - entity: sensor.washer_phase
+      name: Washer
+      icon: mdi:washing-machine
+      detail: sensor.washer_programme   # added after the state
+      remaining: sensor.washer_left     # on the right
+    - vacuum.robot
+  power:
+    - entity: sensor.server_power
+      name: Server
+      color: "#76b900"
+    - sensor.nuc_power
+  departures: null                # null = the first departures block
+```
+
+A **Now** item rests at `off`, `idle`, `docked`, `standby`, `unavailable`, `unknown`, `—`, `none`, `nie` (in any
+case). `resting: [Off, Ready]` gives a list of its own.
+
 ## 11. Intercom
+
+![Intercom](screenshots/en/intercom.png)
 
 With a script that speaks in chosen areas, the dashboard adds buttons to Home, rooms and the camera screen:
 
@@ -1065,6 +1322,20 @@ intercom:
 ```
 
 The script gets the areas and the text in these fields. Recording a voice message needs HTTPS.
+
+With the **Intercom** integration (domain `intercom`) a recording goes straight to it, and it plays it itself:
+
+```yaml
+intercom:
+  script: intercom.announce     # text
+  areas_field: areas
+  text_field: message
+  played_field: played          # an empty list = no speaker, which the dashboard says
+  upload: /api/intercom/message # a recording: a POST of the WAV, the areas in the address (?areas=a,b)
+```
+
+With `upload` anyone signed in may record, the account of a tablet on the wall too. Without it a recording goes to
+`media_folder`, which only an administrator may upload to.
 
 ## 12. When something is wrong
 

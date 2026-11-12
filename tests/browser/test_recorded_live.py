@@ -94,11 +94,11 @@ def test_a_switch_that_names_its_folder_is_read_from_there(phone):
     assert not any("/eufy" in id for id in asked)
 
 
-def test_the_window_shows_the_recorded_files_of_the_last_two_weeks(phone):
+def test_the_window_shows_the_recorded_files_of_every_day(phone):
     open_slup(phone)
     assert phone.locator(f"{DAYS} [data-recording-day='{YESTERDAY}'].on.has").count() == 1
     days = phone.locator(DAYS).evaluate("(element) => [...element._days]")
-    assert days == [YESTERDAY]
+    assert sorted(days) == sorted([YESTERDAY, LONG_AGO])
     assert phone.locator(f"{TIMELINE} .range").count() == 2
     asked = phone.evaluate("window.asked.filter((m) => m.type === 'media_source/browse_media').map((m) => m.media_content_id)")
     assert f"{FOLDER}/{YESTERDAY}" in asked
@@ -140,6 +140,8 @@ def resolved_files(page) -> list:
 def test_on_a_phone_on_its_side_the_line_jumps_to_the_previous_and_next_recording(phone):
     phone.set_viewport_size({"width": 874, "height": 402})
     open_slup(phone)
+    # On its side the line of time lies put away under the picture until its button brings it out.
+    phone.locator(f"{SHEET} [data-open-line]").click()
     skip = f"{TIMELINE} [data-timeline-skip]"
     assert phone.locator(skip).evaluate_all("(buttons) => buttons.map((b) => b.dataset.timelineSkip)") == ["previous", "next"]
     # Another day opens at its last recording: nothing after it, the one before it is there.
@@ -174,9 +176,19 @@ def test_the_neighbour_of_a_moment_in_a_gap_is_the_recording_on_either_side(phon
 def test_when_a_file_ends_the_next_one_plays_so_a_cut_viewing_plays_whole(phone):
     phone.set_viewport_size({"width": 874, "height": 402})
     open_slup(phone)
+    phone.locator(f"{SHEET} [data-open-line]").click()
     phone.locator(f"{TIMELINE} [data-timeline-skip='previous']").click()
     phone.wait_for_selector(f"{SHEET} video[data-clip]", state="attached")
     assert resolved_files(phone)[-1] == "080000-080130.mp4"
     phone.locator(f"{SHEET} video[data-clip]").dispatch_event("ended")
     phone.wait_for_function("window.asked.filter((m) => m.type === 'media_source/resolve_media').length > 1")
     assert resolved_files(phone)[-1] == "093000-093045.mp4"
+
+
+def test_every_day_on_the_disk_is_offered_also_weeks_old(phone):
+    # Recordings brought down from a camera's card keep the day they were made, often weeks ago.
+    setup(phone)
+    mount_admin(phone, {"cameras": {"tiles": ["image.slup_last_screen"]}})
+    days = run(phone, """const source = r.recordingSource(window.dashboard.hass(), 'image.slup_last_screen', 'camera.slup', { cameras: {} });
+        return (await source.days()).sort();""")
+    assert days == sorted([YESTERDAY, LONG_AGO])

@@ -5,6 +5,8 @@ import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import {
   buildCameras,
+  CAMERA_COLUMNS,
+  CAMERA_LAYOUTS,
   cameraLinks,
   cameraQuickControls,
   cameraMoves,
@@ -17,6 +19,8 @@ import {
   QUICK_DOMAINS,
 } from "./model.js";
 import { reloadApp } from "./reload.js";
+import { MUTE_WEEK_MS, mutedUntil } from "./alerts.js";
+import { personalPrefs, savePrefs } from "./prefs.js";
 import { tokens } from "./styles.js";
 
 const IDLE_MINUTES = [0, 1, 3, 5, 10];
@@ -443,6 +447,28 @@ export class HomeDashboardSettings extends LitElement {
     `;
   }
 
+  // The warnings on Home muted for a week, for this person on every device; they come back by themselves after it.
+  _renderAlertsMute() {
+    const until = mutedUntil();
+    const set = async (value) => {
+      await savePrefs(this.hass, { ...personalPrefs(), alerts_muted_until: value });
+      this.requestUpdate();
+    };
+    return until
+      ? html`<button class="restore" data-alerts-unmute @click=${() => set(0)}>
+          <ha-icon icon="mdi:bell-ring-outline"></ha-icon>
+          <span>
+            <strong>${this._t("alerts_unmute")}</strong>
+            <small>${this._t("alerts_muted", {
+              date: new Date(until).toLocaleString(this.hass.language, { dateStyle: "medium", timeStyle: "short" }),
+            })}</small>
+          </span>
+        </button>`
+      : html`<button class="restore" data-alerts-mute @click=${() => set(Date.now() + MUTE_WEEK_MS)}>
+          <ha-icon icon="mdi:bell-off-outline"></ha-icon><span><strong>${this._t("alerts_mute")}</strong></span>
+        </button>`;
+  }
+
   _reloadApp = async () => {
     this._reloading = true;
     await reloadApp();
@@ -490,6 +516,8 @@ export class HomeDashboardSettings extends LitElement {
             />
             <span>${this._t("start_here")}</span>
           </label>
+          <h3>${this._t("alerts_title")}</h3>
+          ${this._renderAlertsMute()}
           <h3>${this._t("talk_title")}</h3>
           <select
             data-talk
@@ -498,6 +526,29 @@ export class HomeDashboardSettings extends LitElement {
             ${["intercom", "camera"].map(
               (mode) => html`<option value=${mode} ?selected=${normalizeConfig(this._draft).cameras.talk === mode}>
                 ${this._t(`talk_mode_${mode}`)}
+              </option>`,
+            )}
+          </select>
+          <h3>${this._t("camera_columns_title")}</h3>
+          <select
+            data-camera-columns
+            @change=${(event) =>
+              this._update({ cameras: { ...(this._draft.cameras ?? {}), columns: Number(event.target.value) } })}
+          >
+            ${CAMERA_COLUMNS.map(
+              (columns) => html`<option value=${columns} ?selected=${normalizeConfig(this._draft).cameras.columns === columns}>
+                ${translate(this.hass.language, "camera_columns", { columns })}
+              </option>`,
+            )}
+          </select>
+          <h3>${this._t("camera_layout_title")}</h3>
+          <select
+            data-camera-layout
+            @change=${(event) => this._update({ cameras: { ...(this._draft.cameras ?? {}), layout: event.target.value } })}
+          >
+            ${CAMERA_LAYOUTS.map(
+              (layout) => html`<option value=${layout} ?selected=${normalizeConfig(this._draft).cameras.layout === layout}>
+                ${this._t(`camera_layout_${layout}`)}
               </option>`,
             )}
           </select>

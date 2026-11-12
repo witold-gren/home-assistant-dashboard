@@ -11,11 +11,24 @@ const NOTHING_TO_SHOW = new Set(["", "0", "—", "none", "unknown", "unavailable
 const asEntry = (entry) => (typeof entry === "string" ? { entity: entry } : entry);
 const asList = (value) => (Array.isArray(value) ? value : [value]);
 
-// The same battery levels a person would call batteries: a percentage, never a voltage or a word.
-function batteryEntities(hass) {
+// The same battery levels a person would call batteries: a percentage, never a voltage or a word, and not a
+// battery's wear (`…_health`). `platforms` keeps those of some integrations; `device_has: camera` those of a device
+// that also has an entity of that domain (a battery camera, not a battery sensor of the same integration).
+function batteryEntities(hass, { platforms, device_has: deviceHas } = {}) {
+  const entities = hass.entities ?? {};
+  const devicesWith = deviceHas
+    ? new Set(
+        Object.values(entities)
+          .filter((entry) => entry.entity_id?.startsWith(`${deviceHas}.`) && entry.device_id)
+          .map((entry) => entry.device_id),
+      )
+    : null;
   return Object.values(hass.states)
     .filter(({ entity_id: id, attributes }) => id.startsWith("sensor.") && attributes.unit_of_measurement === "%")
     .filter(({ entity_id: id, attributes }) => id.includes("battery") || attributes.device_class === "battery")
+    .filter(({ entity_id: id }) => !/_health$/.test(id))
+    .filter(({ entity_id: id }) => !platforms || asList(platforms).includes(entities[id]?.platform))
+    .filter(({ entity_id: id }) => !devicesWith || devicesWith.has(entities[id]?.device_id))
     .map(({ entity_id: entity }) => ({ entity }));
 }
 
@@ -72,9 +85,9 @@ export function overviewItem(hass, item, now = new Date()) {
     if (!asList(item.state ?? "on").includes(state)) return null;
     return { name, icon, text: item.labels?.[state], facts: shownFacts(hass, item.facts) };
   }
-  const entries = item.auto === "battery" ? batteryEntities(hass) : (item.entities ?? []).map(asEntry);
+  const entries = item.auto === "battery" ? batteryEntities(hass, item) : (item.entities ?? []).map(asEntry);
   const rows = item.below === undefined ? matchingRows(hass, item, entries) : measuredRows(hass, item, entries);
-  return rows.length ? { name, icon, rows, count: rows.length } : null;
+  return rows.length ? { name, icon, rows, count: rows.length, notify: Boolean(item.notify) } : null;
 }
 
 export function overviewSections(hass, sections, now = new Date()) {
@@ -335,6 +348,21 @@ export class HomeDashboardOverview extends LitElement {
       }
       .summary .fact {
         background: var(--hd-surface);
+      }
+      /* A tablet: on the whole screen what is listed stands side by side, as many in a row as fit, also inside a
+         group across its whole width. */
+      @media (min-width: 900px) {
+        .fact {
+          flex: 1 1 260px;
+          max-width: calc(50% - 4px);
+        }
+        .facts {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        }
+        .facts .fact {
+          max-width: none;
+        }
       }
     `,
   ];

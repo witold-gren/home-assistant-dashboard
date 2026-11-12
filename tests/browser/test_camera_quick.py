@@ -89,6 +89,24 @@ def test_the_light_switches_and_night_vision_is_chosen_from_a_list(phone):
     ]
 
 
+def test_neolink_infrared_auto_on_off_is_night_vision(phone):
+    phone.evaluate(ADD_DEVICE)
+    phone.evaluate("""() => {
+        const snapshot = window.dashboard.snapshot;
+        snapshot.entities["select.slup_infrared"] = { entity_id: "select.slup_infrared", device_id: "ptz_device", entity_category: "config", hidden: false };
+        snapshot.states["select.slup_infrared"] = { entity_id: "select.slup_infrared", state: "auto", attributes: { options: ["auto", "on", "off"] } };
+    }""")
+    mount_admin(phone, {"cameras": {"tiles": ["image.slup_last_screen"]}})
+    phone.evaluate("""() => document.querySelector('home-dashboard-chrome')
+        .open({ type: 'sheet', sheet: { kind: 'camera', entityId: 'image.slup_last_screen' } })""")
+    phone.wait_for_selector(f"{SHEET} home-dashboard-timeline", state="attached")
+    phone.locator(f"{SHEET} [data-quick='night']").click()
+    options = phone.locator(f"{SHEET} [data-quick-menu='night'] [data-quick-option]")
+    assert options.all_inner_texts() == ["Automatycznie", "Podczerwień", "Wyłączona (dzień)"]
+    phone.locator(f"{SHEET} [data-quick-option='on']").click()
+    assert services(phone) == [["select", "select_option", {"entity_id": "select.slup_infrared", "option": "on"}]]
+
+
 def test_upright_they_stand_over_the_line_of_time_from_the_right(phone):
     open_camera(phone)
     line = phone.locator(f"{SHEET} home-dashboard-timeline").bounding_box()
@@ -127,6 +145,29 @@ def test_on_its_side_the_left_column_stands_on_a_picture_with_bands(phone):
     # The 16:9 picture leaves a band on the left; the column stands on the picture, 12 px in from its edge.
     assert picture["x"] > 40
     assert abs(siren["x"] - (picture["x"] + 12)) < 2
+
+
+def test_on_its_side_the_header_spans_the_screen_with_the_settings_apart(phone):
+    from .test_zoom import WIDE
+
+    phone.route("**/api/*_proxy/**", lambda route: route.fulfill(body=WIDE, content_type="image/svg+xml"))
+    open_camera(phone, viewport={"width": 874, "height": 402})
+    phone.wait_for_function("""() => document.querySelector('home-dashboard-chrome').shadowRoot
+        .querySelector('home-dashboard-sheet').shadowRoot.querySelector('.picture img')?.naturalWidth === 1600""")
+    phone.wait_for_timeout(100)
+    picture = phone.locator(f"{SHEET} .picture img").bounding_box()
+    buttons = phone.locator(f"{SHEET} header > button")
+    first = buttons.first.bounding_box()
+    last = buttons.last.bounding_box()
+    before_last = buttons.nth(buttons.count() - 2).bounding_box()
+    # Close and the settings stand in the corners of the screen, over the bands beside the 16:9 picture; the button
+    # before the settings keeps 20 px away from it. The quick buttons stay on the picture.
+    assert first["x"] == 12
+    assert 874 - (last["x"] + last["width"]) == 12
+    assert first["x"] < picture["x"]
+    assert last["x"] - (before_last["x"] + before_last["width"]) >= 20
+    siren = phone.locator(f"{SHEET} [data-quick='siren']").bounding_box()
+    assert siren["x"] >= picture["x"]
 
 
 GARDEN = """() => {

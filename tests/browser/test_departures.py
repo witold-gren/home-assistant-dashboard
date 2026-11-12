@@ -108,3 +108,51 @@ def test_the_times_of_a_longer_list_scroll_inside_their_row(phone):
     open_departures(phone, {"sensor.tram_8": trips})
     assert phone.locator(f"{SCREEN} .times").evaluate("(row) => row.scrollWidth > row.clientWidth")
     assert phone.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+def test_a_tablet_on_its_side_shows_the_departures_on_the_whole_screen(tablet):
+    sensors = {
+        "sensor.tram_8": [trip("8", "KARŁOWICE", f"20:{16 + 20 * i}", 7 + 20 * i) for i in range(5)],
+        "sensor.tram_22": [trip("22", "Pilczyce", "20:20", 11, delay=180), trip("22", "Pilczyce", "20:40", 31)],
+    }
+    open_departures(tablet, sensors)
+    tablet.wait_for_selector("home-dashboard-departures [data-departures-wide]")
+    assert "whole" in tablet.locator("home-dashboard-sheet section.panel").get_attribute("class")
+    # Every time the timetable gives, five for the 8.
+    assert tablet.locator("home-dashboard-departures [data-departures-line='8|karłowice'] [data-departure]").count() == 5
+    # All the lines in one order of departure; the delay shows.
+    rows = tablet.locator("home-dashboard-departures [data-departures-coming-row]").all_text_contents()
+    assert "Pilczyce" in rows[1] and "3 min" in tablet.locator("home-dashboard-departures [data-departures-line='22|Pilczyce']").text_content()
+    # The line of time stretches to show the last departure, up to two hours: 87 minutes → 90.
+    assert "90" in tablet.locator("home-dashboard-departures [data-departures-timeline] h4").text_content()
+    assert tablet.locator("home-dashboard-departures [data-departures-mark='8|karłowice']").count() == 5
+
+
+def test_each_line_has_one_colour_or_the_one_chosen(phone):
+    colours = phone.evaluate("""async () => { const d = await import('/custom_components/home_dashboard/www/app/departures.js');
+        const lines = [{ line: '8' }, { line: '16' }, { line: '8' }, { line: '22' }];
+        return [[...d.lineColours(lines)], [...d.lineColours(lines, { 16: '#123456' })]]; }""")
+    assert [line for line, _ in colours[0]] == ["8", "16", "22"]
+    assert dict(colours[1])["16"] == "#123456"
+
+
+def test_an_upright_tablet_keeps_the_list(tablet):
+    tablet.set_viewport_size({"width": 820, "height": 1180})
+    two_lines(tablet)
+    assert tablet.locator("home-dashboard-departures [data-departures-wide]").count() == 0
+
+
+def test_the_notices_of_the_timetable_show_while_there_are_any(phone):
+    add_entity(phone, "binary_sensor.news", "on", {"list": ["Objazd linii 8 przez Krakowską.", ""]})
+    add_entity(phone, "sensor.tram_8", "ok", {"list": [trip("8", "PORT", "12:16", 9)]})
+    mount(phone, {"shortcuts": [{"kind": "departures", "name": "Tramwaje", "icon": "mdi:tram",
+                                 "entities": ["sensor.tram_8"], "news": "binary_sensor.news"}]})
+    phone.locator("home-dashboard-page [data-shortcut='Tramwaje']").click()
+    phone.wait_for_selector(f"{SCREEN} [data-departures-news]")
+    assert phone.locator(f"{SCREEN} [data-departures-news] p").all_text_contents() == ["Objazd linii 8 przez Krakowską."]
+
+
+def test_without_notices_there_is_no_card(phone):
+    add_entity(phone, "binary_sensor.news", "off", {"list": []})
+    two_lines(phone)
+    assert phone.locator(f"{SCREEN} [data-departures-news]").count() == 0

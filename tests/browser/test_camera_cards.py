@@ -66,3 +66,121 @@ def test_the_window_scrolls_as_a_whole_with_its_heading(phone):
     phone.locator(f"{SHEET} .panel").evaluate("(panel) => panel.scrollBy(0, 200)")
     phone.wait_for_timeout(100)
     assert phone.locator(f"{SHEET} header").bounding_box()["y"] < heading - 100
+
+
+def columns(page) -> int:
+    return page.locator(f"{SHEET} [data-camera-cards]").evaluate(
+        "(grid) => getComputedStyle(grid).gridTemplateColumns.split(' ').length"
+    )
+
+
+def test_a_tablet_shows_them_on_the_whole_black_screen_three_in_a_row(tablet):
+    open_cards(tablet)
+    panel = tablet.locator(f"{SHEET} .panel[data-kind='cameras']")
+    assert "whole" in panel.get_attribute("class")
+    assert panel.evaluate("(panel) => getComputedStyle(panel).backgroundColor") == "rgb(0, 0, 0)"
+    assert columns(tablet) == 3
+    # The name stands at the top of each picture.
+    card = tablet.locator(f"{SHEET} [data-camera-card]").first
+    assert card.locator("strong").bounding_box()["y"] - card.bounding_box()["y"] < 40
+
+
+def test_the_button_in_the_header_changes_the_columns_on_this_device(tablet):
+    open_cards(tablet)
+    button = tablet.locator(f"{SHEET} [data-camera-columns]")
+    assert button.inner_text().strip() == "3"
+    for expected in (4, 5, 2, 3):
+        button.click()
+        assert columns(tablet) == expected
+        assert tablet.evaluate("localStorage.getItem('home-dashboard-camera-columns')") == str(expected)
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-columns')")
+
+
+def test_the_settings_choose_the_columns_and_the_device_its_own(tablet):
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-columns')")
+    mount_admin(tablet, {"cameras": {"columns": 5}})
+    tablet.locator("home-dashboard-page [data-cameras-all]").dispatch_event("click")
+    tablet.wait_for_selector(f"{SHEET} [data-camera-cards]")
+    assert columns(tablet) == 5
+    # A choice made on this device stands over the settings'.
+    tablet.locator(f"{SHEET} [data-camera-columns]").click()
+    assert columns(tablet) == 2
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-columns')")
+
+
+def test_a_phone_keeps_them_one_under_another_without_the_button(phone):
+    open_cards(phone)
+    assert columns(phone) == 1
+    assert phone.locator(f"{SHEET} [data-camera-columns]").count() == 0
+    assert "whole" not in phone.locator(f"{SHEET} .panel[data-kind='cameras']").get_attribute("class")
+
+
+def open_featured(page) -> None:
+    page.evaluate("localStorage.setItem('home-dashboard-camera-layout', 'featured')")
+    open_cards(page)
+    page.wait_for_selector(f"{SHEET} .camera-cell.big")
+
+
+def live_cards(page) -> list:
+    return page.evaluate("window.createdCards.filter((card) => card.camera_view === 'live').map((card) => card.entity)")
+
+
+def test_one_big_camera_plays_live_by_itself_over_two_rows(tablet):
+    open_featured(tablet)
+    cells = tablet.locator(f"{SHEET} .camera-cell")
+    big, small = cells.nth(0), cells.nth(1)
+    assert "big" in big.get_attribute("class")
+    b, s = big.bounding_box(), small.bounding_box()
+    assert b["width"] > 1.9 * s["width"]
+    assert b["height"] > 1.9 * s["height"]
+    tablet.wait_for_function("window.createdCards.some((card) => card.camera_view === 'live')")
+    assert len(live_cards(tablet)) == 1
+    assert tablet.locator(f"{SHEET} [data-wall-live] > [data-card]").count() == 1
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-layout')")
+
+
+def test_a_tap_puts_a_small_camera_in_the_big_place_and_lets_the_other_go(tablet):
+    open_featured(tablet)
+    tablet.wait_for_function("window.createdCards.some((card) => card.camera_view === 'live')")
+    first = tablet.locator(f"{SHEET} .camera-cell.big [data-camera-card]").get_attribute("data-camera-card")
+    # A small camera that has a live view of its own.
+    other_id = tablet.evaluate(f"""() => {{ const {{ model, hass }} = window.dashboard;
+        const config = model.normalizeConfig({{}});
+        const ids = [...document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}').shadowRoot
+            .querySelectorAll('.camera-cell:not(.big) [data-camera-card]')].map((card) => card.dataset.cameraCard);
+        return ids.find((id) => model.liveCameraFor(hass(), id, config)); }}""")
+    tablet.locator(f"{SHEET} [data-camera-card='{other_id}']").click()
+    tablet.wait_for_function("window.createdCards.filter((card) => card.camera_view === 'live').length === 2")
+    assert tablet.locator(f"{SHEET} .camera-cell.big [data-camera-card]").get_attribute("data-camera-card") == other_id
+    # One player only: the one of the camera that left the big place is gone, and no window opened.
+    assert tablet.locator(f"{SHEET} [data-wall-live] > [data-card]").count() == 1
+    assert tablet.locator(f"{SHEET} .panel[data-kind='cameras']").count() == 1
+    assert first != other_id
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-layout')")
+
+
+def test_the_corner_button_opens_the_window_of_the_camera_and_the_wall_lets_it_go(tablet):
+    open_featured(tablet)
+    tablet.wait_for_function("window.createdCards.some((card) => card.camera_view === 'live')")
+    expand = tablet.locator(f"{SHEET} .camera-cell:not(.big) [data-camera-expand]").first
+    target = expand.get_attribute("data-camera-expand")
+    expand.click()
+    tablet.wait_for_selector(f"{SHEET} .panel[data-kind='camera']")
+    assert tablet.evaluate(f"document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}').sheet.entityId") == target
+    assert tablet.evaluate(f"document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}')._wallLive") is None
+    # The arrow goes back to the cameras, in the same layout.
+    tablet.locator(f"{SHEET} [data-back]").click()
+    tablet.wait_for_selector(f"{SHEET} .camera-cell.big")
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-layout')")
+
+
+def test_the_header_switches_the_layout_and_the_grid_has_no_corner_buttons(tablet):
+    open_cards(tablet)
+    assert tablet.locator(f"{SHEET} [data-camera-expand]").count() == 0
+    tablet.locator(f"{SHEET} [data-camera-layout]").click()
+    tablet.wait_for_selector(f"{SHEET} .camera-cell.big")
+    assert tablet.evaluate("localStorage.getItem('home-dashboard-camera-layout')") == "featured"
+    tablet.locator(f"{SHEET} [data-camera-layout]").click()
+    tablet.wait_for_selector(f"{SHEET} .camera-cell.big", state="detached")
+    tablet.wait_for_function(f"!document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}')._wallLive")
+    tablet.evaluate("localStorage.removeItem('home-dashboard-camera-layout')")

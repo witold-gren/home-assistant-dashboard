@@ -74,7 +74,7 @@ def test_the_rooms_come_right_after_the_pages(phone):
     mount(phone)
     open_menu(phone)
     order = phone.evaluate("""() => [...document.querySelector('home-dashboard-chrome').shadowRoot
-        .querySelectorAll('[data-drawer] button')].map((b) => b.hasAttribute('data-go') ? 'page'
+        .querySelectorAll('[data-drawer] button:not([data-drawer-back])')].map((b) => b.hasAttribute('data-go') ? 'page'
             : b.hasAttribute('data-jump') ? 'room' : 'other')""")
     pages = order.count("page")
     rooms = order.count("room")

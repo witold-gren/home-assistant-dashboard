@@ -22,6 +22,7 @@ import { translate } from "./i18n.js";
 import { backgroundVeil, panelVariables, tileColour, tileColourStyle, tileVariables } from "./appearance.js";
 import { PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { createRecorder } from "./intercom.js";
+import { dismissAlert, homeAlerts, shownAlerts } from "./alerts.js";
 import {
   applyFilter,
   buildHomeModel,
@@ -75,6 +76,7 @@ import {
   scenesDraft,
 } from "./room-editor.js";
 import { rememberConfig } from "./settings.js";
+import { streamDot, streamDotStyles } from "./connections.js";
 import { buildRoomStatus, roomActions } from "./status.js";
 import { backgroundStyle, isDark, screenShape, tokens, viewBackgroundFor, WIDE_QUERY } from "./styles.js";
 
@@ -547,13 +549,15 @@ export class HomeDashboardPage extends LitElement {
   }
 
   _renderCamera(camera, named = false) {
+    // An unavailable camera still opens, to its window that says so under its name: which camera went away is seen
+    // there, not written into a small tile. A guest's camera does not.
     const blocked = camera.unavailable || camera.guest;
     return html`
       <button
         class="camera ${blocked ? "offline" : ""} ${camera.guest ? "guest" : ""}"
         aria-label=${camera.name}
         data-camera=${camera.entityId}
-        @click=${blocked ? nothing : () => openSheet(this, { kind: "camera", entityId: camera.entityId })}
+        @click=${camera.guest ? nothing : () => openSheet(this, { kind: "camera", entityId: camera.entityId })}
       >
         ${camera.picture
           ? html`<img
@@ -564,6 +568,7 @@ export class HomeDashboardPage extends LitElement {
             />`
           : nothing}
         ${named ? html`<span class="camera-name">${camera.name}</span>` : nothing}
+        ${streamDot(camera.streaming, translate(this._hass.language, "stream_open"))}
         ${blocked
           ? html`<span class="camera-off">
               <ha-icon icon=${camera.guest ? "mdi:lock" : "mdi:video-off-outline"}></ha-icon>
@@ -754,6 +759,56 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
+  // Warnings from the Status screen (alerts.js): one card each, a list of what it names, closable for today; with
+  // one device, "More" opens it.
+  _renderAlerts() {
+    const alerts = shownAlerts(homeAlerts(this._hass, this._config));
+    if (!alerts.length) return nothing;
+    const language = this._hass.language;
+    return html`
+      <div class="alerts">
+        ${alerts.map(
+          (alert) => html`
+            <div class="alert" data-alert=${alert.key}>
+              <span class="alert-icon"><ha-icon .icon=${alert.icon ?? "mdi:alert-circle-outline"}></ha-icon></span>
+              <span class="alert-text">
+                <strong>${alert.name}</strong>
+                <span>${alert.rows.map((row) => (row.value ? `${row.name} ${row.value}` : row.name)).join(", ")}</span>
+                ${alert.rows.length === 1 && alert.rows[0].entity
+                  ? html`<button
+                      class="alert-more"
+                      data-alert-more
+                      @click=${() =>
+                        this.dispatchEvent(
+                          new CustomEvent("hass-more-info", {
+                            bubbles: true,
+                            composed: true,
+                            detail: { entityId: alert.rows[0].entity },
+                          }),
+                        )}
+                    >
+                      ${translate(language, "alert_more")}
+                    </button>`
+                  : nothing}
+              </span>
+              <button
+                class="alert-close"
+                aria-label=${translate(language, "alert_close")}
+                data-alert-close
+                @click=${() => {
+                  dismissAlert(alert);
+                  this.requestUpdate();
+                }}
+              >
+                <ha-icon icon="mdi:close"></ha-icon>
+              </button>
+            </div>
+          `,
+        )}
+      </div>
+    `;
+  }
+
   _renderStatus(status) {
     if (!status.length) return nothing;
     return html`
@@ -812,6 +867,7 @@ export class HomeDashboardPage extends LitElement {
         ${this._renderHomeActions()}
       </div>
       <div class="chips">${this._renderChips(this._model)}</div>
+      ${this._model.filter ? nothing : this._renderAlerts()}
       <div class="stage">
         <div class="stage-now">${this._renderHomeContent(this._model)}</div>
         ${old ? html`<div class="stage-old" aria-hidden="true" inert>${this._renderHomeContent(old)}</div>` : nothing}
@@ -1239,7 +1295,13 @@ export class HomeDashboardPage extends LitElement {
       ${this._renderPageTitle(translate(language, "nav_energy"))}
       ${this._energyReady === false ? html`<p class="soon">${translate(language, "energy_unavailable")}</p>` : nothing}
       ${this._energy
-        ? html`<home-dashboard-energy .hass=${this._hass} .prefs=${this._energy.prefs} .info=${this._energy.info}></home-dashboard-energy>`
+        ? html`<home-dashboard-energy
+            @energy-chart=${(event) => openSheet(this, { kind: "chart", chart: event.detail })}
+            .hass=${this._hass}
+            .config=${this._config}
+            .prefs=${this._energy.prefs}
+            .info=${this._energy.info}
+          ></home-dashboard-energy>`
         : nothing}
     `;
   }
@@ -1510,7 +1572,7 @@ export class HomeDashboardPage extends LitElement {
         class="page ${appearance.tiles.fill === "icon" ? "fill-icon" : ""} ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""} ${this._page === "music" && this._config.music?.fullscreen ? "music-full" : ""} ${this._page === "music" && this._musicUnderClock ? "under-clock" : ""} ${this._page === "map" ? "whole map-view" : ""}
           ${this._embedded ? "embedded" : ""}"
       >
-        ${background && !this._onView
+        ${background && !this._onView && !this._embedded
           ? html`<div class="backdrop-rail"><div class="backdrop" style=${backgroundStyle(background, this._backgroundPosition)}></div></div>`
           : nothing}
         ${this._page === "music" || this._embedded ? nothing : this._renderTopBar()} ${pages[this._page].call(this)}
@@ -1520,6 +1582,7 @@ export class HomeDashboardPage extends LitElement {
 
   static styles = [
     tokens,
+    streamDotStyles,
     css`
       :host {
         display: block;
@@ -1534,8 +1597,10 @@ export class HomeDashboardPage extends LitElement {
       :host([on-view]) {
         background: transparent;
       }
+      /* A page in a window lies on the window's own background, the look of every window, not a background of its own. */
       :host([embedded]) {
         min-height: 0;
+        background: transparent;
       }
       button {
         all: unset;
@@ -2310,6 +2375,74 @@ export class HomeDashboardPage extends LitElement {
         height: 100%;
         object-fit: cover;
       }
+      /* A warning: a dark card over any background and in both looks, its icon in red, the list of what it names. */
+      /* A card a third of a wide screen at most, several side by side; on a phone each across the screen. */
+      .alerts {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 8px;
+        margin: 18px 0 8px;
+      }
+      .alert {
+        position: relative;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 46px 10px 12px;
+        border-radius: var(--hd-radius, 24px);
+        color: #ffffff;
+        background: var(--hd-alert-bg, rgba(28, 28, 30, 0.9));
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+      }
+      .alert-icon {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        color: #ffffff;
+        background: #ff453a;
+        --mdc-icon-size: 20px;
+      }
+      .alert-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .alert-text strong {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .alert-text span {
+        font-size: 13px;
+        line-height: 17px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .alert-more {
+        align-self: flex-start;
+        margin-top: 2px;
+        font-size: 13px;
+        color: #ff9f0a;
+        cursor: pointer;
+      }
+      .alert-close {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        transform: translateY(-50%);
+        border-radius: 50%;
+        color: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.12);
+        cursor: pointer;
+        --mdc-icon-size: 18px;
+      }
       .camera-list {
         display: flex;
         flex-direction: column;
@@ -2322,8 +2455,10 @@ export class HomeDashboardPage extends LitElement {
         border-radius: var(--hd-radius);
       }
       .camera.offline {
-        cursor: default;
         background: #3a3d44;
+      }
+      .camera.guest {
+        cursor: default;
       }
       .camera.offline img {
         transform: scale(1.15);
@@ -2628,6 +2763,12 @@ export class HomeDashboardPage extends LitElement {
           .camera-list {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        /* A tablet on its side has room for four cameras in a row. */
+        @container (min-width: 1000px) {
+          .camera-list {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
           }
           .music {
             height: calc(100dvh - var(--hd-safe-top));

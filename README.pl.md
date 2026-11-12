@@ -10,55 +10,18 @@ samym dashboardzie i zapisujesz jako motyw, którym możesz się podzielić; w z
 
 Stan: wczesna wersja.
 
-| Apple Home | Apple Home: pokój | Apple Home: lampa | Apple Home: energia |
-|---|---|---|---|
-| ![Apple Home](docs/screenshots/pl/apple-home.png) | ![Apple Home: pokój](docs/screenshots/pl/apple-room.png) | ![Apple Home: lampa](docs/screenshots/pl/apple-light.png) | ![Apple Home: energia](docs/screenshots/pl/apple-energy.png) |
+<p align="center">
+  <img src="docs/screenshots/pl/home.png" alt="Strona główna na iPhonie" height="380">
+  <img src="docs/screenshots/pl/tablet-status.png" alt="Strona główna na iPadzie z paskiem statusu" height="380">
+  <img src="docs/screenshots/pl/apple-home.png" alt="Motyw Apple Home na iPhonie" height="380">
+</p>
 
-| Strona główna | Pokój | Tryb ciemny | Edycja kafelka |
-|---|---|---|---|
-| ![Strona główna](docs/screenshots/pl/home.png) | ![Pokój](docs/screenshots/pl/room.png) | ![Tryb ciemny](docs/screenshots/pl/dark.png) | ![Edycja kafelka](docs/screenshots/pl/editor.png) |
+<p align="center">
+  <a href="docs/gallery.pl.md"><img src="https://img.shields.io/badge/Galeria-wszystkie_zrzuty-2c6fb7?style=for-the-badge" alt="Galeria"></a>
+</p>
 
-| Światło | Termostat | Tablet |
-|---|---|---|
-| ![Światło](docs/screenshots/pl/light.png) | ![Termostat](docs/screenshots/pl/thermostat.png) | ![Tablet](docs/screenshots/pl/tablet.png) |
-
-| Pogoda | Odtwarzacz | Muzyka | Media |
-|---|---|---|---|
-| ![Pogoda](docs/screenshots/pl/weather.png) | ![Odtwarzacz](docs/screenshots/pl/player.png) | ![Muzyka](docs/screenshots/pl/music.png) | ![Media](docs/screenshots/pl/media.png) |
-
-| Mapa | Menu | Wybór obszaru | Odkurzacz |
-|---|---|---|---|
-| ![Mapa](docs/screenshots/pl/map.png) | ![Menu](docs/screenshots/pl/menu.png) | ![Wybór obszaru](docs/screenshots/pl/rooms.png) | ![Odkurzacz](docs/screenshots/pl/vacuum.png) |
-
-| Roleta | Przełącznik | Tło ekranu | Mój układ |
-|---|---|---|---|
-| ![Roleta](docs/screenshots/pl/blind.png) | ![Przełącznik](docs/screenshots/pl/switch.png) | ![Tło ekranu](docs/screenshots/pl/background.png) | ![Mój układ](docs/screenshots/pl/layout.png) |
-
-| Dostęp użytkowników | Energia | Kamera | Ustawienia dashboardu |
-|---|---|---|---|
-| ![Dostęp użytkowników](docs/screenshots/pl/access.png) | ![Energia](docs/screenshots/pl/energy.png) | ![Kamera](docs/screenshots/pl/camera.png) | ![Ustawienia dashboardu](docs/screenshots/pl/settings.png) |
-
-| Kamera na telefonie trzymanym poziomo |
-|---|
-| ![Kamera poziomo](docs/screenshots/pl/camera-landscape.png) |
-
-| Status | Odjazdy | Rok szkolny | Plakietki |
-|---|---|---|---|
-| ![Status](docs/screenshots/pl/status.png) | ![Odjazdy](docs/screenshots/pl/departures.png) | ![Rok szkolny](docs/screenshots/pl/school.png) | ![Plakietki](docs/screenshots/pl/chips.png) |
-
-| Powiadomienia | Aplikacja w oknie | Odznaki podsumowania | Edycja bloku |
-|---|---|---|---|
-| ![Powiadomienia](docs/screenshots/pl/notifications.png) | ![Aplikacja w oknie](docs/screenshots/pl/app.png) | ![Odznaki podsumowania](docs/screenshots/pl/blocks.png) | ![Edycja bloku](docs/screenshots/pl/block-editor.png) |
-
-| Edycja menu | Kategorie mediów | Dziennik | Historia |
-|---|---|---|---|
-| ![Edycja menu](docs/screenshots/pl/menu-editor.png) | ![Kategorie mediów](docs/screenshots/pl/media-editor.png) | ![Dziennik](docs/screenshots/pl/logbook.png) | ![Historia](docs/screenshots/pl/history.png) |
-
-| Wiadomości | Mój widok pokoju | Moje sceny |
-|---|---|---|
-| ![Wiadomości](docs/screenshots/pl/news.png) | ![Mój widok pokoju](docs/screenshots/pl/my-view.png) | ![Moje sceny](docs/screenshots/pl/my-scenes.png) |
-
-**[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
+**[Otwórz galerię](docs/gallery.pl.md)** ze wszystkimi ekranami: kamery, energia z fazami licznika, interkom, motyw
+Apple Home, edytory i wygląd. **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
 
 Zrzuty pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
 ([źródła](dev/demo-pictures/CREDITS.md)). Tła na zrzutach Apple Home przygotował autor dashboardu. Muzyka i Mapa
@@ -348,13 +311,16 @@ intercom:
   played_field: odtworzono
   media_folder: media-source://media_source/media/wiadomosci
   areas: [living_room, bedroom]
+  upload: /api/intercom/message   # opcjonalnie: adres, który przyjmuje nagranie i sam je odtwarza
 ```
 
 Bez `script` przyciski się nie pokazują. Bez `areas` lista pokoi powstaje z satelitów Assist
 i odtwarzaczy pasujących do `media.group_patterns`. Na stronie głównej jest przycisk do całego domu,
 na stronie pokoju przycisk w nagłówku, który mówi tylko w tym pokoju, a na ekranie kamery przycisk do
 pokoju tej kamery. Nagrywanie wymaga HTTPS i konta administratora; w pozostałych przypadkach jest pole
-tekstowe, w którym działa dyktowanie z klawiatury.
+tekstowe, w którym działa dyktowanie z klawiatury. Z `upload` (np. `/api/intercom/message` integracji Intercom)
+plik WAV trafia pod ten adres z obszarami w adresie, a nagrywać może każdy zalogowany. Szczegóły są w
+[przewodniku](docs/guide.pl.md#11-intercom).
 
 ## Tryb ciemny
 
@@ -370,6 +336,44 @@ Tablet pozostawiony bez dotyku zamyka to, co jest otwarte, i wraca na stronę g�
 Zmienisz to w ustawieniach albo przez `idle: {return_after: 300}` w sekundach; `0` wyłącza powrót.
 Telefony zostają tam, gdzie są. Pisana wiadomość, ustawienia, strona WWW i karta sterowania robotem
 nigdy nie są zamykane.
+
+## Pasek statusu na tablecie
+
+Tablet trzymany poziomo może zamiast wąskiego paska pokazać kolumnę szerokości 320 px: godzinę i datę, pogodę z
+najbliższym deszczem, co jest włączone i otwarte w domu, uwagi, co teraz działa (pralka, odkurzacz), odjazdy i pobór
+mocy wybranych urządzeń. Część, która nie ma nic do powiedzenia, znika, a dotknięcie części otwiera jej okno. Włączasz
+go w menu → **Wygląd** → **Pasek** → **Pasek statusu**, gdzie wybierasz też jego części, ich kolejność i kolory
+(`appearance.status`). Dane bierze ze `status_panel`:
+
+```yaml
+status_panel:
+  doors: [binary_sensor.drzwi_wejsciowe, binary_sensor.drzwi_balkonowe]
+  now:
+    - {entity: sensor.pralka_faza, detail: sensor.pralka_program, remaining: sensor.pralka_pozostalo}
+    - vacuum.robot
+  power: [sensor.pompa_ciepla_moc, sensor.komputer_moc]
+  departures: [sensor.tramwaj_4]       # bez tego: pierwszy blok odjazdów
+```
+
+Jego przycisk zwija go na tym tablecie do wąskiego paska, a przytrzymanie przycisku otwiera menu. Szczegóły są w
+[przewodniku](docs/guide.pl.md#pasek-statusu-na-tablecie).
+
+## Energia
+
+Strona Energia powstaje z ustawień energii Home Assistant: Teraz, Zużycie w porównaniu z poprzednim okresem, Koszt i
+udział mierzony przez urządzenia, wykres z poprzednim okresem w tle oraz urządzenia. Licznik z fazami (np. ZAMEL
+MEW-01) dodaje kartę każdej fazy z mocą, prądem, współczynnikiem mocy i napięciem na skali 207–253 V. Fazy są
+znajdowane na urządzeniu licznika albo wpisane ręcznie:
+
+```yaml
+energy:
+  phases:
+    - {power: sensor.licznik_l1_moc, voltage: sensor.licznik_l1_napiecie, current: sensor.licznik_l1_prad, factor: sensor.licznik_l1_wspolczynnik_mocy}
+  voltage_range: [207, 253]
+```
+
+Dotknięcie fazy, urządzenia lub kafelka otwiera własny wykres dashboardu z zakresami oraz wartością najniższą,
+średnią i najwyższą. Szczegóły są w [przewodniku](docs/guide.pl.md#8-muzyka-energia-i-mapa).
 
 ## Kamery
 
@@ -414,6 +418,12 @@ każdej kamery wybierasz w **Ustawienia dashboardu → Sterowanie i mówienie ka
 dopiero, gdy podgląd na żywo ruszy. Kamera niedostępna w Home Assistant zostaje w oknie z przygaszonym ostatnim
 obrazkiem i napisem „Kamera jest niedostępna”. Na telefonie trzymanym poziomo obraz zajmuje cały ekran, a dni i linię
 czasu wysuwają przyciski. Szczegóły są w [przewodniku](docs/guide.pl.md#5-kamery).
+
+Na tablecie wszystkie kamery wypełniają ekran, od 2 do 5 w rzędzie (`cameras.columns`), albo jedna duża kamera na
+żywo z resztą małych (`cameras.layout: featured`). Kamera na baterię pokazuje czerwoną, migającą kropkę, gdy jej
+strumień jest otwarty, a jej ustawienia mają zakładkę **Połączenia**: ile razy i jak długo była aktywna w ostatnich
+24 godzinach lub 7 dniach. Przycisk z taśmą filmową pokazuje nagrania z dysku według dni, każde z obrazkiem, a kamera,
+która udostępnia nagrania z własnej karty (`sd_recordings`, np. Neolink), dostaje przycisk karty, który je pobiera.
 
 ## Zamki na tablecie ściennym
 

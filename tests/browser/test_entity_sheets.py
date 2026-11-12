@@ -671,12 +671,15 @@ def test_an_unavailable_camera_is_blurred_and_says_so(phone):
     assert "blur" in tile.locator("img").evaluate("(image) => getComputedStyle(image).filter")
 
 
-def test_an_unavailable_camera_opens_nothing(phone):
+def test_an_unavailable_camera_opens_its_window_with_its_name(phone):
     camera = broken_camera(phone)
     mount(phone)
     phone.locator(f"home-dashboard-page [data-camera='{camera}']").click()
-    phone.wait_for_timeout(150)
-    assert phone.locator(f"{SHEET} .panel").count() == 0
+    phone.wait_for_selector(f"{SHEET} [data-camera-down]")
+    # Which camera went away is read in its window: its name in the header, the notice over the picture.
+    name = phone.evaluate("(id) => window.dashboard.snapshot.states[id].attributes.friendly_name", camera)
+    assert phone.locator(f"{SHEET} header h2").inner_text() == name
+    assert phone.locator(f"{SHEET} [data-camera-down]").inner_text() == "Kamera jest niedostępna"
 
 
 def test_the_camera_screen_leaves_out_an_unavailable_camera(phone):
