@@ -1048,7 +1048,7 @@ przezroczystość zostaje.
 | **Kolory** | **Wyłączone przyciski**: tło, napisy, ikona, kółko pod ikoną | kolory wyglądu | wygląd przycisków, które są wyłączone, oraz wszystkich przy **Tylko ikona** |
 | **Kolory** | **Górne bloki**: tło, napisy, krycie, zaokrąglenie | jasne tło, 100%, 14 px | bloki Pogoda, Klimat, Światła…; z wybranym tłem bez obwódki |
 | **Kolory** | **Okrągłe przyciski**: tło, ikona, krycie | jasne tło, 100% | interkom i trzy kropki |
-| **Kolory** | **Plakietki w pokojach**: napisy, ikona i obwódka | kolory wyglądu | plakietki pod nazwą pokoju (Temperatura, Wilgotność…) |
+| **Kolory** | **Plakietki w pokojach**: napisy, ikona i obwódka; **Kolory rodzajów w kółkach stanu pokoju** (wyłączone: każde kółko puste, w kolorze ikony, jak w Apple Home) | kolory wyglądu, rodzaje włączone | plakietki pod nazwą pokoju (Temperatura, Wilgotność, Klimat, Światła…) |
 | **Pasek** | pozycje: od 2 do 5 z listy Dom, Media albo Muzyka, Energia, Mapa, Sceny, Menu i pokoje; kolejność strzałkami | Dom, Media/Muzyka, Energia, Mapa | pokój i Sceny są podświetlone, gdy są otwarte; w innym pokoju podświetlony jest Dom |
 | **Pasek** | **Przy krawędzi / Pływający** | Przy krawędzi | pływający pasek to zaokrąglona pigułka nad dolną krawędzią, jak w Apple Home; tablet zawsze ma pasek z boku |
 | **Pasek** | tło, ikony i podpisy, oznaczenie otwartej strony, krycie, rozmycie | kolory wyglądu, 100%, 0 px | przy mniejszym kryciu i rozmyciu strona pod paskiem prześwituje jak przez matowe szkło |
@@ -1092,6 +1092,7 @@ appearance:
     icon: "#ffffff"
     opacity: 50
   badges:                   # plakietki w pokojach
+    kinds: false            # kółka bez kolorów klimatu, świateł, rolet (motyw Apple Home)
     text: "#ffffff"
     icon: "#ffffff"
   nav:                      # dolny pasek

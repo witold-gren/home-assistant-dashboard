@@ -1047,7 +1047,7 @@ hue and keeps the see-through part.
 | **Colours** | **Buttons that are off**: background, writing, icon, circle under the icon | colours of the look | buttons that are off, and every button with **Icon only** |
 | **Colours** | **Blocks at the top**: background, writing, opacity, rounded corners | light background, 100%, 14 px | the Weather, Climate, Lights… blocks; with a chosen background they lose their outline |
 | **Colours** | **Round buttons**: background, icon, opacity | light background, 100% | intercom and the three dots |
-| **Colours** | **Badges in rooms**: writing, icon and ring | colours of the look | badges under the room name (Temperature, Humidity…) |
+| **Colours** | **Badges in rooms**: writing, icon and ring; **Colours of kinds in the room status circles** (off: every circle open, in the colour of the icon, as in Apple Home) | colours of the look, kinds on | badges under the room name (Temperature, Humidity, Climate, Lights…) |
 | **Bar** | entries: 2 to 5 of Home, Media or Music, Energy, Map, Scenes, Menu and the rooms; arrows set the order | Home, Media/Music, Energy, Map | a room and Scenes light up while open; in any other room Home does |
 | **Bar** | **At the edge / Floating** | At the edge | a floating bar is a rounded pill above the bottom edge, as in Apple Home; a tablet always keeps the bar on the side |
 | **Bar** | background, icons and labels, mark of the open page, opacity, blur | colours of the look, 100%, 0 px | with less opacity and some blur, the page under the bar shows through as frosted glass |
@@ -1091,6 +1091,7 @@ appearance:
     icon: "#ffffff"
     opacity: 50
   badges:                   # badges in rooms
+    kinds: false            # circles without the colours of climate, lights, blinds (the Apple Home theme)
     text: "#ffffff"
     icon: "#ffffff"
   nav:                      # bar at the bottom

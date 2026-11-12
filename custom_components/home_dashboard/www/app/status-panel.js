@@ -82,6 +82,17 @@ export function statusNow(hass, items) {
   });
 }
 
+/**
+ * The time for the big clock: hours and minutes, and on a 12-hour clock its AM or PM apart, small beside them, so
+ * the time stays on one line.
+ */
+export function clockParts(at, language) {
+  const twelve = new Intl.DateTimeFormat(language, { hour: "numeric" }).resolvedOptions().hour12;
+  const parts = new Intl.DateTimeFormat(language, { hour: twelve ? "numeric" : "2-digit", minute: "2-digit" }).formatToParts(at);
+  const time = parts.filter((part) => part.type !== "dayPeriod").map((part) => part.value).join("").trim();
+  return { time, period: parts.find((part) => part.type === "dayPeriod")?.value ?? "" };
+}
+
 /** The departures: from `status_panel.departures`, or the first departures block, each line with its next times. */
 export function statusDepartures(hass, config) {
   const own = config.status_panel?.departures;
@@ -254,12 +265,12 @@ export class HomeDashboardStatusPanel extends LitElement {
 
   _renderClock() {
     const language = this.hass.language;
-    const time = new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit" }).format(this._now);
+    const { time, period } = clockParts(this._now, language);
     const date = new Intl.DateTimeFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(this._now);
     return html`
       <header class="top">
         <div>
-          <div class="clock" data-status-clock>${time}</div>
+          <div class="clock" data-status-clock>${time}${period ? html`<small data-status-period>${period}</small>` : nothing}</div>
           <div class="date">${date.charAt(0).toLocaleUpperCase(language) + date.slice(1)}</div>
         </div>
         <slot name="actions"></slot>
@@ -465,6 +476,13 @@ export class HomeDashboardStatusPanel extends LitElement {
         line-height: 1;
         letter-spacing: -1px;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .clock small {
+        margin-left: 6px;
+        font-size: 24px;
+        font-weight: 400;
+        letter-spacing: 0;
       }
       .date {
         margin-top: 6px;

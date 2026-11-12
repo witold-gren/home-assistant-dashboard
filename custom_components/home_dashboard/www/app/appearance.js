@@ -82,7 +82,8 @@ export const APPEARANCE_FIELDS = {
   text: { title: colour(), headings: colour() },
   chips: { background: colour(), text: colour(), opacity: number(20, 100, 100), radius: number(0, 30, 14) },
   buttons: { background: colour(), icon: colour(), opacity: number(20, 100, 100) },
-  badges: { text: colour(), icon: colour() },
+  // `kinds: false` draws every circle of a room's status row in the look's colour, without the colour of its kind.
+  badges: { text: colour(), icon: colour(), kinds: flag(true) },
   // The windows that open over the page: controls of a device, the player, the menus.
   sheets: {
     background: colour(),
@@ -258,6 +259,10 @@ export function tileVariables(appearance) {
     "--hd-look-badge-muted": badges.text && muted(badges.text),
     "--hd-look-badge-icon": badges.icon,
     "--hd-look-badge-ring": badges.icon && `color-mix(in srgb, ${badges.icon} 45%, transparent)`,
+    // Without the colours of the kinds: the circles are open, with the look's ring and icon (as in the Home app).
+    "--hd-badge-kind-ring": badges.kinds ? null : "var(--hd-look-badge-ring, var(--hd-outline))",
+    "--hd-badge-kind-fill": badges.kinds ? null : "transparent",
+    "--hd-badge-kind-ink": badges.kinds ? null : "var(--hd-look-badge-icon, var(--hd-off-ink))",
   };
   return Object.entries({ ...variables, ...chosen })
     .filter(([, value]) => value)

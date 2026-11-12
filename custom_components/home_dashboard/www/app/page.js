@@ -1704,10 +1704,10 @@ export class HomeDashboardPage extends LitElement {
         box-sizing: border-box;
         width: 44px;
         height: 44px;
-        border: 2px solid var(--pill-ring, var(--hd-look-badge-ring, var(--hd-outline)));
+        border: 2px solid var(--hd-badge-kind-ring, var(--pill-ring, var(--hd-look-badge-ring, var(--hd-outline))));
         border-radius: 50%;
-        background: var(--pill-fill, transparent);
-        color: var(--pill-ink, var(--hd-look-badge-icon, var(--hd-off-ink)));
+        background: var(--hd-badge-kind-fill, var(--pill-fill, transparent));
+        color: var(--hd-badge-kind-ink, var(--pill-ink, var(--hd-look-badge-icon, var(--hd-off-ink))));
       }
       .pill-text {
         display: flex;

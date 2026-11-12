@@ -3587,7 +3587,7 @@ export class HomeDashboardSheet extends LitElement {
 
   // Colours of everything around the tiles: writing, the blocks at the top, the round buttons.
   _renderLookColours() {
-    const { chips, buttons } = this._look;
+    const { chips, buttons, badges } = this._look;
     const heading = (key) => html`<h3 class="look-group">${this._t(key)}</h3>`;
     return html`
       ${this._renderLookPreview()}
@@ -3607,6 +3607,10 @@ export class HomeDashboardSheet extends LitElement {
         this._setLookGroup("buttons", { opacity: value }),
       )}
       ${heading("look_group_badges")} ${this._renderColourField("badges", "text")} ${this._renderColourField("badges", "icon")}
+      <label class="field" data-look-badge-kinds>
+        <span>${this._t("look_badge_kinds")}</span>
+        <input type="checkbox" .checked=${badges.kinds} @change=${(event) => this._setLookGroup("badges", { kinds: event.target.checked })} />
+      </label>
     `;
   }
 

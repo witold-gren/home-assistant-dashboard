@@ -36,9 +36,9 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 |---|
 | ![Apple Home: energy](screenshots/en/apple-energy.png) |
 
-| Apple Home on a tablet |
-|---|
-| ![Apple Home on a tablet](screenshots/en/apple-tablet.png) |
+| Apple Home on a tablet with the status bar | Apple Home on a tablet |
+|---|---|
+| ![Apple Home on a tablet with the status bar](screenshots/en/apple-tablet-status.png) | ![Apple Home on a tablet](screenshots/en/apple-tablet.png) |
 
 ## Devices
 
@@ -91,6 +91,14 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 | Block editor | Menu editor | Media categories | Chips |
 |---|---|---|---|
 | ![Block editor](screenshots/en/block-editor.png) | ![Menu editor](screenshots/en/menu-editor.png) | ![Media categories](screenshots/en/media-editor.png) | ![Chips](screenshots/en/chips.png) |
+
+| Vacuum on a tablet | Departures on a tablet |
+|---|---|
+| ![Vacuum on a tablet](screenshots/en/vacuum-tablet.png) | ![Departures on a tablet](screenshots/en/departures-tablet.png) |
+
+| Status on a tablet | News on a tablet |
+|---|---|
+| ![Status on a tablet](screenshots/en/status-tablet.png) | ![News on a tablet](screenshots/en/news-tablet.png) |
 
 ## Personal layout and settings
 

@@ -2,6 +2,12 @@
 
 ## 0.4.0 (2026-11-12)
 
+- The Apple Home theme that comes with the dashboard draws the circles of a room's status row open, with a white
+  ring and icon, as in the Home app: the look has a new choice, Colours of kinds in the room status circles
+  (`appearance.badges.kinds`, on by default).
+- The clock of the status bar keeps the time on one line on a 12-hour clock, with AM or PM small beside it.
+- The screenshots of a tablet are taken as a touch screen, as on an iPad, and the gallery has Apple Home on a tablet
+  with the status bar and the vacuum, the departures, the status and the news on a tablet.
 - The README shows three pictures (a phone, a tablet with the status bar, the Apple Home theme) and a Gallery button;
   the gallery (`docs/gallery.md`) holds every screenshot by subject, with new ones of the status bar, the Energy page
   on a tablet and a chart of a phase, all cameras in a grid and with one big camera, the camera window on a tablet,

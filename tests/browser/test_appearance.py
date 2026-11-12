@@ -53,7 +53,7 @@ def test_defaults_keep_the_page_as_it_was(phone):
         "text": {"title": None, "headings": None},
         "chips": {"background": None, "text": None, "opacity": 100, "radius": 14},
         "buttons": {"background": None, "icon": None, "opacity": 100},
-        "badges": {"text": None, "icon": None},
+        "badges": {"text": None, "icon": None, "kinds": True},
         "page": {"background_light": None, "background_dark": None},
         "sheets": {"background": None, "text": None, "controls": None, "cards": None, "opacity": 100, "blur": 0, "scrim": 45},
         "map": {"theme": "auto", "hours": 24},
@@ -257,6 +257,62 @@ def test_chosen_colours_become_properties_of_the_page(phone):
                      "--hd-look-badge-ring: color-mix(in srgb, #ffffff 45%, transparent)",
                      "--hd-look-tile-muted: color-mix(in srgb, #ffffff 72%, transparent)"):
         assert expected in variables
+
+
+def test_without_colours_of_kinds_the_status_circles_take_the_look(phone):
+    plain = run(phone, "return a.tileVariables(arg);", APPLE)
+    assert "--hd-badge-kind" not in plain
+    look = {**APPLE, "badges": {**APPLE["badges"], "kinds": False}}
+    variables = run(phone, "return a.tileVariables(arg);", look)
+    assert "--hd-badge-kind-fill: transparent" in variables
+    assert "--hd-badge-kind-ink: var(--hd-look-badge-icon, var(--hd-off-ink))" in variables
+
+
+def status_circle(phone, appearance: dict) -> list:
+    # The room of the snapshot with a circle of a kind (lights, climate, blinds) in its status row.
+    room = phone.evaluate("""async () => {
+        const { buildRoomStatus } = await import("/custom_components/home_dashboard/www/app/status.js");
+        const { model, hass } = window.dashboard;
+        const instance = hass();
+        const config = model.normalizeConfig({});
+        return Object.keys(instance.areas).find((id) => buildRoomStatus(instance, config, [id]).some((pill) => pill.tone));
+    }""")
+    phone.evaluate(f"window.history.replaceState(null, '', '?room={room}')")
+    mount_admin(phone, {"appearance": appearance}, "room")
+    return phone.evaluate("""() => {
+        const pill = [...window.card.shadowRoot.querySelectorAll('.pill')].find((item) => item.classList.length > 1);
+        const style = getComputedStyle(pill.querySelector('.pill-icon'));
+        return [style.backgroundColor, style.color];
+    }""")
+
+
+def test_a_status_circle_keeps_the_colour_of_its_kind_by_default(phone):
+    background, ink = status_circle(phone, APPLE)
+    assert background != "rgba(0, 0, 0, 0)"
+    assert ink != "rgb(255, 255, 255)"
+
+
+def test_a_status_circle_without_colours_of_kinds_is_open_and_white(phone):
+    background, ink = status_circle(phone, {**APPLE, "badges": {**APPLE["badges"], "kinds": False}})
+    assert background == "rgba(0, 0, 0, 0)"
+    assert ink == "rgb(255, 255, 255)"
+
+
+def test_the_built_in_apple_home_theme_leaves_out_the_colours_of_kinds(phone):
+    kinds = run(phone, """const t = await import('/custom_components/home_dashboard/www/app/builtin-themes.js');
+        return t.BUILTIN_THEMES.find((theme) => theme.id === 'apple_home').appearance.badges.kinds;""")
+    assert kinds is False
+
+
+def test_the_look_sheet_turns_the_colours_of_kinds_off(phone):
+    open_look(phone)
+    phone.locator("home-dashboard-sheet [data-tab='colours']").click()
+    box = phone.locator("home-dashboard-sheet [data-look-badge-kinds] input")
+    assert box.is_checked()
+    box.uncheck()
+    look = phone.evaluate("document.querySelector('home-dashboard-chrome').shadowRoot"
+                          ".querySelector('home-dashboard-sheet')._look.badges")
+    assert look["kinds"] is False
 
 
 def test_a_tile_that_is_off_takes_the_chosen_colours(phone):

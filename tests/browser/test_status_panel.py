@@ -343,3 +343,12 @@ def test_a_tram_leaving_now_says_so(tablet):
         {"line": "8", "direction": "Karłowice", "departure": "11:01", "time_to_departure": -1}]})})
     tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')?.shadowRoot.querySelector('[data-status-line]')")
     assert tablet.locator(f"{PANEL} [data-status-line] strong").inner_text() == "teraz"
+
+
+def test_a_twelve_hour_clock_keeps_its_time_on_one_line(phone):
+    parts = phone.evaluate(f"""async () => {{ const s = await import('{MODULE}');
+        const at = new Date(2026, 10, 12, 14, 2);
+        return [s.clockParts(at, 'en-US'), s.clockParts(at, 'pl'), s.clockParts(new Date(2026, 10, 12, 9, 5), 'pl')]; }}""")
+    assert parts[0] == {"time": "2:02", "period": "PM"}
+    assert parts[1] == {"time": "14:02", "period": ""}
+    assert parts[2] == {"time": "09:05", "period": ""}

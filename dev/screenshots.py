@@ -56,7 +56,11 @@ def serve_tile(route: Route) -> None:
 def open_page(
     browser, base: str, language: str, viewport: dict, scheme: str = "light", query: str = ""
 ) -> Page:
-    context = browser.new_context(viewport=viewport, device_scale_factor=1.5, color_scheme=scheme)
+    # A tablet is a touch screen, like an iPad: some windows take the whole screen only there.
+    touch = viewport == TABLET
+    context = browser.new_context(
+        viewport=viewport, device_scale_factor=1.5, color_scheme=scheme, has_touch=touch
+    )
     page = context.new_page()
     page.route("**/mdi/*.svg", serve_icon)
     page.route("**/osm/**", serve_tile)
@@ -393,6 +397,7 @@ def make_apple(browser, base: str, language: str, folder: Path) -> None:
     take(page, folder, "apple-light")
     take(open_page(browser, base, language, PHONE, query=f"{apple}&page=energy"), folder, "apple-energy")
     take(open_page(browser, base, language, TABLET, query=apple), folder, "apple-tablet")
+    take(open_page(browser, base, language, TABLET, query=f"{apple}&status=1"), folder, "apple-tablet-status")
 
 
 CHROME = "document.querySelector('home-dashboard-chrome')"
@@ -435,6 +440,21 @@ def make_tablet(browser, base: str, language: str, folder: Path) -> None:
     page = open_page(browser, base, language, TABLET, query=status)
     tap(page, "home-dashboard-status-panel [data-status-widget='weather']")
     take(page, folder, "weather-tablet")
+
+    # The blocks that take the whole screen of a tablet: the vacuum with its map, the departures, the status
+    # and the news.
+    names = {
+        "vacuum-tablet": ("Vacuum", "Odkurzacz"),
+        "departures-tablet": ("Trams", "Tramwaje"),
+        "status-tablet": ("Status", "Status"),
+        "news-tablet": ("News", "Wiadomości"),
+    }
+    for name, (english, polish) in names.items():
+        page = open_page(browser, base, language, TABLET)
+        shortcut = english if language == "en" else polish
+        button = page.locator(f"home-dashboard-page [data-shortcut='{shortcut}']")
+        button.evaluate("(button) => button.click()")
+        take(page, folder, name)
 
     page = open_page(browser, base, language, PHONE)
     tap(page, "home-dashboard-page [data-intercom-all]")

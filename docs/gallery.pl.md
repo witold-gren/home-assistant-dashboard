@@ -36,9 +36,9 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 |---|
 | ![Apple Home: energia](screenshots/pl/apple-energy.png) |
 
-| Apple Home na tablecie |
-|---|
-| ![Apple Home na tablecie](screenshots/pl/apple-tablet.png) |
+| Apple Home na tablecie z paskiem statusu | Apple Home na tablecie |
+|---|---|
+| ![Apple Home na tablecie z paskiem statusu](screenshots/pl/apple-tablet-status.png) | ![Apple Home na tablecie](screenshots/pl/apple-tablet.png) |
 
 ## Urządzenia
 
@@ -91,6 +91,14 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 | Edycja bloku | Edycja menu | Kategorie mediów | Plakietki |
 |---|---|---|---|
 | ![Edycja bloku](screenshots/pl/block-editor.png) | ![Edycja menu](screenshots/pl/menu-editor.png) | ![Kategorie mediów](screenshots/pl/media-editor.png) | ![Plakietki](screenshots/pl/chips.png) |
+
+| Odkurzacz na tablecie | Odjazdy na tablecie |
+|---|---|
+| ![Odkurzacz na tablecie](screenshots/pl/vacuum-tablet.png) | ![Odjazdy na tablecie](screenshots/pl/departures-tablet.png) |
+
+| Status na tablecie | Wiadomości na tablecie |
+|---|---|
+| ![Status na tablecie](screenshots/pl/status-tablet.png) | ![Wiadomości na tablecie](screenshots/pl/news-tablet.png) |
 
 ## Własny układ i ustawienia
 
