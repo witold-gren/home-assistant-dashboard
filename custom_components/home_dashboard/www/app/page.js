@@ -488,6 +488,13 @@ export class HomeDashboardPage extends LitElement {
       .filter((id) => areas.includes(id));
   }
 
+  // The window of the dashboard's own for an entity, or Home Assistant's for a kind it has none for.
+  _openEntity(entityId) {
+    const kind = SHEET_KINDS[entityId.split(".")[0]];
+    if (kind) openSheet(this, { kind, entityId });
+    else this._fire("hass-more-info", { entityId });
+  }
+
   _tap(tile) {
     if (tile.tapAction === "call") {
       this._hass.callService(tile.call.domain, tile.call.service, tile.call.data);
@@ -503,7 +510,7 @@ export class HomeDashboardPage extends LitElement {
       openSheet(this, { kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin });
     }
     if (tile.tapAction === "sheet") {
-      openSheet(this, { kind: SHEET_KINDS[tile.domain] ?? tile.domain, entityId: tile.entityId, name: tile.name });
+      openSheet(this, { kind: SHEET_KINDS[tile.domain] ?? tile.domain, entityId: tile.entityId, name: tile.name, ...tile.sheetOptions });
     }
   }
 
@@ -781,7 +788,7 @@ export class HomeDashboardPage extends LitElement {
       <div class="alerts">
         ${alerts.map(
           (alert) => html`
-            <div class="alert" data-alert=${alert.key}>
+            <div class="alert ${alert.alarm ? "alarm" : ""}" data-alert=${alert.key}>
               <span class="alert-icon"><ha-icon .icon=${alert.icon ?? "mdi:alert-circle-outline"}></ha-icon></span>
               <span class="alert-text">
                 <strong>${alert.name}</strong>
@@ -790,30 +797,25 @@ export class HomeDashboardPage extends LitElement {
                   ? html`<button
                       class="alert-more"
                       data-alert-more
-                      @click=${() =>
-                        this.dispatchEvent(
-                          new CustomEvent("hass-more-info", {
-                            bubbles: true,
-                            composed: true,
-                            detail: { entityId: alert.rows[0].entity },
-                          }),
-                        )}
+                      @click=${() => this._openEntity(alert.rows[0].entity)}
                     >
                       ${translate(language, "alert_more")}
                     </button>`
                   : nothing}
               </span>
-              <button
-                class="alert-close"
-                aria-label=${translate(language, "alert_close")}
-                data-alert-close
-                @click=${() => {
-                  dismissAlert(alert);
-                  this.requestUpdate();
-                }}
-              >
-                <ha-icon icon="mdi:close"></ha-icon>
-              </button>
+              ${alert.alarm
+                ? nothing
+                : html`<button
+                    class="alert-close"
+                    aria-label=${translate(language, "alert_close")}
+                    data-alert-close
+                    @click=${() => {
+                      dismissAlert(alert);
+                      this.requestUpdate();
+                    }}
+                  >
+                    <ha-icon icon="mdi:close"></ha-icon>
+                  </button>`}
             </div>
           `,
         )}
@@ -2415,6 +2417,30 @@ export class HomeDashboardPage extends LitElement {
         background: var(--hd-alert-bg, rgba(28, 28, 30, 0.9));
         -webkit-backdrop-filter: blur(20px);
         backdrop-filter: blur(20px);
+      }
+      /* Water or smoke: the whole card is red and its icon beats, and it cannot be closed while it lasts. */
+      .alert.alarm {
+        padding-right: 12px;
+        background: #c62828;
+      }
+      .alert.alarm .alert-icon {
+        color: #c62828;
+        background: #ffffff;
+        animation: alarm-beat 1.2s ease-in-out infinite;
+      }
+      .alert.alarm .alert-text span,
+      .alert.alarm .alert-more {
+        color: rgba(255, 255, 255, 0.9);
+      }
+      @keyframes alarm-beat {
+        50% {
+          transform: scale(1.12);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .alert.alarm .alert-icon {
+          animation: none;
+        }
       }
       .alert-icon {
         display: grid;

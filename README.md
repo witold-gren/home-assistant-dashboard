@@ -24,6 +24,8 @@ Status: early version.
 
 **[Open the gallery](docs/gallery.md)** for every screen: cameras, energy with the phases of the meter, the intercom,
 the Apple Home theme, the editors and the look. **[Read the guide](docs/guide.md)** for a step-by-step setup: rooms, Home, cameras, blocks and people.
+**[The configuration reference](docs/configuration.md)** lists every YAML key with its default and every editing
+window with the keys it writes.
 
 The screenshots show a made-up home from `dev/demo.js`, and the camera pictures are free CC0 photos of
 other homes ([credits](dev/demo-pictures/CREDITS.md)). The backgrounds in the Apple Home pictures were made by the

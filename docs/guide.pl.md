@@ -3,7 +3,7 @@
 Od świeżej instalacji do gotowego dashboardu. Nie potrzeba żadnych skryptów: wszystko robisz w ustawieniach
 Home Assistant, w samym dashboardzie albo w jego edytorze YAML.
 
-[English](guide.md) · [README](../README.pl.md)
+[English](guide.md) · [README](../README.pl.md) · [Opis konfiguracji](configuration.pl.md)
 
 | Strona główna | Pokój | Menu | Wybór obszaru |
 |---|---|---|---|
@@ -1064,7 +1064,7 @@ backgrounds:
 
 ### Wygląd
 
-**Wygląd** (menu boczne, nad **Ustawieniami dashboardu**, dla każdego) ma trzy zakładki, a przy **Dla wszystkich** czwartą: **Motywy**. Administrator ma zaznaczone **Dla
+**Wygląd** (menu boczne, nad **Ustawieniami dashboardu**, dla każdego) ma sześć zakładek (**Tło**, **Przyciski**, **Kolory**, **Pasek**, **Okna**, **Ikony**), a przy **Dla wszystkich** siódmą: **Motywy**. Administrator ma zaznaczone **Dla
 wszystkich** i wtedy zmienia wygląd wspólny, który zapisuje **Zapisz dla wszystkich**. Bez tego znacznika, i u każdej
 innej osoby, zmiany są tylko Twoje. Zapisuje się wyłącznie to, czym różnisz się od wyglądu wspólnego, więc to, czego nie
 ruszasz, dalej podąża za zmianami administratora. **Wróć do wyglądu dla wszystkich** usuwa Twoje zmiany.

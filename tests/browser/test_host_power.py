@@ -122,6 +122,14 @@ def test_on_a_phone_one_machine_shows_its_power_first(phone):
     assert tops[0] < tops[1]
 
 
+def test_a_machine_tile_without_an_entity_shows_its_subtitle_and_opens(phone):
+    setup(phone, {"shortcut": "Host", "column": "Serwer", "name": "Serwer"})
+    tile = phone.locator("home-dashboard-page [data-tile='Serwer']").first
+    assert "NUC" in tile.inner_text()
+    tile.click()
+    phone.wait_for_selector(f"{SHEET} {HOST} [data-column='Serwer']")
+
+
 def test_energy_since_midnight_adds_up_the_rows(phone):
     total = phone.evaluate("""async () => { const { energySince } = await import('/custom_components/home_dashboard/www/app/host.js');
         return energySince({ a: [{ change: 0.5 }, { change: 0.25 }], b: [] }, ['a', 'b', 'c']); }""")

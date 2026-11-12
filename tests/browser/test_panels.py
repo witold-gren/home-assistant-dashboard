@@ -185,6 +185,18 @@ def test_rows_send_the_service_of_their_kind(phone):
     ]
 
 
+def test_a_slider_of_a_device_that_says_nothing_shows_a_dash_and_cannot_move(phone):
+    add_entity(phone, "sensor.machine", "ready")
+    add_entity(phone, "number.charge", "unknown", {"min": 0, "max": 100, "step": 1, "friendly_name": "Ładuj do"})
+    add_entity(phone, "number.level", "40", {"min": 0, "max": 100, "step": 1, "unit_of_measurement": "%"})
+    rows = [{"entity": "number.charge", "name": "Ładuj do"}, {"entity": "number.level", "name": "Poziom"}]
+    open_block(phone, room_with(block(groups=[{"title": "A", "layout": "controls", "rows": rows}, {"title": "B", "rows": []}])))
+    charge = phone.locator("[data-field='number.charge']")
+    assert "unknown" not in charge.inner_text() and "\u2013" in charge.inner_text()
+    assert charge.locator("[data-range]").is_disabled()
+    assert phone.locator("[data-field='number.level'] [data-range]").is_enabled()
+
+
 def test_a_lock_row_can_only_be_looked_at(phone):
     add_entity(phone, "sensor.machine", "ready")
     add_entity(phone, "lock.car", "locked", {"friendly_name": "Car"})

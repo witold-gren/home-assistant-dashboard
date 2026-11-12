@@ -51,9 +51,11 @@ def test_only_notifying_items_with_something_to_say_show_on_home(phone):
 
 def test_one_device_opens_with_more_and_several_are_only_listed(phone):
     open_home(phone)
-    phone.evaluate("""() => { window.moreInfo = []; window.addEventListener('hass-more-info', (e) => window.moreInfo.push(e.detail.entityId)); }""")
     phone.locator(f"{PAGE} [data-alert-more]").click()
-    assert phone.evaluate("window.moreInfo") == ["sensor.porch_battery"]
+    # The dashboard's own window of the sensor, not Home Assistant's.
+    phone.wait_for_selector("home-dashboard-sheet .panel[data-kind='sensor']")
+    phone.evaluate("() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()")
+    phone.wait_for_timeout(400)
     open_home(phone, garden="15")
     card = phone.locator(f"{PAGE} [data-alert]").last
     assert "Ganek 12%" in card.inner_text() and "Ogród 15%" in card.inner_text()
@@ -97,3 +99,79 @@ def test_on_a_tablet_a_card_takes_a_third_of_the_width(tablet):
     card = tablet.locator(f"{PAGE} [data-alert]").bounding_box()
     page = tablet.locator(f"{PAGE} .chips").bounding_box()
     assert card["width"] < page["width"] / 2.5
+
+
+LEAKS = """(states) => {
+    const snapshot = window.dashboard.snapshot;
+    const add = (id, state, deviceClass, name) => {
+        snapshot.entities[id] = { entity_id: id, platform: 'zha', device_id: id, hidden: false };
+        snapshot.states[id] = { entity_id: id, state, attributes: { device_class: deviceClass, friendly_name: name } };
+    };
+    add('binary_sensor.sink_leak', states.sink, 'moisture', 'Zlew');
+    add('binary_sensor.washer_leak', states.washer, 'moisture', 'Pralka');
+    add('binary_sensor.kitchen_smoke', states.smoke, 'smoke', 'Kuchnia dym');
+    add('binary_sensor.window', 'on', 'window', 'Okno');
+    localStorage.removeItem('home-dashboard-alerts-dismissed');
+}"""
+
+ALARMS = {"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": [{"title": "Uwaga", "alert": True, "items": [
+    {"name": "Wyciek wody", "icon": "mdi:water-alert", "auto": "alarm", "classes": ["moisture"], "notify": True},
+    {"name": "Dym", "icon": "mdi:smoke-detector-alert", "auto": "alarm", "classes": ["smoke", "gas"], "notify": True},
+]}]}
+
+
+def open_alarms(page, sink="on", washer="off", smoke="off") -> None:
+    page.evaluate(LEAKS, {"sink": sink, "washer": washer, "smoke": smoke})
+    mount(page, {"shortcuts": [ALARMS]})
+    page.wait_for_selector(f"{PAGE} .chips", state="attached")
+
+
+def test_a_leak_anywhere_in_the_home_is_a_red_card_that_cannot_be_closed(phone):
+    open_alarms(phone)
+    assert cards(phone) == ["Status/Wyciek wody"]
+    card = phone.locator(f"{PAGE} [data-alert]")
+    assert "alarm" in card.get_attribute("class")
+    assert "Zlew" in card.inner_text() and "Pralka" not in card.inner_text()
+    assert card.locator("[data-alert-close]").count() == 0
+
+
+def test_smoke_has_its_own_card(phone):
+    open_alarms(phone, sink="off", smoke="on")
+    assert cards(phone) == ["Status/Dym"]
+
+
+def test_nothing_shows_while_all_is_dry(phone):
+    open_alarms(phone, sink="off")
+    assert cards(phone) == []
+
+
+def test_an_alarm_shows_even_when_warnings_are_muted_or_closed(phone):
+    phone.evaluate("""async () => { const p = await import('/custom_components/home_dashboard/www/app/prefs.js');
+        p.savePrefs({ callWS: async () => null }, { alerts_muted_until: Date.now() + 864e5 }); }""")
+    open_alarms(phone)
+    assert cards(phone) == ["Status/Wyciek wody"]
+    phone.evaluate("""async () => { const p = await import('/custom_components/home_dashboard/www/app/prefs.js');
+        p.savePrefs({ callWS: async () => null }, { alerts_muted_until: Date.now() - 1 }); }""")
+
+
+def test_more_on_a_single_leak_opens_its_sensor_window(phone):
+    open_alarms(phone)
+    phone.locator(f"{PAGE} [data-alert-more]").click()
+    phone.wait_for_selector("home-dashboard-sheet .panel[data-kind='binary']")
+
+
+def test_the_status_screen_shows_the_leak_in_red_too(phone):
+    run = phone.evaluate("""async () => { const o = await import('/custom_components/home_dashboard/www/app/overview.js');
+        const hass = { language: 'pl', entities: {}, states: {
+            'binary_sensor.a': { entity_id: 'binary_sensor.a', state: 'on', attributes: { device_class: 'moisture', friendly_name: 'Zlew' } },
+            'binary_sensor.b': { entity_id: 'binary_sensor.b', state: 'on', attributes: { device_class: 'door', friendly_name: 'Drzwi' } } } };
+        const item = o.overviewItem(hass, { name: 'Wyciek', auto: 'alarm' });
+        return { rows: item.rows.map((row) => row.name), alarm: item.alarm }; }""")
+    assert run == {"rows": ["Zlew"], "alarm": True}
+
+
+def test_the_block_form_offers_an_alarm_item(phone):
+    kind = phone.evaluate("""async () => { const b = await import('/custom_components/home_dashboard/www/app/block-editor.js');
+        const item = b.withItemKind({ name: 'Wyciek' }, 'alarm');
+        return [b.itemKind(item), item.auto, item.classes, item.notify, b.itemKind({ auto: 'battery' })]; }""")
+    assert kind == ["alarm", "alarm", ["moisture"], True, "battery"]

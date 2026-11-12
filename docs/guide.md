@@ -3,7 +3,7 @@
 From a fresh installation to a finished dashboard. No scripts are needed: everything here is done in
 Home Assistant's settings, in the dashboard itself, or in its YAML editor.
 
-[Polski](guide.pl.md) · [README](../README.md)
+[Polski](guide.pl.md) · [README](../README.md) · [Configuration reference](configuration.md)
 
 | Home | Room | Menu | Choosing an area |
 |---|---|---|---|
@@ -1063,7 +1063,7 @@ backgrounds:
 
 ### Look
 
-**Look** (side menu, above **Dashboard settings**, everyone) has three tabs, and a fourth with **For everyone**: **Themes**. An administrator has **For everyone** ticked and then
+**Look** (side menu, above **Dashboard settings**, everyone) has six tabs (**Background**, **Buttons**, **Colours**, **Bar**, **Windows**, **Icons**), and a seventh with **For everyone**: **Themes**. An administrator has **For everyone** ticked and then
 changes the shared look, saved with **Save for everyone**. Without that tick, and for everyone else, the changes are
 yours alone. Only what differs from the shared look is saved, so what you leave alone keeps following the
 administrator's changes. **Back to the look for everyone** removes your changes.

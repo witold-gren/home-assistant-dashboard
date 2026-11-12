@@ -36,9 +36,12 @@ Po dotknięciu kafelka:
 | `climate` | okno termostatu z pokrętłem |
 | `lock`, `alarm_control_panel` | okno zamka albo alarmu |
 | `media_player` | okno odtwarzacza |
-| `switch`, `input_boolean` | okno przełącznika z dużym przyciskiem |
+| `switch`, `input_boolean`, `automation` | okno przełącznika z dużym przyciskiem; gniazdko mierzące moc dodaje moc z wykresem, a automatyzacja czas ostatniego uruchomienia |
+| `binary_sensor` | stan, czas zmiany, bateria urządzenia i zdarzenia z ostatniej doby albo tygodnia |
+| `select`, `input_select` | każda opcja jako przycisk (`confirm: true` na kafelku: najpierw zaznacz, potem uruchom) |
+| `sensor` z liczbą | wartość i wykres |
 | `scene`, `script`, `button` | uruchomienie, a kafelek potwierdza je znaczkiem |
-| każda inna (`sensor`, `fan`, `vacuum`…) | okno szczegółów Home Assistant |
+| każda inna (czujnik z tekstem, `fan`, `vacuum`…) | okno szczegółów Home Assistant |
 
 Kafelek możesz dopasować w edytorze albo w konfiguracji:
 

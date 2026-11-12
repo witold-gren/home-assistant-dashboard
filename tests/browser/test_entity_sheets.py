@@ -94,6 +94,14 @@ def test_an_effect_can_be_chosen(phone):
     assert last_call(phone)["data"]["effect"] == "Rain"
 
 
+def test_the_effect_off_of_a_hue_lamp_is_said_in_words_and_sent_as_it_is(phone):
+    open_entity(phone, "light.a", "on", {**DIMMABLE, "effect_list": ["off", "candle", "Rain"], "effect": "off"})
+    names = phone.locator(f"{SHEET} [data-light-effect] option").all_inner_texts()
+    assert names[0] == "Brak" and "off" not in names
+    phone.locator(f"{SHEET} [data-light-effect]").select_option("candle")
+    assert last_call(phone)["data"]["effect"] == "candle"
+
+
 def test_an_unavailable_light_cannot_be_touched(phone):
     open_entity(phone, "light.a", "unavailable", DIMMABLE)
     assert phone.locator(f"{SHEET} [data-light-power]").is_disabled()

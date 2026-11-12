@@ -80,6 +80,7 @@ test-browser: setup ## Frontend tests in Google Chrome | Testy frontendu w Googl
 
 screenshots: setup ## Make the README screenshots | Utwórz zrzuty do README
 	$(VENV)/bin/python dev/screenshots.py
+	$(VENV)/bin/python dev/gallery.py
 
 test-all: test test-browser lint ## All tests and the linter | Wszystkie testy i linter
 

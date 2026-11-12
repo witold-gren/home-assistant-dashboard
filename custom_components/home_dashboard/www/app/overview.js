@@ -32,6 +32,19 @@ function batteryEntities(hass, { platforms, device_has: deviceHas } = {}) {
     .map(({ entity_id: entity }) => ({ entity }));
 }
 
+// What raises an alarm by itself: water, smoke, gas and carbon monoxide. Not "safety": cameras and disks use it for
+// what is no alarm of the home; it can be named in `classes`.
+export const ALARM_CLASSES = ["moisture", "smoke", "gas", "carbon_monoxide"];
+
+// Every sensor of the home of these classes (`classes`, else all of an alarm), as a battery item finds batteries.
+function alarmEntities(hass, { classes } = {}) {
+  const wanted = asList(classes ?? ALARM_CLASSES);
+  return Object.values(hass.states)
+    .filter(({ entity_id: id, attributes }) => id.startsWith("binary_sensor.") && wanted.includes(attributes.device_class))
+    .filter(({ entity_id: id }) => !hass.entities?.[id]?.hidden)
+    .map(({ entity_id: entity }) => ({ entity }));
+}
+
 function measuredRows(hass, item, entries) {
   const number = new Intl.NumberFormat(hass.language, { maximumFractionDigits: 1 });
   return entries.flatMap(({ entity, name }) => {
@@ -85,9 +98,15 @@ export function overviewItem(hass, item, now = new Date()) {
     if (!asList(item.state ?? "on").includes(state)) return null;
     return { name, icon, text: item.labels?.[state], facts: shownFacts(hass, item.facts) };
   }
-  const entries = item.auto === "battery" ? batteryEntities(hass, item) : (item.entities ?? []).map(asEntry);
+  const entries =
+    item.auto === "battery"
+      ? batteryEntities(hass, item)
+      : item.auto === "alarm"
+        ? alarmEntities(hass, item)
+        : (item.entities ?? []).map(asEntry);
   const rows = item.below === undefined ? matchingRows(hass, item, entries) : measuredRows(hass, item, entries);
-  return rows.length ? { name, icon, rows, count: rows.length, notify: Boolean(item.notify) } : null;
+  const alarm = Boolean(item.alarm ?? item.auto === "alarm");
+  return rows.length ? { name, icon, rows, count: rows.length, notify: Boolean(item.notify), alarm } : null;
 }
 
 export function overviewSections(hass, sections, now = new Date()) {
@@ -172,8 +191,10 @@ export class HomeDashboardOverview extends LitElement {
     `;
   }
 
-  _renderItem(item, alert) {
+  _renderItem(item, sectionAlert) {
     const { name, icon, text, rows, facts } = item;
+    // An alarm (water, smoke) is red wherever it stands.
+    const alert = sectionAlert || Boolean(item.alarm);
     if (rows?.some(({ detail }) => detail) || rows?.every(({ value }) => !value) || facts?.length) {
       return this._renderGroup(item, alert);
     }

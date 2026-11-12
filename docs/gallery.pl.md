@@ -50,9 +50,13 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 |---|---|---|---|
 | ![Odkurzacz](screenshots/pl/vacuum.png) | ![Media](screenshots/pl/media.png) | ![Muzyka](screenshots/pl/music.png) | ![Mapa](screenshots/pl/map.png) |
 
-| Waga | Pralka | Apple TV z pilotem |
-|---|---|---|
-| ![Waga](screenshots/pl/scale.png) | ![Pralka](screenshots/pl/washer.png) | ![Apple TV z pilotem](screenshots/pl/apple-tv.png) |
+| Waga | Pralka | Apple TV z pilotem | Czujnik zalania z historią |
+|---|---|---|---|
+| ![Waga](screenshots/pl/scale.png) | ![Pralka](screenshots/pl/washer.png) | ![Apple TV z pilotem](screenshots/pl/apple-tv.png) | ![Czujnik zalania z historią](screenshots/pl/leak.png) |
+
+| Przełącznik gniazdka z mocą |
+|---|
+| ![Przełącznik gniazdka z mocą](screenshots/pl/plug.png) |
 
 | Pralka, suszarka, stacja zasilania i odkurzacz w pokoju | Pralka na tablecie |
 |---|---|
@@ -61,6 +65,10 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 | Waga na tablecie | Stacja zasilania na tablecie |
 |---|---|
 | ![Waga na tablecie](screenshots/pl/scale-tablet.png) | ![Stacja zasilania na tablecie](screenshots/pl/station-tablet.png) |
+
+| Lista z przyciskiem uruchomienia: ekspres | Maszyna i jej gniazdko |
+|---|---|
+| ![Lista z przyciskiem uruchomienia: ekspres](screenshots/pl/drink-tablet.png) | ![Maszyna i jej gniazdko](screenshots/pl/machine-tablet.png) |
 
 ## Kamery i interkom
 

@@ -36,9 +36,12 @@ A tap on the tile opens:
 | `climate` | the thermostat window with a dial |
 | `lock`, `alarm_control_panel` | the lock or the alarm window |
 | `media_player` | the player window |
-| `switch`, `input_boolean` | the switch window with a big button |
+| `switch`, `input_boolean`, `automation` | the switch window with a big button; a plug that measures its power adds the power and its chart, an automation when it last ran |
+| `binary_sensor` | its state, when it changed, the battery of its device and when it was on in the last day or week |
+| `select`, `input_select` | every option as a button (`confirm: true` on the tile: mark first, then run) |
+| `sensor` with a number | its value and its chart |
 | `scene`, `script`, `button` | runs it, and the tile confirms with a tick |
-| any other (`sensor`, `fan`, `vacuum`…) | the details window of Home Assistant |
+| any other (a sensor with text, `fan`, `vacuum`…) | the details window of Home Assistant |
 
 A tile can be adjusted in the editor or in the configuration:
 

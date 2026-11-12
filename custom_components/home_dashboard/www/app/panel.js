@@ -110,6 +110,13 @@ export function orderedOptions(options, order) {
   return [...order.filter((option) => all.includes(option)), ...all.filter((option) => !order.includes(option))];
 }
 
+/** The options of a list a row shows: in its `order`, without those it `hide`s unless one is what is set now. */
+export function shownOptions(stateObj, row) {
+  return orderedOptions(stateObj.attributes.options, row.order).filter(
+    (option) => !row.hide?.includes(option) || option === stateObj.state,
+  );
+}
+
 // Inside the block of a car, "Car Front door" says the car twice.
 export function blockRowName(name, blockName) {
   return name.startsWith(`${blockName} `) ? name.slice(blockName.length + 1) : name;

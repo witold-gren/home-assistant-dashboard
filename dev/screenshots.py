@@ -509,6 +509,34 @@ def make_devices(browser, base: str, language: str, folder: Path) -> None:
     open_tile(page, "Apple TV")
     take(page, folder, "apple-tv")
 
+    # The windows of the dashboard's own for a sensor, a list, a plug and a machine.
+    kitchen = "&page=room&room=kitchen"
+    page = open_page(browser, base, language, PHONE, query=kitchen)
+    open_entity(page, "binary_sensor.sink_leak")
+    page.wait_for_selector(f"{SHEET} home-dashboard-state-history >> [data-state-row]")
+    take(page, folder, "leak")
+
+    page = open_page(browser, base, language, TABLET, query=kitchen)
+    open_entity(page, "select.coffee_drink")
+    tap(page, f"{SHEET} [data-choice='Cappuccino']")
+    take(page, folder, "drink-tablet")
+
+    page = open_page(browser, base, language, PHONE, query=kitchen)
+    open_entity(page, "switch.coffee")
+    page.wait_for_selector(f"{SHEET} [data-switch-power] home-dashboard-history-chart >> svg")
+    take(page, folder, "plug")
+
+    page = open_page(browser, base, language, TABLET, query=laundry)
+    open_entity(page, "sensor.server_power")
+    page.wait_for_selector(f"{SHEET} home-dashboard-host >> [data-power] svg")
+    take(page, folder, "machine-tablet")
+
+
+def open_entity(page: Page, entity: str) -> None:
+    text = page.locator(f"home-dashboard-page [data-entity='{entity}'] .text").first
+    text.evaluate("(text) => text.click()")
+    page.wait_for_timeout(1200)
+
 
 def main() -> None:
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Quiet, directory=str(ROOT)))

@@ -235,6 +235,16 @@ def test_home_counts_only_what_is_on_or_open(phone):
     assert facts == [["2 światła", "1 drzwi wejściowe"], ["2 światła", "otwarte: 2"]]
 
 
+def test_a_lock_that_is_not_locked_counts_as_an_open_door(phone):
+    facts = run(phone, """
+        const hass = { language: 'pl', states: {
+            'lock.front': { state: 'unlocked', attributes: { friendly_name: 'Drzwi wejściowe' } },
+            'lock.back': { state: 'locked', attributes: { friendly_name: 'Taras' } } } };
+        return s.statusHome(hass, { entityIds: [] }, { status_panel: { doors: ['lock.front', 'lock.back'] } })
+            .map((fact) => fact.label);""")
+    assert facts == ["1 drzwi wejściowe"]
+
+
 def test_the_next_rain_and_the_line_of_power(phone):
     result = run(phone, """
         const now = new Date('2026-11-15T10:00:00');

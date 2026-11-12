@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.7.0 (2026-11-13)
+
+- Every window was opened on a real home, on a phone and a tablet, in Chrome and in WebKit (Safari), with every
+  service call stopped; what it found is fixed here. A slider of a device that says nothing (offline) shows a dash
+  and cannot be moved, in place of "unknown" and a knob in the middle.
+- Alarms of water, smoke and gas: a Status item `auto: alarm` (narrowed by `classes`) finds every such sensor of the
+  home; on Home it is a red card with a beating icon, first of all, that cannot be closed or muted while it lasts,
+  and red on the Status screen too. The block form offers it. "More" on a warning opens the dashboard's own window.
+- The effects of a light are named as Home Assistant translates them, and the "off" effect of a Hue lamp reads
+  "None". The times a leak, smoke or other alarm sensor went off are red in its history even while it is dry now.
+- Zoom comes back to the rest of Home Assistant after the dashboard: when Home Assistant built a new view of the
+  dashboard before it took the old one away, the second lock of zoom kept the locked viewport as the one to give
+  back, so every page (and iOS zooming into a text field) stayed without zoom until the app was reloaded.
+- A tile of a list (`select`, `input_select`) takes `confirm: true`: a touch only marks an option, and a button
+  under the list runs it, so a drink of a coffee machine is not made by brushing the screen. `labels` give the
+  options names of your own, on the tile and in the window.
+- A row of a list in a block takes `hide`: options nobody uses stay out of the window, unless the device is set to
+  one of them.
+- A machine tile (`{shortcut: Host, column: …}`) works without `entity` too and shows the machine's subtitle; a lock
+  in `status_panel.doors` counts as open while it is not locked.
+- Docs: a full reference of the configuration (`docs/configuration.md`, Polish too) with every key, every editing
+  window and which window each kind of entity opens.
+- The sheet (`sheet.js`, 8500 lines) is split into modules by kind of window (entities, camera, recordings,
+  settings, look, blocks, media), shared constants and four files of styles in the order of the cascade; nothing
+  changes in what it does.
+- The demo home has a leak sensor, a coffee machine with a list of drinks and a plug that measures it, and a home
+  server; the gallery shows their windows. `dev/gallery.py` writes the gallery and `make screenshots` runs it.
+
 ## 0.6.0 (2026-11-12)
 
 - Sensors and lists open the dashboard's own windows instead of Home Assistant's: something on or off (a leak, smoke,

@@ -50,9 +50,13 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 |---|---|---|---|
 | ![Vacuum](screenshots/en/vacuum.png) | ![Media](screenshots/en/media.png) | ![Music](screenshots/en/music.png) | ![Map](screenshots/en/map.png) |
 
-| Scale | Washer | Apple TV with its remote |
-|---|---|---|
-| ![Scale](screenshots/en/scale.png) | ![Washer](screenshots/en/washer.png) | ![Apple TV with its remote](screenshots/en/apple-tv.png) |
+| Scale | Washer | Apple TV with its remote | Leak sensor with its history |
+|---|---|---|---|
+| ![Scale](screenshots/en/scale.png) | ![Washer](screenshots/en/washer.png) | ![Apple TV with its remote](screenshots/en/apple-tv.png) | ![Leak sensor with its history](screenshots/en/leak.png) |
+
+| Switch of a plug with its power |
+|---|
+| ![Switch of a plug with its power](screenshots/en/plug.png) |
 
 | Washer, dryer, power station and vacuum in a room | Washer on a tablet |
 |---|---|
@@ -61,6 +65,10 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 | Scale on a tablet | Power station on a tablet |
 |---|---|
 | ![Scale on a tablet](screenshots/en/scale-tablet.png) | ![Power station on a tablet](screenshots/en/station-tablet.png) |
+
+| A list with a run button: a coffee machine | A machine and its plug |
+|---|---|
+| ![A list with a run button: a coffee machine](screenshots/en/drink-tablet.png) | ![A machine and its plug](screenshots/en/machine-tablet.png) |
 
 ## Cameras and intercom
 

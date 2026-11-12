@@ -22,7 +22,7 @@ export function homeAlerts(hass, config, now = new Date()) {
         .filter((item) => item.notify)
         .map((item) => overviewItem(hass, item, now))
         .filter((shown) => shown?.rows?.length)
-        .map((shown) => ({ ...shown, key: `${screen.name ?? ""}/${shown.name}` })),
+        .map((shown) => ({ ...shown, alarm: Boolean(shown.alarm), key: `${screen.name ?? ""}/${shown.name}` })),
     ),
   );
 }
@@ -42,14 +42,18 @@ export function mutedUntil(now = new Date()) {
   return until > now.getTime() ? until : 0;
 }
 
-/** The warnings to show: not muted, and not closed today unless a device joined since. */
+/**
+ * The warnings to show: not muted, and not closed today unless a device joined since. An alarm (water, smoke) is
+ * never muted nor closed: it stays while it lasts, first of all.
+ */
 export function shownAlerts(alerts, now = new Date()) {
-  if (mutedUntil(now)) return [];
+  const alarms = alerts.filter((alert) => alert.alarm);
+  if (mutedUntil(now)) return alarms;
   const seen = dismissed(now);
-  return alerts.filter((alert) => {
+  return [...alarms, ...alerts.filter((alert) => !alert.alarm).filter((alert) => {
     const closed = seen[alert.key];
     return !closed || alert.rows.some((row) => !closed.includes(rowKey(row)));
-  });
+  })];
 }
 
 /** Close a warning for today, with the devices it named now. */

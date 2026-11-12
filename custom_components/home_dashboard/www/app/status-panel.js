@@ -37,6 +37,9 @@ const shown = (hass, entityId) => {
 /** The widgets to show, in their order: the chosen ones, or all of them. */
 export const statusWidgets = (chosen) => (chosen?.length ? chosen.filter((key) => STATUS_WIDGETS.includes(key)) : STATUS_WIDGETS);
 
+// A door is open as a sensor says "on", a cover "open", and a lock that is not locked.
+const OPEN_STATES = ["on", "open", "opening", "unlocked", "unlocking", "jammed"];
+
 /** What is on and what is open, only what there is: lights, devices and the doors and windows that are watched. */
 export function statusHome(hass, selection, config) {
   const ids = selection?.entityIds ?? [];
@@ -49,7 +52,7 @@ export function statusHome(hass, selection, config) {
   if (devices) facts.push({ key: "devices", icon: "mdi:power-plug", tone: "", count: devices, label: countLabel(language, "devices", devices) });
   const open = (config.status_panel?.doors ?? [])
     .map(asItem)
-    .filter((item) => ["on", "open"].includes(hass.states[item.entity]?.state));
+    .filter((item) => OPEN_STATES.includes(hass.states[item.entity]?.state));
   if (open.length === 1) {
     facts.push({ key: "open", icon: "mdi:door-open", tone: "open", count: 1, label: `1 ${nameOf(hass, open[0]).toLocaleLowerCase(language)}`, entity: open[0].entity });
   } else if (open.length) {

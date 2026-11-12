@@ -119,6 +119,30 @@ function buildHass() {
     },
   };
   add("switch.coffee", "kitchen", "on", { friendly_name: say("Coffee machine", "Ekspres") });
+  // The plug of the coffee machine measures what it lets through; a leak sensor under the sink says its battery.
+  add("sensor.coffee_power", null, "1240", { friendly_name: say("Coffee machine power", "Moc ekspresu"), unit_of_measurement: "W", device_class: "power" });
+  add("sensor.coffee_energy", null, "86.42", { friendly_name: say("Coffee machine energy", "Energia ekspresu"), unit_of_measurement: "kWh", device_class: "energy" });
+  for (const id of ["switch.coffee", "sensor.coffee_power", "sensor.coffee_energy"]) entities[id].device_id = "coffee_plug";
+  add("select.coffee_drink", "kitchen", "none", { friendly_name: say("Drink", "Napój"),
+    options: ["none", "Espresso", "Long Coffee", "Cappuccino", "Latte Macchiato", "Flat White", "Hot Milk", "Hot Water", "Tea"] });
+  add("binary_sensor.sink_leak", "kitchen", "off", { friendly_name: say("Leak under the sink", "Zalanie pod zlewem"), device_class: "moisture" });
+  add("sensor.sink_leak_battery", null, "87", { device_class: "battery", unit_of_measurement: "%" });
+  for (const id of ["binary_sensor.sink_leak", "sensor.sink_leak_battery"]) entities[id].device_id = "sink_leak";
+  // A home server and what its plug measures.
+  for (const [id, value, unit] of [["cpu", "12", "%"], ["ram", "48", "%"], ["disk", "63", "%"], ["temperature", "51", "°C"]]) {
+    add(`sensor.server_${id}`, null, value, { unit_of_measurement: unit });
+  }
+  add("sensor.server_power", null, "18.5", { unit_of_measurement: "W", device_class: "power" });
+  add("sensor.server_voltage", null, "231.2", { unit_of_measurement: "V", device_class: "voltage" });
+  add("sensor.server_current", null, "0.12", { unit_of_measurement: "A", device_class: "current" });
+  add("sensor.server_energy", null, "412.7", { unit_of_measurement: "kWh", device_class: "energy" });
+  add("switch.server_plug", null, "on", {});
+  add("sensor.server_uptime", null, new Date(Date.now() - 41 * 86400000).toISOString(), { device_class: "timestamp" });
+  for (const [id, cpu, ram] of [["home_assistant", "4", "71"], ["media", "1", "35"], ["backup", "0", "0"]]) {
+    add(`binary_sensor.vm_${id}`, null, id === "backup" ? "off" : "on", {});
+    add(`sensor.vm_${id}_cpu`, null, cpu, { unit_of_measurement: "%" });
+    add(`sensor.vm_${id}_ram`, null, ram, { unit_of_measurement: "%" });
+  }
   add("media_player.living_homepod", "living", "playing", {
     friendly_name: say("Living room speaker", "Głośnik w salonie"),
     media_title: say("Morning playlist", "Poranna lista"),
@@ -320,10 +344,14 @@ function buildHass() {
     themes: {},
     localize: (key) => key,
     config: { currency: say("EUR", "PLN") },
-    formatEntityState: (stateObj) =>
-      stateObj.attributes?.device_class === "door" && stateObj.entity_id.startsWith("binary_sensor.")
-        ? { on: say("Open", "Otwarte"), off: say("Closed", "Zamknięte") }[stateObj.state]
-        : ({ docked: say("Docked", "W stacji"), on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[stateObj.state] ?? stateObj.state,
+    // As Home Assistant: a state of its own when one is given (an option of a list), else the entity's.
+    formatEntityState: (stateObj, given) => {
+      const state = given ?? stateObj.state;
+      const sensor = stateObj.entity_id.startsWith("binary_sensor.");
+      if (sensor && stateObj.attributes?.device_class === "door") return { on: say("Open", "Otwarte"), off: say("Closed", "Zamknięte") }[state];
+      if (sensor && stateObj.attributes?.device_class === "moisture") return { on: say("Wet", "Wykryto"), off: say("Dry", "Sucho") }[state];
+      return ({ docked: say("Docked", "W stacji"), on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[state] ?? state;
+    },
     formatEntityAttributeValue: (stateObj, attribute) => stateObj.attributes[attribute],
     hassUrl: (path) => path,
     callService: async () => {},
@@ -404,7 +432,7 @@ function demoHistory(message, states) {
           const on = start + (end - start) * at;
           return [{ s: "on", lu: on }, { s: "off", lu: on + minutes * 60 }];
         }),
-        { s: "on", lu: end - 95 },
+        ...(id.includes("leak") ? [] : [{ s: "on", lu: end - 95 }]),
       ];
     }
     const value = Number(states[id]?.state);
@@ -483,6 +511,12 @@ function demoForecast(type) {
 }
 
 const tile = (entity, name, extra = {}) => ({ entity, ...(name ? { name } : {}), ...extra });
+// The drinks of a coffee machine in the language of the home, in place of the names its integration gives.
+const DEMO_DRINKS = say(
+  { none: "None", "Long Coffee": "Long coffee", "Latte Macchiato": "Latte macchiato", "Flat White": "Flat white" },
+  { none: "Brak", "Long Coffee": "Kawa Long", "Latte Macchiato": "Latte macchiato", "Flat White": "Flat white",
+    "Hot Milk": "Gorące mleko", "Hot Water": "Gorąca woda", Tea: "Herbata" },
+);
 
 // The blocks of the washer and the dryer: state, numbers, buttons and groups of what they offer.
 function demoMachine(kind) {
@@ -547,6 +581,33 @@ const DASHBOARD = {
   scenes_layout: "row",
   music: { frame: `/dev/demo-music.html?language=${language}` },
   shortcuts: [
+    {
+      kind: "host",
+      name: say("Machines", "Maszyny"),
+      icon: "mdi:server",
+      columns: [
+        {
+          title: say("Home server", "Serwer domowy"),
+          icon: "mdi:server",
+          subtitle: say("Mini PC · virtual machines", "Mini PC · maszyny wirtualne"),
+          status: "switch.server_plug",
+          bars: [
+            { name: say("Processor", "Procesor"), entity: "sensor.server_cpu" },
+            { name: "RAM", entity: "sensor.server_ram" },
+            { name: say("Disk", "Dysk"), entity: "sensor.server_disk" },
+            { name: say("Temperature", "Temperatura"), entity: "sensor.server_temperature", max: 100 },
+          ],
+          info: [{ name: say("Up for", "Działa od"), entity: "sensor.server_uptime", type: "since" }],
+          machines: [
+            { name: "Home Assistant", status: "binary_sensor.vm_home_assistant", cpu: "sensor.vm_home_assistant_cpu", ram: "sensor.vm_home_assistant_ram" },
+            { name: say("Media", "Multimedia"), status: "binary_sensor.vm_media", cpu: "sensor.vm_media_cpu", ram: "sensor.vm_media_ram" },
+            { name: say("Backups", "Kopie zapasowe"), status: "binary_sensor.vm_backup" },
+          ],
+          power: { entity: "sensor.server_power", voltage: "sensor.server_voltage", current: "sensor.server_current",
+            energy: "sensor.server_energy", switch: "switch.server_plug" },
+        },
+      ],
+    },
     { kind: "page", label: "Media", name: say("Sources", "Źródła"), icon: "mdi:play-box-multiple-outline", page: "media" },
     {
       kind: "panel",
@@ -720,7 +781,11 @@ const DASHBOARD = {
       name: say("Kitchen", "Kuchnia"),
       areas: ["kitchen"],
       home: [tile("light.counter"), tile("light.table"), tile("switch.coffee")],
-      sections: [{ title: say("Devices", "Urządzenia"), tiles: [tile("light.counter"), tile("light.table"), tile("switch.coffee")] }],
+      sections: [
+        { title: say("Devices", "Urządzenia"), tiles: [tile("light.counter"), tile("light.table"), tile("switch.coffee")] },
+        { title: say("Coffee", "Kawa"), tiles: [tile("select.coffee_drink", say("Drink", "Napój"), { confirm: true, labels: DEMO_DRINKS })] },
+        { title: say("Safety", "Bezpieczeństwo"), tiles: [tile("binary_sensor.sink_leak", say("Sink", "Zlew"))] },
+      ],
     },
     {
       id: "bedroom",
@@ -743,7 +808,8 @@ const DASHBOARD = {
       home: [],
       sections: [
         { title: say("Washer and dryer", "Pralka i suszarka"), tiles: [demoMachine("washer"), demoMachine("dryer")] },
-        { title: say("Devices", "Urządzenia"), tiles: [DEMO_STATION, { shortcut: say("Vacuum", "Odkurzacz"), entity: "vacuum.robot" }] },
+        { title: say("Devices", "Urządzenia"), tiles: [DEMO_STATION, { shortcut: say("Vacuum", "Odkurzacz"), entity: "vacuum.robot" },
+          { shortcut: say("Machines", "Maszyny"), column: say("Home server", "Serwer domowy"), entity: "sensor.server_power", name: say("Home server", "Serwer domowy") }] },
       ],
     },
   ],
@@ -785,6 +851,7 @@ function demoStatistics(message) {
     ...weight("sensor.sam_weight", 31),
     "sensor.grid": rows(1),
     "sensor.grid_cost": rows(0.25),
+    "sensor.server_energy": rows(0.02),
     ...Object.fromEntries(DEMO_DEVICES.map(([id, , share]) => [id, rows(share)])),
   };
 }

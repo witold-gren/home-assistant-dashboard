@@ -72,6 +72,12 @@ def test_a_leak_now_is_red(phone):
     assert phone.locator(f"{SHEET} home-dashboard-state-history").get_attribute("alarm") is not None
 
 
+def test_the_times_a_leak_sensor_was_wet_are_red_even_when_it_is_dry_now(phone):
+    add_leak(phone, "off")
+    open_entity(phone, LEAK)
+    assert phone.locator(f"{SHEET} home-dashboard-state-history").get_attribute("alarm") is not None
+
+
 def test_the_week_asks_for_seven_days(phone):
     add_leak(phone)
     open_entity(phone, LEAK)
@@ -166,3 +172,68 @@ def test_a_switch_without_a_power_sensor_stays_as_it_was(phone):
     open_entity(phone, "switch.fridge")
     assert phone.locator(f"{SHEET} [data-switch-power]").count() == 0
     assert "short" not in phone.locator(f"{SHEET} [data-big-switch]").get_attribute("class")
+
+
+def open_drink_tile(page, **tile) -> None:
+    add_entity(page, DRINK, "none", {"options": DRINKS, "friendly_name": "Ekspres Napój"})
+    page.evaluate(MOUNT, {"dashboard": room_with({"entity": DRINK, "name": "Napój", **tile}), "answers": ANSWERS})
+    page.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
+    page.locator(f"home-dashboard-page [data-entity='{DRINK}'] .text").first.click()
+    page.wait_for_selector(f"{SHEET} [data-choice]")
+
+
+def services(page) -> list:
+    return [call for call in page.evaluate("window.hass.calls") if call["type"] == "service"]
+
+
+def test_with_confirm_a_touch_only_marks_and_the_button_runs_it(phone):
+    open_drink_tile(phone, confirm=True)
+    run = phone.locator(f"{SHEET} [data-select-run]")
+    assert run.is_disabled()
+    phone.locator(f"{SHEET} [data-choice='Cappuccino']").click()
+    assert services(phone) == []
+    assert "on" in phone.locator(f"{SHEET} [data-choice='Cappuccino']").get_attribute("class")
+    assert "on" not in phone.locator(f"{SHEET} [data-choice='none']").get_attribute("class")
+    assert "Kapuczino" in run.inner_text()
+    run.click()
+    call = services(phone)[-1]
+    assert (call["service"], call["data"]["option"]) == ("select_option", "Cappuccino")
+    assert len(services(phone)) == 1
+    assert run.is_disabled()
+
+
+def test_without_confirm_there_is_no_run_button(phone):
+    open_drink_tile(phone)
+    assert phone.locator(f"{SHEET} [data-select-run]").count() == 0
+
+
+def test_own_labels_name_the_options_on_the_tile_and_in_the_window(phone):
+    labels = {"none": "Nic", "Espresso Coffee": "Espresso", "Hot Water": "Gorąca woda"}
+    add_entity(phone, DRINK, "none", {"options": DRINKS})
+    phone.evaluate(MOUNT, {"dashboard": room_with({"entity": DRINK, "name": "Napój", "labels": labels}), "answers": ANSWERS})
+    phone.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
+    assert "Nic" in phone.locator(f"home-dashboard-page [data-entity='{DRINK}']").first.inner_text()
+    phone.locator(f"home-dashboard-page [data-entity='{DRINK}'] .text").first.click()
+    texts = [text.strip() for text in phone.locator(f"{SHEET} [data-choice]").all_inner_texts()]
+    assert texts == ["Nic", "Espresso", "Kapuczino", "Gorąca woda"]
+
+
+def test_marking_is_forgotten_when_the_window_changes(phone):
+    open_drink_tile(phone, confirm=True)
+    phone.locator(f"{SHEET} [data-choice='Hot Water']").click()
+    phone.evaluate("""() => { const sheet = document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet');
+        sheet.sheet = { ...sheet.sheet }; }""")
+    phone.wait_for_function("""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')
+        .shadowRoot.querySelector('[data-select-run]').disabled""")
+
+
+def test_a_row_of_a_block_hides_options_nobody_uses_but_not_the_one_set(phone):
+    add_entity(phone, "select.profile", "Guest", {"options": ["Alex", "Sam", "Guest", "Spare"]})
+    block = {"kind": "panel", "name": "Machine", "groups": [{"title": "A", "rows": [{"entity": "select.profile"}]},
+             {"title": "B", "layout": "controls", "rows": [{"entity": "select.profile", "hide": ["Guest", "Spare"]}]}]}
+    phone.evaluate(MOUNT, {"dashboard": room_with(block), "answers": ANSWERS})
+    phone.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
+    phone.locator("home-dashboard-page [data-tile='Machine']").first.click()
+    choices = phone.locator(f"{SHEET} [data-field='select.profile'] [data-choice]")
+    choices.first.wait_for()
+    assert choices.evaluate_all("(items) => items.map((item) => item.dataset.choice)") == ["Alex", "Sam", "Guest"]

@@ -36,7 +36,7 @@ const SNAPSHOT_IMAGE = /_last_(screen|snapshot)$/;
 const COLORFUL_SATURATION = 0.35;
 const TOGGLE_ON_ICON = new Set(["light", "switch", "input_boolean", "fan", "automation"]);
 const RUN_SERVICES = { scene: ["scene", "turn_on"], script: ["script", "turn_on"], button: ["button", "press"] };
-const ALERT_CLASSES = new Set(["moisture", "smoke", "gas", "carbon_monoxide", "safety", "problem"]);
+export const ALERT_CLASSES = new Set(["moisture", "smoke", "gas", "carbon_monoxide", "safety", "problem"]);
 const OPENING_CLASSES = new Set(["window", "door", "opening", "garage_door"]);
 const SHEET_DOMAINS = new Set([
   "alarm_control_panel",
@@ -434,6 +434,20 @@ export function blockFor(config, entityIds, name = null) {
   return blocks.find((item) => item.kind === "panel" && panelEntityIds(item).some((id) => wanted.includes(id))) ?? null;
 }
 
+// A machine of the window of servers (`{shortcut: Host, column: Proxmox}`): its own column of that window. With an
+// entity (the power of its plug) the tile shows its state; without one, the subtitle of the machine.
+function hostTile(item, name, icon, shown) {
+  const columns = item.column ? (item.columns ?? []).filter(({ title }) => title === item.column) : (item.columns ?? []);
+  const base = shown ?? {
+    entityId: "",
+    domain: "host",
+    stateText: columns.length === 1 ? (columns[0].subtitle ?? "") : "",
+    tone: "off",
+    available: true,
+  };
+  return { ...base, name, icon, iconAction: null, tapAction: "block", item: { ...item, name, columns } };
+}
+
 export function layoutTile(hass, given, roomName, config, layout) {
   const item = shortcutBlock(config, given);
   if (!item || config.denied?.includes(tileKey(item))) return null;
@@ -441,6 +455,7 @@ export function layoutTile(hass, given, roomName, config, layout) {
   if (given?.shortcut && config.denied?.includes(blockKey({ name: given.shortcut }))) return null;
   if (item.kind === "panel") return panelTile(hass, item);
   if (item.kind === "scale") return scaleTile(hass, item);
+  if (item.kind === "host" && !item.entity) return hostTile(item, item.name ?? item.column, item.icon ?? "mdi:server", null);
   if (!item.entity) return null;
   const tile = buildTile(hass, item.entity, roomName, config, layout);
   if (!tile || (item.active_only && INACTIVE_STATES.has(hass.states[item.entity].state))) return null;
@@ -456,11 +471,13 @@ export function layoutTile(hass, given, roomName, config, layout) {
   if (item.kind === "tv") {
     return { ...shown, item, iconAction: null, tapAction: "tv" };
   }
-  // A machine of the window of servers (`{shortcut: Host, column: Proxmox}`): its own column of that window.
-  if (item.kind === "host") {
-    const columns = item.column ? (item.columns ?? []).filter(({ title }) => title === item.column) : (item.columns ?? []);
-    return { ...shown, iconAction: null, tapAction: "block", item: { ...item, name: shown.name, columns } };
+  // A list: own names of its options (`labels`) and a button to run the one marked (`confirm`).
+  if (tile.domain === "select" || tile.domain === "input_select") {
+    const state = hass.states[item.entity].state;
+    if (item.labels?.[state]) shown.stateText = item.labels[state];
+    if (item.labels || item.confirm) shown.sheetOptions = { labels: item.labels ?? null, confirm: Boolean(item.confirm) };
   }
+  if (item.kind === "host") return hostTile(item, shown.name, shown.icon, shown);
   if (item.turn_on_only) {
     const off = hass.states[item.entity].state === "off";
     return {

@@ -25,6 +25,8 @@ Stan: wczesna wersja.
 
 **[Otwórz galerię](docs/gallery.pl.md)** ze wszystkimi ekranami: kamery, energia z fazami licznika, interkom, motyw
 Apple Home, edytory i wygląd. **[Przeczytaj przewodnik](docs/guide.pl.md)**, który krok po kroku opisuje pokoje, stronę główną, kamery, bloki i osoby.
+**[Opis konfiguracji](docs/configuration.pl.md)** wymienia każdy klucz YAML z wartością domyślną i każde okno edycji
+z kluczami, które zapisuje.
 
 Zrzuty pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
 ([źródła](dev/demo-pictures/CREDITS.md)). Tła na zrzutach Apple Home przygotował autor dashboardu. Muzyka i Mapa

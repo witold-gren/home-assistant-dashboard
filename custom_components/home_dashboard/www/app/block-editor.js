@@ -40,6 +40,7 @@ const ITEM_FIELDS = {
     { key: "platforms", type: "strings" },
     { key: "device_has", type: "text" },
   ],
+  alarm: [{ key: "classes", type: "strings" }],
   list: [
     {
       key: "list",
@@ -65,6 +66,7 @@ const ITEM_SEEDS = {
   entities: { entities: [] },
   below: { entities: [], below: "" },
   battery: { auto: "battery", below: 11 },
+  alarm: { auto: "alarm", classes: ["moisture"], notify: true },
   list: { list: {} },
   device: { entity: "", state: [] },
   text: { text: "" },
@@ -206,6 +208,7 @@ export const NEW_BLOCK_ICONS = {
 export const itemKind = (item) => {
   if (item.text !== undefined) return "text";
   if (item.list) return "list";
+  if (item.auto === "alarm") return "alarm";
   if (item.auto) return "battery";
   if (item.entity !== undefined) return "device";
   return item.below !== undefined ? "below" : "entities";

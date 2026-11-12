@@ -120,6 +120,33 @@ export const rootStyle = () => `
   }
 `;
 
+// The lock of zoom is the page's, not one dashboard's: Home Assistant can build a new view of the dashboard before it
+// takes the old one away, and a second lock taken over the first would keep the locked viewport as the one to give
+// back, leaving every other page of Home Assistant without zoom (and iOS without zooming into a text field).
+const ZOOM_LOCK = ", maximum-scale=1, user-scalable=no";
+let zoomLocks = 0;
+let freeViewport = null;
+const noPinch = (event) => event.preventDefault();
+
+export function lockZoom() {
+  zoomLocks += 1;
+  if (zoomLocks > 1) return;
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  freeViewport = (meta.getAttribute("content") ?? "").split(ZOOM_LOCK).join("");
+  meta.setAttribute("content", `${freeViewport}${ZOOM_LOCK}`);
+  document.addEventListener("gesturestart", noPinch, { passive: false });
+}
+
+export function unlockZoom() {
+  if (zoomLocks === 0) return;
+  zoomLocks -= 1;
+  if (zoomLocks > 0) return;
+  if (freeViewport !== null) document.querySelector('meta[name="viewport"]')?.setAttribute("content", freeViewport);
+  freeViewport = null;
+  document.removeEventListener("gesturestart", noPinch);
+}
+
 export const currentLayout = () => (window.matchMedia(TABLET_MEDIA_QUERY).matches ? "tablet" : "phone");
 
 // What scrolls the page: the view on a dashboard, the window anywhere else.
@@ -293,19 +320,17 @@ export class HomeDashboardChrome extends LitElement {
     this.updateComplete.then(() => this._paintBand());
   };
 
-  _noPinch = (event) => event.preventDefault();
-
   // A dashboard is used like an app: a stray pinch or double tap must not leave it enlarged.
   _lockZoom() {
-    const meta = document.querySelector('meta[name="viewport"]');
-    this._viewport = meta?.getAttribute("content");
-    meta?.setAttribute("content", `${this._viewport}, maximum-scale=1, user-scalable=no`);
-    document.addEventListener("gesturestart", this._noPinch, { passive: false });
+    if (this._zoomLocked) return;
+    this._zoomLocked = true;
+    lockZoom();
   }
 
   _unlockZoom() {
-    if (this._viewport) document.querySelector('meta[name="viewport"]')?.setAttribute("content", this._viewport);
-    document.removeEventListener("gesturestart", this._noPinch);
+    if (!this._zoomLocked) return;
+    this._zoomLocked = false;
+    unlockZoom();
   }
 
   _watchSettings() {
