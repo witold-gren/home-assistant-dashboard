@@ -13,6 +13,9 @@ Stan: wczesna wersja.
 <p align="center">
   <img src="docs/screenshots/pl/home.png" alt="Strona główna na iPhonie" height="380">
   <img src="docs/screenshots/pl/tablet-status.png" alt="Strona główna na iPadzie z paskiem statusu" height="380">
+</p>
+<p align="center">
+  <img src="docs/screenshots/pl/apple-tablet-status.png" alt="Motyw Apple Home na iPadzie z paskiem statusu" height="380">
   <img src="docs/screenshots/pl/apple-home.png" alt="Motyw Apple Home na iPhonie" height="380">
 </p>
 

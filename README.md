@@ -12,6 +12,9 @@ Status: early version.
 <p align="center">
   <img src="docs/screenshots/en/home.png" alt="Home on an iPhone" height="380">
   <img src="docs/screenshots/en/tablet-status.png" alt="Home on an iPad with the status bar" height="380">
+</p>
+<p align="center">
+  <img src="docs/screenshots/en/apple-tablet-status.png" alt="The Apple Home theme on an iPad with the status bar" height="380">
   <img src="docs/screenshots/en/apple-home.png" alt="The Apple Home theme on an iPhone" height="380">
 </p>
 
