@@ -53,7 +53,7 @@ def test_defaults_keep_the_page_as_it_was(phone):
         "text": {"title": None, "headings": None},
         "chips": {"background": None, "text": None, "opacity": 100, "radius": 14},
         "buttons": {"background": None, "icon": None, "opacity": 100},
-        "badges": {"text": None, "icon": None, "kinds": True},
+        "badges": {"text": None, "icon": None, "kinds": True, "fill": True},
         "page": {"background_light": None, "background_dark": None},
         "sheets": {"background": None, "text": None, "controls": None, "cards": None, "opacity": 100, "blur": 0, "scrim": 45},
         "map": {"theme": "auto", "hours": 24},
@@ -298,10 +298,17 @@ def test_a_status_circle_without_colours_of_kinds_is_open_and_white(phone):
     assert ink == "rgb(255, 255, 255)"
 
 
-def test_the_built_in_apple_home_theme_leaves_out_the_colours_of_kinds(phone):
-    kinds = run(phone, """const t = await import('/custom_components/home_dashboard/www/app/builtin-themes.js');
-        return t.BUILTIN_THEMES.find((theme) => theme.id === 'apple_home').appearance.badges.kinds;""")
-    assert kinds is False
+def test_the_built_in_apple_home_theme_leaves_the_circles_open_with_their_colours(phone):
+    badges = run(phone, """const t = await import('/custom_components/home_dashboard/www/app/builtin-themes.js');
+        return t.BUILTIN_THEMES.find((theme) => theme.id === 'apple_home').appearance.badges;""")
+    assert badges.get("fill") is False
+    assert badges.get("kinds", True) is True
+
+
+def test_open_circles_keep_the_colour_of_their_kind(phone):
+    background, ink = status_circle(phone, {**APPLE, "badges": {**APPLE["badges"], "fill": False}})
+    assert background == "rgba(0, 0, 0, 0)"
+    assert ink != "rgb(255, 255, 255)"
 
 
 def test_the_look_sheet_turns_the_colours_of_kinds_off(phone):

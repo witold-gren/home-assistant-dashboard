@@ -193,6 +193,7 @@ export class HomeDashboardEnergy extends LitElement {
     _offset: { state: true },
     _stats: { state: true },
     _allDevices: { state: true },
+    _slot: { state: true },
   };
 
   constructor() {
@@ -302,16 +303,35 @@ export class HomeDashboardEnergy extends LitElement {
           ? new Intl.DateTimeFormat(language, { weekday: "short" }).format(time)
           : String(new Date(time).getDate());
     const shown = before?.some((value) => value > 0);
+    // The slot under a finger or the mouse: its time, this period's value and the one before.
+    const slot = this._slot !== null && this._slot !== undefined && this._slot < slots.length ? this._slot : null;
+    const pick = (event) => {
+      const box = event.currentTarget.getBoundingClientRect();
+      this._slot = Math.min(slots.length - 1, Math.max(0, Math.floor(((event.clientX - box.left) / box.width) * slots.length)));
+    };
+    const readout = slot === null
+      ? html`<small>${this._t("energy_peak", { value: this._kwh(Math.max(...totals, 0)) })}</small>`
+      : html`<small class="readout" data-energy-readout>
+          <b>${this._slotLabel(slots, slot)}</b> ${this._kwh(totals[slot])}${solar[slot] > 0 ? ` (${this._t("energy_from_sun")}: ${this._kwh(solar[slot])})` : ""}
+          ${shown ? html`<span class="earlier">· ${this._t(`energy_before_${this._period}`)}: ${this._kwh(earlier[slot])}</span>` : nothing}
+        </small>`;
     return html`
       <div class="card chart" data-energy-chart>
         <div class="chart-head">
-          <small>${this._t("energy_peak", { value: this._kwh(Math.max(...totals, 0)) })}</small>
+          ${readout}
           <span class="legend">
             ${shown ? html`<i class="grid"></i>${this._t(`energy_this_${this._period}`)}<i class="before"></i>${this._t(`energy_before_${this._period}`)}` : nothing}
             ${summary.solar > 0 ? html`<i class="solar"></i>${this._t("energy_from_sun")}` : nothing}
           </span>
         </div>
+        <div class="plot" data-energy-plot @pointermove=${pick} @pointerdown=${pick}
+          @pointerleave=${(event) => event.pointerType === "mouse" && (this._slot = null)}>
+        <span class="level" style="bottom: 93.3%">${this._kwh(top)}</span>
+        <span class="level" style="bottom: 46.7%">${this._kwh(top / 2)}</span>
         <svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+          <line class="guide" x1="0" x2="100" y1="4" y2="4"></line>
+          <line class="guide" x1="0" x2="100" y1="32" y2="32"></line>
+          ${slot === null ? nothing : svg`<rect class="pointed" x=${slot * width} y="0" width=${width} height="60"></rect>`}
           ${totals.map((total, index) => {
             const gridHeight = (grid[index] / top) * 56;
             const solarHeight = (solar[index] / top) * 56;
@@ -325,11 +345,22 @@ export class HomeDashboardEnergy extends LitElement {
             `;
           })}
         </svg>
+        </div>
         <div class="ticks">
           ${slots.map((slot, index) => html`<span style="width: ${width}%">${index % tick === 0 ? label(slot) : ""}</span>`)}
         </div>
       </div>
     `;
+  }
+
+  _slotLabel(slots, index) {
+    const language = this.hass.language;
+    const at = slots[index];
+    if (this._period === "day") {
+      const time = (value) => new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit" }).format(value);
+      return `${time(at)}–${time(new Date(at).getTime() + 3600000)}`;
+    }
+    return new Intl.DateTimeFormat(language, { weekday: "short", day: "numeric", month: "short" }).format(at);
   }
 
   // A tap opens a chart of the dashboard's own: the page around it opens it in a window.
@@ -413,6 +444,45 @@ export class HomeDashboardEnergy extends LitElement {
   _deviceChart(device) {
     if (device.untracked) return this._meterId ? { title: this._t("energy_whole_home"), mode: "bars", energy: this._meterId } : null;
     return { title: this._deviceName(device), mode: "bars", energy: device.id };
+  }
+
+  // An energy store on a battery (a power station): its charge, what goes in and out now and how long it lasts. A tap
+  // opens the window of its block, named by `block`.
+  _renderStorage() {
+    const stores = (this.config?.energy?.storage ?? []).filter((store) => this.hass.states[store.battery]);
+    if (!stores.length) return nothing;
+    const watts = (id) => (this._number(id) === null ? "–" : `${this._format(this._number(id), 0)} W`);
+    return html`
+      <h2>${this._t("energy_storage")}</h2>
+      <div class="stores" data-energy-storage>
+        ${stores.map((store) => {
+          const level = this._number(store.battery);
+          // A station that is away reports nothing true: it says so instead of zeros.
+          const away = level === null;
+          const state = away ? null : this.hass.states[store.state]?.state;
+          const minutes = away || this._number(store.remaining) === null ? null : Math.round(this._number(store.remaining));
+          return html`
+            <button class="card store" data-energy-store=${store.name ?? store.block ?? store.battery}
+              @click=${() => this.dispatchEvent(new CustomEvent("energy-block", { bubbles: true, composed: true, detail: store }))}>
+              <span class="store-head">
+                <ha-icon .icon=${store.icon ?? "mdi:home-battery-outline"}></ha-icon>
+                <span><strong>${store.name ?? store.block}</strong>
+                  <small>${away ? this._t("energy_store_away") : state ? (store.labels?.[state] ?? state) : ""}</small></span>
+                <b>${level === null ? "–" : `${this._format(level, 0)}%`}</b>
+              </span>
+              <span class="store-bar"><i style="width: ${Math.min(100, Math.max(0, level ?? 0))}%"></i></span>
+              ${away ? nothing : html`<span class="store-facts">
+                <span><small>${this._t("energy_store_in")}</small>${watts(store.input)}</span>
+                <span><small>${this._t("energy_store_out")}</small>${watts(store.output)}</span>
+                ${minutes
+                  ? html`<span><small>${this._t("energy_store_left")}</small>${this._format(Math.floor(minutes / 60), 0)} h ${this._format(minutes % 60, 0)} min</span>`
+                  : nothing}
+              </span>`}
+            </button>
+          `;
+        })}
+      </div>
+    `;
   }
 
   _renderDevices(summary, wide) {
@@ -553,7 +623,7 @@ export class HomeDashboardEnergy extends LitElement {
           )}
         </div>
         <div class="middle">${this._renderChart(summary, slots, before)} ${this._renderPhases(phases)}</div>
-        ${this._renderDevices(summary, wide)}
+        ${this._renderStorage()} ${this._renderDevices(summary, wide)}
       </div>
     `;
   }
@@ -686,6 +756,41 @@ export class HomeDashboardEnergy extends LitElement {
         display: block;
         width: 100%;
         height: 180px;
+      }
+      .plot {
+        position: relative;
+        touch-action: pan-y;
+        cursor: crosshair;
+      }
+      /* Two levels with their value, so the height of a bar reads at a glance. */
+      .level {
+        position: absolute;
+        left: 0;
+        z-index: 1;
+        padding: 0 4px;
+        border-radius: 4px;
+        font-size: 10px;
+        transform: translateY(50%);
+        color: var(--hd-look-tile-muted, var(--hd-text-muted));
+        pointer-events: none;
+      }
+      .guide {
+        stroke: currentColor;
+        stroke-width: 0.6px;
+        stroke-dasharray: 2 3;
+        opacity: 0.25;
+        vector-effect: non-scaling-stroke;
+      }
+      .pointed {
+        fill: currentColor;
+        opacity: 0.14;
+      }
+      .readout b {
+        font-weight: 500;
+        color: var(--hd-look-tile-text, var(--hd-text));
+      }
+      .readout .earlier {
+        opacity: 0.8;
       }
       .bar.grid,
       .legend .grid {
@@ -859,6 +964,52 @@ export class HomeDashboardEnergy extends LitElement {
         width: 100%;
         text-align: left;
       }
+      .stores {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 8px;
+      }
+      .store {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 16px;
+      }
+      .store-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .store-head > span {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+      }
+      .store-head b {
+        font-size: 24px;
+        font-weight: 500;
+      }
+      .store-bar {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 4px;
+        background: color-mix(in srgb, currentColor 15%, transparent);
+      }
+      .store-bar i {
+        display: block;
+        height: 100%;
+        border-radius: 4px;
+        background: #30d158;
+      }
+      .store-facts {
+        display: flex;
+        gap: 20px;
+      }
+      .store-facts > span {
+        display: flex;
+        flex-direction: column;
+        font-weight: 500;
+      }
       .device-tiles {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -924,6 +1075,12 @@ export class HomeDashboardEnergy extends LitElement {
         contain: size;
       }
       /* As tall as the phases beside it, not as its own width would make it. */
+      .wide .chart .plot {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 160px;
+      }
       .wide .chart svg {
         flex: 1;
         min-height: 160px;

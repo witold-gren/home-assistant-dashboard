@@ -7,6 +7,8 @@ import { translate } from "./i18n.js";
 
 const MAX_SECONDS = 30;
 const MIN_SECONDS = 0.8;
+// Recording goes on this long after Done: the audio buffers still hold the last moment, often the last syllable.
+const TAIL_MS = 700;
 const SAMPLE_RATE = 24000;
 const MAX_GAIN = 4;
 const TARGET_PEAK = 0.9;
@@ -115,14 +117,28 @@ class VoiceRecorder {
     return (Date.now() - this.startedAt) / 1000;
   }
 
-  stop() {
+  /** The recording as WAV, after a short tail that keeps the end of the voice; null when too short or cancelled. */
+  async stop() {
+    const { seconds } = this;
+    if (seconds >= MIN_SECONDS && this.processor) {
+      await new Promise((resolve) => {
+        this._endTail = resolve;
+        this._tail = setTimeout(resolve, TAIL_MS);
+      });
+    }
+    if (this.cancelled) return null;
     const rate = this.context?.sampleRate;
-    const { chunks, seconds } = this;
+    const { chunks } = this;
     this.cancel();
+    this.cancelled = false;
     return seconds >= MIN_SECONDS && chunks?.length ? encodeWav(chunks, rate) : null;
   }
 
   cancel() {
+    this.cancelled = true;
+    clearTimeout(this._tail);
+    this._endTail?.();
+    this._endTail = null;
     if (this.processor) {
       this.processor.onaudioprocess = null;
       this.processor.disconnect();
@@ -270,7 +286,11 @@ export class HomeDashboardIntercom extends LitElement {
   async _finish() {
     clearInterval(this._ticker);
     clearInterval(this._waver);
-    const recording = this.recorder.stop();
+    // "Sending" already during the tail of the recording, so Done is not tapped twice.
+    this._state = "sending";
+    const recording = await this.recorder.stop();
+    // The window closed meanwhile: nothing is sent.
+    if (!this.isConnected) return;
     if (!recording) {
       this._state = "failed";
       this._note = this._t("intercom_too_short");

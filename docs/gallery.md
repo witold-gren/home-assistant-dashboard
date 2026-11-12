@@ -50,6 +50,18 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 |---|---|---|---|
 | ![Vacuum](screenshots/en/vacuum.png) | ![Media](screenshots/en/media.png) | ![Music](screenshots/en/music.png) | ![Map](screenshots/en/map.png) |
 
+| Scale | Washer | Apple TV with its remote |
+|---|---|---|
+| ![Scale](screenshots/en/scale.png) | ![Washer](screenshots/en/washer.png) | ![Apple TV with its remote](screenshots/en/apple-tv.png) |
+
+| Washer, dryer, power station and vacuum in a room | Washer on a tablet |
+|---|---|
+| ![Washer, dryer, power station and vacuum in a room](screenshots/en/laundry-tablet.png) | ![Washer on a tablet](screenshots/en/washer-tablet.png) |
+
+| Scale on a tablet | Power station on a tablet |
+|---|---|
+| ![Scale on a tablet](screenshots/en/scale-tablet.png) | ![Power station on a tablet](screenshots/en/station-tablet.png) |
+
 ## Cameras and intercom
 
 | Camera | All cameras | Connections of a camera on a battery | Intercom |
@@ -77,6 +89,10 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 | Energy on a tablet, with the phases of the meter | Chart of a phase |
 |---|---|
 | ![Energy on a tablet, with the phases of the meter](screenshots/en/energy-tablet.png) | ![Chart of a phase](screenshots/en/energy-chart.png) |
+
+| Energy storage on the Energy page |
+|---|
+| ![Energy storage on the Energy page](screenshots/en/energy-storage.png) |
 
 ## Shortcuts and blocks
 

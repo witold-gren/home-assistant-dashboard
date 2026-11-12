@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.5.0 (2026-11-12)
+
+- A tile `{shortcut: <name>}` without an entity passes the YAML editor and has a key of its own, as does a scale
+  tile; a shortcut taken from someone stays away in a room too. An Apple TV asleep wakes for an app. Closing the
+  intercom while it records drops the message at once. A tablet keeps at least two columns of tiles for blocks two
+  wide; an iPad with a trackpad keeps its camera window as without one.
+- The gallery has the scale, the washer, the dryer and a power station in a room and in their windows, the energy
+  store on the Energy page and an Apple TV with its remote.
+- The chart of the Energy page reads its values: two levels with their kWh behind the bars, and a finger or the mouse
+  on a bar shows its hour (or day) with what was used then and in the period before, the bar lit up.
+- An energy store that is not connected says so instead of zeros and an empty bar of the wrong colour.
+- A recorded intercom message keeps its end: after Done the recording goes on for 0.7 s, while the window says it is
+  sending, so the audio buffers and the last syllable said at the tap reach the file (1.2 s of voice gave a file of
+  1.0 s before). Closing the window meanwhile sends nothing.
+- An Apple TV in the window of a TV (`kind: tv`): its remote by itself through the remote entity of its device
+  (arrows, OK, back, home, main menu, play or pause, 10 seconds back and forward), what plays now with its picture and
+  a button to play or pause, apps as shortcuts and the whole list of them; without `on` and `off` it wakes and sleeps
+  itself. The volume slider shows only for a player that reports its volume.
+- The dot of an open stream is quieter: smaller, without the glow, blinking slower.
+- A camera window in a wide window of a computer (a Mac's browser) takes the whole screen as on a tablet on its side,
+  with every button on the picture and the other cameras and the line of time brought out by buttons. A band is kept
+  for the header above the picture and one below it, and the age of the picture stands in its corner. A tablet and a
+  phone are as they were.
+- An energy store on the Energy page (`energy.storage`): a card per power station on a battery (e.g. EcoFlow) with its
+  charge as a bar, what it does, the power in and out and how long it lasts; a tap opens the window of its block.
+- A tap on a washer or a dryer in Now of the status bar opens the window of its block, found by its entities among
+  the blocks of the shortcuts and the rooms (or named with `block` in `status_panel.now`).
+- The room status circles can be open inside, keeping the colour of their kind on the ring and the icon: Look →
+  Colours → Filled room status circles (`appearance.badges.fill`). The Apple Home theme that comes with the dashboard
+  uses it instead of white circles.
+- On a tablet a block of two or more groups without a card of its own (a washer, a dryer) opens in a wider window:
+  its numbers beside its buttons and its groups in columns, with lower switches and choices four in a row, so it fits
+  without scrolling. A phone keeps one column that scrolls.
+- `order` on a row of a block sets the order of its list or choices, for a device that sends them in no useful order.
+- A scale (`kind: scale`) with each person's body from BodyMiScale: its tile in a room says who weighed last and when,
+  with their weight, BMI, body fat and muscle; its window lets one choose a person and shows the weight against the
+  ideal one, BMI on its bands, what the body is made of and the weight over 30 days, 90 days or a year. Two columns
+  on a tablet, one on a phone.
+- A room's tile can name a shortcut (`{shortcut: Vacuum, entity: vacuum.robot}`): it shows that block's numbers and
+  opens the same window, without a second copy of the block in the room; what the tile sets stands over the
+  shortcut's.
+- On a tablet a block with numbers (a robot, a machine) is two tiles wide in a room, not the whole row, and stands
+  below the ordinary tiles of its section, so its height does not stretch them; two such blocks stand side by side.
+- A device's own card in a block's window (e.g. the Vector control card) takes the colours of the window: its buttons,
+  writing and chosen options follow the look instead of Home Assistant's theme, so a light theme no longer gives white
+  buttons in a dark window.
+- A camera in the strip of a room or Home is no longer cut in Safari (iPad, Mac): the strip was fitted to the size of
+  the picture, so an unavailable camera with a small last frame (320 px) showed only part of its tile, which could be
+  moved sideways inside it. The columns have a width of their own now, and the rounded corners also clip a blurred
+  picture.
+- Talking through a camera's speaker says why it does not start. Over plain http:// the browser gives no microphone,
+  so its button shows a crossed-out microphone and a tap only explains that talking needs HTTPS, without trying to
+  connect. A tap before the live view moves says that the live view is needed. The note shows for a few seconds,
+  also on a phone or a tablet on its side, over the picture. The intercom stays as it was: without HTTPS it opens a
+  field for typing.
+
 ## 0.4.0 (2026-11-12)
 
 - The Apple Home theme that comes with the dashboard draws the circles of a room's status row open, with a white

@@ -100,6 +100,16 @@ export function panelEntityIds(item) {
   ].filter(Boolean);
 }
 
+/**
+ * The options of a list in the order the row gives (`order`), the rest after them as the entity sends them: a device
+ * may send them in no useful order (1400 before 400).
+ */
+export function orderedOptions(options, order) {
+  const all = options ?? [];
+  if (!order?.length) return all;
+  return [...order.filter((option) => all.includes(option)), ...all.filter((option) => !order.includes(option))];
+}
+
 // Inside the block of a car, "Car Front door" says the car twice.
 export function blockRowName(name, blockName) {
   return name.startsWith(`${blockName} `) ? name.slice(blockName.length + 1) : name;

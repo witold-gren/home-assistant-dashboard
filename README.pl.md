@@ -290,9 +290,17 @@ w `layout`, więc nowy blok nie wymaga kodu:
 
 Wiersz dopasowuje się do encji: lista dla `select`, przełącznik dla `switch`, suwak dla `number`,
 przycisk dla `button` i `script`. Reszta, także zamek, jest tylko do odczytu i otwiera okno szczegółów.
+`order` w wierszu ustawia kolejność listy (`[400 Rpm, 800 Rpm, 1400 Rpm]`), gdy urządzenie podaje ją bez sensu.
+Na tablecie blok z dwiema lub więcej grupami i bez karty otwiera się szerzej, z grupami w kolumnach, żeby zmieścił
+się bez przewijania.
 `card` dodaje kartę sterowania uruchamianą przyciskiem, a `frame` otwiera stronę WWW na całym ekranie.
-`hidden_when` ukrywa blok, gdy ta encja jest włączona, a `compact` zostawia zwykły kafelek.
+`hidden_when` ukrywa blok, gdy ta encja jest włączona, a `compact` zostawia zwykły kafelek. Kafelek
+`{shortcut: <nazwa>}` w pokoju pokazuje tam blok ze `shortcuts` bez drugiej kopii. `kind: scale` to waga łazienkowa
+z ciałem każdej osoby z BodyMiScale ([przewodnik](docs/guide.pl.md#waga)).
 
+Apple TV jako `kind: tv` sam dostaje pilota (strzałki, OK, wstecz, ekran główny, menu główne, odtwarzanie i
+przewijanie, przez encję pilota swojego urządzenia), to, co teraz gra, z obrazkiem, i budzi się oraz usypia bez
+`on` i `off`.
 Pilot ma `kind: tv` oraz `entity`, `on` i `off` (`{service, target}`), `shortcuts` (`{name, icon}`,
 dopasowywane do listy źródeł telewizora), `source_script` (`{service, field}`, dla wyłączonego
 telewizora) i `sound_mode: true`.
@@ -378,6 +386,23 @@ energy:
 Dotknięcie fazy, urządzenia lub kafelka otwiera własny wykres dashboardu z zakresami oraz wartością najniższą,
 średnią i najwyższą. Szczegóły są w [przewodniku](docs/guide.pl.md#8-muzyka-energia-i-mapa).
 
+Magazyn energii na baterię (stacja zasilania, np. EcoFlow) dostaje na stronie swoją kartę: naładowanie jako pasek,
+co robi (ładuje się, rozładowuje), moc wejścia i wyjścia oraz na jak długo wystarczy. Dotknięcie otwiera okno jego
+bloku, wskazanego przez `block`:
+
+```yaml
+energy:
+  storage:
+    - block: EcoFlow                     # blok z pokoju lub skrótów, otwierany po dotknięciu
+      name: EcoFlow Delta 2
+      battery: sensor.ecoflow_battery_level
+      state: sensor.ecoflow_battery_charging_state
+      labels: {charging: Ładuje się, discharging: Rozładowuje się}
+      input: sensor.ecoflow_total_in_power
+      output: sensor.ecoflow_total_out_power
+      remaining: sensor.ecoflow_remaining_time   # minuty
+```
+
 ## Kamery
 
 Kamery są u góry strony jako pasek przewijany w bok, z wszystkimi kamerami, które mają przypisany
@@ -419,7 +444,7 @@ systemu (np. Frigate, a obracanie i mówienie z eufy). Ustawisz to też w **Usta
 innej integracji**. Sposób obracania (eufy, ONVIF, wybrane ręcznie) i mówienia (głośnik kamery, go2rtc, interkom)
 każdej kamery wybierasz w **Ustawienia dashboardu → Sterowanie i mówienie każdej kamery**. Mówienie przez kamerę działa
 dopiero, gdy podgląd na żywo ruszy. Kamera niedostępna w Home Assistant zostaje w oknie z przygaszonym ostatnim
-obrazkiem i napisem „Kamera jest niedostępna”. Na telefonie trzymanym poziomo obraz zajmuje cały ekran, a dni i linię
+obrazkiem i napisem „Kamera jest niedostępna”. Na telefonie i tablecie trzymanym poziomo oraz w szerokim oknie komputera obraz zajmuje cały ekran, a dni i linię
 czasu wysuwają przyciski. Szczegóły są w [przewodniku](docs/guide.pl.md#5-kamery).
 
 Na tablecie wszystkie kamery wypełniają ekran, od 2 do 5 w rzędzie (`cameras.columns`), albo jedna duża kamera na
@@ -447,6 +472,17 @@ Frontend nie ma kroku budowania: to zwykłe moduły ES, a Lit jest w `www/vendor
 skryptem `scripts/make_fixture.py`.
 
 ## FAQ
+
+**Koniec nagranej wiadomości interkomu jest ucięty** — przeglądarka trzyma ostatnią chwilę głosu w buforach dźwięku,
+a natychmiastowe zatrzymanie po „Gotowe” ją gubiło. Od tej wersji nagrywanie trwa jeszcze 0,7 s po „Gotowe” (okno
+pokazuje w tym czasie wysyłanie), więc ostatnie słowa docierają do głośników.
+
+**Przycisk mówienia przez kamerę nic nie robi albo jest przekreślony** — mówienie potrzebuje mikrofonu, a przeglądarka
+daje go tylko przez HTTPS. Przez zwykłe `http://` (np. `http://homeassistant.local:8123`) przycisk pokazuje
+przekreślony mikrofon, a dotknięcie mówi: „Mówienie przez kamerę wymaga połączenia HTTPS”. Otwórz Home Assistant przez
+`https://`; w aplikacji Companion ustawisz to w Ustawienia → Aplikacja towarzysząca → Serwery → adres wewnętrzny. Zanim
+podgląd na żywo ruszy, dotknięcie mówi: „Mówienie przez kamerę działa po włączeniu podglądu na żywo”. Intercom działa
+bez HTTPS: otwiera pole do wpisania wiadomości.
 
 **Suwak głośności kamery na iPhonie nic nie zmieniał, a dźwięk znikał dopiero w skrajnym położeniu** — iPhone i iPad
 pozwalają zmieniać głośność wideo tylko przyciskami urządzenia. Od tej wersji dźwięk idzie przez Web Audio i suwak

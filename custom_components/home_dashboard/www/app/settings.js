@@ -33,7 +33,8 @@ const isMapping = (value) => typeof value === "object" && value !== null && !Arr
 
 function tileProblem(tile, path) {
   if (!isMapping(tile)) return { key: "yaml_not_mapping", path };
-  if (tile.kind === "panel" ? !tile.name : !tile.entity) return { key: "yaml_tile_incomplete", path };
+  const complete = tile.shortcut ? true : ["panel", "scale"].includes(tile.kind) ? Boolean(tile.name) : Boolean(tile.entity);
+  if (!complete) return { key: "yaml_tile_incomplete", path };
   return null;
 }
 

@@ -27,19 +27,19 @@ export const streamDotStyles = css`
     z-index: 2;
     top: 10px;
     right: 10px;
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: #ff3b30;
-    box-shadow:
-      0 0 0 2px rgba(0, 0, 0, 0.35),
-      0 0 10px rgba(255, 59, 48, 0.8);
-    animation: stream-blink 1.2s ease-in-out infinite;
+    background: #ff453a;
+    /* A thin ring keeps it seen on a bright picture without a heavy glow. */
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    opacity: 0.85;
+    animation: stream-blink 2s ease-in-out infinite;
     pointer-events: none;
   }
   @keyframes stream-blink {
     50% {
-      opacity: 0.25;
+      opacity: 0.3;
     }
   }
   @media (prefers-reduced-motion: reduce) {

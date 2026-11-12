@@ -32,6 +32,7 @@ export const APP_FILES = [
   "recordings.js",
   "reload.js",
   "room-editor.js",
+  "scale.js",
   "school.js",
   "settings.js",
   "sheet.js",

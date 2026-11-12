@@ -3,6 +3,7 @@
 import { mergeAppearance, tileKind } from "./appearance.js";
 import { translate } from "./i18n.js";
 import { panelEntityIds, panelTile } from "./panel.js";
+import { scalePeople, scaleTile } from "./scale.js";
 
 export const SCHEMA_VERSION = 1;
 export const DEFAULT_DOMAINS = ["light", "climate", "cover", "lock"];
@@ -378,9 +379,42 @@ export const CAMERA_LAYOUTS = ["grid", "featured"];
 
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
-export function layoutTile(hass, item, roomName, config, layout) {
-  if (config.denied?.includes(tileKey(item))) return null;
+/**
+ * A tile that names a shortcut (`{shortcut: "Vacuum"}`) stands for its block: the same numbers and the same window,
+ * with what the tile sets itself (an entity for its state, a name) over the block's.
+ */
+export function shortcutBlock(config, item) {
+  if (!item?.shortcut) return item;
+  const block = (config.shortcuts ?? []).find(({ name }) => name === item.shortcut);
+  if (!block) return null;
+  const { shortcut: _, ...own } = item;
+  return { ...block, ...own };
+}
+
+/**
+ * The block that shows these entities, for opening its window from elsewhere (the status bar): one named by `name`,
+ * or the first block of the shortcuts or the rooms with one of them among its own.
+ */
+export function blockFor(config, entityIds, name = null) {
+  const blocks = [
+    ...(config.shortcuts ?? []),
+    ...(config.layout ?? []).flatMap((room) => (room.sections ?? []).flatMap((section) => section.tiles ?? [])),
+  ]
+    .map((item) => shortcutBlock(config, item))
+    .filter((item) => item?.kind === "panel" || item?.kind === "scale");
+  if (name) return blocks.find((item) => item.name === name) ?? null;
+  const wanted = entityIds.filter(Boolean);
+  return blocks.find((item) => item.kind === "panel" && panelEntityIds(item).some((id) => wanted.includes(id))) ?? null;
+}
+
+export function layoutTile(hass, given, roomName, config, layout) {
+  const item = shortcutBlock(config, given);
+  if (!item || config.denied?.includes(tileKey(item))) return null;
+  // A shortcut taken from someone stays taken in a room too.
+  if (given?.shortcut && config.denied?.includes(blockKey({ name: given.shortcut }))) return null;
   if (item.kind === "panel") return panelTile(hass, item);
+  if (item.kind === "scale") return scaleTile(hass, item);
+  if (!item.entity) return null;
   const tile = buildTile(hass, item.entity, roomName, config, layout);
   if (!tile || (item.active_only && INACTIVE_STATES.has(hass.states[item.entity].state))) return null;
   // An icon chosen in the look of the page wins over the one of the layout.
@@ -1537,7 +1571,7 @@ export function renameBlockRules(raw, from, to) {
   };
 }
 
-export const tileKey = (item) => item.entity ?? blockKey(item);
+export const tileKey = (item) => item.entity ?? (item.shortcut ? `shortcut:${item.shortcut}` : blockKey(item));
 
 // A rule belongs to what is shown, not to one tile of it: `only` names the people who see it, and
 // without them `except` names those who do not.
@@ -1764,8 +1798,13 @@ export function watchedEntityIds(hass, config, selection, areas = []) {
     ...selection.mediaGroups.flat(),
     ...cameras,
     ...laidOut.map((item) => item.entity).filter(Boolean),
-    ...laidOut.filter((item) => item.kind === "panel").flatMap(panelEntityIds),
+    ...laidOut.map((item) => shortcutBlock(config, item)).filter((item) => item?.kind === "panel").flatMap(panelEntityIds),
+    ...laidOut
+      .map((item) => shortcutBlock(config, item))
+      .filter((item) => item?.kind === "scale")
+      .flatMap((item) => [item.entity, ...scalePeople(hass, item).map((person) => person.entity)]),
     ...inRoom,
     ...fixed,
+    ...(config.energy?.storage ?? []).flatMap((store) => [store.battery, store.state, store.input, store.output, store.remaining]),
   ]);
 }

@@ -542,7 +542,19 @@ shortcuts:
           - {entity: select.vacuum_power, name: Moc, labels: {quiet: Cicho, turbo: Turbo}}
 ```
 
-Ten sam blok może stać w pokoju: wstaw go między kafelki w `layout`.
+Ten sam blok może stać w pokoju: wstaw go między kafelki w `layout`. Żeby nie trzymać dwóch kopii, kafelek może
+zamiast tego wskazać skrót: pokazuje jego liczby i otwiera to samo okno, a to, co kafelek ustawia sam (tu encja,
+której stan pokazuje), ma pierwszeństwo przed skrótem. Na tablecie taki kafelek ma szerokość dwóch kafelków i stoi
+pod zwykłymi kafelkami swojej sekcji.
+
+```yaml
+layout:
+  - id: korytarz
+    sections:
+      - title: Urządzenia
+        tiles:
+          - {shortcut: Odkurzacz, entity: vacuum.robot}
+```
 
 | Element | Co robi |
 |---|---|
@@ -848,6 +860,42 @@ children:
   - {child: Lena, balance: 65, savings: 10, debt: 0, allowance: {next_payment: "2026-11-09"}}
 ```
 
+### Magazyn energii
+
+Stacja zasilania na baterię (EcoFlow, domowy magazyn) to blok w swoim pokoju, jak każdy inny: liczby na kafelku, a w
+oknie wyjścia, ładowanie i bateria. `energy.storage` pokazuje go też na stronie Energii, jako kartę z naładowaniem,
+tym, co robi, mocą wejścia i wyjścia oraz czasem, na jaki wystarczy. Dotknięcie otwiera to samo okno. Pola opisuje
+[README](../README.pl.md#energia).
+
+### Waga
+
+Waga łazienkowa z ciałem każdej osoby z [BodyMiScale](https://github.com/dckiller51/bodymiscale): `kind: scale` w
+pokoju (albo w `shortcuts`). Kafelek mówi, kto ważył się ostatnio i kiedy, z jego wagą, BMI, tkanką tłuszczową i
+mięśniami. Dotknięcie otwiera okno:
+
+- osoby z BodyMiScale do wyboru, każda ze swoją wagą, na początek ta, która ważyła się ostatnio;
+- co waga pokazuje teraz (`entity`);
+- waga wobec idealnej, z różnicą, i tłuszcz do zrzucenia;
+- BMI na przedziałach (niedowaga, prawidłowa, nadwaga, otyłość), z opisem, który podaje BodyMiScale;
+- z czego składa się ciało: tkanka tłuszczowa, mięśnie, woda, kości, tłuszcz trzewny, białko, masa beztłuszczowa,
+  przemiana materii, wiek metaboliczny, wynik ciała i typ sylwetki;
+- waga z 30 dni, 90 dni lub roku, ze statystyk sensora wagi tej osoby, z wagą idealną jako linią przerywaną. Gdy waga
+  się nie zmieniała, okno mówi, że w tym czasie nie było ważeń.
+
+Tablet pokazuje to w dwóch kolumnach, telefon w jednej.
+
+```yaml
+- kind: scale
+  name: Waga
+  icon: mdi:scale-bathroom
+  entity: sensor.mi_body_composition_scale_mass   # co waga pokazuje teraz
+  people:                                         # opcjonalnie: bez tego wszystkie bodymiscale.*
+    - bodymiscale.ola
+    - {entity: bodymiscale.kuba, name: Kuba, weight: sensor.kuba_waga}
+```
+
+Sensor wagi każdej osoby znajduje się sam jako `sensor.<osoba>_weight…`; `weight` wskazuje inny.
+
 ## 8. Muzyka, Energia i Mapa
 
 | Muzyka | Energia | Mapa | Odtwarzacz |
@@ -1048,7 +1096,7 @@ przezroczystość zostaje.
 | **Kolory** | **Wyłączone przyciski**: tło, napisy, ikona, kółko pod ikoną | kolory wyglądu | wygląd przycisków, które są wyłączone, oraz wszystkich przy **Tylko ikona** |
 | **Kolory** | **Górne bloki**: tło, napisy, krycie, zaokrąglenie | jasne tło, 100%, 14 px | bloki Pogoda, Klimat, Światła…; z wybranym tłem bez obwódki |
 | **Kolory** | **Okrągłe przyciski**: tło, ikona, krycie | jasne tło, 100% | interkom i trzy kropki |
-| **Kolory** | **Plakietki w pokojach**: napisy, ikona i obwódka; **Kolory rodzajów w kółkach stanu pokoju** (wyłączone: każde kółko puste, w kolorze ikony, jak w Apple Home) | kolory wyglądu, rodzaje włączone | plakietki pod nazwą pokoju (Temperatura, Wilgotność, Klimat, Światła…) |
+| **Kolory** | **Plakietki w pokojach**: napisy, ikona i obwódka; **Wypełnione kółka stanu pokoju** (wyłączone: kółka puste w środku, z obwódką i ikoną w kolorze rodzaju, jak w Apple Home); **Kolory rodzajów w kółkach stanu pokoju** (wyłączone: każde kółko w kolorze ikony) | kolory wyglądu, rodzaje włączone | plakietki pod nazwą pokoju (Temperatura, Wilgotność, Klimat, Światła…) |
 | **Pasek** | pozycje: od 2 do 5 z listy Dom, Media albo Muzyka, Energia, Mapa, Sceny, Menu i pokoje; kolejność strzałkami | Dom, Media/Muzyka, Energia, Mapa | pokój i Sceny są podświetlone, gdy są otwarte; w innym pokoju podświetlony jest Dom |
 | **Pasek** | **Przy krawędzi / Pływający** | Przy krawędzi | pływający pasek to zaokrąglona pigułka nad dolną krawędzią, jak w Apple Home; tablet zawsze ma pasek z boku |
 | **Pasek** | tło, ikony i podpisy, oznaczenie otwartej strony, krycie, rozmycie | kolory wyglądu, 100%, 0 px | przy mniejszym kryciu i rozmyciu strona pod paskiem prześwituje jak przez matowe szkło |
@@ -1092,7 +1140,8 @@ appearance:
     icon: "#ffffff"
     opacity: 50
   badges:                   # plakietki w pokojach
-    kinds: false            # kółka bez kolorów klimatu, świateł, rolet (motyw Apple Home)
+    fill: false             # kółka puste w środku, kolorowa obwódka i ikona (motyw Apple Home)
+    kinds: false            # kółka bez kolorów klimatu, świateł, rolet
     text: "#ffffff"
     icon: "#ffffff"
   nav:                      # dolny pasek
@@ -1345,5 +1394,6 @@ Z `upload` nagrywać może każdy zalogowany, także konto tabletu na ścianie. 
 | Brakuje pokoju | Obszar musi mieć przynajmniej jedną rzecz do pokazania. |
 | Nie mogę edytować | Edycja wymaga konta administratora. |
 | Nowe urządzenie nie pojawia się w pokoju | Pokój jest w `layout`: dodaj je przez **Dodaj kafelek**. |
+| Mówienie przez kamerę nic nie robi, mikrofon jest przekreślony | Mówienie wymaga HTTPS: otwórz Home Assistant przez `https://` (w aplikacji: Ustawienia → Aplikacja towarzysząca → Serwery → adres wewnętrzny), potem włącz podgląd na żywo. |
 
 Więcej, z dokładnymi komunikatami, jest w [FAQ w README](../README.pl.md#faq).

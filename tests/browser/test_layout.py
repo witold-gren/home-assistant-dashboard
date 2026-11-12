@@ -142,7 +142,8 @@ def push_state_update(page) -> None:
     page.wait_for_timeout(50)
 
 
-@pytest.mark.parametrize("size", ["phone", "tablet"])
+# On a wide screen the other cameras wait in a drawer, so only a phone has the row.
+@pytest.mark.parametrize("size", ["phone"])
 def test_thumbnails_keep_their_height_with_the_message_open(size, request):
     page = request.getfixturevalue(size)
     area = page.evaluate("""() => {

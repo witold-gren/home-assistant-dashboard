@@ -73,6 +73,45 @@ def test_a_block_shows_its_translated_state_and_numbers_across_the_row(phone):
     assert width == pytest.approx(1)
 
 
+def test_on_a_tablet_a_block_with_numbers_is_two_tiles_wide(tablet):
+    add_entity(tablet, "sensor.machine", "ready")
+    add_entity(tablet, "sensor.cups", "3")
+    add_entity(tablet, "light.one", "off", {"friendly_name": "One"})
+    dashboard = room_with(block(stats=[{"name": "Kawy", "entity": "sensor.cups"}]), {"entity": "light.one"})
+    mount(tablet, dashboard)
+    widths = tablet.evaluate("""() => {
+        const root = window.card.shadowRoot;
+        const tile = root.querySelector("[data-tile='Machine']");
+        const other = root.querySelector(".tile[data-entity='light.one']");
+        const gap = parseFloat(getComputedStyle(tile.parentElement).columnGap) || 0;
+        return [tile.getBoundingClientRect().width, other.getBoundingClientRect().width * 2 + gap,
+            tile.parentElement.getBoundingClientRect().width];
+    }""")
+    assert widths[0] == pytest.approx(widths[1], abs=1)
+    assert widths[0] < widths[2]
+    # Below the ordinary tiles, so its height does not stretch them.
+    tops = tablet.evaluate("""() => { const root = window.card.shadowRoot;
+        return [root.querySelector("[data-tile='Machine']").getBoundingClientRect().top,
+            root.querySelector(".tile[data-entity='light.one']").getBoundingClientRect().bottom]; }""")
+    assert tops[0] >= tops[1]
+
+
+def test_on_a_tablet_two_blocks_stand_side_by_side_below_the_tiles(tablet):
+    add_entity(tablet, "sensor.machine", "ready")
+    add_entity(tablet, "sensor.cups", "3")
+    add_entity(tablet, "light.one", "off", {"friendly_name": "One"})
+    stats = [{"name": "Kawy", "entity": "sensor.cups"}]
+    dashboard = room_with(block(stats=stats), block(name="Second", stats=stats), {"entity": "light.one"})
+    mount(tablet, dashboard)
+    boxes = tablet.evaluate("""() => { const root = window.card.shadowRoot;
+        const box = (selector) => root.querySelector(selector).getBoundingClientRect().toJSON();
+        return [box("[data-tile='Machine']"), box("[data-tile='Second']"), box(".tile[data-entity='light.one']")]; }""")
+    first, second, light = boxes
+    assert first["top"] >= light["bottom"]
+    assert second["top"] == first["top"]
+    assert second["left"] > first["left"]
+
+
 def test_a_compact_block_is_an_ordinary_tile(phone):
     add_entity(phone, "sensor.machine", "ready")
     add_entity(phone, "sensor.cups", "3")
@@ -192,6 +231,23 @@ def test_a_control_card_starts_only_on_the_button(phone):
     phone.locator("[data-panel-card]").click()
     phone.wait_for_selector("[data-card='custom:robot-card']", state="attached")
     assert phone.evaluate("window.createdCards") == [{"type": "custom:robot-card", "camera": "camera.robot"}]
+
+
+def test_a_control_card_takes_the_colours_of_the_window(phone):
+    add_entity(phone, "sensor.machine", "ready")
+    open_block(phone, room_with(block(card={"type": "custom:robot-card"})))
+    phone.locator("[data-panel-card]").click()
+    phone.wait_for_selector("[data-card='custom:robot-card']", state="attached")
+    colours = phone.locator("[data-card='custom:robot-card']").evaluate("""(card) => {
+        const style = getComputedStyle(card);
+        const probe = (value) => { const box = document.createElement('i'); box.style.color = value;
+            card.parentElement.append(box); const colour = getComputedStyle(box).color; box.remove(); return colour; };
+        return { button: probe('var(--secondary-background-color)'), off: probe('var(--hd-off)'),
+            text: probe('var(--primary-text-color)'), ink: probe('var(--hd-text)'),
+            card: style.getPropertyValue('--card-background-color').trim() }; }""")
+    assert colours["button"] == colours["off"]
+    assert colours["text"] == colours["ink"]
+    assert colours["card"] == "transparent"
 
 
 def test_closing_the_sheet_removes_the_control_card(phone):
@@ -576,9 +632,10 @@ def test_zero_turns_the_return_off(tablet):
 
 def test_touching_the_screen_starts_the_wait_again(tablet):
     path = tablet.evaluate("window.location.pathname")
-    mount(tablet, {"idle": {"return_after": 0.2}}, "media")
-    for _ in range(4):
-        tablet.wait_for_timeout(100)
+    # Touches 0.2 s apart, for longer than the wait of 0.6 s: under load each still comes well within it.
+    mount(tablet, {"idle": {"return_after": 0.6}}, "media")
+    for _ in range(5):
+        tablet.wait_for_timeout(200)
         tablet.mouse.click(600, 10)
     assert tablet.evaluate("window.location.pathname") == path
 
@@ -621,3 +678,105 @@ def test_the_wait_can_be_changed_in_the_settings(phone):
     draft = phone.evaluate("""() => document.querySelector("home-dashboard-chrome").shadowRoot
         .querySelector("home-dashboard-settings")._draft.idle""")
     assert draft == {"return_after": 300}
+
+
+# A tile that names a shortcut ----------------------------------------------------------------------
+
+
+def shortcut_room(*tiles: dict) -> dict:
+    vacuum = block(
+        name="Odkurzacz",
+        stats=[{"name": "Filtr", "entity": "sensor.filter", "unit": "%"}],
+        actions=[{"name": "Start", "entity": "vacuum.robot", "service": "vacuum.start"}],
+    )
+    vacuum.pop("entity")
+    return {"shortcuts": [vacuum], **room_with(*tiles)}
+
+
+def test_a_tile_naming_a_shortcut_shows_its_block_and_opens_its_window(phone):
+    add_entity(phone, "vacuum.robot", "docked", {"friendly_name": "Robot"})
+    add_entity(phone, "sensor.filter", "71")
+    mount(phone, shortcut_room({"shortcut": "Odkurzacz", "entity": "vacuum.robot"}))
+    tile = phone.locator("home-dashboard-page [data-tile='Odkurzacz']")
+    assert tile.locator(".stats b").all_inner_texts() == ["71 %"]
+    tile.click()
+    phone.wait_for_selector("home-dashboard-sheet section.panel")
+    assert phone.locator("home-dashboard-sheet [data-action='vacuum.robot']").count() == 1
+
+
+def test_a_tile_naming_an_unknown_shortcut_is_left_out(phone):
+    add_entity(phone, "vacuum.robot", "docked")
+    mount(phone, shortcut_room({"shortcut": "Nie ma", "entity": "vacuum.robot"}))
+    assert phone.locator("home-dashboard-page [data-tile='Nie ma']").count() == 0
+
+
+# A block of several groups ------------------------------------------------------------------------
+
+
+def laundry_block() -> dict:
+    return block(
+        stats=[{"name": "Program", "entity": "sensor.machine"}],
+        actions=[{"name": "Start", "entity": "button.start"}],
+        groups=[
+            {"title": "Program", "layout": "controls", "rows": [
+                {"entity": "select.spin", "name": "Spin", "order": ["400 Rpm", "800 Rpm", "1400 Rpm"]}]},
+            {"title": "State", "rows": [{"entity": "sensor.door", "name": "Door"}]},
+        ],
+    )
+
+
+def add_laundry(page) -> None:
+    add_entity(page, "sensor.machine", "Running")
+    add_entity(page, "button.start", "unknown")
+    add_entity(page, "sensor.door", "closed")
+    add_entity(page, "select.spin", "1400 Rpm", {"options": ["1400 Rpm", "400 Rpm", "800 Rpm"]})
+
+
+def test_choices_follow_the_order_the_row_gives(phone):
+    add_laundry(phone)
+    open_block(phone, room_with(laundry_block()))
+    texts = phone.locator("home-dashboard-sheet [data-choice]").all_inner_texts()
+    assert [text.strip() for text in texts] == ["400 Rpm", "800 Rpm", "1400 Rpm"]
+
+
+def test_on_a_tablet_a_block_of_groups_is_wider_with_its_groups_in_columns(tablet):
+    add_laundry(tablet)
+    open_block(tablet, room_with(laundry_block()))
+    panel = tablet.locator("home-dashboard-sheet section.panel")
+    assert "roomy" in panel.get_attribute("class")
+    assert panel.bounding_box()["width"] > 900
+    groups = tablet.locator("home-dashboard-sheet .panel-group")
+    first, second = groups.nth(0).bounding_box(), groups.nth(1).bounding_box()
+    assert second["x"] > first["x"] + first["width"] - 1
+
+
+def test_on_a_phone_a_block_of_groups_stays_one_column(phone):
+    add_laundry(phone)
+    open_block(phone, room_with(laundry_block()))
+    groups = phone.locator("home-dashboard-sheet .panel-group")
+    first, second = groups.nth(0).bounding_box(), groups.nth(1).bounding_box()
+    assert second["y"] >= first["y"] + first["height"]
+
+
+def test_the_yaml_editor_takes_a_tile_naming_a_shortcut_or_a_scale(phone):
+    problems = phone.evaluate("""async () => { const s = await import('/custom_components/home_dashboard/www/app/settings.js');
+        const room = (tiles) => ({ layout: [{ id: 'r', name: 'R', sections: [{ title: 'S', tiles }] }] });
+        return [s.configProblem(room([{ shortcut: 'Vacuum' }])), s.configProblem(room([{ kind: 'scale', name: 'Scale' }])),
+                s.configProblem(room([{ name: 'nothing' }]))?.key]; }""")
+    assert problems == [None, None, "yaml_tile_incomplete"]
+
+
+def test_a_shortcut_taken_from_someone_stays_away_in_a_room(phone):
+    add_entity(phone, "vacuum.robot", "docked")
+    add_entity(phone, "sensor.filter", "71")
+    tile = phone.evaluate("""async () => { const m = await import('/custom_components/home_dashboard/www/app/model.js');
+        const config = m.normalizeConfig({ shortcuts: [{ kind: 'panel', name: 'Vacuum', stats: [] }] });
+        config.denied = ['block:Vacuum'];
+        return m.layoutTile(window.dashboard.hass(), { shortcut: 'Vacuum', entity: 'vacuum.robot' }, 'R', config, 'phone'); }""")
+    assert tile is None
+
+
+def test_bare_shortcut_tiles_have_keys_of_their_own(phone):
+    keys = phone.evaluate("""async () => { const m = await import('/custom_components/home_dashboard/www/app/model.js');
+        return [m.tileKey({ shortcut: 'A' }), m.tileKey({ shortcut: 'B' })]; }""")
+    assert keys == ["shortcut:A", "shortcut:B"]

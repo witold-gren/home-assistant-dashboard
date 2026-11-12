@@ -539,7 +539,19 @@ shortcuts:
           - {entity: select.vacuum_power, name: Power, labels: {quiet: Quiet, turbo: Turbo}}
 ```
 
-The same block can stand in a room: put it among the tiles in `layout`.
+The same block can stand in a room: put it among the tiles in `layout`. To keep one copy, a tile can name the shortcut
+instead: it shows the shortcut's numbers and opens the same window, and what the tile sets itself (here the entity
+whose state it shows) stands over the shortcut's. On a tablet such a tile is two tiles wide, below the ordinary tiles
+of its section.
+
+```yaml
+layout:
+  - id: hall
+    sections:
+      - title: Devices
+        tiles:
+          - {shortcut: Vacuum, entity: vacuum.robot}
+```
 
 | Part | What it does |
 |---|---|
@@ -845,6 +857,42 @@ children:
   - {child: Lena, balance: 65, savings: 10, debt: 0, allowance: {next_payment: "2026-11-09"}}
 ```
 
+### An energy store
+
+A power station on a battery (an EcoFlow, a home battery) is a block in its room, like any other: its numbers on the
+tile and its outputs, charging and battery in its window. `energy.storage` puts it on the Energy page too, as a card
+with its charge, what it does, the power in and out and how long it lasts; a tap opens the same window. The fields are
+in the [README](../README.md#energy).
+
+### The scale
+
+A bathroom scale with each person's body from [BodyMiScale](https://github.com/dckiller51/bodymiscale): `kind: scale`
+in a room (or among `shortcuts`). Its tile says who weighed last and when, with their weight, BMI, body fat and
+muscle; a tap opens its window:
+
+- the people of BodyMiScale to choose from, each with their weight, starting with the one who weighed last;
+- what the scale shows now (`entity`);
+- the weight against the ideal one, with the difference, and the fat to lose;
+- BMI on its bands (underweight, healthy, overweight, obesity), with the label BodyMiScale gives;
+- what the body is made of: body fat, muscle, water, bone, visceral fat, protein, lean mass, basal metabolism,
+  metabolic age, body score and body type;
+- the weight over 30 days, 90 days or a year, from the statistics of the person's weight sensor, with the ideal weight
+  as a dashed line. A weight that did not change says there were no weighings in that time.
+
+A tablet shows it in two columns, a phone in one.
+
+```yaml
+- kind: scale
+  name: Scale
+  icon: mdi:scale-bathroom
+  entity: sensor.mi_body_composition_scale_mass   # what the scale shows now
+  people:                                         # optional: all bodymiscale.* without it
+    - bodymiscale.alex
+    - {entity: bodymiscale.sam, name: Sam, weight: sensor.sam_weight}
+```
+
+Each person's weight sensor is found by itself as `sensor.<person>_weight…`; `weight` names another one.
+
 ## 8. Music, Energy and Map
 
 | Music | Energy | Map | Player |
@@ -1047,7 +1095,7 @@ hue and keeps the see-through part.
 | **Colours** | **Buttons that are off**: background, writing, icon, circle under the icon | colours of the look | buttons that are off, and every button with **Icon only** |
 | **Colours** | **Blocks at the top**: background, writing, opacity, rounded corners | light background, 100%, 14 px | the Weather, Climate, Lights… blocks; with a chosen background they lose their outline |
 | **Colours** | **Round buttons**: background, icon, opacity | light background, 100% | intercom and the three dots |
-| **Colours** | **Badges in rooms**: writing, icon and ring; **Colours of kinds in the room status circles** (off: every circle open, in the colour of the icon, as in Apple Home) | colours of the look, kinds on | badges under the room name (Temperature, Humidity, Climate, Lights…) |
+| **Colours** | **Badges in rooms**: writing, icon and ring; **Filled room status circles** (off: the circles open inside, their ring and icon keeping the colour of their kind, as in Apple Home); **Colours of kinds in the room status circles** (off: every circle in the colour of the icon) | colours of the look, kinds on | badges under the room name (Temperature, Humidity, Climate, Lights…) |
 | **Bar** | entries: 2 to 5 of Home, Media or Music, Energy, Map, Scenes, Menu and the rooms; arrows set the order | Home, Media/Music, Energy, Map | a room and Scenes light up while open; in any other room Home does |
 | **Bar** | **At the edge / Floating** | At the edge | a floating bar is a rounded pill above the bottom edge, as in Apple Home; a tablet always keeps the bar on the side |
 | **Bar** | background, icons and labels, mark of the open page, opacity, blur | colours of the look, 100%, 0 px | with less opacity and some blur, the page under the bar shows through as frosted glass |
@@ -1091,7 +1139,8 @@ appearance:
     icon: "#ffffff"
     opacity: 50
   badges:                   # badges in rooms
-    kinds: false            # circles without the colours of climate, lights, blinds (the Apple Home theme)
+    fill: false             # circles open inside, coloured ring and icon (the Apple Home theme)
+    kinds: false            # circles without the colours of climate, lights, blinds
     text: "#ffffff"
     icon: "#ffffff"
   nav:                      # bar at the bottom
@@ -1348,5 +1397,6 @@ With `upload` anyone signed in may record, the account of a tablet on the wall t
 | A room is missing | The area needs at least one thing to show. |
 | I cannot edit | Editing needs an administrator account. |
 | A new device does not appear in a room | The room is in `layout`: add it with **Add a tile**. |
+| Talking through the camera does nothing, the microphone is crossed out | Talking needs HTTPS: open Home Assistant over `https://` (in the app: Settings → Companion app → Servers → internal URL), then start the live view. |
 
 The [FAQ in the README](../README.md#faq) has more, with exact messages.

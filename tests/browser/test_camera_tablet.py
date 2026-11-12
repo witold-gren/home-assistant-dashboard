@@ -113,10 +113,18 @@ def test_opening_the_cameras_puts_the_line_of_time_away_and_back(touch_tablet):
     assert "cameras-open" not in body.get_attribute("class")
 
 
-def test_a_computer_with_a_mouse_keeps_its_window_and_the_row_of_cameras(tablet):
-    open_camera(tablet)
-    assert not tablet.locator(f"{SHEET} [data-open-cameras]").is_visible()
-    assert tablet.locator(f"{SHEET} [data-thumbs]").is_visible()
+def test_a_computer_with_a_mouse_gets_the_whole_screen_with_a_band_for_the_header(browser, base_url):
+    # A wide window of a computer (1920 x 1000): the picture would reach the top and the bottom, so a band is kept.
+    page = open_harness(browser, base_url, {"width": 1920, "height": 1000})
+    open_camera(page)
+    assert page.locator(f"{SHEET} [data-open-cameras]").is_visible()
+    picture = box(page, ".stage .picture img")
+    header = box(page, "header")
+    assert picture["y"] >= header["y"] + header["height"] - 1
+    assert picture["y"] + picture["height"] <= 1000 - 60
+    age = box(page, ".camera-body .age")
+    assert age["x"] >= picture["x"]
+    page.close()
 
 
 def test_the_window_cannot_be_scrolled_off_its_header(touch_tablet):

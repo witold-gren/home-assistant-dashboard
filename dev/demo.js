@@ -250,12 +250,63 @@ function buildHass() {
   add("sensor.meter_frequency", null, "50.02", { friendly_name: say("Frequency", "Częstotliwość"), unit_of_measurement: "Hz" });
   add("sensor.heat_pump_power", null, "1180", { friendly_name: say("Heat pump", "Pompa ciepła"), unit_of_measurement: "W", device_class: "power" });
   add("sensor.computer_power", null, "164", { friendly_name: say("Computer", "Komputer"), unit_of_measurement: "W", device_class: "power" });
+  // A bathroom scale and the body of two made-up people from BodyMiScale.
+  add("sensor.scale_mass", "bathroom", "72.4", { friendly_name: say("Scale", "Waga"), unit_of_measurement: "kg" });
+  const body = (name, weight, extra) => ({
+    friendly_name: name, weight, ideal: 68, bmi: 23.6, bmi_label: "normal_or_healthy_weight", body_fat: 19.4, muscle_mass: 54.2,
+    water: 56.1, bone_mass: 2.9, visceral_fat: 7, protein: 18.4, lean_body_mass: 58.3, basal_metabolism: 1612,
+    metabolic_age: 34, body_score: 84, body_type: "balanced", fat_mass_to_lose: 0, ...extra,
+  });
+  add("bodymiscale.alex", null, "ok", body("Alex", 72.4, { last_measurement_time: new Date(Date.now() - 3600000).toISOString(), ideal: 70.2, fat_mass_to_lose: 1.2 }));
+  add("bodymiscale.sam", null, "ok", body(say("Sam", "Kuba"), 31.5, { last_measurement_time: new Date(Date.now() - 5 * 86400000).toISOString(), ideal: 30, bmi: 17.2, bmi_label: "underweight", body_type: "skinny" }));
+  add("sensor.alex_weight", null, "72.4", { unit_of_measurement: "kg" });
+  add("sensor.sam_weight", null, "31.5", { unit_of_measurement: "kg" });
+  // A washer and a dryer that work now, with what they offer.
+  const machine = (kind, program, phase, left) => {
+    add(`sensor.${kind}_state`, "laundry", "Running", { friendly_name: kind });
+    add(`sensor.${kind}_program`, null, program, {});
+    add(`sensor.${kind}_phase`, null, phase, {});
+    add(`sensor.${kind}_left`, null, left, {});
+    add(`sensor.${kind}_cycles`, null, kind === "washer" ? "642" : "418", {});
+    for (const button of ["start", "pause", "resume", "stop"]) add(`button.${kind}_${button}`, null, "unknown", {});
+    add(`binary_sensor.${kind}_door`, null, "off", { device_class: "door" });
+  };
+  machine("washer", say("Cottons", "Bawełna"), say("Spin", "Wirowanie"), "25 min");
+  machine("dryer", say("Towels", "Ręczniki"), say("Drying", "Suszenie"), "1 h 10 min");
+  add("select.washer_program", null, "cottons", { options: ["cottons", "synthetics", "wool", "quick"] });
+  add("select.washer_temperature", null, "40", { options: ["90", "20", "40", "60", "30"] });
+  add("select.washer_spin", null, "1200", { options: ["1400", "400", "800", "1200"] });
+  for (const option of ["prewash", "stains", "night", "eco"]) add(`switch.washer_${option}`, null, option === "eco" ? "on" : "off", {});
+  add("select.dryer_dryness", null, "cupboard", { options: ["iron", "cupboard", "extra"] });
+  for (const option of ["eco", "night", "refresh"]) add(`switch.dryer_${option}`, null, option === "eco" ? "on" : "off", {});
+  // A power station on a battery.
+  add("sensor.station_battery", "garage", "76", { unit_of_measurement: "%", device_class: "battery" });
+  add("sensor.station_state", null, "charging", {});
+  add("sensor.station_in", null, "410", { unit_of_measurement: "W", device_class: "power" });
+  add("sensor.station_out", null, "35", { unit_of_measurement: "W", device_class: "power" });
+  add("sensor.station_left", null, "95", { unit_of_measurement: "min" });
+  add("sensor.station_health", null, "99", { unit_of_measurement: "%" });
+  add("sensor.station_cycles", null, "40", {});
+  for (const output of ["ac", "usb", "dc"]) add(`switch.station_${output}`, null, output === "ac" ? "on" : "off", {});
+  add("number.station_charge", null, "800", { min: 200, max: 1200, step: 100, unit_of_measurement: "W" });
+  // The streaming box is an Apple TV with its remote, playing.
+  Object.assign(states["media_player.streamer"], {
+    state: "playing",
+    attributes: { ...states["media_player.streamer"].attributes, app_name: "YouTube", media_title: say("Mountains from above", "Góry z lotu ptaka"),
+      media_artist: say("Nature channel", "Kanał przyrodniczy"), entity_picture: "/dev/demo-pictures/garden.jpg",
+      source_list: ["YouTube", "TV", say("Music", "Muzyka"), say("Photos", "Zdjęcia"), "Podcasts", "Arcade", "App Store", "Fitness"] },
+  });
+  Object.assign(entities["media_player.streamer"], { platform: "apple_tv", device_id: "apple_tv" });
+  add("remote.streamer", null, "on", {}, "apple_tv");
+  entities["remote.streamer"].device_id = "apple_tv";
   const areas = Object.fromEntries(
     [
       ["living", say("Living room", "Salon")],
       ["kitchen", say("Kitchen", "Kuchnia")],
       ["bedroom", say("Bedroom", "Sypialnia")],
       ["hall", say("Hall", "Korytarz")],
+      ["bathroom", say("Bathroom", "Łazienka")],
+      ["laundry", say("Utility room", "Pralnia")],
     ].map(([area_id, name]) => [area_id, { area_id, name, floor_id: null }]),
   );
   return {
@@ -270,7 +321,9 @@ function buildHass() {
     localize: (key) => key,
     config: { currency: say("EUR", "PLN") },
     formatEntityState: (stateObj) =>
-      ({ on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[stateObj.state] ?? stateObj.state,
+      stateObj.attributes?.device_class === "door" && stateObj.entity_id.startsWith("binary_sensor.")
+        ? { on: say("Open", "Otwarte"), off: say("Closed", "Zamknięte") }[stateObj.state]
+        : ({ docked: say("Docked", "W stacji"), on: say("On", "Włączone"), off: say("Off", "Wyłączone"), open: say("Open", "Otwarte"), closed: say("Closed", "Zamknięte"), locked: say("Locked", "Zablokowane"), partlycloudy: say("Partly cloudy", "Częściowe zachmurzenie") })[stateObj.state] ?? stateObj.state,
     formatEntityAttributeValue: (stateObj, attribute) => stateObj.attributes[attribute],
     hassUrl: (path) => path,
     callService: async () => {},
@@ -431,6 +484,63 @@ function demoForecast(type) {
 
 const tile = (entity, name, extra = {}) => ({ entity, ...(name ? { name } : {}), ...extra });
 
+// The blocks of the washer and the dryer: state, numbers, buttons and groups of what they offer.
+function demoMachine(kind) {
+  const washer = kind === "washer";
+  const states = { Running: say("Running", "Pracuje") };
+  return {
+    kind: "panel", name: washer ? say("Washer", "Pralka") : say("Dryer", "Suszarka"), icon: washer ? "mdi:washing-machine" : "mdi:tumble-dryer",
+    entity: `sensor.${kind}_state`, labels: states, active: `sensor.${kind}_state`, active_state: "Running",
+    stats: [
+      { name: say("Program", "Program"), entity: `sensor.${kind}_program` },
+      { name: say("Phase", "Faza"), entity: `sensor.${kind}_phase` },
+      { name: say("Left", "Zostało"), entity: `sensor.${kind}_left` },
+      { name: say("Cycles", "Cykli"), entity: `sensor.${kind}_cycles` },
+    ],
+    actions: [["start", "mdi:play", "Start"], ["pause", "mdi:pause", say("Pause", "Pauza")], ["resume", "mdi:play-pause", say("Resume", "Wznów")], ["stop", "mdi:stop", "Stop"]]
+      .map(([button, icon, name]) => ({ name, icon, entity: `button.${kind}_${button}` })),
+    groups: washer
+      ? [
+          { title: say("Programme", "Program"), rows: [{ entity: "select.washer_program", name: say("Programme", "Program"),
+            labels: { cottons: say("Cottons", "Bawełna"), synthetics: say("Synthetics", "Syntetyki"), wool: say("Wool", "Wełna"), quick: say("Quick 20 min", "Szybki 20 min") } }] },
+          { title: say("Options", "Opcje"), layout: "controls", rows: [
+            { entity: "switch.washer_prewash", name: say("Prewash", "Pranie wstępne") }, { entity: "switch.washer_stains", name: say("Stains", "Plamy") },
+            { entity: "switch.washer_night", name: say("Night", "Cykl nocny") }, { entity: "switch.washer_eco", name: "Eco" }] },
+          { title: say("Washing", "Pranie"), layout: "controls", rows: [
+            { entity: "select.washer_temperature", name: say("Temperature", "Temperatura"), order: ["20", "30", "40", "60", "90"], labels: { 20: "20°", 30: "30°", 40: "40°", 60: "60°", 90: "90°" } },
+            { entity: "select.washer_spin", name: say("Spin", "Wirowanie"), order: ["400", "800", "1200", "1400"] }] },
+          { title: say("State", "Stan"), rows: [{ entity: "binary_sensor.washer_door", name: say("Door", "Drzwi") }] },
+        ]
+      : [
+          { title: say("Options", "Opcje"), layout: "controls", rows: [
+            { entity: "switch.dryer_eco", name: "Eco" }, { entity: "switch.dryer_night", name: say("Night", "Cykl nocny") },
+            { entity: "switch.dryer_refresh", name: say("Refresh", "Odświeżanie") }] },
+          { title: say("Drying", "Suszenie"), layout: "controls", rows: [
+            { entity: "select.dryer_dryness", name: say("Dryness", "Suchość"),
+              labels: { iron: say("Iron dry", "Do prasowania"), cupboard: say("Cupboard dry", "Do szafy"), extra: say("Extra dry", "Extra suche") } }] },
+          { title: say("State", "Stan"), rows: [{ entity: "binary_sensor.dryer_door", name: say("Door", "Drzwi") }] },
+        ],
+  };
+}
+
+const DEMO_STATION = {
+  kind: "panel", name: say("Power station", "Stacja zasilania"), icon: "mdi:home-battery-outline", entity: "sensor.station_state",
+  labels: { charging: say("Charging", "Ładuje się") }, active: "switch.station_ac",
+  stats: [
+    { name: say("Battery", "Bateria"), entity: "sensor.station_battery", unit: "%", digits: 0 },
+    { name: say("In", "Wejście"), entity: "sensor.station_in", unit: "W", digits: 0 },
+    { name: say("Out", "Wyjście"), entity: "sensor.station_out", unit: "W", digits: 0 },
+  ],
+  groups: [
+    { title: say("Outputs", "Wyjścia"), layout: "controls", rows: [
+      { entity: "switch.station_ac", name: say("AC sockets", "Gniazdka AC") }, { entity: "switch.station_usb", name: "USB" },
+      { entity: "switch.station_dc", name: "DC 12 V" }] },
+    { title: say("Charging", "Ładowanie"), layout: "controls", rows: [{ entity: "number.station_charge", name: say("AC charging (W)", "Ładowanie AC (W)") }] },
+    { title: say("Battery", "Bateria"), rows: [
+      { entity: "sensor.station_health", name: say("Health", "Kondycja") }, { entity: "sensor.station_cycles", name: say("Cycles", "Cykle") }] },
+  ],
+};
+
 const DASHBOARD = {
   background: { light: "linear-gradient(160deg, #1d3b53, #4d7ea8)", dark: "linear-gradient(160deg, #1d3b53, #4d7ea8)" },
   scenes: [tile("scene.morning"), tile("scene.movie"), tile("scene.night")],
@@ -530,7 +640,9 @@ const DASHBOARD = {
       },
       { title: say("Televisions", "Telewizory"), tiles: [{ entity: "media_player.tv", name: say("Television", "Telewizor"), icon: "mdi:television" }] },
       { title: say("Projectors", "Projektory"), tiles: [{ entity: "media_player.projector", name: say("Projector", "Projektor"), icon: "mdi:projector" }] },
-      { title: say("Other", "Inne"), tiles: [{ entity: "media_player.streamer", name: say("Streaming box", "Odtwarzacz sieciowy") }] },
+      { title: say("Other", "Inne"), tiles: [{ kind: "tv", entity: "media_player.streamer", name: "Apple TV", icon: "mdi:apple",
+        shortcuts: [{ name: "YouTube", icon: "mdi:youtube" }, { name: "TV", icon: "mdi:apple" }, { name: say("Music", "Muzyka"), icon: "mdi:music" },
+          { name: say("Photos", "Zdjęcia"), icon: "mdi:image-multiple-outline" }] }] },
     ],
   },
   menu: {
@@ -571,14 +683,6 @@ const DASHBOARD = {
     quick: { "camera.driveway": { siren: "siren.driveway_alarm", light: "light.driveway_floodlight", night: "select.driveway_night_vision" } },
   },
   intercom: { script: "script.announce", areas: ["hall", "living", "kitchen", "bedroom"], upload: "/api/intercom/message" },
-  energy: {
-    phases: [1, 2, 3].map((phase) => ({
-      power: `sensor.meter_l${phase}_power`,
-      voltage: `sensor.meter_l${phase}_voltage`,
-      current: `sensor.meter_l${phase}_current`,
-      factor: `sensor.meter_l${phase}_factor`,
-    })),
-  },
   status_panel: {
     doors: ["lock.front", "binary_sensor.balcony_door"],
     now: [{ entity: "sensor.washer_phase", detail: "sensor.washer_program", remaining: "sensor.washer_left", icon: "mdi:washing-machine", name: say("Washer", "Pralka") }],
@@ -588,6 +692,17 @@ const DASHBOARD = {
     ],
   },
   visibility: { "light.shelf": { only: ["kid"] }, "switch.coffee": { except: ["kid"] } },
+  energy: {
+    phases: [1, 2, 3].map((phase) => ({
+      power: `sensor.meter_l${phase}_power`,
+      voltage: `sensor.meter_l${phase}_voltage`,
+      current: `sensor.meter_l${phase}_current`,
+      factor: `sensor.meter_l${phase}_factor`,
+    })),
+    storage: [{ block: say("Power station", "Stacja zasilania"), name: say("Power station", "Stacja zasilania"), battery: "sensor.station_battery",
+      state: "sensor.station_state", labels: { charging: say("Charging", "Ładuje się") }, input: "sensor.station_in", output: "sensor.station_out",
+      remaining: "sensor.station_left" }],
+  },
   layout: [
     {
       id: "living",
@@ -613,6 +728,23 @@ const DASHBOARD = {
       areas: ["bedroom"],
       home: [tile("light.bedside"), tile("climate.bedroom"), tile("cover.bedroom")],
       sections: [{ title: say("Devices", "Urządzenia"), tiles: [tile("light.bedside"), tile("climate.bedroom"), tile("cover.bedroom")] }],
+    },
+    {
+      id: "bathroom",
+      name: say("Bathroom", "Łazienka"),
+      areas: ["bathroom"],
+      home: [],
+      sections: [{ title: say("Devices", "Urządzenia"), tiles: [{ kind: "scale", name: say("Scale", "Waga"), icon: "mdi:scale-bathroom", entity: "sensor.scale_mass" }] }],
+    },
+    {
+      id: "laundry",
+      name: say("Utility room", "Pralnia"),
+      areas: ["laundry"],
+      home: [],
+      sections: [
+        { title: say("Washer and dryer", "Pralka i suszarka"), tiles: [demoMachine("washer"), demoMachine("dryer")] },
+        { title: say("Devices", "Urządzenia"), tiles: [DEMO_STATION, { shortcut: say("Vacuum", "Odkurzacz"), entity: "vacuum.robot" }] },
+      ],
     },
   ],
 };
@@ -644,7 +776,13 @@ function demoStatistics(message) {
       start: start + index * step,
       change: (message.period === "hour" ? DEMO_HOURS[index % 24] : 12 + (index % 5)) * scale,
     }));
+  const weight = (id, from) =>
+    message.statistic_ids?.includes(id)
+      ? { [id]: Array.from({ length: count }, (_, index) => ({ start: start + index * step, mean: from - (index * 1.6) / count + Math.sin(index / 3) * 0.3 })) }
+      : {};
   return {
+    ...weight("sensor.alex_weight", 74),
+    ...weight("sensor.sam_weight", 31),
     "sensor.grid": rows(1),
     "sensor.grid_cost": rows(0.25),
     ...Object.fromEntries(DEMO_DEVICES.map(([id, , share]) => [id, rows(share)])),

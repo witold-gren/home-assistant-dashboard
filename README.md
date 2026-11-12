@@ -290,10 +290,17 @@ in `layout`, so a new one needs no code:
 ```
 
 Rows follow the entity: a list for `select`, a switch for `switch`, a slider for `number`, a button
-for `button` and `script`. Anything else, a lock too, is read-only and opens the details dialog.
+for `button` and `script`. Anything else, a lock too, is read-only and opens the details dialog. `order` on a row
+sets the order of its list (`[400 Rpm, 800 Rpm, 1400 Rpm]`), for a device that sends it in no useful order. On a
+tablet a block of two or more groups without a card opens wider, with its groups in columns, so it fits without
+scrolling.
 `card` adds a control card that starts only on a button, and `frame` opens a web page on the whole
-screen. `hidden_when` hides the block while that entity is on, `compact` keeps it a regular tile.
+screen. `hidden_when` hides the block while that entity is on, `compact` keeps it a regular tile. A tile
+`{shortcut: <name>}` in a room shows a block of `shortcuts` there without a second copy. `kind: scale` is a bathroom
+scale with each person's body from BodyMiScale ([guide](docs/guide.md#the-scale)).
 
+An Apple TV as `kind: tv` gets its remote by itself (arrows, OK, back, home, main menu, play and skipping, through the
+remote entity of its device), what plays now with its picture, and wakes and sleeps without `on` and `off`.
 A remote has `kind: tv` with `entity`, `on` and `off` (`{service, target}`), `shortcuts`
 (`{name, icon}`, matched to the TV's source list), `source_script` (`{service, field}`, for a TV that
 is off) and `sound_mode: true`.
@@ -375,6 +382,23 @@ energy:
 A tap on a phase, a device or a tile opens a chart of the dashboard's own, with ranges and the lowest, average and
 highest value. Details are in the [guide](docs/guide.md#8-music-energy-and-map).
 
+An energy store on a battery (a power station such as an EcoFlow) gets a card on the page: its charge as a bar, what
+it does (charging, discharging), the power in and out and how long it lasts. A tap opens the window of its block,
+named by `block`:
+
+```yaml
+energy:
+  storage:
+    - block: EcoFlow                     # a block of a room or a shortcut, opened on a tap
+      name: EcoFlow Delta 2
+      battery: sensor.ecoflow_battery_level
+      state: sensor.ecoflow_battery_charging_state
+      labels: {charging: Charging, discharging: Discharging}
+      input: sensor.ecoflow_total_in_power
+      output: sensor.ecoflow_total_out_power
+      remaining: sensor.ecoflow_remaining_time   # minutes
+```
+
 ## Cameras
 
 Cameras sit at the top of the page in a strip that scrolls sideways, with every camera that has an
@@ -416,7 +440,7 @@ from another system (e.g. Frigate, while turning and talking come from eufy). It
 The same camera in another integration**. How each camera turns (eufy, ONVIF, chosen by hand) and talks (the camera's
 speaker, go2rtc, the intercom) is chosen in **Dashboard settings → Turning and talking of each camera**. Talking
 through a camera works only once the live view moves. A camera unavailable in Home Assistant stays in its window with
-its last picture dimmed, saying "The camera is unavailable". On a phone on its side the picture fills the screen, and
+its last picture dimmed, saying "The camera is unavailable". On a phone on its side, a tablet on its side and a wide window of a computer the picture fills the screen, and
 buttons bring out the days and the line of time. Details are in the [guide](docs/guide.md#5-cameras).
 
 On a tablet all cameras fill the screen, 2 to 5 in a row (`cameras.columns`), or one big camera live with the rest
@@ -444,6 +468,17 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 `scripts/make_fixture.py`.
 
 ## FAQ
+
+**The end of a recorded intercom message is cut off** — the browser holds the last moment of the voice in its audio
+buffers, and stopping at once on Done lost it. From this version the recording goes on for 0.7 s after Done (the
+window says it is sending meanwhile), so the last words reach the speakers.
+
+**The button for talking through the camera does nothing, or is crossed out** — talking needs the microphone, and a
+browser gives it only over HTTPS. Over plain `http://` (e.g. `http://homeassistant.local:8123`) the button shows a
+crossed-out microphone and a tap says so: "Talking through the camera needs an HTTPS connection". Open Home Assistant
+over `https://`; in the Companion app set it in Settings → Companion app → Servers → internal URL. Before the live view
+moves, a tap says "Talking through the camera works once the live view is on". The intercom works without HTTPS: it
+opens a field for typing.
 
 **The camera's volume slider changed nothing on iPhone, and the sound went only at the far end** — iPhone and iPad let
 only their buttons change the volume of a video. From this version the sound goes through Web Audio and the slider

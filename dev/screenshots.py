@@ -293,6 +293,7 @@ def make(browser, base: str, language: str) -> None:
     make_look(browser, base, language, folder)
     make_apple(browser, base, language, folder)
     make_tablet(browser, base, language, folder)
+    make_devices(browser, base, language, folder)
 
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
@@ -466,6 +467,47 @@ def make_tablet(browser, base: str, language: str, folder: Path) -> None:
     tap(page, f"{SHEET} [data-tab='connections']")
     page.wait_for_selector(f"{SHEET} [data-conn-totals]")
     take(page, folder, "connections")
+
+
+def open_tile(page: Page, name: str) -> None:
+    page.locator(f"home-dashboard-page [data-tile='{name}']").evaluate("(tile) => tile.click()")
+    page.wait_for_timeout(1200)
+
+
+# The devices with windows of their own: the scale, the washer and the dryer, a power station (also on the
+# Energy page), an Apple TV, and blocks two tiles wide in a room.
+def make_devices(browser, base: str, language: str, folder: Path) -> None:
+    def say(english: str, polish: str) -> str:
+        return english if language == "en" else polish
+
+    bathroom, laundry = "&page=room&room=bathroom", "&page=room&room=laundry"
+    for name, view in (("scale-tablet", TABLET), ("scale", PHONE)):
+        page = open_page(browser, base, language, view, query=bathroom)
+        open_tile(page, say("Scale", "Waga"))
+        page.wait_for_selector(f"{SHEET} home-dashboard-scale >> [data-scale-chart]")
+        take(page, folder, name)
+
+    take(open_page(browser, base, language, TABLET, query=laundry), folder, "laundry-tablet")
+    windows = (
+        ("washer-tablet", say("Washer", "Pralka")),
+        ("station-tablet", say("Power station", "Stacja zasilania")),
+    )
+    for name, tile in windows:
+        page = open_page(browser, base, language, TABLET, query=laundry)
+        open_tile(page, tile)
+        take(page, folder, name)
+
+    page = open_page(browser, base, language, PHONE, query=laundry)
+    open_tile(page, say("Washer", "Pralka"))
+    take(page, folder, "washer")
+
+    page = open_page(browser, base, language, TABLET, query="&page=energy")
+    page.locator("home-dashboard-energy [data-energy-storage]").scroll_into_view_if_needed()
+    take(page, folder, "energy-storage")
+
+    page = open_page(browser, base, language, PHONE, query="&page=media")
+    open_tile(page, "Apple TV")
+    take(page, folder, "apple-tv")
 
 
 def main() -> None:

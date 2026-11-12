@@ -1517,3 +1517,57 @@ def test_the_scenes_editor_saves_the_row(phone):
     phone.locator("[data-edit-save]").click()
     phone.wait_for_function("window.saved.length === 1")
     assert phone.evaluate("window.saved[0].config.strategy.scenes_layout") == "row"
+
+
+# An Apple TV --------------------------------------------------------------------------------------
+APPLE_TV = {"kind": "tv", "entity": "media_player.atv", "name": "Apple TV", "shortcuts": [{"name": "YouTube", "icon": "mdi:youtube"}]}
+
+
+def open_apple_tv(page, state: str = "playing", attributes: dict | None = None) -> None:
+    add_entity(page, "media_player.atv", state, {"source_list": ["YouTube", "Emby", "TV"], "app_name": "YouTube", **(attributes or {})})
+    add_entity(page, "remote.atv", "on")
+    page.evaluate("""() => {
+        const original = window.dashboard.hass;
+        window.dashboard.hass = () => {
+            const instance = original();
+            instance.entities["media_player.atv"] = { entity_id: "media_player.atv", platform: "apple_tv", device_id: "atv" };
+            instance.entities["remote.atv"] = { entity_id: "remote.atv", platform: "apple_tv", device_id: "atv" };
+            return instance;
+        };
+    }""")
+    mount(page, room_with(APPLE_TV))
+    page.locator("home-dashboard-page [data-tile='Apple TV']").click()
+    page.wait_for_selector(f"{SHEET} section.panel[data-kind='tv']")
+
+
+def test_an_apple_tv_has_its_remote(phone):
+    open_apple_tv(phone)
+    phone.locator(f"{SHEET} [data-tv-key='select']").click()
+    phone.locator(f"{SHEET} [data-tv-key='menu']").click()
+    sent = [(call["domain"], call["service"], call["data"]) for call in calls(phone)]
+    assert sent == [
+        ("remote", "send_command", {"entity_id": "remote.atv", "command": "select"}),
+        ("remote", "send_command", {"entity_id": "remote.atv", "command": "menu"}),
+    ]
+
+
+def test_an_apple_tv_shows_what_plays_and_pauses_it(phone):
+    open_apple_tv(phone, attributes={"media_title": "Wiadomości", "media_artist": "Kanał"})
+    now = phone.locator(f"{SHEET} [data-tv-now]")
+    assert "Wiadomości" in now.inner_text() and "Kanał · YouTube" in now.inner_text()
+    now.locator("[data-tv-now-play]").click()
+    assert (calls(phone)[-1]["domain"], calls(phone)[-1]["service"]) == ("media_player", "media_play_pause")
+
+
+def test_an_apple_tv_without_its_own_power_wakes_itself(phone):
+    open_apple_tv(phone, "off")
+    phone.locator(f"{SHEET} [data-remote='tv_power']").click()
+    assert (calls(phone)[-1]["domain"], calls(phone)[-1]["service"], calls(phone)[-1]["data"]) == (
+        "media_player", "turn_on", {"entity_id": "media_player.atv"})
+    assert phone.locator(f"{SHEET} [data-tv-key='up']").is_disabled()
+
+
+def test_an_apple_tv_asleep_wakes_for_an_app(phone):
+    open_apple_tv(phone, "off")
+    phone.locator(f"{SHEET} [data-shortcut='YouTube']").click()
+    assert (calls(phone)[-1]["domain"], calls(phone)[-1]["service"]) == ("media_player", "turn_on")

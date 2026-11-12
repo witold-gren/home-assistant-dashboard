@@ -104,3 +104,50 @@ def test_done_with_the_endpoint_sends_no_service_call(phone):
     phone.wait_for_selector(f"{CARD}[data-intercom-state='sent']")
     assert phone.evaluate("window.uploads") == ["/api/intercom/message?areas=area_a"]
     assert [call for call in phone.evaluate("window.hass.calls") if call["type"] == "message"] == []
+
+
+# The end of a recording -----------------------------------------------------------------------------
+RECORD = """async (speak) => {
+    const i = await import('/custom_components/home_dashboard/www/app/intercom.js');
+    // A made-up microphone: a tone from another audio context.
+    const source = new AudioContext();
+    const tone = source.createOscillator();
+    const out = source.createMediaStreamDestination();
+    tone.connect(out); tone.start();
+    navigator.mediaDevices.getUserMedia = async () => out.stream;
+    const recorder = i.createRecorder(window.dashboard.hass(), { intercom: { upload: '/api/intercom/message' } });
+    await recorder.start();
+    await new Promise((resolve) => setTimeout(resolve, speak));
+    const wav = await recorder.stop();
+    if (!wav) return null;
+    const view = new DataView(await wav.arrayBuffer());
+    return (view.byteLength - 44) / view.getUint32(28, true);
+}"""
+
+
+def test_a_recording_keeps_its_end_after_done(phone):
+    # About 1.2 s of voice, then Done: what was said up to the tap is all in the file.
+    seconds = phone.evaluate(RECORD, 1200)
+    assert seconds is not None
+    assert seconds >= 1.6
+
+
+def test_a_recording_closed_during_its_tail_sends_nothing(phone):
+    result = phone.evaluate("""async () => {
+        const i = await import('/custom_components/home_dashboard/www/app/intercom.js');
+        const source = new AudioContext(); const tone = source.createOscillator();
+        const out = source.createMediaStreamDestination(); tone.connect(out); tone.start();
+        navigator.mediaDevices.getUserMedia = async () => out.stream;
+        const recorder = i.createRecorder(window.dashboard.hass(), { intercom: { upload: '/x' } });
+        await recorder.start();
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const stopped = recorder.stop();
+        recorder.cancel();
+        return await stopped; }""")
+    assert result is None
+
+
+def test_closing_the_window_drops_the_recording_at_once(phone):
+    open_card(phone)
+    phone.evaluate("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()")
+    assert "cancel" in phone.evaluate("window.recorderLog")

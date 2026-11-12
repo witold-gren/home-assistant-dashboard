@@ -50,6 +50,18 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 |---|---|---|---|
 | ![Odkurzacz](screenshots/pl/vacuum.png) | ![Media](screenshots/pl/media.png) | ![Muzyka](screenshots/pl/music.png) | ![Mapa](screenshots/pl/map.png) |
 
+| Waga | Pralka | Apple TV z pilotem |
+|---|---|---|
+| ![Waga](screenshots/pl/scale.png) | ![Pralka](screenshots/pl/washer.png) | ![Apple TV z pilotem](screenshots/pl/apple-tv.png) |
+
+| Pralka, suszarka, stacja zasilania i odkurzacz w pokoju | Pralka na tablecie |
+|---|---|
+| ![Pralka, suszarka, stacja zasilania i odkurzacz w pokoju](screenshots/pl/laundry-tablet.png) | ![Pralka na tablecie](screenshots/pl/washer-tablet.png) |
+
+| Waga na tablecie | Stacja zasilania na tablecie |
+|---|---|
+| ![Waga na tablecie](screenshots/pl/scale-tablet.png) | ![Stacja zasilania na tablecie](screenshots/pl/station-tablet.png) |
+
 ## Kamery i interkom
 
 | Kamera | Wszystkie kamery | Połączenia kamery na baterię | Interkom |
@@ -77,6 +89,10 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 | Energia na tablecie z fazami licznika | Wykres fazy |
 |---|---|
 | ![Energia na tablecie z fazami licznika](screenshots/pl/energy-tablet.png) | ![Wykres fazy](screenshots/pl/energy-chart.png) |
+
+| Magazyn energii na stronie Energii |
+|---|
+| ![Magazyn energii na stronie Energii](screenshots/pl/energy-storage.png) |
 
 ## Skróty i bloki
 

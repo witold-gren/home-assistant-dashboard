@@ -64,6 +64,12 @@ export function talkMode(hass, entityId, config, { room } = {}) {
   return intercom;
 }
 
+/**
+ * Whether this page may ask for the microphone at all: a browser gives it only over HTTPS (or on localhost), so over
+ * plain http:// there is no `navigator.mediaDevices` and talking through a camera cannot start.
+ */
+export const microphoneReachable = () => Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia);
+
 /** Start talking through a speaker found by talkMode, whichever way it is reached. */
 export function startTalk(hass, speaker, options = {}) {
   return speaker.go2rtc ? startGo2rtcTalk(hass, speaker.go2rtc, options) : startCameraTalk(hass, speaker.path, options);

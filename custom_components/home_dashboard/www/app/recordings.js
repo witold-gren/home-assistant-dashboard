@@ -800,7 +800,7 @@ export class HomeDashboardTimeline extends LitElement {
       .time.quiet {
         visibility: hidden;
       }
-      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) {
         .time.quiet {
           display: none;
         }
@@ -860,7 +860,7 @@ export class HomeDashboardTimeline extends LitElement {
         height: 100%;
         --mdc-icon-size: 24px;
       }
-      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) {
         .skip {
           display: grid;
         }

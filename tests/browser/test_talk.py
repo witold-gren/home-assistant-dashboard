@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from .conftest import TABLET, open_harness
 from .test_shortcuts import mount_admin
 
 SHEET = "home-dashboard-sheet"
@@ -138,13 +141,55 @@ def open_hall(page) -> None:
 def test_nobody_is_talked_to_before_they_can_be_seen(phone):
     open_hall(phone)
     button = phone.locator(f"{SHEET} [data-camera-talk]")
-    assert button.is_disabled()
+    assert button.get_attribute("aria-disabled") == "true"
     assert "podglądu na żywo" in button.get_attribute("aria-label")
     # Live, but the camera still wakes: still nobody to see.
     phone.evaluate(f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; }}")
-    assert button.is_disabled()
+    assert button.get_attribute("aria-disabled") == "true"
     see_live(phone)
-    assert button.is_enabled()
+    assert button.get_attribute("aria-disabled") == "false"
+
+
+def test_a_tap_before_the_live_view_says_it_is_needed_and_starts_nothing(phone):
+    open_hall(phone)
+    phone.evaluate("() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }")
+    # A button that waits can still be tapped, to say why it waits.
+    phone.locator(f"{SHEET} [data-camera-talk]").click(force=True)
+    note = phone.locator(f"{SHEET} [data-talk-problem]")
+    assert "podglądu na żywo" in note.inner_text()
+    assert phone.evaluate("window.sockets") == 0
+
+
+def without_https(page) -> None:
+    # As over plain http:// on the home network: the browser gives no microphone at all.
+    page.evaluate("() => Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })")
+
+
+def test_without_https_the_talk_button_is_crossed_out_and_only_explains(phone):
+    without_https(phone)
+    open_hall(phone)
+    see_live(phone)
+    button = phone.locator(f"{SHEET} [data-camera-talk]")
+    assert button.locator("ha-icon").get_attribute("icon") == "mdi:microphone-off"
+    assert "HTTPS" in button.get_attribute("aria-label")
+    phone.evaluate("() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }")
+    button.click(force=True)
+    assert "HTTPS" in phone.locator(f"{SHEET} [data-talk-problem]").inner_text()
+    assert phone.evaluate("window.sockets") == 0
+
+
+def test_on_its_side_the_note_on_https_shows_over_the_picture(tablet_touch):
+    without_https(tablet_touch)
+    open_hall(tablet_touch)
+    see_live(tablet_touch)
+    # Without a moving video the header of the harness lies over the button, so the tap goes to it directly.
+    tablet_touch.locator(f"{SHEET} [data-camera-talk]").dispatch_event("click")
+    note = tablet_touch.locator(f"{SHEET} [data-talk-problem]")
+    assert note.is_visible()
+    box = note.bounding_box()
+    assert box["y"] < 300 and box["height"] > 20
+    # It goes away by itself.
+    tablet_touch.wait_for_selector(f"{SHEET} [data-talk-problem]", state="detached", timeout=9000)
 
 
 def test_the_end_of_the_live_view_ends_the_talk(phone):
@@ -302,3 +347,10 @@ def test_on_its_side_the_talk_button_stands_over_the_button_of_the_line(phone):
     assert abs((talk["x"] + talk["width"]) - (line["x"] + line["width"])) < 2
     assert round(talk["width"]) == round(line["width"]) == 48
     assert abs(line["y"] - (talk["y"] + talk["height"]) - 12) < 2
+
+
+@pytest.fixture
+def tablet_touch(browser, base_url: str):
+    page = open_harness(browser, base_url, TABLET, touch=True)
+    yield page
+    page.close()

@@ -25,6 +25,7 @@ import { createRecorder } from "./intercom.js";
 import { dismissAlert, homeAlerts, shownAlerts } from "./alerts.js";
 import {
   applyFilter,
+  blockFor,
   buildHomeModel,
   buildPeople,
   buildRoomList,
@@ -487,6 +488,8 @@ export class HomeDashboardPage extends LitElement {
     if (tile.tapAction === "panel" || tile.tapAction === "tv") {
       openSheet(this, { kind: tile.tapAction, entityId: tile.entityId, item: tile.item });
     }
+    // A block with a window of its own, as the scale.
+    if (tile.tapAction === "block") openSheet(this, { kind: tile.item.kind, entityId: tile.entityId, item: tile.item });
     if (tile.tapAction === "pin") {
       openSheet(this, { kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin });
     }
@@ -1297,6 +1300,11 @@ export class HomeDashboardPage extends LitElement {
       ${this._energy
         ? html`<home-dashboard-energy
             @energy-chart=${(event) => openSheet(this, { kind: "chart", chart: event.detail })}
+            @energy-block=${(event) => {
+              const store = event.detail;
+              const block = blockFor(this._config, [store.battery, store.state, store.input, store.output], store.block);
+              if (block) openSheet(this, { kind: block.kind, entityId: block.entity, item: block });
+            }}
             .hass=${this._hass}
             .config=${this._config}
             .prefs=${this._energy.prefs}
@@ -1706,7 +1714,7 @@ export class HomeDashboardPage extends LitElement {
         height: 44px;
         border: 2px solid var(--hd-badge-kind-ring, var(--pill-ring, var(--hd-look-badge-ring, var(--hd-outline))));
         border-radius: 50%;
-        background: var(--hd-badge-kind-fill, var(--pill-fill, transparent));
+        background: var(--hd-badge-kind-fill, var(--hd-badge-fill, var(--pill-fill, transparent)));
         color: var(--hd-badge-kind-ink, var(--pill-ink, var(--hd-look-badge-icon, var(--hd-off-ink))));
       }
       .pill-text {
@@ -2356,18 +2364,22 @@ export class HomeDashboardPage extends LitElement {
         min-height: 0;
         overflow: hidden;
         background: var(--hd-off);
+        border-radius: var(--camera-tl, 0) var(--camera-tr, 0) var(--camera-br, 0) var(--camera-bl, 0);
+        clip-path: inset(0 round var(--camera-tl, 0) var(--camera-tr, 0) var(--camera-br, 0) var(--camera-bl, 0));
       }
+      /* The corners of the strip are round. Clipped by a path too: Safari leaves a blurred picture (an unavailable
+         camera) square over rounded corners that only overflow hides. */
       .camera-column:first-child .camera:first-child {
-        border-top-left-radius: 24px;
+        --camera-tl: 24px;
       }
       .camera-column:first-child .camera:last-child {
-        border-bottom-left-radius: 24px;
+        --camera-bl: 24px;
       }
       .camera-column:last-child .camera:first-child {
-        border-top-right-radius: 24px;
+        --camera-tr: 24px;
       }
       .camera-column:last-child .camera:last-child {
-        border-bottom-right-radius: 24px;
+        --camera-br: 24px;
       }
       .camera img {
         display: block;
@@ -2452,7 +2464,10 @@ export class HomeDashboardPage extends LitElement {
         display: block;
         flex: none;
         aspect-ratio: 16 / 9;
-        border-radius: var(--hd-radius);
+        --camera-tl: var(--hd-radius);
+        --camera-tr: var(--hd-radius);
+        --camera-br: var(--hd-radius);
+        --camera-bl: var(--hd-radius);
       }
       .camera.offline {
         background: #3a3d44;
@@ -2753,12 +2768,16 @@ export class HomeDashboardPage extends LitElement {
             width: fit-content;
             max-width: 100%;
           }
+          /* A width of its own, not only a flex basis: Safari measures the fitted strip by the size of the pictures
+             in it, so a small last frame (320 px of an unavailable camera) cut the column and let it scroll. */
           .camera-column {
             flex: 0 0 412px;
+            width: 412px;
             height: 232px;
           }
           .camera-column.stacked {
             flex: 0 0 205px;
+            width: 205px;
           }
           .camera-list {
             display: grid;
@@ -2809,8 +2828,23 @@ export class HomeDashboardPage extends LitElement {
           .cards.energy > :first-child {
             grid-column: 1 / -1;
           }
+          /* Two columns at least, so a tile two wide never makes one of its own. */
           .tiles {
-            grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(196px, calc(50% - 4px)), 1fr));
+          }
+          /* A tile with numbers (a block) is two tiles wide, not the whole row, and comes after the ordinary tiles
+             of its section: in their row its height would stretch them. */
+          .tiles > .tile.wide {
+            grid-column: span 2;
+            order: 1;
+          }
+          /* The first of them starts a row of its own; the next stand beside it while there is room. Not filled
+             back into the holes of the rows above, as tall tiles are. */
+          .tiles:has(> .tile.wide) {
+            grid-auto-flow: row;
+          }
+          .tiles > .tile.wide:not(.tile.wide ~ .tile.wide) {
+            grid-column: 1 / span 2;
           }
           .tiles.row > .tile {
             flex-basis: 220px;

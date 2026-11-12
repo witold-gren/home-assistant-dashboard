@@ -8,7 +8,7 @@ import { homeAlerts, shownAlerts } from "./alerts.js";
 import { STATUS_PARTS } from "./appearance.js";
 import { departureLines, lineColours } from "./departures.js";
 import { countLabel, translate } from "./i18n.js";
-import { buildWeather, domainOf, FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
+import { blockFor, buildWeather, domainOf, FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
 import { precipitationKind } from "./weather.js";
 
@@ -69,6 +69,8 @@ export function statusNow(hass, items) {
     return [
       {
         entity: item.entity,
+        entities: [item.entity, item.detail, item.remaining],
+        block: item.block ?? null,
         name: nameOf(hass, item),
         icon: item.icon ?? stateObj.attributes.icon ?? DOMAIN_ICONS[domainOf(item.entity)] ?? "mdi:information-outline",
         // Its own state (a phase, the next hour) and what `detail` adds (a programme), without the empty ones.
@@ -323,6 +325,13 @@ export class HomeDashboardStatusPanel extends LitElement {
     this.dispatchEvent(new CustomEvent("status-open", { bubbles: true, composed: true, detail: target }));
   }
 
+  // A washer or a dryer opens the window of its block (found by its entities, or `block` by name); else its details.
+  _openNow(item) {
+    const block = blockFor(this.config, item.entities, item.block);
+    if (block) this._open({ kind: "block", block });
+    else this._more(item.entity);
+  }
+
   _more(entityId) {
     if (!entityId) return;
     this.dispatchEvent(new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId } }));
@@ -373,7 +382,7 @@ export class HomeDashboardStatusPanel extends LitElement {
       this._t("status_now"),
       items.map(
         (item) => html`
-          <button class="row" data-status-now=${item.entity} @click=${() => this._more(item.entity)}>
+          <button class="row" data-status-now=${item.entity} @click=${() => this._openNow(item)}>
             <ha-icon .icon=${item.icon}></ha-icon>
             <span class="row-text"><strong>${item.name}</strong><small>${item.detail}</small></span>
             ${item.value ? html`<em>${item.value}</em>` : nothing}

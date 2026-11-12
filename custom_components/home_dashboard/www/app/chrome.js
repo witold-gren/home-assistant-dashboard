@@ -729,6 +729,8 @@ export class HomeDashboardChrome extends LitElement {
     } else if (detail.kind === "departures") {
       const block = detail.block ?? shortcuts.find((item) => item?.kind === "departures");
       if (block) this._openShortcut(block);
+    } else if (detail.kind === "block") {
+      this.open({ type: "sheet", sheet: { kind: detail.block.kind, entityId: detail.block.entity, item: detail.block } });
     } else if (detail.kind === "energy") {
       this._navigate(PAGES.find((page) => page.key === "energy"));
     }

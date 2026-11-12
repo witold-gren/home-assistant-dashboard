@@ -368,3 +368,17 @@ def test_an_empty_choice_leaves_the_room_without_scenes(phone):
     phone.evaluate(MOUNT_ADMIN, {"dashboard": dashboard, "room": "r"})
     phone.wait_for_selector("home-dashboard-page [data-section]")
     assert phone.locator("home-dashboard-page [data-room-scenes]").count() == 0
+
+
+def test_a_tile_naming_a_shortcut_stays_as_it_is_when_the_room_is_saved(phone):
+    (light,) = ids(phone, "light.", 1)
+    vacuum = {"kind": "panel", "name": "Odkurzacz", "stats": [], "actions": []}
+    tile = {"shortcut": "Odkurzacz", "entity": light}
+    dashboard = {
+        "shortcuts": [vacuum],
+        "layout": [{"id": "r", "name": "Pokój", "areas": [], "home": [],
+                    "sections": [{"title": "Jeden", "tiles": [{"entity": light, "name": "A"}, tile]}]}],
+    }
+    open_editor(phone, dashboard)
+    room = saved_room(phone)
+    assert tile in room["sections"][0]["tiles"]

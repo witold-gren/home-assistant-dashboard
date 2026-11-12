@@ -32,7 +32,7 @@ export const BUILTIN_THEMES = [
       text: { title: "#ffffff", headings: "#ffffff" },
       chips: { background: "#000000", text: "#ffffff", opacity: 26, radius: 24 },
       buttons: { background: "#ffffff", icon: "#ffffff", opacity: 22 },
-      badges: { text: "#ffffff", icon: "#ffffff", kinds: false },
+      badges: { text: "#ffffff", icon: "#ffffff", fill: false },
       // A window shows the page it opened from, blurred and a little darker.
       map: { theme: "dark" },
       sheets: { background: "#000000", text: "#ffffff", controls: "#ffffff26", cards: "#00000000", opacity: 22, blur: 40, scrim: 15 },

@@ -55,7 +55,7 @@ def test_the_summary_adds_up_what_the_house_used(phone):
     assert [device["id"] for device in summary["devices"]] == ["sensor.tv", "sensor.fridge"]
 
 
-def mount_energy(page) -> None:
+def mount_energy(page, dashboard: dict | None = None) -> None:
     page.evaluate("""(arg) => {
         const original = window.dashboard.hass;
         window.asked = [];
@@ -71,7 +71,8 @@ def mount_energy(page) -> None:
             return null;
         } });
     }""", {"prefs": NEW_PREFS, "info": INFO})
-    page.evaluate("async () => { window.card = await window.dashboard.mount(window.dashboard.hass(), {}, 'energy'); }")
+    page.evaluate("async (dashboard) => { window.card = await window.dashboard.mount(window.dashboard.hass(), dashboard, 'energy'); }",
+                  dashboard or {})
     page.wait_for_selector("home-dashboard-energy [data-energy-tile='energy_used']")
 
 
@@ -290,3 +291,65 @@ def test_a_device_shows_its_energy_as_bars_with_its_total(tablet):
     assert asked["statistic_ids"] == ["sensor.dishwasher"] and asked["period"] == "hour"
     facts = tablet.locator(f"{SHEET} [data-chart-facts]").inner_text()
     assert "6,1 kWh" in facts and "1,5 kWh" in facts
+
+
+# An energy store ---------------------------------------------------------------------------------
+STORE = {"block": "EcoFlow", "name": "Delta", "battery": "sensor.store_battery", "state": "sensor.store_state",
+         "labels": {"charging": "Ładuje się"}, "input": "sensor.store_in", "output": "sensor.store_out",
+         "remaining": "sensor.store_left"}
+STORE_BLOCK = {"kind": "panel", "name": "EcoFlow", "entity": "sensor.store_state",
+               "groups": [{"title": "A", "rows": [{"entity": "sensor.store_in"}]}, {"title": "B", "rows": []}]}
+
+
+def add_store(page) -> None:
+    page.evaluate("""() => { const snapshot = window.dashboard.snapshot;
+        const add = (id, state, unit) => { snapshot.states[id] = { entity_id: id, state, attributes: unit ? { unit_of_measurement: unit } : {} }; };
+        add('sensor.store_battery', '76', '%'); add('sensor.store_state', 'charging');
+        add('sensor.store_in', '410', 'W'); add('sensor.store_out', '35', 'W'); add('sensor.store_left', '95', 'min'); }""")
+
+
+def store_dashboard() -> dict:
+    return {"energy": {"storage": [STORE]},
+            "layout": [{"id": "g", "name": "Garaż", "areas": [], "home": [], "sections": [{"title": "X", "tiles": [STORE_BLOCK]}]}]}
+
+
+def test_an_energy_store_shows_its_charge_power_and_time(phone):
+    add_store(phone)
+    mount_energy(phone, store_dashboard())
+    card = energy(phone, "[data-energy-store='Delta']")
+    text = card.inner_text()
+    for expected in ("Delta", "Ładuje się", "76%", "410 W", "35 W", "1 h 35 min"):
+        assert expected in text
+
+
+def test_a_tap_on_the_store_opens_the_window_of_its_block(phone):
+    add_store(phone)
+    mount_energy(phone, store_dashboard())
+    energy(phone, "[data-energy-store='Delta']").click()
+    phone.wait_for_selector("home-dashboard-sheet section.panel[data-kind='panel']")
+    assert "EcoFlow" in phone.locator("home-dashboard-sheet header").first.inner_text()
+
+
+def test_without_storage_the_page_has_no_store(phone):
+    mount_energy(phone)
+    assert energy(phone, "[data-energy-storage]").count() == 0
+
+
+def test_a_finger_on_the_chart_reads_the_value_of_that_hour(phone):
+    mount_energy(phone)
+    plot = energy(phone, "[data-energy-plot]")
+    box = plot.bounding_box()
+    # The first hour of the day: 1.25 kWh in the statistics of the test.
+    phone.mouse.move(box["x"] + 2, box["y"] + box["height"] / 2)
+    readout = energy(phone, "[data-energy-readout]").inner_text()
+    assert "00:00" in readout and "1,25 kWh" in readout
+    assert energy(phone, ".level").count() == 2
+
+
+def test_a_store_that_is_away_says_so_instead_of_zeros(phone):
+    add_store(phone)
+    phone.evaluate("() => { window.dashboard.snapshot.states['sensor.store_battery'].state = 'unknown'; }")
+    mount_energy(phone, store_dashboard())
+    text = energy(phone, "[data-energy-store='Delta']").inner_text()
+    assert "Brak połączenia" in text
+    assert "Wejście" not in text

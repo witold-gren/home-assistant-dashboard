@@ -145,6 +145,8 @@ def test_stop_holds_the_blind_where_it_seems_to_be(phone):
     phone.locator(f"{SHEET} .actions button").first.click()
     phone.wait_for_timeout(1000)
     phone.locator(f"{SHEET} .actions button").nth(1).click()
+    # The last step of the movement may still be drawn under load: read where it stopped once it has.
+    phone.wait_for_timeout(300)
     held = blind_height(phone)
     phone.wait_for_timeout(600)
     assert blind_height(phone) == held

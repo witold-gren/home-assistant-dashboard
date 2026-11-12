@@ -61,6 +61,7 @@ import {
   blockRowName,
   isTvOn,
   matchSource,
+  orderedOptions,
   panelStats,
   panelValue,
   pressCall,
@@ -76,7 +77,7 @@ import { WIDE_WEATHER } from "./weather.js";
 import { WIDE_DEPARTURES } from "./departures.js";
 import { createSoundMixer, hasSound } from "./sound.js";
 import { clipFor, PictureZoom } from "./zoom.js";
-import { startTalk, talkMode, TALK_LIMIT_MS } from "./talk.js";
+import { microphoneReachable, startTalk, talkMode, TALK_LIMIT_MS } from "./talk.js";
 import {
   activeTheme,
   addTheme,
@@ -115,6 +116,8 @@ import { roomActions } from "./status.js";
 import { backgroundStyle, currentColorMode, isDark, screenShape, tokens } from "./styles.js";
 
 const COMMIT_DELAY_MS = 500;
+// How long a note on why talking through a camera does not work stays.
+const TALK_PROBLEM_MS = 6000;
 const COVER_SET_POSITION = 4;
 const COVER_STOP = 8;
 const COVER_TICK_MS = 250;
@@ -166,9 +169,8 @@ const LIVE_HEAR_TICK_MS = 50;
 // A long press on the sound button opens its slider.
 const SOUND_HOLD_MS = 500;
 // A phone on its side: the camera fills the screen and the days and the line of time wait at its edges.
-// The camera on the whole screen: a phone on its side, and a tablet on its side (a touch screen, so a computer with a
-// mouse keeps its window).
-const LANDSCAPE_PHONE = "(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse)";
+// The camera on the whole screen: a phone on its side, and a tablet or a computer with a wide window.
+const LANDSCAPE_PHONE = "(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px)";
 const SWIPE_AWAY_PX = 40;
 const PLAYER_TICK_MS = 1000;
 const DIAL_SIZE = 280;
@@ -203,6 +205,22 @@ const WEBOS_KEYS = [
   { key: "tv_key_play", button: "PLAY", icon: "mdi:play" },
   { key: "tv_key_pause", button: "PAUSE", icon: "mdi:pause" },
   { key: "tv_key_channel_up", button: "CHANNELUP", icon: "mdi:plus-box-outline" },
+];
+// An Apple TV's remote: the commands of `remote.send_command` on the remote entity of its device.
+const APPLE_ARROWS = [
+  { key: "tv_key_up", button: "up", icon: "mdi:chevron-up", place: "up" },
+  { key: "tv_key_left", button: "left", icon: "mdi:chevron-left", place: "left" },
+  { key: "tv_key_ok", button: "select", label: "OK", place: "ok" },
+  { key: "tv_key_right", button: "right", icon: "mdi:chevron-right", place: "right" },
+  { key: "tv_key_down", button: "down", icon: "mdi:chevron-down", place: "down" },
+];
+const APPLE_KEYS = [
+  { key: "tv_key_back", button: "menu", icon: "mdi:arrow-left" },
+  { key: "tv_key_home", button: "home", icon: "mdi:television-guide" },
+  { key: "tv_key_top_menu", button: "top_menu", icon: "mdi:menu" },
+  { key: "tv_key_play_pause", button: "play_pause", icon: "mdi:play-pause" },
+  { key: "tv_key_skip_backward", button: "skip_backward", icon: "mdi:rewind-10" },
+  { key: "tv_key_skip_forward", button: "skip_forward", icon: "mdi:fast-forward-10" },
 ];
 const LIGHT_HOLD_MS = 2000;
 const COLOUR_MODES = new Set(["hs", "xy", "rgb", "rgbw", "rgbww"]);
@@ -261,6 +279,7 @@ const ENTITY_FREE_KINDS = new Set([
   "pin",
   "room-view",
   "rooms",
+  "scale",
   "school",
   "overview",
   "tile-edit",
@@ -577,6 +596,8 @@ export class HomeDashboardSheet extends LitElement {
   async _close() {
     if (this._leaving) return;
     this._leaving = true;
+    // A message still being recorded is dropped now, not when the window is gone.
+    this.renderRoot.querySelector("home-dashboard-intercom")?.recorder?.cancel();
     await this._slideOut();
     this.dispatchEvent(new CustomEvent("sheet-close"));
   }
@@ -1606,22 +1627,40 @@ export class HomeDashboardSheet extends LitElement {
       `;
     }
     const talking = Boolean(this._talking);
-    // Talking through a camera only to someone who can be seen: the live view must be moving first.
+    // Talking through a camera only to someone who can be seen: the live view must be moving first. Over plain
+    // http:// the browser gives no microphone, so the button is crossed out and only says why.
     const seeing = this._live && this._liveShown;
+    const blocked = !talking && !microphoneReachable();
+    const waiting = !talking && !blocked && !seeing;
+    const label = talking
+      ? this._talkState === "connecting" ? "talk_connecting" : "talk_stop"
+      : blocked ? "talk_https" : seeing ? "talk_camera" : "talk_needs_live";
     return html`
       <button
-        class="voice camera-talk ${talking ? "on" : ""} ${talking && this._talkState === "connecting" ? "connecting" : ""}"
-        aria-label=${this._t(
-          talking ? (this._talkState === "connecting" ? "talk_connecting" : "talk_stop") : seeing ? "talk_camera" : "talk_needs_live",
-        )}
+        class="voice camera-talk ${talking ? "on" : ""} ${talking && this._talkState === "connecting" ? "connecting" : ""}
+          ${blocked ? "blocked" : ""} ${waiting ? "waiting" : ""}"
+        aria-label=${this._t(label)}
         aria-pressed=${talking ? "true" : "false"}
-        ?disabled=${this._talkBusy || (!talking && !seeing)}
+        aria-disabled=${blocked || waiting ? "true" : "false"}
+        ?disabled=${this._talkBusy}
         data-camera-talk
-        @click=${() => (talking ? this._stopTalk() : this._startTalk(talk.speaker))}
+        @click=${() => {
+          if (talking) this._stopTalk();
+          else if (blocked) this._sayTalkProblem("https");
+          else if (waiting) this._sayTalkProblem("needs_live");
+          else this._startTalk(talk.speaker);
+        }}
       >
-        <ha-icon icon=${talking ? "mdi:microphone" : "mdi:account-voice"}></ha-icon>
+        <ha-icon icon=${talking ? "mdi:microphone" : blocked ? "mdi:microphone-off" : "mdi:account-voice"}></ha-icon>
       </button>
     `;
+  }
+
+  // Why talking did not start or ended, for a few seconds: on a screen on its side it lies over the picture.
+  _sayTalkProblem(reason) {
+    clearTimeout(this._talkProblemTimer);
+    this._talkProblem = reason;
+    this._talkProblemTimer = setTimeout(() => (this._talkProblem = null), TALK_PROBLEM_MS);
   }
 
   async _startTalk(speaker) {
@@ -1636,14 +1675,14 @@ export class HomeDashboardSheet extends LitElement {
           this._talkState = null;
           clearTimeout(this._talkTimer);
           this._talking = null;
-          if (reason) this._talkProblem = reason;
+          if (reason) this._sayTalkProblem(reason);
         },
       });
       this._talking = session;
       // Talking ends by itself after a while, so a forgotten button does not keep the camera's speaker on.
       this._talkTimer = setTimeout(() => this._stopTalk(), TALK_LIMIT_MS);
     } catch (error) {
-      this._talkProblem = error.reason ?? "failed";
+      this._sayTalkProblem(error.reason ?? "failed");
     } finally {
       this._talkBusy = false;
     }
@@ -2517,7 +2556,9 @@ export class HomeDashboardSheet extends LitElement {
               }}
             ></home-dashboard-intercom>`
           : nothing}
-        ${this._talkProblem ? html`<p class="hint" data-talk-problem>${this._t(`talk_${this._talkProblem}`)}</p>` : nothing}
+        ${this._talkProblem
+          ? html`<p class="hint talk-problem" role="status" data-talk-problem>${this._t(`talk_${this._talkProblem}`)}</p>`
+          : nothing}
         ${battery
           ? html`<p class="hint battery-hint ${this._clip ? "faint" : ""}" data-battery-hint>${this._t("battery_hint")}</p>`
           : nothing}
@@ -2717,6 +2758,7 @@ export class HomeDashboardSheet extends LitElement {
     }
     if (tile.tapAction === "sheet") this._change({ kind: TILE_SHEETS[tile.domain], entityId: tile.entityId, name: tile.name });
     if (tile.tapAction === "panel") this._change({ kind: "panel", entityId: tile.entityId, item: tile.item });
+    if (tile.tapAction === "block") this._change({ kind: tile.item.kind, entityId: tile.entityId, item: tile.item });
     if (tile.tapAction === "pin") {
       this._change({ kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin });
     }
@@ -3607,6 +3649,10 @@ export class HomeDashboardSheet extends LitElement {
         this._setLookGroup("buttons", { opacity: value }),
       )}
       ${heading("look_group_badges")} ${this._renderColourField("badges", "text")} ${this._renderColourField("badges", "icon")}
+      <label class="field" data-look-badge-fill>
+        <span>${this._t("look_badge_fill")}</span>
+        <input type="checkbox" .checked=${badges.fill} @change=${(event) => this._setLookGroup("badges", { fill: event.target.checked })} />
+      </label>
       <label class="field" data-look-badge-kinds>
         <span>${this._t("look_badge_kinds")}</span>
         <input type="checkbox" .checked=${badges.kinds} @change=${(event) => this._setLookGroup("badges", { kinds: event.target.checked })} />
@@ -4181,6 +4227,13 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  _renderScale() {
+    return html`
+      ${this._renderHeader(this.sheet.item.name, false, false)}
+      <home-dashboard-scale .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-scale>
+    `;
+  }
+
   _renderSchool() {
     return html`
       ${this._renderHeader(this.sheet.item.name, false, false)}
@@ -4556,7 +4609,7 @@ export class HomeDashboardSheet extends LitElement {
           ?disabled=${unavailable}
           @change=${(event) => this._selectOption(entity, event.target.value)}
         >
-          ${(stateObj.attributes.options ?? []).map(
+          ${orderedOptions(stateObj.attributes.options, row.order).map(
             (option) => html`
               <option value=${option} ?selected=${option === stateObj.state}>${row.labels?.[option] ?? option}</option>
             `,
@@ -4691,7 +4744,7 @@ export class HomeDashboardSheet extends LitElement {
   }
 
   _renderChoices(row, stateObj) {
-    const options = stateObj.attributes.options ?? [];
+    const options = orderedOptions(stateObj.attributes.options, row.order);
     return html`
       <div class="choice-field" data-field=${row.entity}>
         <h3>${row.name}</h3>
@@ -4919,14 +4972,16 @@ export class HomeDashboardSheet extends LitElement {
             </button>`
           : nothing}
         ${item.card_open ? nothing : this._renderActions(item.actions)}
-        ${(item.groups ?? []).map(
-          (group) => html`
-            ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
-            ${group.layout === "summary" ? this._renderSummary(group) : nothing}
-            ${group.layout === "controls" ? this._renderControls(group.rows) : nothing}
-            ${group.layout ? nothing : group.rows.map((row) => this._renderPanelRow(row))}
-          `,
-        )}
+        <div class="panel-groups" data-panel-groups>
+          ${(item.groups ?? []).map(
+            (group) => html`<div class="panel-group">
+              ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
+              ${group.layout === "summary" ? this._renderSummary(group) : nothing}
+              ${group.layout === "controls" ? this._renderControls(group.rows) : nothing}
+              ${group.layout ? nothing : group.rows.map((row) => this._renderPanelRow(row))}
+            </div>`,
+          )}
+        </div>
         ${item.card_last && item.card_open ? html`<div class="live panel-card" data-live></div>` : nothing}
       </div>
     `;
@@ -5052,7 +5107,7 @@ export class HomeDashboardSheet extends LitElement {
       const [domain, service] = item.source_script.service.split(".");
       this.hass.callService(domain, service, { [item.source_script.field]: source });
     } else {
-      runAction(this.hass, item.on);
+      runAction(this.hass, this._tvPower(item, false));
       selectSourceAfterStart(() => document.querySelector("home-assistant")?.hass ?? this.hass, entityId, source);
     }
   }
@@ -5078,7 +5133,7 @@ export class HomeDashboardSheet extends LitElement {
       <div class="rows">
         <p class="tv-status" data-tv-status>${tvStatus(this.hass.language, stateObj)}</p>
         <div class="remotes">
-          ${button("tv_power", "mdi:power", () => runAction(this.hass, on ? item.off : item.on), on)}
+          ${button("tv_power", "mdi:power", () => runAction(this.hass, this._tvPower(item, on)), on)}
           ${button(
             "tv_mute",
             attributes.is_volume_muted ? "mdi:volume-off" : "mdi:volume-high",
@@ -5103,8 +5158,9 @@ export class HomeDashboardSheet extends LitElement {
             `;
           })}
         </div>
-        ${this.hass.entities?.[stateObj.entity_id]?.platform === "webostv" ? this._renderWebosKeys(on) : nothing}
-        ${on
+        ${this._renderTvNowPlaying(stateObj)}
+        ${this._renderTvKeys(stateObj, on)}
+        ${on && attributes.volume_level != null
           ? html`
               <div class="range-field">
                 <h3>${this._t("tv_volume")}<span>${volume}%</span></h3>
@@ -5134,26 +5190,71 @@ export class HomeDashboardSheet extends LitElement {
     `;
   }
 
+  // Without its own way to start and stop, a player starts and stops itself (an Apple TV wakes and sleeps).
+  _tvPower(item, on) {
+    const own = on ? item.off : item.on;
+    return own ?? { service: on ? "media_player.turn_off" : "media_player.turn_on", target: this.sheet.entityId };
+  }
+
+  // The remote entity of the player's device, for an Apple TV.
+  get _appleRemote() {
+    const entities = this.hass.entities ?? {};
+    const device = entities[this.sheet.entityId]?.device_id;
+    if (!device || entities[this.sheet.entityId]?.platform !== "apple_tv") return null;
+    return Object.keys(entities).find((id) => id.startsWith("remote.") && entities[id].device_id === device) ?? null;
+  }
+
+  _renderTvKeys(stateObj, on) {
+    if (this.hass.entities?.[stateObj.entity_id]?.platform === "webostv") return this._renderWebosKeys(on);
+    const remote = this._appleRemote;
+    if (!remote) return nothing;
+    const send = (command) => this.hass.callService("remote", "send_command", { entity_id: remote, command });
+    return this._renderRemoteKeys(APPLE_ARROWS, APPLE_KEYS, on, send);
+  }
+
+  // What plays now on a TV box: its picture, title and what it comes from, with the buttons to move through it.
+  _renderTvNowPlaying(stateObj) {
+    const { attributes } = stateObj;
+    if (!isTvOn(stateObj) || !attributes.media_title) return nothing;
+    const picture = attributes.entity_picture ? this.hass.hassUrl?.(attributes.entity_picture) ?? attributes.entity_picture : null;
+    const detail = [attributes.media_series_title ?? attributes.media_artist, attributes.app_name].filter(Boolean).join(" · ");
+    const playing = stateObj.state === "playing";
+    return html`
+      <div class="tv-now" data-tv-now>
+        ${picture ? html`<img src=${picture} alt="" />` : html`<span class="tv-now-icon"><ha-icon icon="mdi:play-box-outline"></ha-icon></span>`}
+        <span class="tv-now-text"><strong>${attributes.media_title}</strong>${detail ? html`<small>${detail}</small>` : nothing}</span>
+        <button class="tv-now-play" aria-label=${this._t(playing ? "tv_key_pause" : "tv_key_play")} data-tv-now-play
+          @click=${() => this._call("media_player", "media_play_pause")}>
+          <ha-icon .icon=${playing ? "mdi:pause" : "mdi:play"}></ha-icon>
+        </button>
+      </div>
+    `;
+  }
+
   _webosButton(button) {
     this.hass.callService("webostv", "button", { entity_id: this.sheet.entityId, button });
   }
 
   // A TV that is off cannot take keys, so they wait in grey until it starts.
   _renderWebosKeys(on) {
+    return this._renderRemoteKeys(WEBOS_ARROWS, WEBOS_KEYS, on, (button) => this._webosButton(button));
+  }
+
+  _renderRemoteKeys(arrows, keys, on, send) {
     const key = ({ key, button, icon, label, place }) => html`
       <button
         class="key ${place ?? ""}"
         aria-label=${this._t(key)}
         data-tv-key=${button}
         ?disabled=${!on}
-        @click=${() => this._webosButton(button)}
+        @click=${() => send(button)}
       >
         ${icon ? html`<ha-icon .icon=${icon}></ha-icon>` : label}
       </button>
     `;
     return html`
-      <div class="dpad">${WEBOS_ARROWS.map(key)}</div>
-      <div class="keys">${WEBOS_KEYS.map(key)}</div>
+      <div class="dpad">${arrows.map(key)}</div>
+      <div class="keys ${keys.length % 4 ? "three" : ""}">${keys.map(key)}</div>
     `;
   }
 
@@ -5316,6 +5417,7 @@ export class HomeDashboardSheet extends LitElement {
       "tile-edit": this._renderTileEdit,
       "tile-picker": this._renderTilePicker,
       background: this._renderBackground,
+      scale: this._renderScale,
       school: this._renderSchool,
       weather: this._renderWeather,
       departures: this._renderDepartures,
@@ -5351,10 +5453,13 @@ export class HomeDashboardSheet extends LitElement {
       (this.sheet.kind === "weather" && window.matchMedia(WIDE_WEATHER).matches) ||
       (this.sheet.kind === "departures" && window.matchMedia(WIDE_DEPARTURES).matches);
     const whole = dark || wideWeather || ["app", "block-edit", "blocks", "history", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    // A block of several groups without a card of its own: on a tablet a wider window with its groups in two columns,
+    // so it fits without scrolling (a phone scrolls it).
+    const roomy = this.sheet.kind === "panel" && !whole && !item?.card && !item?.tabs && (item?.groups?.length ?? 0) >= 2;
     return html`
       <div class="scrim" @click=${this._close}></div>
       <div class="cover ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}"></div>
-      <section class="panel ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""}" data-kind=${this.sheet.kind}>
+      <section class="panel ${dark ? "dark" : ""} ${whole ? "whole" : ""} ${floating ? "floating" : ""} ${roomy ? "roomy" : ""}" data-kind=${this.sheet.kind}>
         <div
           class="grip"
           data-grip
@@ -6382,6 +6487,54 @@ export class HomeDashboardSheet extends LitElement {
       .summary .choice.on {
         background: var(--hd-appliance-icon);
       }
+      .tv-now {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 18px;
+        background: var(--hd-off);
+      }
+      .tv-now img,
+      .tv-now-icon {
+        flex: none;
+        width: 88px;
+        height: 50px;
+        border-radius: 10px;
+        object-fit: cover;
+      }
+      .tv-now-icon {
+        display: grid;
+        place-items: center;
+        background: var(--hd-surface);
+      }
+      .tv-now-text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .tv-now-text strong,
+      .tv-now-text small {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .tv-now-text small {
+        color: var(--hd-text-muted);
+      }
+      .tv-now-play {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--hd-surface);
+      }
+      .keys.three {
+        grid-template-columns: repeat(3, 1fr);
+      }
       .dpad {
         display: grid;
         grid-template-areas:
@@ -6489,6 +6642,15 @@ export class HomeDashboardSheet extends LitElement {
       .live.panel-card {
         min-height: 240px;
         max-height: none;
+        /* A device's own card takes the colours of this window, not of Home Assistant's theme: its buttons, writing
+           and choices as the window's own (a light theme of Home Assistant made white buttons in a dark window). */
+        --primary-text-color: var(--hd-text);
+        --secondary-text-color: var(--hd-text-muted);
+        --secondary-background-color: var(--hd-off);
+        --card-background-color: transparent;
+        --divider-color: var(--hd-outline);
+        --primary-color: var(--hd-appliance-icon);
+        --text-primary-color: #ffffff;
       }
       .panel.whole .rows .panel-card {
         max-width: 760px;
@@ -6917,6 +7079,10 @@ export class HomeDashboardSheet extends LitElement {
       .stage .voice.camera-talk.on.connecting {
         background: #8e8e93;
       }
+      .stage .voice.camera-talk.blocked,
+      .stage .voice.camera-talk.waiting {
+        color: rgba(255, 255, 255, 0.55);
+      }
       .stage .voice.camera-talk.on {
         color: #ffffff;
         background: #d70015;
@@ -6974,6 +7140,13 @@ export class HomeDashboardSheet extends LitElement {
         flex-direction: column;
         gap: 8px;
         padding: 8px 16px 16px;
+      }
+      /* The groups of a block, one under another as the rest of its rows. */
+      .panel-groups,
+      .panel-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
       .row {
         display: flex;
@@ -7640,6 +7813,55 @@ export class HomeDashboardSheet extends LitElement {
         .panel[data-kind="chart"] {
           width: min(760px, calc(100vw - 64px));
         }
+        /* A block of several groups: wider, its groups in two balanced columns, so it fits without scrolling. */
+        .panel.roomy {
+          width: min(1080px, calc(100vw - 64px));
+          max-height: calc(100vh - 32px);
+        }
+        /* Its numbers and its buttons side by side, its groups below in columns of about 300 px (three in the widest
+           window). */
+        .panel.roomy .rows:has(> .stats):has(> .block-actions) {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-items: stretch;
+        }
+        .panel.roomy .rows > :not(.stats):not(.block-actions) {
+          grid-column: 1 / -1;
+        }
+        .panel.roomy .panel-groups {
+          display: block;
+          columns: 300px;
+          column-gap: 16px;
+        }
+        .panel.roomy .panel-group {
+          break-inside: avoid;
+          padding-bottom: 8px;
+        }
+        /* Lower switches and choices four in a row, so a column holds more. */
+        .panel.roomy .big-toggle {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+          column-gap: 12px;
+          row-gap: 0;
+          padding: 10px 14px;
+        }
+        .panel.roomy .big-toggle ha-icon {
+          grid-row: span 2;
+          margin: 0;
+        }
+        .panel.roomy .choice {
+          flex-basis: calc(25% - 6px);
+          min-height: 40px;
+        }
+        .panel.roomy .choice-field h3,
+        .panel.roomy .range-field h3 {
+          margin: 4px 0;
+        }
+        /* The scale in a window of its own in the middle, wide enough for its two columns, not the whole screen. */
+        .panel[data-kind="scale"] {
+          width: min(860px, calc(100vw - 64px));
+        }
         .panel {
           inset: 50% auto auto 50%;
           width: 520px;
@@ -7668,7 +7890,7 @@ export class HomeDashboardSheet extends LitElement {
       /* A phone or a tablet on its side: the camera on the whole screen, its name and buttons over it, the days
          hidden above, the line of time and the other cameras below, each brought out with its handle. LIVE stays in
          the corner. */
-      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+      @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (min-width: 900px) {
         /* Clipped, not hidden: a hidden box can still be scrolled (a focused button, a list scrolled into view on
            iOS), which slid the header off the top and the put-away line of time into view. */
         .panel[data-kind="camera"] {
@@ -7679,6 +7901,26 @@ export class HomeDashboardSheet extends LitElement {
         .panel[data-kind="camera"] .hint,
         .panel[data-kind="camera"] .live-pill {
           display: none;
+        }
+        /* Why talking does not work stays: a note over the picture, at the top in the middle. */
+        .panel[data-kind="camera"] .hint.talk-problem {
+          position: absolute;
+          top: 72px;
+          left: 50%;
+          z-index: 5;
+          display: block;
+          box-sizing: border-box;
+          max-width: min(560px, calc(100% - 32px));
+          margin: 0;
+          padding: 10px 16px;
+          border-radius: 14px;
+          color: #ffffff;
+          background: rgba(0, 0, 0, 0.72);
+          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(12px);
+          text-align: center;
+          transform: translateX(-50%);
+          pointer-events: none;
         }
         .panel[data-kind="camera"] header {
           position: absolute;
@@ -7741,6 +7983,10 @@ export class HomeDashboardSheet extends LitElement {
         .camera-body .zoom-badge {
           top: max(8px, calc(64px - var(--media-top, 0px)));
           bottom: auto;
+        }
+        /* In the corner of the picture, not of the screen, when bands stand beside it (a wide window). */
+        .camera-body .age {
+          left: calc(var(--media-left, 0px) + 8px);
         }
         .camera-body .sound-level {
           top: 60px;
@@ -7931,7 +8177,7 @@ export class HomeDashboardSheet extends LitElement {
       }
       /* A tablet on its side has more screen than a picture has pixels: the picture grows to the width of the screen,
          or to its height when it is the taller of the two, and never past either. */
-      @media (orientation: landscape) and (min-width: 900px) and (pointer: coarse) {
+      @media (orientation: landscape) and (min-width: 900px) {
         /* The other cameras come out in the middle of the band under the picture, kept off the screen's edge when
            there is no band; the line of time stays on the picture. */
         .camera-body .thumbs {
@@ -7962,6 +8208,15 @@ export class HomeDashboardSheet extends LitElement {
         .camera-body .no-picture {
           width: 100vw;
           max-height: 100dvh;
+        }
+      }
+      /* A computer with a mouse: its window is wider than a tablet, so the picture would reach the top and the bottom
+         and the header would lie on it. It keeps a band for the header above and one as tall below. */
+      @media (orientation: landscape) and (min-width: 900px) and (hover: hover) and (pointer: fine) and (not (any-pointer: coarse)) {
+        .camera-body .picture img,
+        .camera-body .live-wrap .poster,
+        .camera-body .no-picture {
+          max-height: calc(100dvh - 144px);
         }
       }
     `,

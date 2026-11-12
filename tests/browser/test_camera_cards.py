@@ -184,3 +184,28 @@ def test_the_header_switches_the_layout_and_the_grid_has_no_corner_buttons(table
     tablet.wait_for_selector(f"{SHEET} .camera-cell.big", state="detached")
     tablet.wait_for_function(f"!document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}')._wallLive")
     tablet.evaluate("localStorage.removeItem('home-dashboard-camera-layout')")
+
+
+SMALL = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#654"/></svg>'
+
+
+def test_a_small_picture_does_not_narrow_the_strip_on_a_tablet(tablet):
+    # The last frame of an unavailable camera may be small (320 px): Safari fitted the strip to it and cut the column.
+    tablet.route("**/api/*_proxy/**", lambda route: route.fulfill(body=SMALL, content_type="image/svg+xml"))
+    mount_admin(tablet, {})
+    tablet.wait_for_selector("home-dashboard-page .cameras [data-camera] img")
+    sizes = tablet.evaluate("""() => { const root = window.card.shadowRoot;
+        const columns = [...root.querySelectorAll('.camera-column')];
+        return { widths: columns.map((column) => getComputedStyle(column).width),
+            cameras: columns.flatMap((column) => [...column.querySelectorAll('.camera')].map((camera) =>
+                Math.abs(camera.getBoundingClientRect().width - column.getBoundingClientRect().width) < 1)) }; }""")
+    assert all(width in ("412px", "205px") for width in sizes["widths"])
+    assert all(sizes["cameras"])
+
+
+def test_the_corners_of_the_strip_are_round_and_clipped(tablet):
+    mount_admin(tablet, {})
+    clip = tablet.evaluate("""() => { const first = window.card.shadowRoot.querySelector('.camera-column:first-child .camera');
+        const style = getComputedStyle(first); return [style.borderTopLeftRadius, style.clipPath]; }""")
+    assert clip[0] == "24px"
+    assert "round 24px" in clip[1]

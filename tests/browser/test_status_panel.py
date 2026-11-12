@@ -352,3 +352,11 @@ def test_a_twelve_hour_clock_keeps_its_time_on_one_line(phone):
     assert parts[0] == {"time": "2:02", "period": "PM"}
     assert parts[1] == {"time": "14:02", "period": ""}
     assert parts[2] == {"time": "09:05", "period": ""}
+
+
+def test_a_washer_in_now_opens_the_window_of_its_block(tablet):
+    found = tablet.evaluate("""async () => { const { blockFor } = await import('/custom_components/home_dashboard/www/app/model.js');
+        const washer = { kind: 'panel', name: 'Pralka', entity: 'sensor.washer_state', stats: [{ name: 'Faza', entity: 'sensor.washer_phase' }] };
+        const config = { shortcuts: [], layout: [{ id: 'r', sections: [{ tiles: [{ entity: 'light.a' }, washer] }] }] };
+        return [blockFor(config, ['sensor.washer_phase'])?.name, blockFor(config, ['sensor.other']), blockFor(config, [], 'Pralka')?.name]; }""")
+    assert found == ["Pralka", None, "Pralka"]
