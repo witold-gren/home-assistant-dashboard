@@ -71,7 +71,7 @@ def other_language(target: str, language: str) -> str:
         return target
     if language == "en" and path.endswith(".pl.md"):
         return page_url(target.replace(".pl.md", ".md", 1), "pl")
-    if language == "pl" and not path.endswith(".pl.md") and (DOCS / path.replace(".md", ".pl.md")).exists():
+    if language == "pl" and not path.endswith(".pl.md") and has_polish(path):
         return page_url(target, "en")
     return target
 
@@ -84,6 +84,14 @@ def html_pictures(markdown: str, url: str) -> str:
         return markdown
     relative = re.compile(r'(<img[^>]*?\ssrc=")(?![a-z]+:|/|#)([^"]+)')
     return relative.sub(lambda match: match.group(1) + up + match.group(2), markdown)
+
+
+def has_polish(name: str) -> bool:
+    """A document with a Polish one beside it; the made ones count by their sources, before they are made."""
+    polish = name.replace(".md", ".pl.md")
+    if name in GENERATED:
+        return polish in GENERATED
+    return (DOCS / polish).exists()
 
 
 def language_of(page) -> str:
