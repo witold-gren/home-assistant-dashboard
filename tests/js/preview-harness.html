@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>Home Dashboard preview frame</title><style>body { margin: 0 }</style></head>
+  <body>
+    <script type="module">
+      // A frame of the editor's preview: the dashboard's page, as Home Assistant would open it with ?hd_preview.
+      import "/custom_components/home_dashboard/www/app/main.js";
+      import { createHass } from "/tests/js/mock-hass.js";
+
+      customElements.define("ha-icon", class extends HTMLElement {});
+      window.loadCardHelpers = async () => ({ createCardElement: (config) => Object.assign(document.createElement("div"), { dataset: { card: config.type } }) });
+      const snapshot = await (await fetch("/tests/fixtures/registry_snapshot.json")).json();
+      const params = new URLSearchParams(location.search);
+      const sent = [];
+      // The connection of the frame, as Home Assistant's: what the preview lets through is recorded.
+      const connection = {
+        subscribeMessage: async (callback) => (callback({ color_mode: "auto" }), () => {}),
+        sendMessagePromise: async (message) => (sent.push(message), null),
+        sendMessage: (message) => sent.push(message),
+      };
+      const hass = createHass(snapshot, { connection, user: { id: "admin", name: "Admin", is_admin: true } });
+      window.preview = { hass, sent };
+      const card = document.createElement("home-dashboard-page");
+      card.setConfig({ page: params.get("page") ?? "home", dashboard: {} });
+      card.hass = hass;
+      document.body.appendChild(card);
+      await card.updateComplete;
+      window.previewReady = true;
+    </script>
+  </body>
+</html>

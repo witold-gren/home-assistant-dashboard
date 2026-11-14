@@ -326,14 +326,14 @@ export const EntitySheets = (Base) =>
 
     // The server checks the PIN, so all this page learns is whether the entity went off.
     async _sendPin() {
-      const { service, field } = this.sheet.offPin;
+      const { service, field, data = {} } = this.sheet.offPin;
       const [domain, name] = service.split(".");
       const pin = this._pin;
       if (!pin || this._pinState === "checking") return;
       this._pin = "";
       this._pinState = "checking";
       try {
-        await this.hass.callService(domain, name, { [field]: pin });
+        await this.hass.callService(domain, name, { ...data, [field]: pin });
       } catch {
         // A failed call means the same to the person at the keypad as a wrong PIN.
       }

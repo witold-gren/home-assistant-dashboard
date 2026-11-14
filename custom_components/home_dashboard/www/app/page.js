@@ -9,6 +9,8 @@ import {
   navigateTo,
   openDrawer,
   openSheet,
+  chromeOf,
+  dropSheet,
   pageScroller,
   saveDashboard,
   setPageBackground,
@@ -77,8 +79,23 @@ import {
   scenesDraft,
 } from "./room-editor.js";
 import { rememberConfig } from "./settings.js";
+import { mediaQuery } from "./media.js";
 import { streamDot, streamDotStyles } from "./connections.js";
 import { buildRoomStatus, roomActions } from "./status.js";
+import {
+  guardPreviewConnection,
+  onPreviewChange,
+  onPreviewCommand,
+  previewHighlight,
+  previewMode,
+  previewPrefs,
+  previewSelect,
+  previewStrategy,
+  previewUserId,
+  touchedTarget,
+} from "./preview.js";
+import { createHighlighter } from "./preview-highlight.js";
+import { runAction } from "./panel.js";
 import { backgroundStyle, isDark, screenShape, tokens, viewBackgroundFor, WIDE_QUERY } from "./styles.js";
 
 const REGISTRIES = ["entities", "devices", "areas", "floors"];
@@ -138,8 +155,9 @@ export class HomeDashboardPage extends LitElement {
 
   setConfig(config) {
     this._page = config.page ?? "home";
-    this._raw = config.dashboard ?? {};
-    this._config = normalizeConfig(config.dashboard);
+    // In the editor's preview the draft stands in for the saved configuration.
+    this._raw = previewStrategy(config.dashboard ?? {});
+    this._config = normalizeConfig(this._raw);
     // Inside a sheet the page is only content: the navigation and the scrolling belong to the view.
     this._embedded = Boolean(config.embedded);
     this.toggleAttribute("embedded", this._embedded);
@@ -153,12 +171,22 @@ export class HomeDashboardPage extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    if (previewMode()) {
+      this._stopPreview = onPreviewChange(this._onDraft);
+      this._stopCommands = onPreviewCommand(this._onPreviewCommand);
+      this._highlighter = createHighlighter(() => ({
+        page: this.shadowRoot,
+        sheet: chromeOf(this)?.shadowRoot?.querySelector("home-dashboard-sheet") ?? null,
+      }));
+      this._highlighter.set(previewHighlight());
+      this.addEventListener("click", this._onPreviewTouch, true);
+    }
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
     // A page shown again, as Home after a room, puts its own background back on the view.
     if (this.hasUpdated) this.requestUpdate();
     // Turning a tablet changes the shape of the screen, and with it the background.
-    this._shapeQuery = window.matchMedia(WIDE_QUERY);
+    this._shapeQuery = mediaQuery(WIDE_QUERY);
     this._shapeQuery.addEventListener("change", this._onShape);
     this._pictureTimer = setInterval(this._refreshPictures, PICTURE_REFRESH_MS);
     // Home Assistant keeps a page it has shown and puts the same one back on the way in.
@@ -173,9 +201,14 @@ export class HomeDashboardPage extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this._stopPreview?.();
+    this._stopCommands?.();
+    this.removeEventListener("click", this._onPreviewTouch, true);
     clearInterval(this._pictureTimer);
     clearTimeout(this._leavingTimer);
     clearInterval(this._musicWatch);
+    this._highlighter?.stop();
+    this._highlighter = null;
     window.removeEventListener("message", this._onFrameMessage);
     clearTimeout(this._ranTimer);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
@@ -233,6 +266,35 @@ export class HomeDashboardPage extends LitElement {
 
   _onShape = () => this.requestUpdate();
 
+  // The editor changed its draft: the page shows it at once.
+  _onDraft = (strategy) => {
+    this._raw = strategy;
+    this._config = normalizeConfig(strategy);
+    this._selection = null;
+    if (!this._embedded && this._hass) attachChrome(this, this._hass, this._page, this._raw);
+    if (this._hass) this.hass = this._hass;
+  };
+
+  // The editor shows the window of the block it edits, and closes it when something else is chosen.
+  _onPreviewCommand = (command) => {
+    if (command.type === "open-block") openSheet(this, { kind: "panel", entityId: command.item.entity, item: command.item });
+    // A block of another kind opens as a touch on its shortcut would; the menu as the menu button would.
+    if (command.type === "open-shortcut") openSheet(this, { kind: command.item.kind, entityId: command.item.entity, item: command.item });
+    if (command.type === "open-menu") openDrawer(this);
+    if (command.type === "highlight") this._highlighter?.set(command.spec);
+    // Not a step back: the frame may have just gone to another room, and back would undo that.
+    if (command.type === "close") dropSheet(this);
+  };
+
+  // In the preview a touch chooses what it touched in the editor and does nothing else.
+  _onPreviewTouch = (event) => {
+    const target = touchedTarget(event.composedPath(), this._page === "room" ? this._room : null);
+    if (!target) return;
+    event.stopPropagation();
+    event.preventDefault();
+    previewSelect({ ...target, page: this._page });
+  };
+
   _onLocation = () => {
     const room = new URLSearchParams(window.location.search).get("room");
     if (!room || room === this._room) return;
@@ -266,6 +328,7 @@ export class HomeDashboardPage extends LitElement {
   }
 
   set hass(hass) {
+    guardPreviewConnection(hass);
     const previous = this._hass;
     this._hass = hass;
     if (!this._embedded) updateChrome(this, hass);
@@ -275,7 +338,7 @@ export class HomeDashboardPage extends LitElement {
     if (REGISTRIES.some((name) => previous?.[name] !== hass[name])) this._selection = null;
     const stale = !this._selection;
     if (stale) {
-      this._config = personalize(normalizeConfig(this._raw), hass.user?.id, personalPrefs());
+      this._config = personalize(normalizeConfig(this._raw), previewUserId(hass), previewPrefs(personalPrefs()));
       this._selection = selectEntities(hass, this._config);
       this._watchEntities();
     }
@@ -334,7 +397,7 @@ export class HomeDashboardPage extends LitElement {
     window.history.replaceState(window.history.state, "", url);
     const before = this._model;
     this._refresh();
-    if (!window.matchMedia(REDUCED_MOTION).matches) this._playFilterChange(before);
+    if (!mediaQuery(REDUCED_MOTION).matches) this._playFilterChange(before);
   }
 
   // The old content fades where it is while the new one rises into place, further the lower it
@@ -523,6 +586,17 @@ export class HomeDashboardPage extends LitElement {
     }, RAN_MS);
   }
 
+  // The button on a block's tile: its window opens asking first (or does it at once without a question).
+  _tapQuick(event, tile) {
+    event.stopPropagation();
+    const quick = { entity: tile.entityId, ...tile.quick };
+    if (!quick.confirm) {
+      runAction(this._hass, { service: quick.service, target: quick.entity, data: quick.data });
+      return;
+    }
+    openSheet(this, { kind: "panel", entityId: tile.entityId, item: tile.item, confirm: quick });
+  }
+
   _tapIcon(event, tile) {
     if (tile.iconAction !== "toggle") return;
     event.stopPropagation();
@@ -552,6 +626,12 @@ export class HomeDashboardPage extends LitElement {
           <strong>${tile.name}</strong>
           <small>${ran ? translate(this._hass.language, "run_done") : tile.stateText}</small>
         </span>
+        ${tile.quick
+          ? html`<span class="quick" role="button" tabindex="0" data-tile-quick=${tile.quick.name ?? ""}
+              @click=${(event) => this._tapQuick(event, tile)}>
+              <ha-icon .icon=${tile.quick.icon ?? "mdi:power"}></ha-icon>${tile.quick.name ?? ""}
+            </span>`
+          : nothing}
         ${tile.stats?.length
           ? html`<span class="stats">
               ${tile.stats.map((stat) => html`<span><b>${stat.value}</b><small>${stat.name}</small></span>`)}
@@ -683,6 +763,7 @@ export class HomeDashboardPage extends LitElement {
     openSheet(this, {
       kind: "background",
       target,
+      title: this._page === "home" ? "" : (this._model?.name ?? ""),
       shared: sharedBackground(this._config, target, this._legacyBackground),
       own: this._config.personalBackgrounds?.[target] ?? {},
     });
@@ -2274,6 +2355,21 @@ export class HomeDashboardPage extends LitElement {
       .tile.wide {
         grid-column: 1 / -1;
         flex-wrap: wrap;
+      }
+      /* A button on a block's tile while its device is on: a console's Turn off. */
+      .tile .quick {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+        padding: 7px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        background: #ff453a;
+        cursor: pointer;
+        --mdc-icon-size: 16px;
       }
       .stats {
         display: grid;

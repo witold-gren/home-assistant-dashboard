@@ -76,8 +76,8 @@ function createStrategyClass() {
     static registryDependencies = [];
 
     static async generate(config, hass) {
-      const { generateDashboard } = await import(appUrl());
-      return generateDashboard(config, hass);
+      const { generateForPerson } = await import(appUrl());
+      return generateForPerson(config, hass);
     }
   };
 }

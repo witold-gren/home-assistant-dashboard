@@ -10,6 +10,22 @@ import { departureLines, lineColours } from "./departures.js";
 import { countLabel, translate } from "./i18n.js";
 import { blockFor, buildWeather, domainOf, FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
+import {
+  addDays,
+  CALENDAR_LIMIT,
+  CALENDAR_REFRESH_MS,
+  cachedEvents,
+  calendarColour,
+  calendarName,
+  isNow,
+  progressOf,
+  shownCalendars,
+  startOfDay,
+  timeText,
+  todayEvents,
+  untilText,
+} from "./calendar.js";
+import { personalPrefs, PREFS_EVENT } from "./prefs.js";
 import { precipitationKind } from "./weather.js";
 
 export const STATUS_WIDGETS = STATUS_PARTS;
@@ -40,16 +56,27 @@ export const statusWidgets = (chosen) => (chosen?.length ? chosen.filter((key) =
 // A door is open as a sensor says "on", a cover "open", and a lock that is not locked.
 const OPEN_STATES = ["on", "open", "opening", "unlocked", "unlocking", "jammed"];
 
-/** What is on and what is open, only what there is: lights, devices and the doors and windows that are watched. */
+// The kinds of things the status bar counts while they are on.
+export const COUNTED = { lights: ["light"], devices: ["switch", "fan"] };
+
+/**
+ * What is on and what is open, only what there is: lights, devices and the doors and windows that are watched.
+ * `status_panel.ignore` leaves entities out of the counts (a lamp that follows its own schedule). A count carries
+ * the entities it counts from (`ids`), so a touch can show which of them are on.
+ */
 export function statusHome(hass, selection, config) {
-  const ids = selection?.entityIds ?? [];
-  const on = (domains) => ids.filter((id) => domains.includes(domainOf(id)) && hass.states[id]?.state === "on").length;
+  const ignore = new Set(config.status_panel?.ignore ?? []);
+  const ids = (selection?.entityIds ?? []).filter((id) => !ignore.has(id));
+  const counted = (domains) => ids.filter((id) => domains.includes(domainOf(id)));
+  const on = (list) => list.filter((id) => hass.states[id]?.state === "on").length;
   const language = hass.language;
   const facts = [];
-  const lights = on(["light"]);
-  if (lights) facts.push({ key: "lights", icon: "mdi:lightbulb-on", tone: "light", count: lights, label: countLabel(language, "lights", lights) });
-  const devices = on(["switch", "fan"]);
-  if (devices) facts.push({ key: "devices", icon: "mdi:power-plug", tone: "", count: devices, label: countLabel(language, "devices", devices) });
+  const lightIds = counted(COUNTED.lights);
+  const lights = on(lightIds);
+  if (lights) facts.push({ key: "lights", icon: "mdi:lightbulb-on", tone: "light", count: lights, label: countLabel(language, "lights", lights), ids: lightIds });
+  const deviceIds = counted(COUNTED.devices);
+  const devices = on(deviceIds);
+  if (devices) facts.push({ key: "devices", icon: "mdi:power-plug", tone: "", count: devices, label: countLabel(language, "devices", devices), ids: deviceIds });
   const open = (config.status_panel?.doors ?? [])
     .map(asItem)
     .filter((item) => OPEN_STATES.includes(hass.states[item.entity]?.state));
@@ -175,18 +202,30 @@ export class HomeDashboardStatusPanel extends LitElement {
     _daily: { state: true },
     _hourly: { state: true },
     _history: { state: true },
+    _events: { state: true },
   };
 
   connectedCallback() {
     super.connectedCallback();
     this._now = new Date();
     this._clock = setInterval(() => (this._now = new Date()), CLOCK_MS);
+    window.addEventListener(PREFS_EVENT, this._onPrefs);
   }
+
+  // A person chose other calendars: today's events are read again.
+  _onPrefs = () => {
+    this._calendarKey = null;
+    this.requestUpdate();
+  };
 
   disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this._clock);
     clearInterval(this._powerTimer);
+    clearInterval(this._calendarTimer);
+    this._calendarTimer = null;
+    this._calendarKey = null;
+    window.removeEventListener(PREFS_EVENT, this._onPrefs);
     this._powerTimer = null;
     this._forecastWatches?.forEach((watch) => watch.then((unsubscribe) => unsubscribe?.()).catch(() => {}));
     this._forecastWatches = null;
@@ -197,6 +236,26 @@ export class HomeDashboardStatusPanel extends LitElement {
     if (!this.hass || !this.config) return;
     this._watchForecast();
     this._watchPower();
+    this._watchCalendar();
+  }
+
+  // Today's events of the calendars a person sees, read again every few minutes and on a new day.
+  _watchCalendar() {
+    const calendars = shownCalendars(this.hass, this.config, personalPrefs());
+    const key = `${calendars.join(",")}|${startOfDay(this._now ?? new Date()).getTime()}`;
+    if (key === this._calendarKey) return;
+    this._calendarKey = key;
+    clearInterval(this._calendarTimer);
+    if (!calendars.length) {
+      this._events = [];
+      return;
+    }
+    const load = async () => {
+      const day = startOfDay(new Date());
+      this._events = await cachedEvents(this.hass, calendars, day, addDays(day, 1));
+    };
+    load();
+    this._calendarTimer = setInterval(load, CALENDAR_REFRESH_MS);
   }
 
   _watchForecast() {
@@ -340,6 +399,46 @@ export class HomeDashboardStatusPanel extends LitElement {
     this.dispatchEvent(new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId } }));
   }
 
+  // Today's events under the weather: all-day ones softly in their calendar's colour, the others with their hour,
+  // "now" while they last; one goes once it is over. A tap opens the calendar.
+  _renderCalendar() {
+    const panel = this.config.status_panel ?? {};
+    const events = todayEvents(this._events ?? [], this._now, panel.calendar_hide);
+    if (!events.length) return nothing;
+    const limit = Number(panel.calendar_limit) > 0 ? Number(panel.calendar_limit) : CALENDAR_LIMIT;
+    const shown = events.slice(0, limit);
+    const language = this.hass.language;
+    const open = () => this._open({ kind: "calendar" });
+    return this._section(
+      "calendar",
+      this._t("calendar_today_count", { count: events.length }),
+      html`<div class="events">
+        ${shown.map((event) => {
+          const now = isNow(event, this._now);
+          const where = [calendarName(this.hass, event.calendar), event.location].filter(Boolean).join(" · ");
+          return html`<button
+            class="event ${event.allDay ? "all-day" : ""} ${now ? "now" : ""}"
+            style="--event: ${calendarColour(this.hass, this.config, event.calendar)}"
+            data-calendar-event=${event.key}
+            @click=${open}
+          >
+            ${event.allDay ? html`<ha-icon icon="mdi:party-popper"></ha-icon>` : html`<i class="bar"></i>`}
+            <span class="event-text"><strong>${event.summary}</strong><small>${now ? this._t("calendar_until", { time: timeText(event.end, language) }) : where}</small></span>
+            <span class="when">
+              ${event.allDay
+                ? this._t("calendar_all_day")
+                : html`<b>${now ? this._t("calendar_now") : timeText(event.start, language)}</b><small>${now ? timeText(event.start, language) : untilText(event, this._now, language)}</small>`}
+            </span>
+            ${now ? html`<span class="progress"><i style="width: ${Math.round(progressOf(event, this._now) * 100)}%"></i></span>` : nothing}
+          </button>`;
+        })}
+        ${events.length > shown.length
+          ? html`<button class="more" data-calendar-more @click=${open}>${this._t("calendar_more", { count: events.length - shown.length })}</button>`
+          : nothing}
+      </div>`,
+    );
+  }
+
   _renderHome() {
     const facts = statusHome(this.hass, this.selection, this.config);
     if (!facts.length) return nothing;
@@ -350,7 +449,7 @@ export class HomeDashboardStatusPanel extends LitElement {
         ${facts.map(
           (fact) => html`
             <button class="fact ${fact.tone}" data-status-fact=${fact.key} title=${fact.names?.join(", ") ?? ""}
-              @click=${() => this._open({ kind: "status", entity: fact.entity })}>
+              @click=${() => this._open(fact.ids ? { kind: "status-on", group: fact.key } : { kind: "status", entity: fact.entity })}>
               <ha-icon .icon=${fact.icon}></ha-icon><span>${fact.label}</span>
             </button>
           `,
@@ -447,6 +546,7 @@ export class HomeDashboardStatusPanel extends LitElement {
     if (!this.hass || !this.config) return nothing;
     const parts = {
       weather: this._renderWeather,
+      calendar: this._renderCalendar,
       home: this._renderHome,
       alerts: this._renderAlerts,
       now: this._renderNow,
@@ -595,6 +695,90 @@ export class HomeDashboardStatusPanel extends LitElement {
       :host([colourful]) .fact.open {
         color: #ff9f0a;
         background: color-mix(in srgb, #ff9f0a 16%, transparent);
+      }
+      .events {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .event {
+        position: relative;
+        display: grid;
+        grid-template-columns: 4px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 8px 10px 8px 9px;
+        border-radius: 14px;
+        text-align: left;
+        background: color-mix(in srgb, currentColor 9%, transparent);
+        --mdc-icon-size: 18px;
+      }
+      .event .bar {
+        align-self: stretch;
+        border-radius: 3px;
+        background: var(--event);
+      }
+      .event-text {
+        min-width: 0;
+      }
+      .event strong,
+      .event small {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .event strong {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .event small {
+        font-size: 12px;
+        opacity: 0.7;
+      }
+      .event .when {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .event .when b {
+        display: block;
+        font-size: 14px;
+      }
+      /* All day: it glows all day long, so softly, in its calendar's colour, with no hour. */
+      .event.all-day {
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        background: linear-gradient(90deg, color-mix(in srgb, var(--event) 42%, transparent), color-mix(in srgb, var(--event) 14%, transparent));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--event) 55%, transparent);
+      }
+      .event.all-day .when {
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      .event.now {
+        background: color-mix(in srgb, currentColor 18%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent);
+      }
+      .event .progress {
+        position: absolute;
+        left: 9px;
+        right: 10px;
+        bottom: 3px;
+        height: 2px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: color-mix(in srgb, currentColor 15%, transparent);
+      }
+      .event .progress i {
+        display: block;
+        height: 100%;
+        background: var(--event);
+      }
+      .more {
+        align-self: flex-start;
+        padding: 2px 4px;
+        font-size: 12px;
+        opacity: 0.8;
       }
       .alert {
         display: flex;

@@ -23,6 +23,12 @@ export function createHass(snapshot, overrides = {}) {
       if (message.type === "config/entity_registry/get_entries") return {};
       return calls.push({ type: "ws", message });
     },
+    // The calendars' events a test sets in `window.calendarEvents` (by calendar), as Home Assistant's REST API gives them.
+    callApi: async (method, path) => {
+      calls.push({ type: "api", method, path });
+      const calendar = /^calendars\/([^?]+)/.exec(path)?.[1];
+      return calendar ? structuredClone(globalThis.calendarEvents?.[calendar] ?? []) : null;
+    },
     connection: {
       subscribeMessage: async (callback) => {
         callback({ color_mode: snapshot.colorMode ?? "auto" });

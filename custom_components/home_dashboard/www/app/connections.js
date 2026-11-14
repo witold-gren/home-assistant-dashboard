@@ -21,6 +21,26 @@ export const sensorKind = (id) => KINDS.find(([pattern]) => pattern.test(id))?.[
 /** The red dot of an open stream, for the corner of a picture. */
 export const streamDot = (on, label) => (on ? html`<span class="stream-dot" data-stream-dot role="img" aria-label=${label}></span>` : nothing);
 
+/** The icon of a battery level, in steps of ten. */
+export function batteryIcon(level) {
+  if (level <= 5) return "mdi:battery-alert-variant-outline";
+  const step = Math.min(100, Math.max(10, Math.round(level / 10) * 10));
+  return step === 100 ? "mdi:battery" : `mdi:battery-${step}`;
+}
+
+/**
+ * The battery of a camera in the corner of its picture, red when low; the dot of an open stream, which takes the same
+ * corner, goes inside it.
+ */
+export function batteryBadge(battery, streaming, language) {
+  if (!battery) return nothing;
+  const label = translate(language, "camera_battery", { level: battery.level });
+  return html`<span class="camera-battery ${battery.low ? "low" : ""}" data-camera-battery=${battery.level} role="img" aria-label=${label} title=${label}>
+    ${streaming ? html`<i class="dot" data-stream-dot aria-label=${translate(language, "stream_open")}></i>` : nothing}
+    <ha-icon .icon=${batteryIcon(battery.level)}></ha-icon>${battery.level} %
+  </span>`;
+}
+
 export const streamDotStyles = css`
   .stream-dot {
     position: absolute;
@@ -43,9 +63,42 @@ export const streamDotStyles = css`
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .stream-dot {
+    .stream-dot,
+    .camera-battery .dot {
       animation: none;
     }
+  }
+  .camera-battery {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    padding: 2px 7px 2px 5px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.5);
+    --mdc-icon-size: 15px;
+    pointer-events: none;
+  }
+  .camera-battery.low {
+    background: rgba(255, 59, 48, 0.85);
+  }
+  .camera-battery .dot {
+    width: 7px;
+    height: 7px;
+    margin-right: 2px;
+    border-radius: 50%;
+    background: #ff453a;
+    animation: stream-blink 2s ease-in-out infinite;
+  }
+  .camera-battery.low .dot {
+    background: #ffffff;
   }
 `;
 

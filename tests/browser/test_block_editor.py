@@ -262,3 +262,50 @@ def test_a_battery_item_is_set_up_as_a_warning_on_home_in_the_editor(phone):
     item = saved(phone)["shortcuts"][0]["sections"][0]["items"][0]
     assert item["auto"] == "battery" and item["below"] == 20 and item["notify"] is True
     assert item["platforms"] == ["eufy_sdk", "neolink"] and item["device_has"] == "camera"
+
+
+def test_departures_get_a_colour_per_line_on_the_tablet(phone):
+    open_block(phone, [TRAMS], "Tramwaje")
+    phone.locator(f"{EDITOR} [data-block-map-key]").fill("4")
+    value = phone.locator(f"{EDITOR} [data-block-map-value]")
+    value.fill("#1e88e5")
+    value.dispatch_event("change")
+    phone.wait_for_selector(f"{EDITOR} [data-block-map='4']")
+    assert saved(phone)["shortcuts"][0]["colors"] == {"4": "#1e88e5"}
+
+
+def test_a_host_column_gets_power_and_machines_on_the_tablet(phone):
+    host = {"kind": "host", "name": "Host", "columns": [{"title": "NUC"}]}
+    open_block(phone, [host], "Host")
+    phone.locator(f"{EDITOR} [data-block-field='columns'] summary").first.click()
+    phone.locator(f"{EDITOR} [data-block-add='machines']").click()
+    phone.locator(f"{EDITOR} [data-block-field='machines'] [data-block-field='name'] input").fill("HA")
+    phone.locator(f"{EDITOR} [data-block-field='power'] [data-block-field='entity'] input").fill("sensor.nuc_power")
+    column = saved(phone)["shortcuts"][0]["columns"][0]
+    assert column["machines"] == [{"name": "HA"}]
+    assert column["power"] == {"entity": "sensor.nuc_power"}
+
+
+def test_the_school_year_shows_the_default_sensor_on_the_tablet(phone):
+    school = {"kind": "school", "name": "Szkoła"}
+    open_block(phone, [school], "Szkoła")
+    plan = phone.locator(f"{EDITOR} [data-block-field='plan'] input")
+    assert plan.get_attribute("placeholder") == "sensor.rodzinnik_plan_lekcji"
+    plan.fill("sensor.plan_ola")
+    assert saved(phone)["shortcuts"][0]["sources"] == {"plan": "sensor.plan_ola"}
+
+
+def test_a_status_entry_can_be_an_alarm_on_the_tablet(phone):
+    open_block(phone, [STATUS], "Status")
+    phone.locator(f"{EDITOR} summary").first.click()
+    phone.locator(f"{EDITOR} [data-block-field='items'] summary").first.click()
+    phone.locator(f"{EDITOR} [data-block-field='items'] [data-block-field='alarm'] input").check()
+    assert saved(phone)["shortcuts"][0]["sections"][0]["items"][0]["alarm"] is True
+
+
+def test_a_tv_turns_off_with_its_own_service_on_the_tablet(phone):
+    tv = {"kind": "tv", "name": "TV", "entity": "media_player.tv"}
+    open_block(phone, [tv], "TV")
+    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='service'] input").fill("script.tv_off")
+    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='target'] input").fill("media_player.tv")
+    assert saved(phone)["shortcuts"][0]["off"] == {"service": "script.tv_off", "target": "media_player.tv"}

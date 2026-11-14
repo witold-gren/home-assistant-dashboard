@@ -19,6 +19,8 @@ DOCS = [
     "docs/own-devices.pl.md",
     "docs/gallery.md",
     "docs/gallery.pl.md",
+    "docs/editor.md",
+    "docs/editor.pl.md",
 ]
 LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 
@@ -40,7 +42,7 @@ def test_both_languages_of_the_guide_have_the_same_sections() -> None:
     assert headings("docs/guide.md") == headings("docs/guide.pl.md")
 
 
-@pytest.mark.parametrize("name", ["apple-home", "own-devices"])
+@pytest.mark.parametrize("name", ["apple-home", "own-devices", "editor"])
 def test_both_languages_of_a_guide_have_the_same_sections(name: str) -> None:
     # The level of each heading and the number of a chapter, which both languages share.
     def sections(name: str) -> list[str]:

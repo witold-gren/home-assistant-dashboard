@@ -45,6 +45,20 @@ def test_a_shortcut_that_is_gone_leaves_no_empty_entry(phone):
     assert phone.locator("[data-drawer-shortcut='Brak']").count() == 0
 
 
+def test_a_link_naming_a_block_that_is_not_there_still_shows_as_a_link(phone):
+    menu = {"groups": [{"items": [
+        {"name": "Edytor", "icon": "mdi:pencil", "path": "/home-dashboard-editor", "shortcut": "HD Editor", "admin": True, "users": []},
+    ]}]}
+    open_menu(phone, {"shortcuts": [HOST], "menu": menu})
+    assert phone.locator("[data-link='/home-dashboard-editor']").inner_text().strip() == "Edytor"
+
+
+def test_a_link_to_a_hidden_block_stays_hidden(phone):
+    menu = {"groups": [{"items": [{"name": "Host", "path": "/host", "shortcut": HOST["name"]}]}]}
+    open_menu(phone, {"shortcuts": [HOST], "menu": menu, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}})
+    assert phone.locator("[data-link='/host']").count() == 0
+
+
 def test_a_block_taken_away_from_someone_leaves_their_menu(phone):
     open_menu(phone, {"shortcuts": [HOST], "menu": MENU, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}})
     assert phone.locator(f"[data-drawer-shortcut='{HOST['name']}']").count() == 0

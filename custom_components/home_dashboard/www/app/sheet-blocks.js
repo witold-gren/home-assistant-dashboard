@@ -3,8 +3,14 @@
 import { html, nothing } from "../vendor/lit-all.min.js";
 import { entityIcon } from "./model.js";
 import { blockRowName, panelStats, panelValue, pressCall, rowControl, runAction, shownOptions } from "./panel.js";
+
+// A stepper sends its value once taps have stopped for a moment, and a held button steps on by itself.
+const STEP_SEND_MS = 700;
+const STEP_HOLD_MS = 400;
+const STEP_REPEAT_MS = 110;
 import { tileCandidates } from "./room-editor.js";
 import { SPLIT_PANEL, TV_ALERT_CLASSES } from "./sheet-shared.js";
+import { mediaQuery } from "./media.js";
 
 export const BlockSheets = (Base) =>
   class extends Base {
@@ -168,7 +174,7 @@ export const BlockSheets = (Base) =>
     }
 
     _runBlockAction(action) {
-      if (action.service) runAction(this.hass, { service: action.service, target: action.entity });
+      if (action.service) runAction(this.hass, { service: action.service, target: action.entity, data: action.data });
       else this._press(action.entity);
     }
 
@@ -190,9 +196,9 @@ export const BlockSheets = (Base) =>
 
     _renderActions(actions = []) {
       const shown = actions.filter((action) => this.hass.states[action.entity]);
-      if (!shown.length) return nothing;
+      if (!shown.length && !this._pending) return nothing;
       return html`
-        <div class="block-actions">
+        <div class="block-actions" data-block-actions>
           ${shown.map(
             (action) => html`
               <button
@@ -209,10 +215,11 @@ export const BlockSheets = (Base) =>
         </div>
         ${this._pending
           ? html`
-              <div class="confirm" data-confirm>
+              <div class="confirm" data-confirm role="alertdialog">
+                <ha-icon icon=${this._pending.icon ?? "mdi:alert-circle-outline"}></ha-icon>
                 <span>${this._pending.confirm}</span>
                 <button data-confirm-no @click=${() => (this._pending = null)}>${this._t("confirm_no")}</button>
-                <button class="yes" data-confirm-yes @click=${this._confirmAction}>${this._t("confirm_yes")}</button>
+                <button class="yes" data-confirm-yes @click=${this._confirmAction}>${this._pending.name ?? this._t("confirm_yes")}</button>
               </div>
             `
           : nothing}
@@ -238,19 +245,29 @@ export const BlockSheets = (Base) =>
           </select>
         `;
       }
+      if (control === "range" && row.control === "stepper") return this._renderStepper(row, stateObj);
       if (control === "range") {
         const { min = 0, max = 100, step = 1 } = stateObj.attributes;
+        const moving = this._stepDraft?.[entity];
+        // The value shows while the slider moves, not only once it is let go.
         return html`
-          <input
-            type="range"
-            data-range=${entity}
-            min=${min}
-            max=${max}
-            step=${step}
-            .value=${stateObj.state}
-            ?disabled=${unavailable || !Number.isFinite(Number.parseFloat(stateObj.state))}
-            @change=${(event) => this._setNumber(entity, Number(event.target.value))}
-          />
+          <span class="range-row">
+            <input
+              type="range"
+              data-range=${entity}
+              min=${min}
+              max=${max}
+              step=${step}
+              .value=${String(moving ?? stateObj.state)}
+              ?disabled=${unavailable || !Number.isFinite(Number.parseFloat(stateObj.state))}
+              @input=${(event) => (this._stepDraft = { ...this._stepDraft, [entity]: Number(event.target.value) })}
+              @change=${(event) => {
+                this._setRowNumber(row, Number(event.target.value));
+                this._stepDraft = { ...this._stepDraft, [entity]: undefined };
+              }}
+            />
+            ${moving !== undefined ? html`<output data-range-value=${entity}>${this._numberText(row, stateObj, moving)}</output>` : nothing}
+          </span>
         `;
       }
       if (control === "toggle") {
@@ -262,7 +279,10 @@ export const BlockSheets = (Base) =>
             aria-label=${row.name ?? stateObj.attributes.friendly_name}
             data-toggle=${entity}
             ?disabled=${unavailable}
-            @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: entity })}
+            @click=${() => {
+              if (this._needsPin(row, stateObj, "off")) this._askPin(row, stateObj, "off");
+              else this.hass.callService("homeassistant", "toggle", { entity_id: entity });
+            }}
           ></button>
         `;
       }
@@ -279,6 +299,96 @@ export const BlockSheets = (Base) =>
     _selectOption(entityId, option) {
       const domain = entityId.split(".")[0];
       this.hass.callService(domain, "select_option", { entity_id: entityId, option });
+    }
+
+    // A number as its row says it: an own word for a value ("No limit" for 0), a time, or the number and its unit.
+    _numberText(row, stateObj, value) {
+      const word = row.labels?.[String(value)];
+      if (word) return word;
+      return panelValue(this.hass, { ...row, attribute: undefined, entity: row.entity }, { ...stateObj, state: String(value) });
+    }
+
+    // − and + with the value between them: easy to hit on a phone, exact, and the value shows at once.
+    _renderStepper(row, stateObj) {
+      const { entity } = row;
+      const { min = 0, max = 100, step: own = 1 } = stateObj.attributes;
+      // `steps: [tap, hold]`: a tap moves by the first, a held button by the second (5 minutes, then 15).
+      const step = Number(row.steps?.[0]) || own;
+      const held = Number(row.steps?.[1]) || step;
+      const current = this._stepDraft?.[entity] ?? Number(stateObj.state);
+      const unavailable = stateObj.state === "unavailable" || !Number.isFinite(current);
+      const press = (direction) => (event) => {
+        event.preventDefault();
+        this._step(entity, direction, { min, max, step }, stateObj, row);
+        clearTimeout(this._stepHold);
+        clearInterval(this._stepRepeat);
+        this._stepHold = setTimeout(() => {
+          this._stepRepeat = setInterval(() => this._step(entity, direction, { min, max, step: held }, stateObj, row, true), STEP_REPEAT_MS);
+        }, STEP_HOLD_MS);
+      };
+      const release = () => {
+        clearTimeout(this._stepHold);
+        clearInterval(this._stepRepeat);
+      };
+      return html`
+        <span class="stepper" data-stepper=${entity}>
+          <button aria-label="−" data-step-down ?disabled=${unavailable || current <= min}
+            @pointerdown=${press(-1)} @pointerup=${release} @pointerleave=${release} @pointercancel=${release}>
+            <ha-icon icon="mdi:minus"></ha-icon>
+          </button>
+          <output data-step-value=${entity}>${unavailable ? "–" : this._numberText(row, stateObj, current)}</output>
+          <button aria-label="+" data-step-up ?disabled=${unavailable || current >= max}
+            @pointerdown=${press(1)} @pointerup=${release} @pointerleave=${release} @pointercancel=${release}>
+            <ha-icon icon="mdi:plus"></ha-icon>
+          </button>
+        </span>
+      `;
+    }
+
+    _step(entity, direction, { min, max, step }, stateObj, row = { entity }, snap = false) {
+      this._stepRow = { ...this._stepRow, [entity]: row };
+      const from = this._stepDraft?.[entity] ?? Number(stateObj.state);
+      // Held, it goes to the next round number of its step (63 → 65 → 70), not 63 → 68.
+      const moved = snap ? (direction > 0 ? Math.floor(from / step + 1e-9) + 1 : Math.ceil(from / step - 1e-9) - 1) * step : from + direction * step;
+      // Rounded to the step, so 0.1 + 0.2 never shows as 0.30000000000000004.
+      const decimals = (String(step).split(".")[1] ?? "").length;
+      const next = Number(Math.min(max, Math.max(min, moved)).toFixed(decimals));
+      if (next === from) return;
+      this._stepDraft = { ...this._stepDraft, [entity]: next };
+      clearTimeout(this._stepSend);
+      this._stepSend = setTimeout(() => {
+        this._setRowNumber(this._stepRow?.[entity] ?? { entity }, next);
+        this._stepDraft = { ...this._stepDraft, [entity]: undefined };
+      }, STEP_SEND_MS);
+    }
+
+    /**
+     * A row with `pin` (a service that checks a parent's code): a value that loosens a limit (higher, or 0 = no
+     * limit) and a switch turned off go through the code; making a limit stricter needs none.
+     */
+    _needsPin(row, stateObj, value) {
+      if (!row.pin) return false;
+      if (typeof value === "string") return value === "off" && stateObj.state === "on";
+      const from = Number(stateObj.state);
+      return (value > from && from > 0) || (value === 0 && from > 0);
+    }
+
+    _askPin(row, stateObj, value) {
+      this._change({
+        kind: "pin",
+        entityId: row.entity,
+        name: row.name ?? stateObj.attributes.friendly_name,
+        offPin: { service: row.pin.service, field: row.pin.field ?? "pin", data: { entity_id: row.entity, value } },
+        expect: String(value),
+        back: this.sheet,
+      });
+    }
+
+    // A number from a row: through the code when it loosens a limit, else at once.
+    _setRowNumber(row, value) {
+      const stateObj = this.hass.states[row.entity];
+      if (stateObj && this._needsPin(row, stateObj, value)) this._askPin(row, stateObj, value);
+      else this._setNumber(row.entity, value);
     }
 
     _setNumber(entityId, value) {
@@ -580,8 +690,8 @@ export const BlockSheets = (Base) =>
         ${this._renderHeader(item.name, false, Boolean(item.details), () => this._showDetails(item.details))}
         <div class="rows">
           ${stats.length
-            ? html`<div class="stats">
-                ${stats.map((stat) => html`<span><b>${stat.value}</b><small>${stat.name}</small></span>`)}
+            ? html`<div class="stats" data-panel-stats>
+                ${stats.map((stat, index) => html`<span data-stat=${index}><b>${stat.value}</b><small>${stat.name}</small></span>`)}
               </div>`
             : nothing}
           ${item.card_open ? this._renderActions(item.actions) : nothing}
@@ -597,7 +707,7 @@ export const BlockSheets = (Base) =>
           ${item.card_open ? nothing : this._renderActions(item.actions)}
           <div class="panel-groups" data-panel-groups>
             ${(item.groups ?? []).map(
-              (group) => html`<div class="panel-group">
+              (group, index) => html`<div class="panel-group" data-panel-group=${index}>
                 ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
                 ${group.layout === "summary" ? this._renderSummary(group) : nothing}
                 ${group.layout === "controls" ? this._renderControls(group.rows) : nothing}
@@ -615,7 +725,7 @@ export const BlockSheets = (Base) =>
     // column beside the card, which keeps the rest of the screen; upright and on a phone they stand above it, as before.
     // The card's box is the same element in both, so turning the tablet does not start the card again.
     _renderSplitPanel(item, stats) {
-      const split = window.matchMedia(SPLIT_PANEL).matches;
+      const split = mediaQuery(SPLIT_PANEL).matches;
       const share = (index) => {
         const stat = item.stats[index];
         const value = Number(this.hass.states[stat.entity]?.state);
@@ -628,7 +738,7 @@ export const BlockSheets = (Base) =>
             ${stats.length
               ? html`<div class="stats" data-panel-stats>
                   ${stats.map(
-                    (stat, index) => html`<span>
+                    (stat, index) => html`<span data-stat=${index}>
                       <b>${stat.value}</b><small>${stat.name}</small>
                       ${split && share(index) !== null ? html`<i class="share"><u style="width: ${share(index)}%"></u></i>` : nothing}
                     </span>`,
@@ -638,7 +748,7 @@ export const BlockSheets = (Base) =>
             ${split ? this._renderRoomPicker(item) : nothing}
             <div class="side-actions">${this._renderActions(item.actions)}</div>
             ${(item.groups ?? []).map(
-              (group) => html`<div class="panel-group">
+              (group, index) => html`<div class="panel-group" data-panel-group=${index}>
                 ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
                 ${group.layout === "summary" ? this._renderSummary(group) : nothing}
                 ${group.layout === "controls" ? this._renderControls(group.rows) : nothing}

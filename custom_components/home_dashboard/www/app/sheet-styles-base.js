@@ -307,6 +307,11 @@ export const baseStyles = css`
     grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
     gap: 8px;
   }
+  /* Five buttons still fit one row of a phone. */
+  .block-actions:has(> .block-action:nth-child(5)) {
+    grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+    gap: 6px;
+  }
   .block-action {
     display: flex;
     flex-direction: column;
@@ -322,27 +327,44 @@ export const baseStyles = css`
     color: #ffffff;
     background: var(--hd-appliance-icon);
   }
+  /* A question before an action that cannot wait to be undone (turning a console off): the same dark glass in every
+     look and theme, so it reads on light ones too; the action in red, the way back plain. */
   .confirm {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    padding: 12px;
+    gap: 12px;
+    padding: 16px 18px;
     border-radius: var(--hd-radius);
-    background: var(--hd-security);
+    color: #ffffff;
+    background: rgba(28, 28, 32, 0.82);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 69, 58, 0.45);
+    --mdc-icon-size: 26px;
+  }
+  .confirm ha-icon {
+    flex: none;
+    color: #ff453a;
   }
   .confirm span {
-    flex: 1 1 100%;
+    flex: 1 1 calc(100% - 44px);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
   }
   .confirm button {
-    flex: 1;
-    padding: 10px;
+    flex: 1 1 0;
+    padding: 12px;
     border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
     text-align: center;
-    background: var(--hd-surface);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.14);
   }
   .confirm .yes {
-    font-weight: 500;
+    background: #ff453a;
   }
   .field {
     display: flex;
@@ -390,6 +412,56 @@ export const baseStyles = css`
     min-width: 0;
     max-width: 55%;
   }
+  .range-row {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+  }
+  .range-row input[type="range"] {
+    max-width: 100%;
+  }
+  .range-row output {
+    flex: none;
+    min-width: 56px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: right;
+  }
+  /* − value +: big targets for a finger, the value between them as it will be set. */
+  .stepper {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+  }
+  .field .stepper button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    border-radius: 50%;
+    color: var(--hd-text);
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    --mdc-icon-size: 22px;
+  }
+  .field .stepper button:disabled {
+    opacity: 0.35;
+  }
+  .stepper output {
+    min-width: 96px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
   .slider-field output {
     flex: none;
     min-width: 48px;
@@ -410,5 +482,54 @@ export const baseStyles = css`
     border-radius: 50%;
     color: inherit;
     background: transparent;
+  }
+  /* The list of what the status bar counts as on. */
+  .status-on {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 4px 16px;
+  }
+  .status-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 0;
+  }
+  .status-row.ignored {
+    opacity: 0.6;
+  }
+  .status-main {
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 0;
+    border-radius: 14px;
+    color: inherit;
+    text-align: left;
+    background: var(--hd-off);
+    font: inherit;
+  }
+  .status-main .row-text span {
+    color: var(--hd-text-muted);
+    font-size: 13px;
+  }
+  .status-ignore {
+    flex: none;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    color: inherit;
+    background: var(--hd-off);
+    font: inherit;
+    font-size: 13px;
+  }
+  .status-ignored {
+    margin: 12px 4px 0;
+    font-size: 13px;
+    color: var(--hd-text-muted);
   }
 `;

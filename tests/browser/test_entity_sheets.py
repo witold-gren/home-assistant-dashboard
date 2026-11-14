@@ -1321,18 +1321,18 @@ def test_a_blocked_camera_says_why_and_opens_nothing(phone):
 # Privacy ----------------------------------------------------------------------------------------
 
 
-def private_camera(page, state: str) -> dict:
+def private_camera(page, state: str, rule: dict | None = None, user: dict | None = None) -> dict:
     return page.evaluate(
-        """(state) => {
+        """({ state, rule, user }) => {
             const { model, hass } = window.dashboard;
-            const instance = hass();
+            const instance = hass(user ? { user } : {});
             const base = model.normalizeConfig({});
             const camera = model.buildCameras(instance, base).find((item) => item.entityId.startsWith("camera."));
             const area = model.effectiveArea(instance, camera.entityId, base);
             instance.states["switch.privacy"] = { entity_id: "switch.privacy", state, attributes: {} };
             instance.states[camera.entityId] = { ...instance.states[camera.entityId], state: state === "on" ? "unavailable" : "idle" };
             const config = model.normalizeConfig({
-                cameras: { private: [{ entity: "switch.privacy", hide: [camera.entityId] }] },
+                cameras: { private: [{ entity: "switch.privacy", hide: [camera.entityId], ...rule }] },
             });
             const selection = model.selectEntities(instance, config);
             const has = (list) => list.some((item) => item.entityId === camera.entityId);
@@ -1340,7 +1340,7 @@ def private_camera(page, state: str) -> dict:
                      room: has(model.buildRoomModel(instance, config, selection, area).cameras),
                      watched: model.watchedEntityIds(instance, config, selection).has("switch.privacy") };
         }""",
-        state,
+        {"state": state, "rule": rule or {}, "user": user},
     )
 
 
@@ -1350,6 +1350,31 @@ def test_a_private_camera_is_gone_everywhere_and_not_shown_as_broken(phone):
 
 def test_the_camera_comes_back_when_privacy_ends(phone):
     assert private_camera(phone, "off") == {"home": True, "room": True, "watched": True}
+
+
+PARENT = {"id": "parent-id", "name": "Mama"}
+CHILD = {"id": "child-id", "name": "Kuba"}
+
+
+def test_privacy_for_some_people_hides_the_cameras_only_from_them(phone):
+    rule = {"users": ["child-id"]}
+    assert private_camera(phone, "on", rule, CHILD)["home"] is False
+    assert private_camera(phone, "on", rule, PARENT)["home"] is True
+
+
+def test_privacy_except_some_people_keeps_the_cameras_for_them(phone):
+    rule = {"except": ["Mama"]}
+    assert private_camera(phone, "on", rule, PARENT) == {"home": True, "room": True, "watched": True}
+    assert private_camera(phone, "on", rule, CHILD)["home"] is False
+
+
+def test_privacy_rules_by_person(phone):
+    held = phone.evaluate("""() => { const { model } = window.dashboard; const as = (user) => ({ user });
+        return [model.privacyHoldsFor({}, as(CHILD)), model.privacyHoldsFor({ users: ['Kuba'] }, as(CHILD)),
+            model.privacyHoldsFor({ users: ['Kuba'] }, as({ id: 'x', name: 'Mama' })),
+            model.privacyHoldsFor({ except: ['parent-id'] }, as({ id: 'parent-id' })),
+            model.privacyHoldsFor({ except: ['parent-id'] }, as({}))]; }""".replace("CHILD", "{ id: 'c', name: 'Kuba' }"))
+    assert held == [True, True, False, False, True]
 
 
 def test_a_toggle_tile_works_with_one_tap_and_keeps_its_own_state(phone):

@@ -326,10 +326,16 @@ shortcuts:
 |---|---|
 | ![Połączenia kamery](screenshots/pl/connections.png) | ![Okno kamery na tablecie](screenshots/pl/camera-tablet.png) |
 
+**Bateria.** Okno kamery, której urządzenie ma czujnik baterii, pokazuje w prawym górnym rogu obrazu procent baterii;
+do 20 % plakietka jest czerwona. Na stronach i we wszystkich kamerach jej nie ma, żeby nie zasłaniać obrazów. Obraz
+(`image.*`) bierze baterię kamery, która gra go na żywo (`cameras.live`), albo tej samej kamery z innej integracji
+(`cameras.controls`).
+
 Czerwona, migająca kropka w prawym górnym rogu obrazu (na stronie głównej, we wszystkich kamerach i w oknie kamery)
 mówi, że strumień tej kamery jest teraz otwarty: z dashboardu, innego okna Home Assistant albo czegokolwiek, co pyta
 most. Kamera jest wtedy wybudzona i zużywa baterię. Dashboard bierze to z czujników urządzenia kamery: eufy
-`binary_sensor.*_streaming`, Neolink `*_camera_link` i `*_recording_live_view`.
+`binary_sensor.*_streaming`, Neolink `*_camera_link` i `*_recording_live_view`. W oknie kamery z baterią kropka stoi
+w plakietce baterii.
 
 W ustawieniach kamery (trybik) zakładka **Połączenia** pokazuje z historii Home Assistant ostatnie 24 godziny albo 7 dni:
 liczbę wybudzeń (strumieni), łączny czas i ile trwało ponad 5 minut, a pod tym każde połączenie z godziną początku,
@@ -1037,6 +1043,21 @@ działa na wszystkich urządzeniach tej osoby.
 jasnego i ciemnego wyglądu; wygląd bez własnego tła pokazuje zwykłą stronę. Na górze tego okna wybierasz też dla siebie wygląd całego dashboardu: Systemowy, Jasny albo Ciemny. **Dla wszystkich** widzą administratorzy i ustawia ono tło domyślne. Bez tego tło zostaje
 na koncie tej osoby. Własne tło wygrywa z domyślnym.
 
+**Utwórz tło** w tym samym oknie otwiera kreator tła, podobny do aplikacji tworzących tapety do aplikacji Dom: wybierasz
+jedno z 16 gotowych teł albo wzór i gradient (48 do wyboru albo własne dwa kolory) i jeśli chcesz, kładziesz na to
+zdjęcie, przezroczyste, odbarwione albo rozmyte. Podgląd pokazuje na tle kilka kafelków, więc od razu widać, czy
+dashboard zostaje czytelny. **Użyj jako tło** tworzy naraz obraz pionowy i szeroki i wpisuje je do jasnego wyglądu,
+ciemnego albo obu. W edytorze na komputerze ten sam kreator otwiera się szeroko przyciskiem **Utwórz tło** we wpisie
+**Tła stron** (Wygląd → Motywy i tła), z telefonem i tabletem obok siebie.
+
+Każde pole takiego wpisu (jasny, ciemny i oba szerokie) pokazuje na końcu, co zawiera: próbkę koloru albo gradientu
+albo lupkę, która otwiera obrazek w dużym oknie. Kliknięcie w pole otwiera okno z dwiema zakładkami. **Obrazki**
+pokazuje miniatury wgranych do Home Assistanta i tych z folderu `/config/www` (kliknięcie wybiera, lupka powiększa), a
+**Wgraj obrazek z komputera** dodaje nowy. **Kolor i gradient** ustawia jeden kolor z palety albo gradient: jego
+kolory, ich miejsca w procentach i kierunek, z 48 gotowymi gradientami i dużym podglądem; powstały CSS zostaje pod
+spodem do ręcznej zmiany. Każde inne pole edytora z adresem obrazka też ma lupkę. Obrazki z folderu `www` pokażą się po
+restarcie Home Assistanta z nową wersją integracji.
+
 Ekran pionowy i poziomy mogą mieć różne zdjęcia, bo pionowe zdjęcie na laptopie zostaje mocno przycięte:
 
 | Kształt | Kiedy | Klucz w konfiguracji |
@@ -1306,9 +1327,17 @@ szybkie spojrzenie z drugiego końca pokoju. Strony (Dom, Muzyka, Energia, Mapa)
   nic nie pracuje, w **W domu** zamknięte drzwi i okna oraz zero świateł.
 - **Przycisk u góry po prawej** zwija kolumnę do zwykłego wąskiego paska; tablet to zapamiętuje. Zwinięty pasek ma ten
   przycisk na górze, a menu i asystenta na dole.
-- **Dotknięcie części** otwiera jej okno: pogoda okno pogody, **W domu** ekran Status (pierwszy blok Statusu; bez
-  niego szczegóły drzwi), tramwaje okno rozkładu, pobór mocy stronę Energia, a **Uwaga** i **Teraz** szczegóły
-  urządzenia.
+- **Dotknięcie części** otwiera jej okno: pogoda okno pogody, w **W domu** liczba świateł albo urządzeń listę tego,
+  co jest włączone (z pokojem i godziną włączenia; dotknięcie otwiera okno tego urządzenia), a otwarte drzwi ekran
+  Status (pierwszy blok Statusu; bez niego szczegóły drzwi), tramwaje okno rozkładu, pobór mocy stronę Energia,
+  a **Uwaga** i **Teraz** szczegóły urządzenia.
+- **„Nie licz”** w tej liście (tylko administrator) zostawia światło albo urządzenie poza licznikiem, np. lampę,
+  która działa według własnego harmonogramu. Lista pokazuje je dalej osobno, z przyciskiem **„Licz znowu”**. Zapisuje
+  się dla wszystkich jako [`status_panel.ignore`](configuration.pl.md#11-pasek-statusu-tabletu).
+- **Moje kalendarze** (telefon): okno wyboru obszaru ma pod pokojami **Moje kalendarze** z dzisiejszymi tytułami i ich
+  liczbą; dotknięcie otwiera dziś i kolejne 14 dni, w których coś jest, każde wydarzenie z godziną, miejscem i opisem.
+  Trybik wybiera własne kalendarze osoby i to, czy widzi kalendarze domu; zapisuje się w jej ustawieniach, więc idzie
+  za nią na każde urządzenie. Tablet zalogowany jako osobny użytkownik widzi kalendarze domu.
 - **Przytrzymanie tego przycisku** otwiera menu: pierścień wokół przycisku wypełnia się przez pół sekundy. Pierwsze
   trzy razy podpowiada to dymek. Strzałka w menu wraca do paska. Pod przyciskiem jest mikrofon asystenta.
 
@@ -1317,6 +1346,7 @@ Części:
 | Część | Co pokazuje | Skąd |
 |---|---|---|
 | **Pogoda** | temperatura, opis, dziś min/maks, najbliższy deszcz lub śnieg w 12 h | encja pogody z rozdziału 4 |
+| **Dziś** | dzisiejsze wydarzenia kalendarzy: całodniowe miękko w kolorze kalendarza na górze, pozostałe z godziną i „za 3 h”, w trakcie „teraz” z paskiem; wydarzenie znika po końcu. Najwyżej 3, potem „+N więcej”; dotknięcie otwiera kalendarz (na tablecie miesiąc z wydarzeniami wybranego dnia obok) | `status_panel.calendars` (Pasek statusu → Kalendarz w edytorze) i własne kalendarze osoby |
 | **W domu** | włączone światła i urządzenia, otwarte drzwi i okna | pokoje dashboardu, `status_panel.doors` |
 | **Uwaga** | te same ostrzeżenia co karty na stronie głównej | pozycje Statusu z `notify: true` |
 | **Teraz** | to, co pracuje albo się dzieje (pralka, msza w niedzielę, odkurzacz) | `status_panel.now` |
@@ -1384,7 +1414,116 @@ intercom:
 Z `upload` nagrywać może każdy zalogowany, także konto tabletu na ścianie. Bez tej opcji nagranie trafia do
 `media_folder`, do którego pliki może wgrać tylko administrator.
 
-## 12. Gdy coś nie działa
+## 12. Edytor na komputerze
+
+Przewodnik krok po kroku ze zrzutami, od pustego Home Assistanta do gotowego dashboardu, jest w
+**[Edytor dashboardu](editor.pl.md)**. Ten rozdział go podsumowuje.
+
+**Edytor dashboardu** w bocznym menu Home Assistant (tylko dla administratorów) edytuje dashboard na dużym ekranie,
+z telefonem i tabletem obok siebie. Na urządzeniach w domu nic się nie zmienia, dopóki nie opublikujesz. Opcja
+integracji *Pokazuj edytor w pasku bocznym* (Ustawienia → Urządzenia i usługi → Home Dashboard → Konfiguruj) chowa go z
+paska; wtedy otwiera się pod adresem `/home-dashboard-editor`. Sam edytor ma jasny i ciemny wygląd: domyślnie taki
+jak Home Assistant, a przycisk w górnym pasku przełącza Auto, Jasny i Ciemny (przeglądarka to pamięta). Podgląd ma
+własny wybór jasnego i ciemnego dashboardu.
+
+To, co jest wybrane w drzewie, ma w podglądzie czerwoną przerywaną ramkę, więc widać, który element edytuje formularz:
+kafelek, sekcja, pokój, okno bloku albo liczba, przycisk, grupa czy wiersz w tym oknie. Ustawienia jej nie mają.
+
+**Ustawienia edytora** (trybik na górnym pasku) zawierają telefony i tablety, które może pokazać podgląd. Każdy
+wbudowany model (Apple) można ukryć z wyboru, zmienić mu nazwę albo rozmiar i przywrócić strzałką; pod każdą listą
+dodajesz własne urządzenie dowolnej marki: nazwa, szerokość i wysokość w punktach (pikselach CSS: rozdzielczość ekranu
+podzielona przez gęstość pikseli, np. 1280 × 800 dla Galaxy Tab S9). Telefon zawsze stoi pionowo, a tablet poziomo,
+niezależnie od kolejności wpisanych wymiarów. Lista jest zapisywana w tej przeglądarce; jeden model każdego rodzaju
+zawsze zostaje widoczny.
+
+**Trzy kolumny.** Po lewej drzewo dashboardu: strona główna (ulubione, sceny), każdy pokój z listą „Na stronie
+głównej”, scenami i sekcjami, bloki i pozostałe ustawienia. *Zwiń wszystko* i *Rozwiń wszystko* składają drzewo
+(grupy zostają otwarte), strzałka przy nazwie grupy zwija samą grupę, a ikona po jej prawej zwija albo rozwija
+wszystko w środku tej grupy,
+wyszukiwarka znajduje pokój, kafelek albo encję, a kafelek z nieistniejącą encją jest oznaczony. W środku podgląd,
+po prawej właściwości zaznaczonego elementu. Paski między kolumnami przeciągasz, żeby je poszerzyć; dwuklik
+przywraca pierwszą szerokość. Przycisk ☰ w lewym górnym rogu otwiera menu Home Assistant.
+
+**Podgląd** to prawdziwy dashboard w ramkach iPhone'a i iPada, pokazujący szkic od razu, jeszcze przed zapisem.
+Wybierz *iPhone*, *iPad* albo *Oba*, jasny lub ciemny oraz *Jako* osobę, żeby zobaczyć jej widok. Listy telefonu i
+tabletu mają każdy rozmiar ekranu Apple raz, z modelami tego rozmiaru: od iPhone'a SE 1 (320 × 568) i SE 2–3, 6, 7, 8
+(375 × 667) po iPhone'a 16 Pro Max i 17 Pro Max (440 × 956), od iPada 1–6 (1024 × 768) i iPada mini 6–7 po iPada Pro
+13″ M4+ (1376 × 1032). Przeglądarka pamięta wybór. Ustaw
+**powiększenie** aplikacji Home Assistant każdego urządzenia (Ustawienia → Aplikacja Companion → Ogólne →
+Powiększenie): iPad Air z 85 % pokazuje stronę jako 1388 × 965 i podgląd robi to samo. Dotknięcie w podglądzie
+zaznacza ten kafelek w drzewie; ramki niczego nie przełączają i nie wywołują żadnej usługi. Wybór pokoju przenosi
+ramki do niego.
+
+**Właściwości.** Każdy kafelek, sekcja i pokój ma formularz ze wszystkimi kluczami, które przyjmuje, z nazwą klucza
+YAML przy każdym polu; zakładka *YAML* pokazuje i zmienia to samo jako tekst. Klucze, których formularz nie zna,
+zostają. Kafelek listy dostaje *Zaznacz, potem uruchom* i nazwy opcji.
+
+**Szybki start.** Zaraz po instalacji edytor proponuje utworzenie dashboardu i jego pokoi z obszarów Home
+Assistant: jeden pokój na obszar, jego urządzenia w sekcjach według rodzaju (oświetlenie, klimat i rolety,
+multimedia, urządzenia, bezpieczeństwo, automatyzacje po zaznaczeniu), kilka kafelków każdego na stronie głównej.
+Encje ukryte i techniczne są pomijane, a z urządzenia widocznego z dwóch integracji (Netatmo i HomeKit) powstaje
+jeden kafelek. To samo jest potem pod ✨ przy *Pokoje* dla obszarów bez pokoju. Zaznaczone pokoje widać najpierw w
+podglądzie.
+
+**Budowanie.** *+* przy *Pokoje* dodaje pokój; pokój dostaje sekcje, a sekcja, lista „Na stronie głównej” pokoju,
+ulubione i sceny dostają kafelki po encji albo przez *Wybierz z listy…*: wszystkie encje domu z obszarem i baterią,
+filtrowane po pokoju, rodzaju, z ukryciem już pokazanych; okno ostrzega, gdy roleta, termostat albo zamek może być
+jednym urządzeniem z dwóch integracji, i podpowiada ustawienia. Zaznaczone encje widać w podglądzie przed dodaniem.
+Kafelki, sekcje i pokoje duplikujesz, przesuwasz w górę i w dół, usuwasz albo przeciągasz w drzewie. **Cofnij** i
+**Ponów** (⌘Z, ⇧⌘Z) cofają każdy krok.
+
+**Bloki.** Blok kilku encji rozwija się w drzewie na liczby, przyciski i grupy z wierszami, każde z formularzem.
+Opcje listy (np. profile ekspresu) ustawiasz w kolejności, nazywasz i ukrywasz okiem. *Z urządzenia, jeszcze nie w
+bloku* pokazuje encje urządzeń bloku, których jego okno nie ma: kliknięcie dodaje je jako wiersz. Wybór bloku
+otwiera jego okno w podglądzie i mówi, czy mieści się na tablecie bez przewijania.
+Pozostałe bloki (Status, odjazdy, wiadomości, host, rok szkolny, dodatek, strona, telewizor, waga) mają formularz z tymi
+samymi polami co formularz bloku na tablecie: listy (sekcje Statusu z pozycjami, kolumny hosta, encje odjazdów)
+rozwijasz, przesuwasz strzałkami i usuwasz, a to, co nie ma pola, wpisujesz jako YAML w samym polu. Kolumna hosta ma
+paski (z jednostką, maksimum oraz progiem żółtym i czerwonym), szczegóły z typem do wybrania, maszyny w środku (nazwa,
+status, procesor, pamięć) i zasilanie (moc, gniazdko, napięcie, natężenie, energia); tylko wykres jest kartą w YAML.
+Rok szkolny ma osobne pole na każdy sensor, a gdy pole jest puste, wyszarzony podpowiada sensor Rodzinnika. Odjazdy
+dostają kolor każdej linii, a wpis Statusu może być alarmem. Własne słowa stanów (wpis Statusu, magazyn energii) to
+pary stan → słowo, własne włączanie i wyłączanie telewizora albo kafelka mediów to usługa i encja, wzorce głośników
+wpisujesz w wierszach, a tła stron mają pole na każdy wygląd. YAML zostaje tylko dla kart Home Assistant i biblioteki
+motywów. Zmiana nazwy bloku
+zmienia ją też w kafelkach, menu, pasku statusu i regułach dostępu oraz widoczności.
+
+**Ustawienia.** Węzły pod *Ustawienia* mają formularze podzielone na części, a każda część pokazuje klucz, który
+zapisuje. **Pasek statusu** ustawia wygląd paska (`appearance.status`: czy się pokazuje, części i ich kolejność,
+kolory, krycie, rozmycie) i to, co pokazuje (`status_panel`: drzwi i okna, nieliczone światła i urządzenia, Teraz,
+pobór mocy, odjazdy). Podgląd iPada od razu pokazuje pasek ze szkicu. Część, którą wyczyścisz, znika z konfiguracji.
+**Wygląd i motywy** ma część dla każdej grupy wyglądu (cały dashboard, tło stron, kafelki z kolorami według rodzaju,
+napisy, górne bloki, okrągłe przyciski, plakietki, okna, mapa, odtwarzacz), z tymi samymi polami co okno Wygląd na
+tablecie, oraz motywy i tła stron. Długi formularz zaczyna zwinięty; części rozwijasz kliknięciem nagłówka.
+**Menu** to grupy lewego menu i ich pozycje (skrót, dodatek, adres, akcja, tylko dla administratorów, kto widzi,
+ukryj w trybie gościa); wybór węzła otwiera menu w podglądzie. **Pasek stron** to miejsca na pasku (od 2 do 5: strony,
+sceny, menu albo pokój) w kolejności oraz jego wygląd. Wybór bloku dowolnego rodzaju otwiera w podglądzie jego okno.
+**Kamery** mają trzy części: które kamery i w jakiej kolejności, prywatność i tryb gościa (reguły z przełącznikiem,
+ukrywanymi kamerami i osobami) oraz pojedyncze kamery (kamera na żywo dla obrazu, ta sama kamera w innej integracji,
+mówienie, okrągłe przyciski, obracanie i encje pod trybikiem każdej kamery). **Interkom** to skrypt wiadomości,
+pokoje do zaznaczenia i pola wywołania, a **Energia** to fazy licznika, zakres napięcia i magazyny energii.
+**Dostęp osób** to najpierw osoba, potem to, czego nie widzi, w tych samych grupach co okno na tablecie (kamery, pokoje,
+sekcje, górne bloki, światła, media, ochrona, sceny i skrypty, reszta), z okiem przy każdej pozycji. Niżej reguły
+widoczności: encja, `block:<nazwa>` albo `shortcut:<nazwa>` i osoby, które to widzą (*only*) albo nie widzą (*except*).
+Pozostałe węzły to **Pokoje: kolejność i ukryte**, **Encje** (dodane do pokoju, nigdy niepokazywane same, własna nazwa,
+ikona, obszar albo karta encji), **Światła** (grupa zamiast lamp), **Strona główna i tablet** (pogoda, ochrona, powrót
+zostawionego tabletu, układ scen) oraz strony **Muzyka**, **Media** i **Mapa**. Każde ustawienie dashboardu ma więc
+formularz; zakładka YAML zostaje obok dla tego, co wolisz wpisać ręcznie.
+
+**Publikacja.** Szkic zapisuje się na serwerze chwilę po każdej zmianie, więc czeka też na innym komputerze;
+*Wyrzuć* go usuwa. *Opublikuj* pokazuje, co się zmieni, zwykłymi słowami i w YAML, brakujące encje i pole na
+notatkę. Potem:
+
+- **Opublikuj do sprawdzenia** jednej osobie: jej dashboard pokazuje tę wersję z paskiem *Wersja do sprawdzenia* i
+  przyciskiem powrotu do zwykłej; nikt inny jej nie widzi. Góra edytora mówi, kto sprawdza; *Zakończ* to kończy.
+- **Opublikuj dla wszystkich**: dashboard każdego urządzenia wczytuje nową wersję, a zastąpiona trafia do
+  **Historii**. Jeśli od początku szkicu ktoś zmienił dashboard gdzie indziej (na telefonie), edytor to mówi zamiast
+  nadpisać tamtą zmianę; *Opublikuj mimo to* ją nadpisuje.
+
+**Historia** trzyma 30 ostatnich opublikowanych wersji z autorem i notatką. Wybierz jedną, żeby zobaczyć, czym różni
+się od obecnej; *Przywróć jako szkic* robi z niej szkic do obejrzenia i opublikowania jak każdy inny.
+
+## 13. Gdy coś nie działa
 
 | Objaw | Sprawdź |
 |---|---|

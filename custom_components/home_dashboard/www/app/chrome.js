@@ -15,7 +15,7 @@ import {
   MENU_LINKS,
   menuGroups,
   personalize,
-  renameBlockRules,
+  renameBlockEverywhere,
   SCENES_ROOM,
   selectEntities,
   shownMenu,
@@ -25,6 +25,11 @@ import { stopWatchingPresses, watchPresses } from "./press.js";
 import { backgroundVeil, navVariables, sheetVariables } from "./appearance.js";
 import { applyColorMode, backgroundTop, DARK_SCHEME, isDark, pageColour, tokens, viewBackground } from "./styles.js";
 import { STATUS_WIDTH } from "./status-panel.js";
+import { previewColorMode, previewMode, previewPrefs, previewUserId } from "./preview.js";
+import { mediaQuery } from "./media.js";
+
+// The same key as main.js: chrome.js must not import main.js, which defines every element.
+const SKIP_REVIEW_KEY = "home-dashboard-skip-review";
 
 // A phone on its side is wide but low, and stays a phone.
 export const TABLET_MEDIA_QUERY = "(min-width: 900px) and (min-height: 501px)";
@@ -147,7 +152,7 @@ export function unlockZoom() {
   document.removeEventListener("gesturestart", noPinch);
 }
 
-export const currentLayout = () => (window.matchMedia(TABLET_MEDIA_QUERY).matches ? "tablet" : "phone");
+export const currentLayout = () => (mediaQuery(TABLET_MEDIA_QUERY).matches ? "tablet" : "phone");
 
 // What scrolls the page: the view on a dashboard, the window anywhere else.
 export function pageScroller(node) {
@@ -228,6 +233,18 @@ export function updateChrome(card, hass) {
 
 export function openSheet(card, sheet) {
   existingChrome(card)?.open({ type: "sheet", sheet });
+}
+
+export function closeSheet(card) {
+  return existingChrome(card)?.close();
+}
+
+/** The chrome a page draws its windows in, or null. */
+export const chromeOf = (card) => existingChrome(card) ?? null;
+
+/** Closes at once, without a step back in the history: the editor's preview moves its frame to another page first. */
+export function dropSheet(card) {
+  existingChrome(card)?.drop();
 }
 
 export function saveDashboard(card, dashboard) {
@@ -347,7 +364,7 @@ export class HomeDashboardChrome extends LitElement {
 
   // What someone chose for themselves beats the option of the integration.
   _useColorMode() {
-    const mode = personalPrefs().color_mode ?? this._sharedMode;
+    const mode = previewColorMode() ?? personalPrefs().color_mode ?? this._sharedMode;
     if (!mode || mode === this._usedMode) return;
     this._usedMode = mode;
     applyColorMode(mode);
@@ -388,7 +405,7 @@ export class HomeDashboardChrome extends LitElement {
     if (!light && !this._userTheme) return;
     app._updateHass({ selectedTheme: light ? { theme: "default", dark: false } : this._userTheme.value });
     if (!light) this._userTheme = null;
-    app._applyTheme(window.matchMedia(DARK_SCHEME).matches);
+    app._applyTheme(mediaQuery(DARK_SCHEME).matches);
   }
 
   // A dialog of Home Assistant opens on the whole screen, like the sheets here.
@@ -435,7 +452,7 @@ export class HomeDashboardChrome extends LitElement {
   _refreshPlayer() {
     if (!this.hass) return;
     if (this.raw !== this._selectionRaw || REGISTRIES.some((name) => this._registries?.[name] !== this.hass[name])) {
-      this._config = personalize(normalizeConfig(this.raw), this.hass.user?.id, personalPrefs());
+      this._config = personalize(normalizeConfig(this.raw), previewUserId(this.hass), previewPrefs(personalPrefs()));
       this._selection = selectEntities(this.hass, this._config);
       this._selectionRaw = this.raw;
       this._registries = this.hass;
@@ -480,7 +497,7 @@ export class HomeDashboardChrome extends LitElement {
     ACTIVITY_EVENTS.forEach((name) => window.addEventListener(name, this._armIdle, { capture: true, passive: true }));
     this._themeMeta = document.querySelector('meta[name="theme-color"]');
     this._themeColour = this._themeMeta?.getAttribute("content");
-    this._scheme = window.matchMedia(DARK_SCHEME);
+    this._scheme = mediaQuery(DARK_SCHEME);
     this._scheme.addEventListener("change", this._paintDocument);
     document.addEventListener("visibilitychange", this._onVisible);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
@@ -496,7 +513,7 @@ export class HomeDashboardChrome extends LitElement {
       this._observer.observe(this.root);
       window.addEventListener("click", this._followRoot, { capture: true, passive: true });
     }
-    this._tablet = window.matchMedia(TABLET_MEDIA_QUERY);
+    this._tablet = mediaQuery(TABLET_MEDIA_QUERY);
     try {
       this._statusFolded = localStorage.getItem(STATUS_OPEN_KEY) === "0";
     } catch {
@@ -590,6 +607,8 @@ export class HomeDashboardChrome extends LitElement {
   // Tablets only: a phone is in someone's hand, and its page should wait for them.
   _armIdle = () => {
     clearTimeout(this._idleTimer);
+    // A preview stays where the editor put it.
+    if (previewMode()) return;
     const seconds = this._config?.idle.return_after;
     if (seconds && currentLayout() === "tablet") {
       this._idleTimer = setTimeout(this._returnHome, seconds * 1000);
@@ -609,7 +628,10 @@ export class HomeDashboardChrome extends LitElement {
 
   // What the person chose for the page as a whole; the configuration may not be read yet.
   get _appearance() {
-    return this._config?.appearance ?? personalize(normalizeConfig(this.raw ?? {}), this.hass?.user?.id, personalPrefs()).appearance;
+    return (
+      this._config?.appearance ??
+      personalize(normalizeConfig(this.raw ?? {}), previewUserId(this.hass), previewPrefs(personalPrefs())).appearance
+    );
   }
 
   // The page bounces at its ends unless someone turned that off. The view is Home Assistant's, so the
@@ -751,6 +773,11 @@ export class HomeDashboardChrome extends LitElement {
       const screen = shortcuts.find((item) => item?.kind === "overview");
       if (screen) this._openShortcut(screen);
       else if (detail.entity) this._fire("hass-more-info", { entityId: detail.entity });
+    } else if (detail.kind === "calendar") {
+      this.open({ type: "sheet", sheet: { kind: "calendar" } });
+    } else if (detail.kind === "status-on") {
+      // Which lights or devices are on: the list follows the states while it is open.
+      this.open({ type: "sheet", sheet: { kind: "status-on", group: detail.group } });
     } else if (detail.kind === "departures") {
       const block = detail.block ?? shortcuts.find((item) => item?.kind === "departures");
       if (block) this._openShortcut(block);
@@ -824,6 +851,13 @@ export class HomeDashboardChrome extends LitElement {
       window.history.back();
     });
     return this._closing;
+  }
+
+  drop() {
+    this._overlay = null;
+    this._closing = null;
+    this._afterClose?.();
+    this._afterClose = null;
   }
 
   // A room has no place in the navigation of its own: it belongs to Home.
@@ -906,7 +940,7 @@ export class HomeDashboardChrome extends LitElement {
 
   _saveShortcuts(event) {
     const { shortcuts, renamed } = event.detail;
-    const raw = renamed ? renameBlockRules(this.raw, renamed.from, renamed.to) : this.raw;
+    const raw = renamed ? renameBlockEverywhere(this.raw, renamed.from, renamed.to) : this.raw;
     return this._saveSettings({ detail: { dashboard: { ...raw, shortcuts } } });
   }
 
@@ -928,6 +962,17 @@ export class HomeDashboardChrome extends LitElement {
     return this._saveSettings({ detail: { dashboard: Object.keys(appearance).length ? { ...rest, appearance } : rest } });
   }
 
+  // An entity left out of the counts of the status bar, or counted again; an empty list leaves the key out.
+  _saveStatusIgnore(event) {
+    const { entityId, ignore } = event.detail;
+    const { ignore: old = [], ...panel } = this.raw.status_panel ?? {};
+    const next = ignore ? [...new Set([...old, entityId])] : old.filter((id) => id !== entityId);
+    const statusPanel = next.length ? { ...panel, ignore: next } : panel;
+    const { status_panel: dropped, ...rest } = this.raw;
+    const dashboard = Object.keys(statusPanel).length ? { ...rest, status_panel: statusPanel } : rest;
+    return this._saveSettings({ detail: { dashboard } });
+  }
+
   _saveAccess(event) {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, access: event.detail.access } } });
   }
@@ -943,6 +988,11 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   async _saveSettings(event) {
+    // A version being checked is not the published one: saving it from here would publish it without the editor.
+    if (this.raw?._review) {
+      window.alert(translate(this.hass?.language, "review_no_save"));
+      return;
+    }
     const urlPath = dashboardPath(window.location.pathname).slice(1);
     const current = await this.hass.callWS({ type: "lovelace/config", url_path: urlPath });
     const strategy = { ...event.detail.dashboard, type: current.strategy.type };
@@ -1136,6 +1186,7 @@ export class HomeDashboardChrome extends LitElement {
       .sheet=${overlay.sheet}
       .config=${this._config}
       .raw=${this.raw}
+      .selection=${this._selection}
       .layout=${currentLayout()}
       @sheet-close=${() => this.close()}
       @sheet-change=${(event) => this.open({ type: "sheet", sheet: event.detail })}
@@ -1143,6 +1194,7 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-home=${this._pickHome}
       @sheet-edit=${this._editScreen}
       @sheet-access=${this._saveAccess}
+      @sheet-status-ignore=${this._saveStatusIgnore}
       @sheet-layout=${this._saveLayout}
       @sheet-appearance=${this._saveAppearance}
       @sheet-theme=${this._saveSettings}
@@ -1152,6 +1204,21 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-background=${this._saveBackground}
       @sheet-details=${this._details}
     ></home-dashboard-sheet>`;
+  }
+
+  // A version sent from the editor to this person to check: said at the top, with a way back to the usual one.
+  _renderReviewBanner(language) {
+    const review = this.raw?._review;
+    if (!review) return nothing;
+    const when = new Intl.DateTimeFormat(language, { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(review.published_at));
+    return html`<div class="review-banner" data-review-banner>
+      <ha-icon icon="mdi:account-eye"></ha-icon>
+      <span>${translate(language, "review_banner", { when })}</span>
+      <button data-review-leave @click=${() => {
+        sessionStorage.setItem(SKIP_REVIEW_KEY, review.published_at);
+        window.location.reload();
+      }}>${translate(language, "review_banner_leave")}</button>
+    </div>`;
   }
 
   render() {
@@ -1178,6 +1245,7 @@ export class HomeDashboardChrome extends LitElement {
       `,
     );
     return html`
+      ${this._renderReviewBanner(language)}
       ${this.hass ? this._renderMiniPlayer(language) : nothing}
       <nav
         class="${this.navTucked ? "tucked" : ""} ${this._navGone ? "gone" : ""} ${look.nav.style} ${status ? "has-status" : ""} ${open ? "status-open" : ""}"
@@ -1202,6 +1270,29 @@ export class HomeDashboardChrome extends LitElement {
         all: unset;
         box-sizing: border-box;
         cursor: pointer;
+      }
+      .review-banner {
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + 8px);
+        left: 50%;
+        z-index: 9;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 6px 8px 6px 14px;
+        border-radius: 999px;
+        transform: translateX(-50%);
+        font-size: 13px;
+        color: #fff;
+        background: rgba(79, 140, 255, 0.92);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        --mdc-icon-size: 18px;
+      }
+      .review-banner button {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.22);
       }
       nav {
         position: fixed;

@@ -330,7 +330,7 @@ See the guide: [Cameras](guide.md#5-cameras).
 | `tiles` | list of entity ids | `[]` | with `hero`: the rest of the exact list |
 | `order` | list of entity ids | `[]` | shared order of the strip |
 | `hide` | list of entity ids | `[]` | hidden from everyone |
-| `private` | list of `{entity, hide}` | `[]` | while `entity` is on, the cameras in `hide` are gone from every page |
+| `private` | list of `{entity, hide, users, except}` | `[]` | while `entity` is on, the cameras in `hide` are gone from every page; `users` (ids or names): only for these people; `except`: for everyone but them |
 | `guest` | `{entity, hide, users}` | none | while `entity` is on, `hide` leaves Home and Security, blurred in rooms |
 | `live` | mapping picture → camera | `{}` | the camera that plays live for an `image.*` picture |
 | `controls` | mapping camera → camera | `{}` | the same camera in another integration: turning, buttons, talking |
@@ -364,6 +364,7 @@ cameras:
   order: [camera.front_door, camera.garden]
   private:
     - {entity: switch.bedroom_privacy, hide: [camera.bedroom]}
+    - {entity: input_boolean.privacy_mode, hide: [camera.living_room], except: [Parent]}
   guest:
     entity: input_boolean.guest_mode
     hide: [camera.living_room]
@@ -438,7 +439,8 @@ needs `name`; `entity` is optional.
 | `frame` | address | none | a web page on the whole window instead of everything else |
 | `fullscreen` | `true` | `false` | the whole screen; with `card_open` two columns on a tablet on its side |
 
-`stats` entries: `name`, `entity`, `unit`, `digits` (decimal places), `format: duration` (seconds as m:ss) and `labels`
+`stats` entries: `name`, `entity`, `unit`, `digits` (decimal places), `format: duration` (seconds as m:ss) or `format: hours` (a time as "1 h 14 min", read in the sensor's unit: s, min or h), `attribute` (an attribute shown
+instead of the state, e.g. `media_title` of a console) and `labels`
 (state → text). A stat with `unit: "%"` gets a bar in the two columns of `fullscreen`.
 
 `actions` entries:
@@ -449,6 +451,10 @@ needs `name`; `entity` is optional.
 | `entity` | **required**: a button without an existing entity is not shown |
 | `service` | `domain.service` called with `entity_id` of `entity`; without it the entity is pressed or turned on |
 | `confirm` | text of a question asked first |
+| `data` | fields of the service, e.g. `{minutes: 15}`; a script called by its own name (`script.xbox_turn_off_in`) gets only these |
+
+`quick` (a mapping like an action: `name`, `icon`, `service`, `confirm`, `data`) puts a button on the block's tile while
+its entity is on (not `off` or unavailable), e.g. **Turn off** on a console; with `confirm` the window opens asking first.
 
 `groups` entries:
 
@@ -460,7 +466,13 @@ needs `name`; `entity` is optional.
 
 A row is `{entity, name}` with optional `icon`, `unit`, `digits`, `format`, `labels`, `icons` (option → icon, for
 choices in `controls`), `order` (the order of the options of a list) and `hide` (options of a list nobody uses, left
-out unless one of them is what the device is set to now). What a row does depends on its domain:
+out unless one of them is what the device is set to now). A number (`input_number`, `number`) is a slider that says its
+value while it moves; `control: stepper` makes it buttons − and + with the value between them (a held button steps on,
+the value is sent once the taps stop; `steps: [1, 5]` moves by 1 on a tap and by round fives while held), and `labels: {"0": No limit}` names a value. `pin: {service, field}` guards a
+limit with a parent's code: a higher number, 0 (no limit) or a switch turned off opens the PIN keypad, and the service
+(a script that checks the code on the server) gets `entity_id`, `value` and the code in `field`; a stricter limit needs
+no code. What a row does depends on its
+domain:
 
 | Domain | Row |
 |---|---|
@@ -594,7 +606,7 @@ An item shows only while it has something to say:
 | `auto: alarm` | every sensor of the home that detects water, smoke, gas or carbon monoxide, while it does; `classes` narrows it (`moisture`, `smoke`, `gas`, `carbon_monoxide`, and `safety` when named) |
 | `alarm` | `true`: red on Status and, with `notify`, a red card on Home that cannot be closed or muted while it lasts; on by itself for `auto: alarm` |
 | `list` | `{entity, attribute, name, detail, since}`: rows of a list in an attribute |
-| `entity` | with `state`: a device in one of the states; `labels` (state → text), `facts` (`{name, entity, unit}`) |
+| `entity` | with `state`: a device in one of the states, or with `state_words` one of the words of its state (`OB` in a UPS's `OB DISCHRG`); `labels` (state → text), `facts` (`{name, entity, unit, format}`, `format: hours` tells seconds as "1 h 14 min") |
 | `text` | always this text |
 | `weekdays`, `months` | only on these days (1 is Monday) and months (1 to 12) |
 | `notify` | `true`: also a card on Home; works for `entities`, `below`, `auto` and `list` items |
@@ -904,6 +916,11 @@ visibility:
 | `now` | list | `[]` | items of **Now**, see below |
 | `power` | list of entity ids or `{entity, name, color}` | `[]` | power now with a line of 6 hours |
 | `departures` | list of entity ids or `null` | `null` | the trams; `null` takes the first departures block |
+| `ignore` | list of entity ids | `[]` | lights and devices **At home** does not count (e.g. a lamp with its own schedule) |
+| `calendars` | list of calendar entity ids | `[]` | the calendars of the home: today's events under the weather, the calendar window and each person's list |
+| `calendar_limit` | number | `3` | events shown at most in the bar, the rest as "+N more" |
+| `calendar_hide` | `end` or `start` | `end` | an event with an hour goes after its end (it says "now" meanwhile) or after its start |
+| `calendar_colors` | mapping calendar → colour | palette | own colours of calendars |
 
 A `now` item is an entity id or a mapping: `entity` (**required**), `name`, `icon`, `detail` (added after the state),
 `remaining` (on the right), `resting` (own list of states that mean nothing runs) and `block` (name of the block that
@@ -1091,6 +1108,16 @@ Choose a person or **Everyone but me** (every other account that exists now). Ta
 
 A gradient, a colour or a picture for the light and the dark look, **Upright / Wide** for the shape, and **Part of the
 picture** (`position`). At the top, your look: System, Light or Dark, kept in your user data.
+
+**Make a background** opens the background maker: 16 ready backgrounds, 16 patterns drawn by code (hills, mountains,
+dunes, waves, aurora, lights, colour blobs, sunset, ripples, contours, stripes, glass, petals, stars, arcs, paper)
+with **Another version of the pattern**, 48 gradients in six groups (calm, cool, warm, nature, pastel, night) or two
+colours of your own and their direction, and a photo if wanted: how much of it is seen, greyed, blur, fading out
+downwards, how it mixes with the gradient and the part kept. **For the look** chooses light, dark or both. **Use as
+background** sends two JPEG pictures to Home Assistant (upright 1290 × 2796 and wide 2732 × 2048, through
+`/api/image/upload`) and puts them in the slots of that look (`light` and `light_wide`, or the dark ones); the window
+then saves them as any picture. **Download** saves the picture of the shape shown as a file. The last settings of the
+maker are kept on the device.
 
 ### Look
 

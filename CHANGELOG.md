@@ -1,5 +1,141 @@
 # Changelog
 
+## 1.0.0 (2026-11-14)
+
+The dashboard and its editor on a computer, with a guide from zero to a finished dashboard in English and Polish
+([docs/editor.md](docs/editor.md), [docs/editor.pl.md](docs/editor.pl.md)) and its pictures (`make screenshots`,
+or `dev/screenshots.py editor` for those of the editor, over the made-up home in `dev/demo-editor.html`).
+
+- Editor: a block that opens a page (Media, Music, Map, Energy) says where that page's groups are edited, with a button
+  to its settings; **Home page and tablet** has an icon Home Assistant knows (`mdi:tablet-dashboard`).
+- Blocks: a stepper takes its own steps for a tap and a held button (`steps: [1, 5]`); held, it goes by round numbers.
+- Blocks: a row can guard a limit with a parent's code (`pin`): loosening it (a higher number, none, its switch off)
+  opens the PIN keypad and goes back to the block once Home Assistant set it; making it stricter needs no code.
+- Blocks: a number in a row can be buttons − and + with its value between them (`control: stepper`, also in the form
+  of a row), easy to set on a phone, sent once the taps stop; a slider shows its value while it moves. Whole hours read
+  "10 h".
+- Calendar: the month fills the window of a tablet, own round ticks and a switch for the home's calendars (iOS drew the
+  boxes black), the gear in line with the content, a tighter list.
+
+- Blocks: `quick`, a button on the tile while the device is on (a console's Turn off, asked first in the window);
+  actions pass `data` to their service (a script's fields); numbers and rows show an `attribute` (the game played);
+  `format: hours` reads the sensor's unit (history_stats counts hours).
+- Calendars: today's events under the weather of the status bar (`status_panel.calendars`; all-day ones softly in
+  their colour, the others with their hour, "now" while they last, gone once over, at most `calendar_limit`); a tap
+  opens a month on a tablet with the events of the day chosen beside it. On a phone the list of areas has My calendars:
+  today and the next 14 days with places and descriptions; under its gear a person adds their own calendars and can
+  leave the home's out (their own settings). Set in the editor under Status bar → Calendar.
+- Status: an entry of a device can show for one word of its state (`state_words`, e.g. `OB` of a UPS on its battery,
+  whatever flags follow), and its values can tell seconds as hours and minutes (`format: hours`); blocks, their rows and
+  numbers have the same format "Time (h min)". Both in the forms.
+- Editor settings under a gear in the top bar: the phones and tablets of the preview can be hidden, renamed, resized
+  and set back, and devices of any make added with their size (kept in the browser). The switches say Phone and
+  Tablet; the models are listed smallest screen first.
+- Editor: bringing what is chosen into sight scrolls only its window or page, no longer the whole frame (the screen
+  slid up over black).
+- Editor: what is chosen in the tree has a red dashed frame in the preview (a tile, a section, a room, the window of a
+  block or a part of it), so it is clear what the form edits.
+- Editor: a field of a background shows a sample of its colour or a magnifier for its picture, and a click opens a
+  window to choose a picture sent to Home Assistant or in `/config/www` (new command `home_dashboard/editor/pictures`,
+  after a restart), send one from the computer, or set a colour or a gradient on a palette. Any text field holding a
+  picture's address has a magnifier.
+- Editor: a list (a room's tiles on Home, a section, the favourites, the parts of a block) shows what it holds in
+  its Properties tab, a click opens a tile, arrows move it, the bin removes it, instead of a note to use YAML.
+- Editor: the window of a block in the preview closes when another room is chosen; it closed by a step back in the
+  frame's history, which undid the move to that room.
+- The battery of a camera in its window shows again on an iPad and a phone on its side: it lay under the settings
+  button of the header (and the status bar of iPadOS); now it stands in the picture's top right corner, under it.
+- A dashboard editor for a computer, as a panel of Home Assistant for administrators (being built in stages):
+  the tree of the dashboard with search and folding, the YAML of what is chosen, a draft kept on the server that
+  changes nothing on the devices until it is published, publishing with a history of 30 versions and a warning
+  when the dashboard was changed elsewhere meanwhile; a preview of the iPhone and the iPad that shows the draft at
+  once, as another person, light or dark, chooses in the tree what a touch chose and never calls a service; the
+  side columns take the width they are dragged to. The preview takes the zoom of the Home Assistant app on each
+  device (an iPad at 85 % shows the page of 1388 × 965) and the size of the tablet.
+- The editor's forms: every key of a tile (entity, block and machine, name, icon, size, calm, a touch switches, only
+  while it works, only switching on with its PIN, a service of a touch, a run button and names of options for a
+  list), of a section and of a room (name, id, areas); keys a form does not know are kept. Rooms, sections and tiles
+  are added, duplicated, moved up and down, removed (asking when not empty) and dragged in the tree; undo and redo
+  with the buttons and ⌘Z / ⇧⌘Z, letters typed in one field being one step.
+- The editor's picker of tiles: every entity of the home with its area and the battery of its device, filtered by
+  the room's areas, every area or none, by kind, hiding those already shown or showing technical ones; where the
+  dashboard shows an entity already; a warning when a blind, thermostat or lock may be one device from two
+  integrations (as Netatmo and HomeKit); suggestions (a run button for a list, calm for an automation); what is
+  ticked shows in the preview at once and is added in the order it was ticked, as one step.
+- The editor's blocks: a block of several entities (among the blocks or as a tile of a room) opens in the tree into
+  its numbers, buttons and groups with their rows, each with a form (a block's tile and window, a number's digits and
+  time format, a button's service and question, a group's layout, a row's unit, digits and names of states); the
+  options of a list are ordered, named and hidden; the entities of the block's devices it does not show yet are
+  added with one click; rows move between groups of their block. Choosing a block opens its window in the preview,
+  following every change, and says whether it fits on the tablet without scrolling.
+- The editor publishes: *Publish* says what changes in plain words and in YAML, which entities are missing, and takes
+  a note; a version goes to one person to check (their dashboard shows it with a banner and a way back to the usual
+  one, and the app does not save over it) or to everyone, the replaced version going to a history of 30 with who and
+  why; a version of the history is compared with the one now and taken back as a draft. Docs: the guide's chapter
+  12, The editor on a computer.
+- A quick start: the editor makes rooms from the areas of Home Assistant (one per area, its devices in sections by
+  kind, a few on Home, hidden and technical entities left out, one tile of a device seen from two integrations),
+  for every area without a room or those ticked, shown in the preview before they are added as one step. Without a
+  dashboard of the strategy yet, the editor creates one and opens this at once.
+- Fixed: Safari could show "null is not an object (evaluating 'window.matchMedia(TABLET_MEDIA_QUERY).matches')" from a
+  page whose frame was gone (a preview frame of the editor replaced); media queries now go through one helper that
+  matches nothing there.
+- Fields of an icon pick from the icons of Home Assistant: typing searches by name and keyword ("dashboard",
+  "home") and lists them with pictures; arrows, Enter or a click take one, a name typed by hand still goes. In every
+  icon field of the editor (blocks, tiles, settings, own icons of devices) and in the block form of the tablet.
+- Fixed: a menu entry with a link of its own and a **Block** naming no block was left out; it shows as its link now,
+  and the editor offers the blocks there are in that field.
+- A background maker, on the tablet (three dots → Background of this screen → Make a background) and in the editor
+  (Backgrounds of pages → Make a background): 16 ready backgrounds, 16 patterns drawn by code, 48 gradients in six
+  groups, a photo with how much is seen, greyed, blur and fading, made upright and wide at once and sent to Home
+  Assistant for the light look, the dark one or both; or downloaded as a file.
+- Fixed: in the editor on a computer an entry of a Status screen could not become a device or a below-threshold
+  entry (its empty start was dropped); a new below-threshold entry starts at 20.
+- Every kind of block has a form in the editor, with the same fields as the block form of the tablet (one schema for
+  both): Status screens with their sections and entries of every kind, departures, news, a host's columns, the
+  school year, add-ons, pages, and now a TV and a scale, also on the tablet; `hidden_when` in every block form. A
+  block renamed (in the editor or on the tablet) is renamed in its tiles, menu entries, entries of the status bar and
+  rules of access and visibility. Every option of these blocks has a field now: a host's bars with unit, maximum and
+  thresholds, the type of a detail, machines and power as fields; the sensors of the school year one by one with the
+  default shown; the colours of tram lines; an entry of a Status screen as an alarm. Words for states are pairs, own
+  ways to turn on and off are a service and an entity, patterns of speakers are lines and backgrounds have a field per
+  page and look; YAML stays only for cards and the library of themes.
+- Every setting of the dashboard has a form in the editor: also the order and hiding of rooms, entities added, left
+  out and with their own name, icon, area or card, light groups, the weather, security, the return of a tablet left
+  alone, the layout of the scenes, and the Music, Media and Map pages.
+- **People access** in the editor: a person, then what they do not see in the groups of the tablet's window, with an
+  eye by each; the rules of `visibility` (an entity, `block:` or `shortcut:` and the people of `only` and `except`).
+- **Cameras**, **Intercom** and **Energy** have forms in the editor: the cameras shown and their order, the rules of
+  privacy and guest mode, the settings of single cameras (live camera, controls, talking, round buttons, turning,
+  entities under the gear); the intercom's script, rooms and fields; the meter's phases, the voltage range and energy
+  storage.
+- The left menu (`menu`) and the bar of pages (`appearance.nav`, with rooms as places) are nodes of the editor's tree
+  with forms; choosing the menu opens it in the preview, and a block of any kind opens its window there.
+- **Look and themes** in the editor: a part for each group of `appearance`, drawn from the same description of fields
+  the tablet's Look window checks against (types, ranges, defaults), colours by kind of tile, own icons of devices,
+  the theme, the library of themes and the page backgrounds; long forms start folded.
+- The settings of the editor get forms: the **Status bar** writes its look (`appearance.status`) and what it shows
+  (`status_panel`, with `ignore`) in one form; an order of parts, colours with a picker, ranges; a part emptied leaves
+  the configuration.
+- **At home** in the status bar of a tablet says what it counts: a tap on the count of lights or devices lists what is
+  on, with its room and the time it went on, each opening its own window. An administrator leaves one out of the
+  count there ("Don't count", e.g. a lamp that follows its own schedule) and counts it again; it is saved as
+  `status_panel.ignore`.
+- The window of a camera on a battery shows the percentage of its battery in the top right corner of the picture,
+  red up to 20 %; a picture takes the battery of its live camera, and the dot of an open stream sits in the badge. The
+  pages and all cameras leave it out, so many badges do not crowd the pictures.
+- The preview of the editor has every size of an iPhone and an iPad screen, each once with the models of that size
+  (12 phones from the iPhone SE 1 to the 17 Pro Max, 9 tablets from the iPad 1–6 to the iPad Pro 13″ M4+), the phone
+  chosen as the tablet was.
+- The groups of the editor's tree (Home, Rooms, Blocks, Settings) fold by an arrow, and a button of each folds or
+  unfolds everything inside it; a node chosen elsewhere (a touch in the preview) opens its group.
+- The editor has a light look besides the dark one: as Home Assistant by default, or chosen with a button in the top
+  bar (Auto, Light, Dark), remembered by the browser.
+- An option of the integration, *Show the editor in the sidebar*, takes the editor out of the sidebar at once; it
+  still opens at `/home-dashboard-editor`. The options are called Settings now.
+- A rule of privacy of the cameras (`cameras.private`) can be for some people only: `users` hides the cameras only
+  from them, `except` from everyone but them (the parents keep seeing them while the children's devices do not).
+
 ## 0.7.0 (2026-11-13)
 
 - Every window was opened on a real home, on a phone and a tablet, in Chrome and in WebKit (Safari), with every

@@ -3,6 +3,7 @@
 import { HomeDashboardChrome } from "./chrome.js";
 import { translate } from "./i18n.js";
 import { HomeDashboardHost } from "./host.js";
+import { previewMode } from "./preview.js";
 import { HomeDashboardIntercom } from "./intercom.js";
 import { HomeDashboardPage } from "./page.js";
 import { HomeDashboardScale } from "./scale.js";
@@ -54,6 +55,29 @@ define("home-dashboard-status-panel", HomeDashboardStatusPanel);
 define("home-dashboard-history-chart", HomeDashboardHistoryChart);
 define("home-dashboard-state-history", HomeDashboardStateHistory);
 define("home-dashboard-connections", HomeDashboardConnections);
+
+// The person asked to check a new version gets it instead of the published one, marked so, until they leave it
+// for this visit or the check ends (which reloads every page). A preview of the editor shows its own draft.
+export const SKIP_REVIEW_KEY = "home-dashboard-skip-review";
+
+export function dashboardUrlPath(pathname = window.location.pathname) {
+  return pathname.split("/").filter(Boolean)[0] ?? "";
+}
+
+export async function generateForPerson(config, hass) {
+  if (!previewMode()) {
+    try {
+      const review = await hass.callWS({ type: "home_dashboard/review/get", url_path: dashboardUrlPath() });
+      const skipped = sessionStorage.getItem(SKIP_REVIEW_KEY);
+      if (review?.config?.strategy && skipped !== review.published_at) {
+        return generateDashboard({ ...review.config.strategy, _review: { published_at: review.published_at } }, hass);
+      }
+    } catch {
+      // An older integration without the editor, or no connection yet: the published version.
+    }
+  }
+  return generateDashboard(config, hass);
+}
 
 export function generateDashboard(config, hass) {
   return {

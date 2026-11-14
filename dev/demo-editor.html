@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Home Dashboard editor demo</title>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      // The editor on a computer over the made-up home of dev/demo.js, for the screenshots of docs/editor.md: the
+      // server of the editor answers from memory, the frames of the preview are dev/demo.html in preview mode.
+      // ?new=1 starts with no dashboard (the editor offers to create one), ?empty=1 with a dashboard of no rooms.
+      import { createEditorServer } from "/tests/js/mock-editor.js";
+
+      window.demoDataOnly = true;
+      await import("/dev/demo.js");
+      const { mountEditor } = await import("/custom_components/home_dashboard/www/editor/editor-app.js");
+      const { buildHass, DASHBOARD, say, language } = window.demo;
+      const params = new URLSearchParams(location.search);
+      const strategy = params.get("empty") ? { type: "custom:home-dashboard" } : { type: "custom:home-dashboard", ...DASHBOARD };
+      const users = [
+        { id: "demo", name: "Alex", is_active: true },
+        { id: "kid", name: say("Sam", "Kuba"), is_active: true },
+        { id: "tablet", name: say("Hall tablet", "Tablet w korytarzu"), is_active: true },
+      ];
+      const server = createEditorServer({
+        live: { strategy },
+        dashboards: params.get("new") ? [] : [{ url_path: "home-dashboard", title: "Home Dashboard" }],
+        users,
+      });
+      const hass = buildHass();
+      const demoCalls = hass.callWS;
+      hass.callWS = (message) =>
+        message.type.startsWith("home_dashboard/editor/") || message.type.startsWith("lovelace/") || message.type === "config/auth/list"
+          ? server.handle(message)
+          : demoCalls(message);
+      hass.panels = { "home-dashboard": { url_path: "home-dashboard", title: "Home Dashboard" } };
+      const previewUrl = (urlPath, page, { room, color, as } = {}) => {
+        const query = new URLSearchParams({ language, hd_preview: "1", page });
+        if (room) query.set("room", room);
+        if (color && color !== "auto") query.set("hd_color", color);
+        if (as) query.set("hd_as", as);
+        return `/dev/demo.html?${query}`;
+      };
+      const app = mountEditor(document.body, hass, {}, { previewUrl });
+      window.editor = { app, server };
+      await app.updateComplete;
+      window.demoReady = true;
+    </script>
+  </body>
+</html>

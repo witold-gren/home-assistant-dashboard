@@ -148,6 +148,8 @@ export const BACKGROUNDS = [
 export const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 export const ENTITY_FREE_KINDS = new Set([
   "access",
+  "calendar",
+  "status-on",
   "chart",
   "sd",
   "disk",

@@ -609,8 +609,19 @@ export function isGridSafe(hass, entityId, config) {
 // A wall tablet must not show the inside of the house to visitors. The dashboard has no idea who
 // is looking, so this holds on every device, as it does for the regular dashboard.
 // A camera switched off for privacy is gone for good, not "unavailable" like one that broke.
+// A rule of privacy can be for some people only: `users` names those it hides the cameras from, `except` those who
+// still see them (the parents, while the children's devices lose them). By id or by name of the person.
+const isPerson = (people, hass) => people.includes(hass.user?.id) || people.includes(hass.user?.name);
+
+export function privacyHoldsFor(rule, hass) {
+  if (rule.users && !isPerson(rule.users, hass)) return false;
+  return !(rule.except && isPerson(rule.except, hass));
+}
+
 function isPrivate(hass, entityId, config) {
-  return config.cameras.private.some((rule) => hass.states[rule.entity]?.state === "on" && rule.hide.includes(entityId));
+  return config.cameras.private.some(
+    (rule) => hass.states[rule.entity]?.state === "on" && rule.hide.includes(entityId) && privacyHoldsFor(rule, hass),
+  );
 }
 
 function isInDeniedArea(hass, entityId, config) {
@@ -650,7 +661,31 @@ function automaticCameraIds(hass, config) {
   );
 }
 
-function cameraEntry(hass, entityId) {
+// Below this the battery of a camera is shown red.
+export const LOW_BATTERY = 20;
+
+/**
+ * The battery of a camera, `{ level, low }`, from a battery sensor of its device, or of the device of the camera
+ * that plays its picture live or stands for it in another integration; null for a camera without one.
+ */
+export function cameraBattery(hass, entityId, config) {
+  const devices = [entityId, config?.cameras?.live?.[entityId], config?.cameras?.controls?.[entityId]]
+    .map((id) => id && hass.entities[id]?.device_id)
+    .filter(Boolean);
+  for (const deviceId of devices) {
+    const sensor = Object.values(hass.entities).find(
+      (entity) =>
+        entity.device_id === deviceId &&
+        domainOf(entity.entity_id) === "sensor" &&
+        hass.states[entity.entity_id]?.attributes?.device_class === "battery",
+    );
+    const level = Number.parseFloat(hass.states[sensor?.entity_id]?.state);
+    if (Number.isFinite(level)) return { level: Math.round(level), low: level <= LOW_BATTERY };
+  }
+  return null;
+}
+
+function cameraEntry(hass, entityId, config = null) {
   const { state, attributes } = hass.states[entityId];
   const device = hass.devices[hass.entities[entityId]?.device_id];
   return {
@@ -659,6 +694,7 @@ function cameraEntry(hass, entityId) {
     picture: attributes.entity_picture,
     unavailable: state === "unavailable",
     updatedAt: domainOf(entityId) === "image" ? Date.parse(state) || null : null,
+    battery: cameraBattery(hass, entityId, config),
   };
 }
 
@@ -675,7 +711,7 @@ export function buildCameras(hass, config) {
     .filter((id) => isGridSafe(hass, id, config) && hasPicture(hass, id) && !hiddenFromGuests(hass, id, config))
     .filter((id) => !hide.includes(id) && !isInDeniedArea(hass, id, config) && !isPrivate(hass, id, config))
     .map((id) => {
-      const entry = cameraEntry(hass, id);
+      const entry = cameraEntry(hass, id, config);
       const streams = cameraStreamSensors(hass, id, config);
       return { ...entry, streams, streaming: cameraStreaming(hass, streams) };
     });
@@ -1620,6 +1656,28 @@ export function renameBlockRules(raw, from, to) {
   };
 }
 
+/**
+ * A block renamed everywhere it is named: the rules of access and visibility, tiles and menu entries that open it
+ * (`shortcut`), entries of the status bar that open it (`block`) and their keys (`shortcut:<name>`).
+ */
+export function renameBlockEverywhere(raw, from, to) {
+  // A name being typed away (empty) keeps the references until the new one is there.
+  if (!from || !to || from === to) return raw;
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (!value || typeof value !== "object") return value === `shortcut:${from}` ? `shortcut:${to}` : value;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => {
+        const named = (key === "shortcut" || key === "block") && entry === from;
+        return [key === `shortcut:${from}` ? `shortcut:${to}` : key, named ? to : walk(entry)];
+      }),
+    );
+  };
+  const renamed = renameBlockRules(raw, from, to);
+  const parts = ["layout", "favorites", "scenes", "menu", "status_panel", "access", "visibility"];
+  return { ...renamed, ...Object.fromEntries(parts.filter((key) => key in renamed).map((key) => [key, walk(renamed[key])])) };
+}
+
 export const tileKey = (item) => item.entity ?? (item.shortcut ? `shortcut:${item.shortcut}` : blockKey(item));
 
 // A rule belongs to what is shown, not to one tile of it: `only` names the people who see it, and
@@ -1690,7 +1748,11 @@ export function shownMenu(hass, config, links) {
   const resolved = (item) => {
     if (!item.shortcut) return [item];
     const block = shortcuts.find(({ name }) => name === item.shortcut);
-    return block ? [{ ...item, name: item.name ?? block.name, icon: item.icon ?? block.icon, block }] : [];
+    if (block) return [{ ...item, name: item.name ?? block.name, icon: item.icon ?? block.icon, block }];
+    // A block hidden from this person hides its entry; a block that is not there leaves the entry's own link.
+    const { shortcut, ...link } = item;
+    const exists = (config.shortcuts ?? []).some(({ name }) => name === shortcut);
+    return !exists && link.name && (link.path || link.addon || link.action) ? [link] : [];
   };
   return menuGroups(config, links, hass.language)
     .map((group) => ({ ...group, items: (group.items ?? []).filter(shown).flatMap(resolved) }))
@@ -1711,7 +1773,7 @@ export function buildRoomList(hass, config, selection) {
 function roomCameras(hass, config, areas) {
   return cameraCandidates(hass, config)
     .filter((id) => hasPicture(hass, id) && areas.includes(effectiveArea(hass, id, config)))
-    .map((id) => ({ ...cameraEntry(hass, id), guest: hiddenFromGuests(hass, id, config) }));
+    .map((id) => ({ ...cameraEntry(hass, id, config), guest: hiddenFromGuests(hass, id, config) }));
 }
 
 function laidOutRoomModel(hass, config, entry, layout) {

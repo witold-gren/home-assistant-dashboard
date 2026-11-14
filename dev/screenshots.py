@@ -7,6 +7,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import re
+import sys
 import threading
 import urllib.request
 
@@ -32,13 +33,20 @@ class Quiet(SimpleHTTPRequestHandler):
         pass
 
 
+BLANK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>'
+
 def serve_icon(route: Route) -> None:
     name = re.sub(r"[^a-z0-9-]", "", route.request.url.rsplit("/", 1)[1].removesuffix(".svg"))
     path = ICONS / f"{name}.svg"
     if not path.exists():
         ICONS.mkdir(exist_ok=True)
-        with urllib.request.urlopen(ICON_URL.format(name), timeout=20) as response:
-            path.write_bytes(response.read())
+        try:
+            with urllib.request.urlopen(ICON_URL.format(name), timeout=20) as response:
+                path.write_bytes(response.read())
+        except OSError:
+            # An icon the set does not have (a typed name, an icon of another set): drawn empty.
+            route.fulfill(body=BLANK_ICON, content_type="image/svg+xml")
+            return
     route.fulfill(body=path.read_bytes(), content_type="image/svg+xml")
 
 
@@ -538,14 +546,175 @@ def open_entity(page: Page, entity: str) -> None:
     page.wait_for_timeout(1200)
 
 
+# The editor on a computer (docs/editor.md): the made-up home in dev/demo-editor.html, a wide window.
+DESKTOP = {"width": 1600, "height": 960}
+APP = "home-dashboard-editor-app"
+
+
+def open_editor(browser, base: str, language: str, query: str = "") -> Page:
+    context = browser.new_context(viewport=DESKTOP, device_scale_factor=1.5, color_scheme="light")
+    page = context.new_page()
+    page.route("**/mdi/*.svg", serve_icon)
+    page.route("**/osm/**", serve_tile)
+    page.goto(f"{base}/dev/demo-editor.html?language={language}{query}")
+    page.wait_for_function("window.demoReady === true")
+    page.evaluate("() => localStorage.clear()")
+    page.wait_for_timeout(2500)
+    return page
+
+
+def choose(page: Page, key: str, wait: int = 1800) -> None:
+    """A node of the tree, unfolded on the way and scrolled to, as a person would click it."""
+    page.locator(APP).evaluate(
+        "(app, key) => app._unfoldTo(key.split('/').map((part) => (/^\\d+$/.test(part) ? Number(part) : part)))", key
+    )
+    node = page.locator(f"{APP} [data-node='{key}']").first
+    node.scroll_into_view_if_needed()
+    node.click()
+    page.wait_for_timeout(wait)
+
+
+def unfold(page: Page, section: str) -> None:
+    part = page.locator(f"{APP} [data-settings-section='{section}']")
+    if not part.evaluate("(details) => details.open"):
+        part.locator("summary").first.click()
+    page.wait_for_timeout(400)
+
+
+def add_background(page: Page) -> None:
+    """A background of Home, added as a person would in the field under the backgrounds of pages."""
+    add = page.locator(f"{APP} [data-schema-add='.backgrounds']")
+    add.fill("home")
+    add.dispatch_event("change")
+    entry = page.locator(f"{APP} [data-schema-entry='.backgrounds.home']")
+    if entry.get_attribute("open") is None:
+        entry.locator("summary").first.click()
+    page.wait_for_timeout(400)
+
+
+def make_editor(browser, base: str, language: str, folder: Path) -> None:
+    take(open_editor(browser, base, language, "&new=1"), folder, "editor-new")
+
+    page = open_editor(browser, base, language, "&empty=1")
+    tap(page, f"{APP} [data-generate-start]")
+    page.wait_for_selector(f"{APP} [data-generate-dialog]")
+    take(page, folder, "editor-generate")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/home/0")
+    take(page, folder, "editor-home")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0")
+    take(page, folder, "editor-room")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0")
+    take(page, folder, "editor-section")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0/tiles/0")
+    take(page, folder, "editor-tile")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0/tiles/0")
+    tap(page, f"{APP} [data-tab='yaml']")
+    take(page, folder, "editor-yaml")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0")
+    tap(page, f"{APP} [data-action='pick']")
+    page.wait_for_selector(f"{APP} [data-picker-list]")
+    take(page, folder, "editor-picker")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/4/sections/0/tiles/0/stats/0", wait=2500)
+    take(page, folder, "editor-block")
+
+    page = open_editor(browser, base, language)
+    choose(page, "shortcuts/3")
+    take(page, folder, "editor-status-block")
+
+    page = open_editor(browser, base, language)
+    choose(page, "appearance")
+    unfold(page, "themes")
+    add_background(page)
+    page.locator(f"{APP} [data-schema-field='.backgrounds.home.light']").scroll_into_view_if_needed()
+    take(page, folder, "editor-look")
+
+    page = open_editor(browser, base, language)
+    choose(page, "appearance")
+    unfold(page, "themes")
+    add_background(page)
+    tap(page, f"{APP} [data-schema-field='.backgrounds.home.light'] [data-bg-open]")
+    tap(page, f"{APP} [data-schema-field='.backgrounds.home.light'] [data-bg-tab='colour']")
+    tap(page, f"{APP} [data-schema-field='.backgrounds.home.light'] [data-bg-kind='gradient']")
+    tap(page, f"{APP} [data-schema-field='.backgrounds.home.light'] [data-bg-preset='#eef2f3,#c9d6df']")
+    tap(page, f"{APP} [data-schema-field='.backgrounds.home.light'] [data-bg-angle='170']")
+    take(page, folder, "editor-background")
+
+    page = open_editor(browser, base, language)
+    choose(page, "status_panel")
+    unfold(page, "calendar")
+    page.locator(f"{APP} [data-settings-section='calendar']").scroll_into_view_if_needed()
+    take(page, folder, "editor-status")
+
+    page = open_editor(browser, base, language)
+    choose(page, "access")
+    take(page, folder, "editor-access")
+
+    page = open_editor(browser, base, language)
+    choose(page, "menu", wait=2500)
+    take(page, folder, "editor-menu")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0/tiles/0")
+    name = page.locator(f"{APP} [data-form='tile'] [data-field='name'] input")
+    name.fill("Sofa" if language == "en" else "Kanapa")
+    name.dispatch_event("change")
+    page.wait_for_timeout(1500)
+    tap(page, f"{APP} [data-publish]")
+    page.wait_for_selector(f"{APP} [data-publish-dialog]")
+    take(page, folder, "editor-publish")
+
+    page = open_editor(browser, base, language)
+    choose(page, "layout/0/sections/0/tiles/0")
+    name = page.locator(f"{APP} [data-form='tile'] [data-field='name'] input")
+    name.fill("Sofa" if language == "en" else "Kanapa")
+    name.dispatch_event("change")
+    page.wait_for_timeout(1500)
+    tap(page, f"{APP} [data-publish]")
+    note = page.locator(f"{APP} [data-note]")
+    if note.count():
+        note.fill("Sofa renamed" if language == "en" else "Nowa nazwa lampy")
+    tap(page, f"{APP} [data-publish-all]")
+    page.wait_for_timeout(1500)
+    tap(page, f"{APP} [data-history]")
+    page.wait_for_selector(f"{APP} [data-history-dialog]")
+    tap(page, f"{APP} [data-history-dialog] [data-version]")
+    take(page, folder, "editor-history")
+
+    page = open_editor(browser, base, language)
+    tap(page, f"{APP} [data-editor-settings]")
+    take(page, folder, "editor-settings")
+
+
 def main() -> None:
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Quiet, directory=str(ROOT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_port}"
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True, args=FAKE_MICROPHONE)
+        # `editor` makes only the pictures of the editor on a computer (docs/editor.md).
+        only_editor = "editor" in sys.argv[1:]
         for language in ("en", "pl"):
-            make(browser, base, language)
+            if only_editor:
+                folder = OUTPUT / language
+                folder.mkdir(parents=True, exist_ok=True)
+            else:
+                make(browser, base, language)
+                folder = OUTPUT / language
+            make_editor(browser, base, language, folder)
         browser.close()
     server.shutdown()
 

@@ -3,16 +3,20 @@
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
+import "./icon-picker.js";
+import { DEFAULT_SOURCES } from "./school.js";
 import { tokens } from "./styles.js";
 
 const NAMELESS_KINDS = ["media", "menu"];
 const TONES = ["green", "purple", "teal", "pink"];
 const LAYOUTS = ["controls", "summary"];
-const BASE = [
+const INFO_TYPES = ["state", "since", "seconds", "date", "update"];
+export const BASE = [
   { key: "name", type: "text" },
   { key: "label", type: "text" },
-  { key: "icon", type: "text" },
+  { key: "icon", type: "icon" },
   { key: "tone", type: "select", options: TONES },
+  { key: "hidden_when", type: "entity" },
 ];
 const ENTRY = [
   { key: "entity", type: "entity" },
@@ -24,7 +28,21 @@ const VALUE = [
   { key: "unit", type: "text" },
   { key: "digits", type: "number" },
 ];
-const ITEM_FIELDS = {
+// A value of a Status entry: a value, and a time in seconds told as hours and minutes if wanted.
+const FACT = [...VALUE, { key: "format", type: "select", options: ["hours"], optionKey: "editor_option_format", emptyKey: "editor_option_format_default" }];
+// Own words for states of an entity: a state, then its word.
+const STATE_WORDS = { type: "map", dropEmpty: true, keyList: "", keyPlaceholder: "state_word" };
+// An own way to turn on or off: a service and the entity it acts on (`{service, target}`).
+const action = (key, service) => ({
+  key,
+  type: "object",
+  dropEmpty: true,
+  fields: [
+    { key: "service", type: "text", placeholder: service },
+    { key: "target", type: "entity" },
+  ],
+});
+export const ITEM_FIELDS = {
   entities: [
     { key: "entities", type: "list", fields: ENTRY, scalar: "entity" },
     { key: "state", type: "strings" },
@@ -57,21 +75,42 @@ const ITEM_FIELDS = {
   device: [
     { key: "entity", type: "entity" },
     { key: "state", type: "strings" },
-    { key: "labels", type: "yaml" },
-    { key: "facts", type: "list", fields: VALUE },
+    { key: "state_words", type: "strings" },
+    { key: "labels", ...STATE_WORDS },
+    { key: "facts", type: "list", fields: FACT },
   ],
   text: [{ key: "text", type: "text" }],
 };
-const ITEM_SEEDS = {
+export { STATE_WORDS };
+export const ITEM_SEEDS = {
   entities: { entities: [] },
-  below: { entities: [], below: "" },
+  below: { entities: [], below: 20 },
   battery: { auto: "battery", below: 11 },
   alarm: { auto: "alarm", classes: ["moisture"], notify: true },
   list: { list: {} },
   device: { entity: "", state: [] },
   text: { text: "" },
 };
-const ITEM_COMMON = ["name", "icon", "notify", "weekdays", "months"];
+const ITEM_COMMON = ["name", "icon", "notify", "alarm", "weekdays", "months"];
+// What every entry of a Status screen has, around the fields of its kind.
+export const itemFields = (item) => [
+  { key: "name", type: "text" },
+  { key: "icon", type: "icon" },
+  { key: "notify", type: "boolean" },
+  { key: "alarm", type: "boolean" },
+  ...ITEM_FIELDS[itemKind(item)],
+  { key: "weekdays", type: "numbers" },
+  { key: "months", type: "numbers" },
+];
+// A bar of a host: the share of `max` it shows, yellow from `warn` and red from `alert` per cent of it.
+const BAR = [
+  ...ENTRY,
+  { key: "unit", type: "text", placeholder: "%" },
+  { key: "digits", type: "number" },
+  { key: "max", type: "number", placeholder: "100" },
+  { key: "warn", type: "number", label: "bar_warn", placeholder: "70" },
+  { key: "alert", type: "number", label: "bar_alert", placeholder: "90" },
+];
 
 export const BLOCK_KINDS = {
   overview: [
@@ -87,7 +126,12 @@ export const BLOCK_KINDS = {
       ],
     },
   ],
-  departures: [...BASE, { key: "entities", type: "entities" }, { key: "news", type: "entity" }],
+  departures: [
+    ...BASE,
+    { key: "entities", type: "entities" },
+    { key: "colors", type: "map", dropEmpty: true, keyList: "", keyPlaceholder: "line_number", placeholder: "#e53935" },
+    { key: "news", type: "entity" },
+  ],
   news: [
     ...BASE,
     {
@@ -107,12 +151,33 @@ export const BLOCK_KINDS = {
       type: "list",
       fields: [
         { key: "title", type: "text", label: "title_field" },
-        { key: "icon", type: "text" },
+        { key: "icon", type: "icon" },
         { key: "subtitle", type: "text" },
         { key: "status", type: "entity" },
-        { key: "bars", type: "list", fields: ENTRY },
-        { key: "info", type: "list", fields: [...VALUE, { key: "type", type: "text" }] },
-        { key: "machines", type: "yaml" },
+        { key: "bars", type: "list", fields: BAR },
+        { key: "info", type: "list", fields: [...VALUE, { key: "type", type: "select", options: INFO_TYPES }] },
+        {
+          key: "machines",
+          type: "list",
+          fields: [
+            { key: "name", type: "text" },
+            { key: "status", type: "entity" },
+            { key: "cpu", type: "entity" },
+            { key: "ram", type: "entity" },
+          ],
+        },
+        {
+          key: "power",
+          type: "object",
+          dropEmpty: true,
+          fields: [
+            { key: "entity", type: "entity", label: "power_entity" },
+            { key: "switch", type: "entity" },
+            { key: "voltage", type: "entity" },
+            { key: "current", type: "entity" },
+            { key: "energy", type: "entity" },
+          ],
+        },
         { key: "graph", type: "yaml" },
       ],
     },
@@ -127,7 +192,7 @@ export const BLOCK_KINDS = {
       type: "list",
       fields: [
         { key: "name", type: "text" },
-        { key: "icon", type: "text" },
+        { key: "icon", type: "icon" },
         { key: "entity", type: "entity" },
         { key: "service", type: "text" },
         { key: "confirm", type: "text" },
@@ -139,7 +204,7 @@ export const BLOCK_KINDS = {
       fields: [
         { key: "title", type: "text", label: "title_field" },
         { key: "layout", type: "select", options: LAYOUTS },
-        { key: "rows", type: "list", fields: [...ENTRY, { key: "icon", type: "text" }] },
+        { key: "rows", type: "list", fields: [...ENTRY, { key: "icon", type: "icon" }] },
       ],
     },
     { key: "card", type: "yaml" },
@@ -159,10 +224,10 @@ export const BLOCK_KINDS = {
           fields: [
             { key: "name", type: "text" },
             { key: "entity", type: "entity" },
-            { key: "icon", type: "text" },
+            { key: "icon", type: "icon" },
             { key: "kind", type: "select", options: ["tv", "panel"] },
-            { key: "on", type: "yaml" },
-            { key: "off", type: "yaml" },
+            action("on", "media_player.turn_on"),
+            action("off", "media_player.turn_off"),
           ],
         },
       ],
@@ -179,7 +244,7 @@ export const BLOCK_KINDS = {
           type: "list",
           fields: [
             { key: "name", type: "text" },
-            { key: "icon", type: "text" },
+            { key: "icon", type: "icon" },
             { key: "addon", type: "text", list: "addons" },
             { key: "path", type: "text", list: "panels" },
             { key: "shortcut", type: "text", list: "shortcuts" },
@@ -193,7 +258,40 @@ export const BLOCK_KINDS = {
     },
   ],
   page: [...BASE, { key: "page", type: "select", options: ["media", "energy", "map", "music"] }],
-  school: [...BASE, { key: "children", type: "strings" }, { key: "sources", type: "yaml" }],
+  tv: [
+    ...BASE,
+    { key: "entity", type: "entity" },
+    { key: "shortcuts", type: "list", fields: [{ key: "name", type: "text" }, { key: "icon", type: "icon" }] },
+    { key: "sound_mode", type: "boolean" },
+    action("on", "media_player.turn_on"),
+    action("off", "media_player.turn_off"),
+    { key: "source_script", type: "object", fields: [{ key: "service", type: "text" }, { key: "field", type: "text" }] },
+  ],
+  scale: [
+    ...BASE,
+    { key: "entity", type: "entity" },
+    {
+      key: "people",
+      type: "list",
+      scalar: "entity",
+      fields: [{ key: "entity", type: "entity" }, { key: "name", type: "text" }, { key: "weight", type: "entity" }],
+    },
+  ],
+  school: [
+    ...BASE,
+    { key: "children", type: "strings" },
+    {
+      key: "sources",
+      type: "object",
+      dropEmpty: true,
+      fields: Object.entries(DEFAULT_SOURCES).map(([key, entity]) => ({
+        key,
+        type: "entity",
+        label: `source_${key}`,
+        placeholder: entity,
+      })),
+    },
+  ],
 };
 export const NEW_BLOCK_ICONS = {
   overview: "mdi:clipboard-pulse-outline",
@@ -210,7 +308,8 @@ export const itemKind = (item) => {
   if (item.list) return "list";
   if (item.auto === "alarm") return "alarm";
   if (item.auto) return "battery";
-  if (item.entity !== undefined) return "device";
+  // A device with no entity chosen yet still has its states (an empty entity is not kept).
+  if (item.entity !== undefined || (item.state !== undefined && item.entities === undefined)) return "device";
   return item.below !== undefined ? "below" : "entities";
 };
 
@@ -226,6 +325,11 @@ export function cleanBlock(value) {
   const kept = Object.entries(value).filter(([, entry]) => entry !== "" && entry !== undefined);
   return Object.fromEntries(kept.map(([key, entry]) => [key, cleanBlock(entry)]));
 }
+
+// A mapping or a group of fields with nothing left in it goes from the block as a whole.
+// Only fields marked `dropEmpty`: elsewhere an empty one still means something (the seed of a list entry).
+export const emptied = (field, value) =>
+  !field.dropEmpty || Object.values(cleanBlock(value ?? {})).length ? value : "";
 
 const asList = (value) => (Array.isArray(value) ? value : value === undefined || value === "" ? [] : [value]);
 const words = (text, parse = (word) => word) =>
@@ -275,6 +379,7 @@ export class HomeDashboardBlockEditor extends LitElement {
       html`<input
         type=${type}
         list=${list}
+        placeholder=${field.placeholder ?? nothing}
         .value=${value ?? ""}
         @input=${(event) => set(type === "number" && event.target.value !== "" ? Number(event.target.value) : event.target.value)}
       />`,
@@ -298,6 +403,40 @@ export class HomeDashboardBlockEditor extends LitElement {
         <span>${this._label(field)}</span>
         <textarea rows="5" spellcheck="false" .value=${text ?? ""} @input=${change}></textarea>
       </label>
+    `;
+  }
+
+  // A mapping (a tram line to its colour): a row each, emptied rows go, and one more row to add.
+  _renderMap(field, value, set) {
+    const entries = Object.entries(value && typeof value === "object" ? value : {});
+    const write = (next) => set(emptied(field, Object.fromEntries(next.filter(([key, entry]) => key && entry))));
+    const add = (event) => {
+      const [keyInput, valueInput] = event.target.closest(".pair").querySelectorAll("input");
+      const key = keyInput.value.trim();
+      const entry = valueInput.value.trim();
+      if (!key || !entry || entries.some(([old]) => old === key)) return;
+      keyInput.value = "";
+      valueInput.value = "";
+      write([...entries, [key, entry]]);
+    };
+    const keyHint = field.keyPlaceholder ? this._t(field.keyPlaceholder) : "";
+    return html`
+      <section class="group" data-block-field=${field.key}>
+        <h4>${this._label(field)}</h4>
+        ${entries.map(
+          ([key, entry], index) => html`<div class="pair" data-block-map=${key}>
+            <input .value=${key} placeholder=${keyHint}
+              @change=${(event) => write(entries.map((pair, at) => (at === index ? [event.target.value.trim(), pair[1]] : pair)))} />
+            <input .value=${String(entry)} placeholder=${field.placeholder ?? ""}
+              @change=${(event) => write(entries.map((pair, at) => (at === index ? [pair[0], event.target.value.trim()] : pair)))} />
+            <button class="small" data-block-map-remove @click=${() => write(entries.filter((_, at) => at !== index))}>×</button>
+          </div>`,
+        )}
+        <div class="pair" data-block-map-new>
+          <input data-block-map-key placeholder=${keyHint} @change=${add} />
+          <input data-block-map-value placeholder=${field.placeholder ?? ""} @change=${add} />
+        </div>
+      </section>
     `;
   }
 
@@ -416,14 +555,7 @@ export class HomeDashboardBlockEditor extends LitElement {
 
   _renderItem(item, set, path) {
     const kind = itemKind(item);
-    const fields = [
-      { key: "name", type: "text" },
-      { key: "icon", type: "text" },
-      { key: "notify", type: "boolean" },
-      ...ITEM_FIELDS[kind],
-      { key: "weekdays", type: "numbers" },
-      { key: "months", type: "numbers" },
-    ];
+    const fields = itemFields(item);
     return html`
       <label class="field" data-block-field="kind">
         <span>${this._t("item_kind")}</span>
@@ -461,11 +593,23 @@ export class HomeDashboardBlockEditor extends LitElement {
         </select>`,
       );
     }
+    if (field.type === "icon") {
+      return this._wrap(
+        field,
+        html`<home-dashboard-icon-picker .value=${value ?? ""} @icon-change=${(event) => set(event.detail.value)}></home-dashboard-icon-picker>`,
+      );
+    }
     if (field.type === "yaml") return this._renderYaml(field, value, set, path);
+    if (field.type === "map") return this._renderMap(field, value, set);
     if (field.type === "entities") return this._renderEntities(field, value, set);
     if (field.type === "users") return this._renderUsers(field, value, set);
     if (field.type === "list") return this._renderList(field, value, set, path);
-    if (field.type === "object") return html`<div class="fields">${this._fields(field.fields, value ?? {}, set, path)}</div>`;
+    if (field.type === "object") {
+      return html`<section class="group" data-block-field=${field.key}>
+        <h4>${this._label(field)}</h4>
+        <div class="fields">${this._fields(field.fields, value ?? {}, (next) => set(emptied(field, next)), path)}</div>
+      </section>`;
+    }
     return this._input(field, value, set, "text", field.list ?? nothing);
   }
 
@@ -643,6 +787,18 @@ export class HomeDashboardBlockEditor extends LitElement {
         display: flex;
         align-items: center;
         gap: 4px;
+      }
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr 44px;
+        align-items: center;
+        gap: 6px;
+      }
+      .pair .small {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        font-size: 18px;
       }
       .add,
       .save,

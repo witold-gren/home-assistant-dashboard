@@ -4,8 +4,9 @@
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { tokens } from "./styles.js";
+import { mediaQuery } from "./media.js";
 
-const DEFAULT_SOURCES = {
+export const DEFAULT_SOURCES = {
   plan: "sensor.rodzinnik_plan_lekcji",
   grades: "sensor.rodzinnik_oceny",
   events: "sensor.rodzinnik_terminarz",
@@ -119,7 +120,7 @@ export class HomeDashboardSchool extends LitElement {
   }
 
   // A tablet shows the whole week at once; turned or resized past it, the screen draws again.
-  _wide = window.matchMedia("(min-width: 900px)");
+  _wide = mediaQuery("(min-width: 900px)");
 
   _redraw = () => this.requestUpdate();
 

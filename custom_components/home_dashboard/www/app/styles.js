@@ -4,6 +4,7 @@
 // follows the system, so a tablet that switches at dusk needs nothing from here.
 
 import { unsafeCSS } from "../vendor/lit-all.min.js";
+import { mediaQuery } from "./media.js";
 
 const MODE_KEY = "home_dashboard_color_mode";
 const LIGHT_BACKGROUND = "#fbfaff";
@@ -145,7 +146,7 @@ export const currentColorMode = () => colorMode;
 
 export const DARK_SCHEME = DARK_QUERY;
 
-export const isDark = () => colorMode === "dark" || (colorMode === "auto" && window.matchMedia(DARK_QUERY).matches);
+export const isDark = () => colorMode === "dark" || (colorMode === "auto" && mediaQuery(DARK_QUERY).matches);
 
 export const pageColour = () => (isDark() ? DARK_BACKGROUND : LIGHT_BACKGROUND);
 
@@ -161,7 +162,7 @@ export function backgroundStyle(value, position = "center") {
 
 // A phone or a tablet held upright is tall; a tablet on its side and a laptop are wide.
 export const WIDE_QUERY = "(min-aspect-ratio: 1/1)";
-export const screenShape = () => (window.matchMedia(WIDE_QUERY).matches ? "wide" : "tall");
+export const screenShape = () => (mediaQuery(WIDE_QUERY).matches ? "wide" : "tall");
 
 const paint = (() => {
   let context;

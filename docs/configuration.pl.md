@@ -331,7 +331,7 @@ Więcej w przewodniku: [Kamery](guide.pl.md#5-kamery).
 | `tiles` | lista encji | `[]` | razem z `hero`: reszta dokładnej listy |
 | `order` | lista encji | `[]` | wspólna kolejność paska |
 | `hide` | lista encji | `[]` | ukryte przed wszystkimi |
-| `private` | lista `{entity, hide}` | `[]` | gdy `entity` jest włączona, kamery z `hide` znikają ze wszystkich stron |
+| `private` | lista `{entity, hide, users, except}` | `[]` | gdy `entity` jest włączona, kamery z `hide` znikają ze wszystkich stron; `users` (id albo nazwy): tylko tym osobom; `except`: wszystkim oprócz nich |
 | `guest` | `{entity, hide, users}` | brak | gdy `entity` jest wł., `hide` znika z głównej i Ochrony, w pokoju rozmyte |
 | `live` | mapa obraz → kamera | `{}` | kamera grająca na żywo dla obrazu `image.*` |
 | `controls` | mapa kamera → kamera | `{}` | ta sama kamera w innej integracji: sterowanie, przyciski, mówienie |
@@ -365,6 +365,7 @@ cameras:
   order: [camera.front_door, camera.garden]
   private:
     - {entity: switch.bedroom_privacy, hide: [camera.bedroom]}
+    - {entity: input_boolean.tryb_prywatny, hide: [camera.salon], except: [Mama, Tata]}
   guest:
     entity: input_boolean.guest_mode
     hide: [camera.living_room]
@@ -439,7 +440,8 @@ Blok kilku encji. Na kafelku pokazuje stan i liczby, a dotknięcie otwiera jego 
 | `frame` | adres | brak | strona WWW na całe okno zamiast wszystkiego innego |
 | `fullscreen` | `true` | `false` | cały ekran; z `card_open` dwie kolumny na tablecie w poziomie |
 
-Pozycje `stats`: `name`, `entity`, `unit`, `digits` (miejsca po przecinku), `format: duration` (sekundy jako m:ss) i
+Pozycje `stats`: `name`, `entity`, `unit`, `digits` (miejsca po przecinku), `format: duration` (sekundy jako m:ss) albo `format: hours` (czas jako „1 h 14 min”, w jednostce czujnika: s, min albo h), `attribute` (atrybut pokazany zamiast
+stanu, np. `media_title` konsoli) i
 `labels` (stan → tekst). Liczba z `unit: "%"` dostaje pasek w dwóch kolumnach `fullscreen`.
 
 Pozycje `actions`:
@@ -450,6 +452,10 @@ Pozycje `actions`:
 | `entity` | **wymagany**: przycisk bez istniejącej encji się nie pokazuje |
 | `service` | `domena.usługa` wywołana z `entity_id` z `entity`; bez niej encja zostaje naciśnięta albo włączona |
 | `confirm` | treść pytania zadanego najpierw |
+| `data` | pola usługi, np. `{minutes: 15}`; skrypt wywołany po swojej nazwie (`script.xbox_turn_off_in`) dostaje tylko je |
+
+`quick` (mapa jak akcja: `name`, `icon`, `service`, `confirm`, `data`) dodaje przycisk na kafelku bloku, gdy jego encja
+jest włączona (nie `off` ani niedostępna), np. **Wyłącz** przy konsoli; z `confirm` okno otwiera się od pytania.
 
 Pozycje `groups`:
 
@@ -461,7 +467,13 @@ Pozycje `groups`:
 
 Wiersz to `{entity, name}`, opcjonalnie z `icon`, `unit`, `digits`, `format`, `labels`, `icons` (opcja → ikona, dla
 wyborów w `controls`), `order` (kolejność opcji listy) i `hide` (opcje listy, których nikt nie używa; znikają, chyba że
-urządzenie jest akurat na jedną z nich ustawione). Co robi wiersz, zależy od domeny:
+urządzenie jest akurat na jedną z nich ustawione). Liczba (`input_number`, `number`) to suwak, który pokazuje wartość
+podczas przesuwania; `control: stepper` zmienia go w przyciski − i + z wartością pośrodku (przytrzymany przycisk
+przewija dalej, wartość idzie do HA, gdy stuknięcia ustaną; `steps: [1, 5]` zmienia o 1 przy stuknięciu i o pełne piątki przy
+przytrzymaniu), a `labels: {"0": Bez limitu}` nazywa wartość. `pin: {service, field}` chroni limit kodem rodzica: wyższa liczba, 0
+(bez limitu) albo wyłączenie przełącznika otwiera klawiaturę PIN, a usługa (skrypt sprawdzający kod po stronie serwera)
+dostaje `entity_id`, `value` i kod w polu `field`; zaostrzenie limitu nie wymaga kodu. Co robi
+wiersz, zależy od domeny:
 
 | Domena | Wiersz |
 |---|---|
@@ -594,7 +606,7 @@ Pozycja pokazuje się tylko wtedy, gdy ma coś do powiedzenia:
 | `auto: alarm` | każdy czujnik w domu, który wykrywa wodę, dym, gaz albo czad, gdy to wykrywa; `classes` go zawęża (`moisture`, `smoke`, `gas`, `carbon_monoxide`, a `safety` tylko wpisane) |
 | `alarm` | `true`: czerwona pozycja w Statusie, a z `notify` czerwona karta na stronie głównej, której nie da się zamknąć ani wyciszyć, dopóki trwa; dla `auto: alarm` włączone samo |
 | `list` | `{entity, attribute, name, detail, since}`: wiersze listy z atrybutu |
-| `entity` | ze `state`: urządzenie w jednym ze stanów; `labels` (stan → tekst), `facts` (`{name, entity, unit}`) |
+| `entity` | ze `state`: urządzenie w jednym ze stanów albo z `state_words` jedno ze słów jego stanu (`OB` w `OB DISCHRG` UPS-a); `labels` (stan → tekst), `facts` (`{name, entity, unit, format}`, `format: hours` pokazuje sekundy jako „1 h 14 min”) |
 | `text` | zawsze ten tekst |
 | `weekdays`, `months` | tylko w te dni (1 to poniedziałek) i miesiące (od 1 do 12) |
 | `notify` | `true`: także karta na stronie głównej; działa dla pozycji `entities`, `below`, `auto` i `list` |
@@ -904,6 +916,11 @@ visibility:
 | `now` | lista | `[]` | pozycje **Teraz**, patrz niżej |
 | `power` | lista encji albo `{entity, name, color}` | `[]` | moc teraz z linią z 6 godzin |
 | `departures` | lista encji albo `null` | `null` | tramwaje; `null` bierze pierwszy blok odjazdów |
+| `ignore` | lista encji | `[]` | światła i urządzenia, których **W domu** nie liczy (np. lampa z własnym harmonogramem) |
+| `calendars` | lista encji kalendarzy | `[]` | kalendarze domu: dzisiejsze wydarzenia pod pogodą, okno kalendarza i lista każdej osoby |
+| `calendar_limit` | liczba | `3` | ile wydarzeń najwyżej w pasku, reszta jako „+N więcej” |
+| `calendar_hide` | `end` albo `start` | `end` | wydarzenie z godziną znika po końcu (w trakcie ma „teraz”) albo po początku |
+| `calendar_colors` | mapa kalendarz → kolor | paleta | własne kolory kalendarzy |
 
 Pozycja `now` to id encji albo mapa: `entity` (**wymagany**), `name`, `icon`, `detail` (dopisywany po stanie),
 `remaining` (po prawej), `resting` (własna lista stanów oznaczających, że nic nie działa) i `block` (nazwa bloku
@@ -1095,6 +1112,15 @@ ekranu**. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika; z **Dla wszys
 Gradient, kolor albo zdjęcie dla jasnego i ciemnego wyglądu, **Pionowy / Poziomy** dla kształtu ekranu i część zdjęcia,
 która zostaje po przycięciu (`position`). Na górze Twój wygląd: Systemowy, Jasny albo Ciemny, zapisany w Twoich
 danych użytkownika.
+
+**Utwórz tło** otwiera kreator tła: 16 gotowych teł, 16 wzorów rysowanych przez kod (wzgórza, góry, wydmy, fale,
+zorza, światełka, plamy koloru, zachód, kręgi, poziomice, pasy, szkło, płatki, gwiazdy, łuki, papier) z przyciskiem
+**Inna wersja wzoru**, 48 gradientów w sześciu grupach (spokojne, chłodne, ciepłe, natura, pastele, noc) albo dwa
+własne kolory i kierunek, a do tego opcjonalnie zdjęcie: widoczność, odbarwienie, rozmycie, wygaszanie ku dołowi,
+sposób mieszania z gradientem i zostawiana część. **Dla wyglądu** wybiera jasny, ciemny albo oba. **Użyj jako tło**
+wysyła do Home Assistant dwa obrazy JPEG (pionowy 1290 × 2796 i szeroki 2732 × 2048, przez `/api/image/upload`)
+i wpisuje je w miejsca tego wyglądu (`light` i `light_wide` albo ciemne); okno zapisuje je potem jak każde zdjęcie.
+**Pobierz** zapisuje obraz pokazanego kształtu jako plik. Ostatnie ustawienia kreatora zostają na urządzeniu.
 
 ### Wygląd
 

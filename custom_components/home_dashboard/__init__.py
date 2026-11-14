@@ -7,7 +7,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import SIGNAL_SETTINGS_UPDATED
+from .const import CONF_EDITOR_IN_SIDEBAR, DEFAULT_EDITOR_IN_SIDEBAR, SIGNAL_SETTINGS_UPDATED
+from .editor import async_setup_editor, async_unload_editor
 from .frontend import async_register_frontend, async_unregister_frontend
 from .websocket import websocket_subscribe_settings
 
@@ -16,6 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Serve the dashboard strategy to every Home Assistant page."""
     await async_register_frontend(hass)
     websocket_api.async_register_command(hass, websocket_subscribe_settings)
+    await async_setup_editor(hass, _in_sidebar(entry))
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
 
@@ -23,9 +25,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Stop adding the strategy to Home Assistant pages."""
     async_unregister_frontend(hass)
+    async_unload_editor(hass)
     return True
 
 
+def _in_sidebar(entry: ConfigEntry) -> bool:
+    return entry.options.get(CONF_EDITOR_IN_SIDEBAR, DEFAULT_EDITOR_IN_SIDEBAR)
+
+
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Tell the open pages about the new options."""
+    """Tell the open pages about the new options; the editor's panel goes in or out of the sidebar."""
     async_dispatcher_send(hass, SIGNAL_SETTINGS_UPDATED)
+    async_unload_editor(hass)
+    await async_setup_editor(hass, _in_sidebar(entry))

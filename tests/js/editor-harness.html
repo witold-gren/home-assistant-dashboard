@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>Home Dashboard editor harness</title><style>body { margin: 0 }</style></head>
+  <body>
+    <script type="module">
+      import { createHass } from "/tests/js/mock-hass.js";
+      import { createEditorServer, configHash } from "/tests/js/mock-editor.js";
+      import { mountEditor } from "/custom_components/home_dashboard/www/editor/editor-app.js";
+      import * as tree from "/custom_components/home_dashboard/www/editor/tree.js";
+
+      customElements.define("ha-icon", class extends HTMLElement {});
+      const snapshot = await (await fetch("/tests/fixtures/registry_snapshot.json")).json();
+      window.editor = {
+        tree,
+        configHash,
+        snapshot,
+        // Opens the editor on a dashboard with this strategy; the server is kept for the test to look at.
+        async open(strategy, options = {}) {
+          const server = createEditorServer({ live: { strategy }, ...options });
+          const hass = createHass(snapshot, { callWS: server.handle, language: options.language ?? "pl" });
+          document.body.replaceChildren();
+          const host = document.createElement("div");
+          document.body.appendChild(host);
+          const previewUrl = (urlPath, page, { room, color, as } = {}) => {
+            const query = new URLSearchParams({ hd_preview: "1", page });
+            if (room) query.set("room", room);
+            if (color && color !== "auto") query.set("hd_color", color);
+            if (as) query.set("hd_as", as);
+            return `/tests/js/preview-harness.html?${query}`;
+          };
+          const app = mountEditor(host, hass, {}, { previewUrl });
+          window.editor.server = server;
+          window.editor.app = app;
+          await app.updateComplete;
+          return true;
+        },
+      };
+      window.editorReady = true;
+    </script>
+  </body>
+</html>

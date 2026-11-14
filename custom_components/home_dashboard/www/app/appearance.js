@@ -30,24 +30,31 @@ const ALWAYS_COLOURED = new Set(["scene", "script", "sensor"]);
 const isColour = (value) => typeof value === "string" && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value);
 const isIcon = (value) => typeof value === "string" && /^[a-z0-9-]+:[a-z0-9-]+$/i.test(value);
 
+// Each field says what it is (`kind`), so a form can be drawn from it (the editor's settings).
 const number = (low, high, fallback) => ({
+  kind: "number",
+  low,
+  high,
   fallback,
   clean: (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.min(high, Math.max(low, Math.round(parsed))) : undefined;
   },
 });
-const colour = () => ({ fallback: null, clean: (value) => (isColour(value) ? value : undefined) });
+const colour = () => ({ kind: "colour", fallback: null, clean: (value) => (isColour(value) ? value : undefined) });
 // A colour or a gradient, never a picture: a look shared with others must not load anything.
 const isPaint = (value) =>
   typeof value === "string" &&
   (isColour(value) || /^(linear|radial|conic)-gradient\([^;{}<>"'\\]*\)$/.test(value)) &&
   !/url\(/i.test(value);
-const paint = () => ({ fallback: null, clean: (value) => (isPaint(value) ? value : undefined) });
-const flag = (fallback) => ({ fallback, clean: (value) => (typeof value === "boolean" ? value : undefined) });
-const choice = (values, fallback) => ({ fallback, clean: (value) => (values.includes(value) ? value : undefined) });
+const paint = () => ({ kind: "paint", fallback: null, clean: (value) => (isPaint(value) ? value : undefined) });
+const flag = (fallback) => ({ kind: "flag", fallback, clean: (value) => (typeof value === "boolean" ? value : undefined) });
+const choice = (values, fallback) => ({ kind: "choice", values, fallback, clean: (value) => (values.includes(value) ? value : undefined) });
 // A list of names, each once, of a length the place can take.
 const list = (valid, low, high) => ({
+  kind: "list",
+  low,
+  high,
   fallback: null,
   clean: (value) => {
     if (!Array.isArray(value)) return undefined;
@@ -62,7 +69,7 @@ export const NAV_STYLES = ["docked", "floating"];
 export const NAV_RANGE = [2, 5];
 export const isNavItem = (value) => typeof value === "string" && (NAV_PAGES.includes(value) || /^room:[\w-]+$/.test(value));
 // The parts of the status bar of a tablet; the clock is always there.
-export const STATUS_PARTS = ["weather", "home", "alerts", "now", "departures", "power"];
+export const STATUS_PARTS = ["weather", "calendar", "home", "alerts", "now", "departures", "power"];
 
 // Everything the look can say, with its default. An empty group name is the top level. A colour
 // without a value keeps the colour of the light or the dark look.

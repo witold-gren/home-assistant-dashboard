@@ -7,7 +7,7 @@ from .test_shortcuts import SHEET, mount_admin
 from .test_talk import SETUP
 
 ENTRIES = """(buttons) => buttons
-    .filter((button) => !button.dataset.areaLink && !button.hasAttribute('data-home-link'))
+    .filter((button) => !button.dataset.areaLink && !button.hasAttribute('data-home-link') && !button.hasAttribute('data-calendar-link'))
     .map((button) => Object.keys(button.dataset)[0])"""
 
 

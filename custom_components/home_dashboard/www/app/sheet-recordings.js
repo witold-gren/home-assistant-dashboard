@@ -2,7 +2,7 @@
 
 import { html, nothing } from "../vendor/lit-all.min.js";
 import { clipThumbnail } from "./clip-thumbs.js";
-import { streamDot } from "./connections.js";
+import { batteryBadge, streamDot } from "./connections.js";
 import { translate } from "./i18n.js";
 import {
   buildCameras,
@@ -36,6 +36,7 @@ import {
   TABLET,
 } from "./sheet-shared.js";
 import { talkMode } from "./talk.js";
+import { mediaQuery } from "./media.js";
 
 export const RecordingSheets = (Base) =>
   class extends Base {
@@ -596,7 +597,7 @@ export const RecordingSheets = (Base) =>
       };
       const columns = this._cameraColumns();
       const next = CAMERA_COLUMNS[(CAMERA_COLUMNS.indexOf(columns) + 1) % CAMERA_COLUMNS.length];
-      const wall = window.matchMedia(TABLET).matches;
+      const wall = mediaQuery(TABLET).matches;
       const layout = wall ? this._cameraLayout() : "grid";
       // One big camera, live, the first working one until another is tapped; the rest small after it.
       const working = (camera) => !camera.unavailable && !camera.guest;
@@ -698,6 +699,9 @@ export const RecordingSheets = (Base) =>
       const down = gone || (this._pictureFailed === shown.entityId && !this._live && !this._clip);
       const picture = this._cameraPicture(shown);
       const battery = cameraId && isBatteryCamera(this.hass, cameraId, this.config);
+      // An open stream of this camera: its dot, inside the battery in the corner when there is one. The battery shows
+      // in this window only; on the pages and among all cameras so many badges would crowd the pictures.
+      const streamingNow = cameraStreaming(this.hass, cameraStreamSensors(this.hass, this.sheet.entityId, this.config));
       const room = this._cameraRoom();
       // One button to talk: through the room's intercom, or, when chosen in the settings, the camera's own speaker.
       const talk = talkMode(this.hass, this.sheet.entityId, this.config, { room });
@@ -789,7 +793,7 @@ export const RecordingSheets = (Base) =>
                 }}
                 @recording-day=${(event) => {
                   this._recordingDay = event.detail.day;
-                  if (window.matchMedia(LANDSCAPE_PHONE).matches) this._daysOpen = false;
+                  if (mediaQuery(LANDSCAPE_PHONE).matches) this._daysOpen = false;
                   this._clip = null;
                   this._playhead = null;
                 }}
@@ -814,6 +818,7 @@ export const RecordingSheets = (Base) =>
                   ${new Intl.NumberFormat(this.hass.language, { maximumFractionDigits: 1 }).format(this._zoomScale)}×
                 </button>`
               : nothing}
+            ${batteryBadge(shown.battery, streamingNow, this.hass.language)}
             ${this._live
               ? html`<span class="live-pill ${recording ? "recording" : ""} ${this._liveShown ? "" : "waiting"}" data-live-pill>
                   ${recording ? html`<i class="rec" data-rec></i>REC · ` : nothing}${this._t("live")}
@@ -856,7 +861,7 @@ export const RecordingSheets = (Base) =>
             ${down
               ? html`<div class="camera-down" data-camera-down><span>${this._t("camera_is_unavailable")}</span></div>`
               : nothing}
-            ${streamDot(cameraStreaming(this.hass, cameraStreamSensors(this.hass, this.sheet.entityId, this.config)), this._t("stream_open"))}
+            ${shown.battery ? nothing : streamDot(streamingNow, this._t("stream_open"))}
             ${!this._live && !this._clip && !down && cameraId
               ? html`<button
                   class="play-live ${this._zoomScale > 1 ? "hidden" : ""}"

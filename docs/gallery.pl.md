@@ -6,7 +6,7 @@ Wszystkie zrzuty dashboardu na telefonie (iPhone 16 Pro, 402 × 874) i na tablec
 Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0 cudzych domów
 ([źródła](../dev/demo-pictures/CREDITS.md)). `make screenshots` tworzy je od nowa.
 
-[Telefon i tablet](#telefon-i-tablet) · [Motyw Apple Home](#motyw-apple-home) · [Urządzenia](#urządzenia) · [Kamery i interkom](#kamery-i-interkom) · [Energia](#energia) · [Skróty i bloki](#skróty-i-bloki) · [Własny układ i ustawienia](#własny-układ-i-ustawienia) · [Wygląd i motywy](#wygląd-i-motywy)
+[Telefon i tablet](#telefon-i-tablet) · [Motyw Apple Home](#motyw-apple-home) · [Urządzenia](#urządzenia) · [Kamery i interkom](#kamery-i-interkom) · [Energia](#energia) · [Skróty i bloki](#skróty-i-bloki) · [Własny układ i ustawienia](#własny-układ-i-ustawienia) · [Wygląd i motywy](#wygląd-i-motywy) · [Edytor na komputerze](#edytor-na-komputerze)
 
 ## Telefon i tablet
 
@@ -143,5 +143,25 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 | Pasek | Okna | Motywy | Import motywu |
 |---|---|---|---|
 | ![Pasek](screenshots/pl/look-nav.png) | ![Okna](screenshots/pl/look-sheets.png) | ![Motywy](screenshots/pl/look-themes.png) | ![Import motywu](screenshots/pl/theme-import.png) |
+
+## Edytor na komputerze
+
+Edytor na komputerze, w oknie 1600 × 960; przewodnik krok po kroku jest w [Edytor dashboardu](editor.pl.md).
+
+| Strona główna w edytorze | Pokoje z obszarów | Pokój |
+|---|---|---|
+| ![Strona główna w edytorze](screenshots/pl/editor-home.png) | ![Pokoje z obszarów](screenshots/pl/editor-generate.png) | ![Pokój](screenshots/pl/editor-room.png) |
+
+| Sekcja | Wybór encji | Blok |
+|---|---|---|
+| ![Sekcja](screenshots/pl/editor-section.png) | ![Wybór encji](screenshots/pl/editor-picker.png) | ![Blok](screenshots/pl/editor-block.png) |
+
+| Wygląd i tła | Kolor tła | Pasek statusu |
+|---|---|---|
+| ![Wygląd i tła](screenshots/pl/editor-look.png) | ![Kolor tła](screenshots/pl/editor-background.png) | ![Pasek statusu](screenshots/pl/editor-status.png) |
+
+| Menu | Publikowanie | Historia |
+|---|---|---|
+| ![Menu](screenshots/pl/editor-menu.png) | ![Publikowanie](screenshots/pl/editor-publish.png) | ![Historia](screenshots/pl/editor-history.png) |
 
 [← Powrót do README](../README.pl.md) · [English](gallery.md)

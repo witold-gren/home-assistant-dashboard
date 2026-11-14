@@ -949,11 +949,16 @@ if (params.get("status")) {
   localStorage.setItem("home-dashboard-status-hint", "3");
 }
 
-if (params.get("room")) window.history.replaceState(null, "", `?${params}`);
-const card = document.createElement("home-dashboard-page");
-card.setConfig({ page: params.get("page") ?? "home", dashboard: DASHBOARD });
-card.hass = buildHass();
-document.body.append(card);
-window.card = card;
-await card.updateComplete;
-window.demoReady = true;
+// dev/demo-editor.html takes the made-up home for the editor on a computer, without a page of its own.
+if (window.demoDataOnly) {
+  window.demo = { buildHass, DASHBOARD, say, language };
+} else {
+  if (params.get("room")) window.history.replaceState(null, "", `?${params}`);
+  const card = document.createElement("home-dashboard-page");
+  card.setConfig({ page: params.get("page") ?? "home", dashboard: DASHBOARD });
+  card.hass = buildHass();
+  document.body.append(card);
+  window.card = card;
+  await card.updateComplete;
+  window.demoReady = true;
+}

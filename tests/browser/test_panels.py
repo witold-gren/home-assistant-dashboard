@@ -792,3 +792,178 @@ def test_bare_shortcut_tiles_have_keys_of_their_own(phone):
     keys = phone.evaluate("""async () => { const m = await import('/custom_components/home_dashboard/www/app/model.js');
         return [m.tileKey({ shortcut: 'A' }), m.tileKey({ shortcut: 'B' })]; }""")
     assert keys == ["shortcut:A", "shortcut:B"]
+
+
+def test_a_time_in_seconds_reads_as_hours_and_minutes(phone):
+    add_entity(phone, "sensor.ups_runtime", "4440", {})
+    add_entity(phone, "sensor.short", "300", {})
+    said = phone.evaluate("""async () => { const p = await import('/custom_components/home_dashboard/www/app/panel.js');
+        const hass = window.dashboard.hass();
+        return [p.panelValue(hass, { entity: 'sensor.ups_runtime', format: 'hours' }), p.panelValue(hass, { entity: 'sensor.short', format: 'hours' })]; }""")
+    assert said == ["1 h 14 min", "5 min"]
+
+
+# A console: a button on its tile, numbers of time in their own units, the game as an attribute, scripts with fields.
+
+XBOX = {
+    "kind": "panel", "name": "Xbox", "entity": "media_player.xbox",
+    "quick": {"name": "Wyłącz", "icon": "mdi:power", "service": "media_player.turn_off", "confirm": "Wyłączyć Xboxa?"},
+    "stats": [{"name": "Dziś", "entity": "sensor.play_today", "format": "hours"},
+              {"name": "Gra", "entity": "media_player.xbox", "attribute": "media_title"}],
+    "actions": [{"name": "Za 15 min", "entity": "script.xbox_turn_off_in", "service": "script.xbox_turn_off_in", "data": {"minutes": 15}},
+                {"name": "Wyłącz teraz", "entity": "media_player.xbox", "service": "media_player.turn_off", "confirm": "Wyłączyć?"}],
+}
+
+
+def add_xbox(page, state: str = "on") -> None:
+    add_entity(page, "media_player.xbox", state, {"media_title": "Forza Horizon 5"} if state != "off" else {})
+    add_entity(page, "sensor.play_today", "1.7", {"unit_of_measurement": "h"})
+    add_entity(page, "script.xbox_turn_off_in", "off", {})
+
+
+def test_a_console_tile_has_its_turn_off_while_on_asked_in_its_window(phone):
+    add_xbox(phone)
+    mount(phone, room_with(XBOX))
+    tile = phone.locator("home-dashboard-page [data-tile='Xbox']")
+    assert tile.locator(".stats b").all_inner_texts() == ["1 h 42 min", "Forza Horizon 5"]
+    tile.locator("[data-tile-quick]").click()
+    confirm = phone.locator("home-dashboard-sheet [data-confirm]")
+    confirm.wait_for()
+    assert "Wyłączyć Xboxa?" in confirm.inner_text()
+    assert calls(phone) == []
+    confirm.locator("[data-confirm-yes]").click()
+    assert calls(phone) == [{"type": "service", "domain": "media_player", "service": "turn_off", "data": {"entity_id": "media_player.xbox"}}]
+
+
+def test_an_off_console_has_no_button(phone):
+    add_xbox(phone, "off")
+    mount(phone, room_with(XBOX))
+    phone.locator("home-dashboard-page [data-tile='Xbox']").wait_for()
+    assert phone.locator("home-dashboard-page [data-tile-quick]").count() == 0
+
+
+def test_a_script_gets_its_fields_only(phone):
+    add_xbox(phone)
+    open_block(phone, room_with(XBOX), "Xbox")
+    phone.locator("home-dashboard-sheet [data-action='script.xbox_turn_off_in']").click()
+    assert calls(phone) == [{"type": "service", "domain": "script", "service": "xbox_turn_off_in", "data": {"minutes": 15}}]
+
+
+# Numbers in rows: − and + with the value between them, sent once the taps stop; a slider says its value as it moves.
+
+LIMITS = {
+    "kind": "panel", "name": "Limity", "entity": "sensor.machine",
+    "groups": [{"title": "Limity", "rows": [
+        {"entity": "input_number.daily", "name": "Dziennie", "control": "stepper", "format": "hours", "labels": {"0": "Bez limitu"}},
+        {"entity": "input_number.volume", "name": "Głośność"},
+    ]}],
+}
+
+
+def add_limits(page, daily: str = "0.0") -> None:
+    add_entity(page, "sensor.machine", "on")
+    add_entity(page, "input_number.daily", daily, {"min": 0, "max": 360, "step": 15, "unit_of_measurement": "min"})
+    add_entity(page, "input_number.volume", "40", {"min": 0, "max": 100, "step": 1})
+
+
+def test_a_stepper_shows_its_value_at_once_and_sends_it_once(phone):
+    add_limits(phone)
+    open_block(phone, room_with(LIMITS), "Limity")
+    stepper = phone.locator("home-dashboard-sheet [data-stepper='input_number.daily']")
+    value = stepper.locator("[data-step-value]")
+    assert value.inner_text() == "Bez limitu"
+    assert stepper.locator("[data-step-down]").is_disabled()
+    for _ in range(10):
+        stepper.locator("[data-step-up]").click()
+    assert value.inner_text() == "2 h 30 min"
+    assert calls(phone) == []
+    phone.wait_for_function("window.hass.calls.length === 1")
+    assert calls(phone) == [{"type": "service", "domain": "input_number", "service": "set_value",
+                             "data": {"entity_id": "input_number.daily", "value": 150}}]
+
+
+def test_a_slider_says_its_value_while_it_moves(phone):
+    add_limits(phone)
+    open_block(phone, room_with(LIMITS), "Limity")
+    slider = phone.locator("home-dashboard-sheet [data-range='input_number.volume']")
+    slider.evaluate("(input) => { input.value = '63'; input.dispatchEvent(new Event('input', { bubbles: true })); }")
+    assert phone.locator("home-dashboard-sheet [data-range-value='input_number.volume']").inner_text() == "63"
+    assert calls(phone) == []
+    slider.evaluate("(input) => input.dispatchEvent(new Event('change', { bubbles: true }))")
+    assert calls(phone)[-1]["data"] == {"entity_id": "input_number.volume", "value": 63}
+    assert phone.locator("home-dashboard-sheet [data-range-value]").count() == 0
+
+
+# A parent's code: loosening a limit (higher, 0 = none) or turning its switch off goes through the PIN window.
+
+PIN = {"service": "script.xbox_change_with_pin", "field": "pin"}
+GUARDED = {
+    "kind": "panel", "name": "Limity", "entity": "sensor.machine",
+    "groups": [{"title": "Limity", "rows": [
+        {"entity": "input_number.daily", "name": "Dziennie", "control": "stepper", "format": "hours", "labels": {"0": "Bez limitu"}, "pin": PIN},
+        {"entity": "input_boolean.turns_off", "name": "Wyłącz po limicie", "pin": PIN},
+    ]}],
+}
+
+
+def open_guarded(page, daily="120.0"):
+    add_limits(page, daily)
+    add_entity(page, "input_boolean.turns_off", "on", {})
+    open_block(page, room_with(GUARDED), "Limity")
+
+
+def test_raising_a_limit_asks_for_the_code_and_goes_back_once_set(phone):
+    open_guarded(phone)
+    phone.locator("home-dashboard-sheet [data-stepper='input_number.daily'] [data-step-up]").click()
+    phone.locator("home-dashboard-sheet [data-pin-keys], home-dashboard-sheet [data-pin-key='1']").first.wait_for()
+    assert calls(phone) == []
+    for key in "1234":
+        phone.locator(f"home-dashboard-sheet [data-pin-key='{key}']").click()
+    phone.locator("home-dashboard-sheet [data-pin-ok]").click()
+    phone.wait_for_function("window.hass.calls.length === 1")
+    assert calls(phone) == [{"type": "service", "domain": "script", "service": "xbox_change_with_pin",
+                             "data": {"entity_id": "input_number.daily", "value": 135, "pin": "1234"}}]
+    # Home Assistant sets it: the window of the block comes back
+    phone.evaluate("""() => { const s = window.dashboard.snapshot.states['input_number.daily'];
+        window.dashboard.snapshot.states['input_number.daily'] = { ...s, state: '135.0' };
+        window.card.hass = window.dashboard.hass(); }""")
+    phone.locator("home-dashboard-sheet [data-stepper='input_number.daily']").wait_for()
+
+
+def test_lowering_a_limit_needs_no_code(phone):
+    open_guarded(phone)
+    phone.locator("home-dashboard-sheet [data-stepper='input_number.daily'] [data-step-down]").click()
+    phone.wait_for_function("window.hass.calls.length === 1")
+    assert calls(phone)[0]["service"] == "set_value" and calls(phone)[0]["data"]["value"] == 105
+
+
+def test_turning_off_the_switch_of_a_limit_asks_for_the_code(phone):
+    open_guarded(phone)
+    phone.locator("home-dashboard-sheet [data-toggle='input_boolean.turns_off']").click()
+    phone.locator("home-dashboard-sheet [data-pin-key='1']").wait_for()
+    assert calls(phone) == []
+
+
+def test_a_pin_is_done_when_the_state_is_the_one_asked(phone):
+    done = phone.evaluate("""async () => { const s = await import('/custom_components/home_dashboard/www/app/sheet.js');
+        return [s.pinDone('135.0', '135'), s.pinDone('120.0', '135'), s.pinDone('off', 'off'), s.pinDone('on', 'off'), s.pinDone(undefined, 'off')]; }""")
+    assert done == [True, False, True, False, False]
+
+
+def test_a_tap_steps_a_little_and_a_held_button_by_round_steps(phone):
+    add_entity(phone, "sensor.machine", "on")
+    add_entity(phone, "input_number.daily", "63.0", {"min": 0, "max": 360, "step": 1, "unit_of_measurement": "min"})
+    block = {"kind": "panel", "name": "Limity", "entity": "sensor.machine", "groups": [{"title": "L", "rows": [
+        {"entity": "input_number.daily", "control": "stepper", "steps": [1, 5]}]}]}
+    open_block(phone, room_with(block), "Limity")
+    stepper = phone.locator("home-dashboard-sheet [data-stepper='input_number.daily']")
+    stepper.locator("[data-step-up]").click()
+    assert stepper.locator("[data-step-value]").inner_text() == "64"
+    up = stepper.locator("[data-step-up]")
+    up.hover()
+    phone.mouse.down()
+    phone.wait_for_timeout(400 + 110 * 2 + 60)
+    phone.mouse.up()
+    # 64 → 65 (tap) and then 70, 75 held: round numbers of five
+    value = int(stepper.locator("[data-step-value]").inner_text().split()[0])
+    assert value % 5 == 0 and value >= 70

@@ -13,10 +13,14 @@
   "options": {
     "step": {
       "init": {
-        "title": "Kolory",
-        "description": "Dotyczy wszystkich dashboardów i urządzeń, od razu.",
+        "title": "Ustawienia",
+        "description": "Dotyczą wszystkich dashboardów i urządzeń, od razu.",
         "data": {
-          "color_mode": "Tryb kolorów"
+          "color_mode": "Tryb kolorów",
+          "editor_in_sidebar": "Pokazuj edytor w pasku bocznym"
+        },
+        "data_description": {
+          "editor_in_sidebar": "Panel Edytor dashboardu (tylko dla administratorów). Ukryty nadal otwiera się pod adresem /home-dashboard-editor."
         }
       }
     }

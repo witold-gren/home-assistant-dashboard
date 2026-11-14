@@ -2,6 +2,8 @@
 // shows nothing on them, so a tap that worked looks like one that did not. Animations reach into
 // every shadow root, which a stylesheet would not.
 
+import { mediaQuery } from "./media.js";
+
 const PRESSABLE = 'button:not([disabled]), a[href], summary, [role="button"], .edit-tile';
 // A slider follows the finger already, and a card of Home Assistant answers by itself.
 const OWN_FEEDBACK = "[data-slider], [data-grip], .panel-card, .live, iframe";
@@ -34,7 +36,7 @@ function rise({ element, held }) {
 }
 
 function onDown(event) {
-  if (window.matchMedia(REDUCED_MOTION).matches) return;
+  if (mediaQuery(REDUCED_MOTION).matches) return;
   const element = pressTarget(event.composedPath());
   if (!element) return;
   press = { element, held: null, timer: setTimeout(sink, PRESS_DELAY_MS) };

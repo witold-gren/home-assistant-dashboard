@@ -5,6 +5,7 @@ import { LitElement, css, html, nothing, svg } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
+import { mediaQuery } from "./media.js";
 
 const HOURS_SHOWN = 24;
 const DAYS_SHOWN = 7;
@@ -50,7 +51,7 @@ export class HomeDashboardWeather extends LitElement {
     _daily: { state: true },
   };
 
-  _wide = window.matchMedia(WIDE_WEATHER);
+  _wide = mediaQuery(WIDE_WEATHER);
 
   _redraw = () => this.requestUpdate();
 

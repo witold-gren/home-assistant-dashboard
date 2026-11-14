@@ -203,7 +203,7 @@ def test_the_look_editor_turns_it_on_and_orders_its_parts(phone):
     phone.locator(f"{SHEET} [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
     saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
-    assert saved == {"status": {"shown": True, "widgets": ["weather", "home", "alerts", "departures", "now"]}}
+    assert saved == {"status": {"shown": True, "widgets": ["weather", "calendar", "home", "alerts", "departures", "now"]}}
 
 
 # The facts --------------------------------------------------------------------------------------------
@@ -313,8 +313,7 @@ def test_a_tap_opens_the_window_of_its_part(tablet):
     assert sheet_kind(tablet) == "weather"
     tablet.evaluate(f"{CHROME}.close()")
     tap(tablet, "[data-status-fact='lights']")
-    assert sheet_kind(tablet) == "overview"
-    assert tablet.evaluate(f"{CHROME}._overlay.sheet.item.name") == "Status"
+    assert sheet_kind(tablet) == "status-on"
     tablet.evaluate(f"{CHROME}.close()")
     tap(tablet, "[data-status-line]")
     assert sheet_kind(tablet) == "departures"
@@ -370,3 +369,96 @@ def test_a_washer_in_now_opens_the_window_of_its_block(tablet):
         const config = { shortcuts: [], layout: [{ id: 'r', sections: [{ tiles: [{ entity: 'light.a' }, washer] }] }] };
         return [blockFor(config, ['sensor.washer_phase'])?.name, blockFor(config, ['sensor.other']), blockFor(config, [], 'Pralka')?.name]; }""")
     assert found == ["Pralka", None, "Pralka"]
+
+
+def test_a_count_leaves_out_what_it_is_told_to(phone):
+    facts = run(phone, """
+        const hass = { language: 'pl', states: {
+            'light.a': { state: 'on', attributes: {} }, 'light.sky': { state: 'on', attributes: {} },
+            'switch.s': { state: 'on', attributes: {} } } };
+        const selection = { entityIds: ['light.a', 'light.sky', 'switch.s'] };
+        const counted = s.statusHome(hass, selection, { status_panel: { ignore: ['light.sky', 'switch.s'] } });
+        return counted.map((f) => [f.key, f.label, f.ids]);""")
+    assert facts == [["lights", "1 światło", ["light.a"]]]
+
+
+SKY = {"friendly_name": "Skylight", "icon": "mdi:weather-sunset"}
+
+
+def add_light(page, entity_id: str, attributes: dict) -> None:
+    """A light that is on, in the room of a light of the test home, so the dashboard shows it."""
+    add_entity(page, entity_id, "on", attributes)
+    page.evaluate(
+        """(id) => {
+            const snapshot = window.dashboard.snapshot;
+            snapshot.states[id].last_changed = new Date().toISOString();
+            // light.entity_0162 is one the dashboard shows: a light of a room, not a group member nor a setting.
+            snapshot.entities[id] = { ...snapshot.entities['light.entity_0162'], entity_id: id, name: null };
+        }""",
+        entity_id,
+    )
+
+
+def open_lights(tablet, extra: dict | None = None, admin: bool = True) -> None:
+    add_light(tablet, "light.sky", SKY)
+    add_light(tablet, "light.desk", {"friendly_name": "Biurko"})
+    states = {}
+    mount(tablet, extra, states=states)
+    if not admin:
+        tablet.evaluate(f"{CHROME}.hass = {{ ...{CHROME}.hass, user: {{ ...{CHROME}.hass.user, is_admin: false }} }}")
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')?.shadowRoot.querySelector('[data-status-fact=\\'lights\\']')")
+    tap(tablet, "[data-status-fact='lights']")
+    tablet.wait_for_selector(f"{SHEET} [data-status-on='lights']")
+
+
+def rows(page) -> list[str]:
+    return page.locator(f"{SHEET} [data-status-row]").evaluate_all("(rows) => rows.map((row) => row.dataset.statusRow)")
+
+
+def test_a_tap_on_the_lights_lists_them_with_their_room_and_time(tablet):
+    open_lights(tablet)
+    shown = rows(tablet)
+    assert "light.sky" in shown and "light.desk" in shown
+    text = tablet.locator(f"{SHEET} [data-status-row='light.sky']").inner_text()
+    assert "Skylight" in text and "od " in text
+
+
+def test_a_light_left_out_of_the_count_is_saved_for_everyone(tablet):
+    open_lights(tablet)
+    tablet.locator(f"{SHEET} [data-status-ignore='light.sky']").click()
+    tablet.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
+    saved = tablet.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy")
+    assert saved["status_panel"]["ignore"] == ["light.sky"]
+    assert saved["status_panel"]["doors"]  # the rest of the status bar stays
+
+
+def test_a_light_not_counted_is_listed_apart_and_counted_again(tablet):
+    open_lights(tablet, {"status_panel": {"ignore": ["light.sky"]}})
+    assert "light.sky" in tablet.locator(f"{SHEET} .status-ignored ~ [data-status-row]").evaluate_all(
+        "(rows) => rows.map((row) => row.dataset.statusRow)")
+    tablet.locator(f"{SHEET} [data-status-ignore='light.sky']").click()
+    tablet.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
+    saved = tablet.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy")
+    assert "status_panel" not in saved or "ignore" not in saved["status_panel"]
+
+
+def test_only_an_administrator_leaves_a_light_out(tablet):
+    open_lights(tablet, admin=False)
+    assert tablet.locator(f"{SHEET} [data-status-ignore]").count() == 0
+    assert "light.sky" in rows(tablet)
+
+
+def test_a_row_opens_the_window_of_its_light(tablet):
+    open_lights(tablet)
+    tablet.locator(f"{SHEET} [data-status-open='light.desk']").click()
+    tablet.wait_for_function(f"{CHROME}._overlay?.sheet?.entityId === 'light.desk'")
+
+
+def test_since_says_the_hour_today_and_the_day_before(phone):
+    result = run(phone, """
+        const st = await import('/custom_components/home_dashboard/www/app/sheet-status.js');
+        const now = new Date('2026-11-13T15:00:00');
+        return [st.sinceText('2026-11-13T09:45:00', 'pl', now), st.sinceText('2026-11-12T22:05:00', 'pl', now), st.sinceText('x', 'pl', now)];""")
+    assert result[0] == "09:45"
+    assert result[1].endswith("22:05") and result[1] != "22:05"
+    assert result[2] == ""

@@ -29,13 +29,23 @@ import { SettingsSheets } from "./sheet-settings.js";
 import { LookSheets } from "./sheet-look.js";
 import { BlockSheets } from "./sheet-blocks.js";
 import { MediaSheets } from "./sheet-media.js";
+import { StatusSheets } from "./sheet-status.js";
+import { CalendarSheets, calendarStyles } from "./sheet-calendar.js";
 import { baseStyles } from "./sheet-styles-base.js";
 import { lookStyles } from "./sheet-styles-look.js";
 import { controlStyles } from "./sheet-styles-controls.js";
 import { cameraStyles } from "./sheet-styles-camera.js";
+import { mediaQuery } from "./media.js";
+
+/** Whether a change asked with a PIN has happened: the state it was to take, as a number for a number. */
+export function pinDone(state, expect) {
+  if (state === undefined) return false;
+  const [a, b] = [Number(state), Number(expect)];
+  return Number.isFinite(a) && Number.isFinite(b) && String(expect).trim() !== "" ? a === b : String(state) === String(expect);
+}
 
 // The methods of each kind of window live in their own module, mixed into this one element.
-const SheetParts = [EntitySheets, CameraSheets, RecordingSheets, SettingsSheets, LookSheets, BlockSheets, MediaSheets];
+const SheetParts = [EntitySheets, CameraSheets, RecordingSheets, SettingsSheets, LookSheets, BlockSheets, MediaSheets, StatusSheets, CalendarSheets];
 
 export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => part(base), LitElement) {
   static properties = {
@@ -43,6 +53,8 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     sheet: { attribute: false },
     config: { attribute: false },
     raw: { attribute: false },
+    // The entities the dashboard shows (selectEntities), for the lists of the status bar.
+    selection: { attribute: false },
     layout: { type: String },
     _draft: { state: true },
     _volume: { state: true },
@@ -74,6 +86,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     _wallBig: { state: true },
     _sd: { state: true },
     _rooms: { state: true },
+    _calendar: { state: true },
     _deleting: { state: true },
     _sdError: { state: true },
     _sdTurnedDown: { state: true },
@@ -83,6 +96,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     _tick: { state: true },
     _voice: { state: true },
     _pending: { state: true },
+    _stepDraft: { state: true },
     _query: { state: true },
     _uploadProblem: { state: true },
     _pin: { state: true },
@@ -93,6 +107,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     _bgMode: { state: true },
     _bgShape: { state: true },
     _bgEveryone: { state: true },
+    _bgMaker: { state: true },
     _shared: { state: true },
     _look: { state: true },
     _lookEveryone: { state: true },
@@ -155,6 +170,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       this._wallPaused = false;
       this._stopSd();
       this._rooms = { selected: [], repeats: 1 };
+      this._calendar = null;
       this._deleting = null;
       if (this.sheet?.kind === "sd") this._startSd();
       this._diskObserver?.disconnect();
@@ -174,9 +190,12 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       this._stopVolume();
       this._draft = undefined;
       this._voice = null;
-      this._pending = null;
+      this._stepDraft = {};
+      // A button on a block's tile opens its window with the question already asked.
+      this._pending = this.sheet?.confirm ?? null;
       this._query = "";
       this._uploadProblem = false;
+      this._bgMaker = false;
       this._motion = null;
       this._leaving = false;
       this._embedded = null;
@@ -294,6 +313,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
   }
 
   updated(changed) {
+    this._syncCalendar?.();
     // The big camera of all cameras: the one just drawn plays, and only it.
     this._syncWallLive();
     if (changed.has("sheet")) {
@@ -321,7 +341,10 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       this.setAttribute("style", sheetVariables(this.config?.appearance));
       this._previewingLook = false;
     }
-    if (this.sheet?.kind === "pin" && this._stateObj?.state === "off") this._close();
+    if (this.sheet?.kind === "pin" && pinDone(this._stateObj?.state, this.sheet.expect ?? "off")) {
+      if (this.sheet.back) this._change(this.sheet.back);
+      else this._close();
+    }
     if (changed.has("sheet") && this.sheet?.kind === "camera" && this.sheet.at) this._seekWhenLoaded(this.sheet.at);
     if (changed.has("sheet") && this.sheet?.kind === "camera") {
       this._centreThumb();
@@ -357,7 +380,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
 
   _slideOut() {
     const panel = this.renderRoot.querySelector(".panel");
-    if (!panel || window.matchMedia(REDUCED_MOTION).matches) return Promise.resolve();
+    if (!panel || mediaQuery(REDUCED_MOTION).matches) return Promise.resolve();
     this.classList.add("settling");
     this._setDrag(window.innerHeight);
     return new Promise((resolve) => {
@@ -627,17 +650,19 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       select: this._renderSelect,
       sensor: this._renderSensor,
       alarm: this._renderAlarm,
+      "status-on": this._renderStatusOn,
+      calendar: this._renderCalendarSheet,
     };
-    const wall = this.sheet.kind === "cameras" && window.matchMedia(TABLET).matches;
+    const wall = this.sheet.kind === "cameras" && mediaQuery(TABLET).matches;
     const dark = ["camera", "sd", "disk"].includes(this.sheet.kind) || wall;
     // The intercom floats as a card over the page, blurred behind it, like a phone's intercom.
     const floating = this.sheet.kind === "intercom";
     const { item } = this.sheet;
     // The weather takes the whole screen of a tablet on its side, where it has room for a chart and the week.
     const wideWeather =
-      (this.sheet.kind === "weather" && window.matchMedia(WIDE_WEATHER).matches) ||
-      (this.sheet.kind === "departures" && window.matchMedia(WIDE_DEPARTURES).matches);
-    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "history", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+      (this.sheet.kind === "weather" && mediaQuery(WIDE_WEATHER).matches) ||
+      (this.sheet.kind === "departures" && mediaQuery(WIDE_DEPARTURES).matches);
+    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "calendar", "history", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     // A block of several groups without a card of its own: on a tablet a wider window with its groups in two columns,
     // so it fits without scrolling (a phone scrolls it).
     const roomy = this.sheet.kind === "panel" && !whole && !item?.card && !item?.tabs && (item?.groups?.length ?? 0) >= 2;
@@ -665,5 +690,6 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     lookStyles,
     controlStyles,
     cameraStyles,
+    calendarStyles,
   ];
 }

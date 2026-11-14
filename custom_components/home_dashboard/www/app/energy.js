@@ -5,6 +5,7 @@
 import { LitElement, css, html, nothing, svg } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { tokens } from "./styles.js";
+import { mediaQuery } from "./media.js";
 
 export const ENERGY_PERIODS = ["day", "week", "month"];
 const DEVICES_SHOWN = 8;
@@ -205,7 +206,7 @@ export class HomeDashboardEnergy extends LitElement {
     this._allDevices = false;
   }
 
-  _wide = window.matchMedia(WIDE_ENERGY);
+  _wide = mediaQuery(WIDE_ENERGY);
 
   _redraw = () => this.requestUpdate();
 

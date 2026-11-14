@@ -235,3 +235,24 @@ def test_nothing_runs_past_the_edge_of_a_phone(phone):
     add_rooms(phone)
     open_status(phone, cold_section())
     assert phone.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+UPS = {"name": "Zasilanie z baterii UPS", "icon": "mdi:power-plug-off", "entity": "sensor.ups_status", "state_words": ["OB"],
+       "alarm": True, "facts": [{"name": "Bateria", "entity": "sensor.ups_charge", "unit": "%"},
+                                {"name": "Zostało", "entity": "sensor.ups_runtime", "format": "hours"}]}
+
+
+def test_a_ups_on_its_battery_is_an_alarm_by_a_word_of_its_state(phone):
+    """NUT tells its state as flags: OL on the mains, OB (with DISCHRG, LB…) on the battery."""
+    add_entity(phone, "sensor.ups_charge", "87", {})
+    add_entity(phone, "sensor.ups_runtime", "4440", {})
+    for state, shown in [("OL", False), ("OL CHRG", False), ("OB DISCHRG", True), ("OB LB", True), ("OBX", False)]:
+        add_entity(phone, "sensor.ups_status", state, {})
+        said = item_says(phone, UPS)
+        assert (said is not None) == shown, state
+    add_entity(phone, "sensor.ups_status", "OB DISCHRG", {})
+    said = item_says(phone, UPS)
+    assert said["facts"] == [{"name": "Bateria", "value": "87 %"}, {"name": "Zostało", "value": "1 h 14 min"}]
+    # a whole state still works beside the words
+    add_entity(phone, "sensor.ups_status", "FSD", {})
+    assert item_says(phone, {**UPS, "state": ["FSD"]}) is not None

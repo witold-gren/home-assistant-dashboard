@@ -6,7 +6,7 @@ Every screenshot of the dashboard, on a phone (iPhone 16 Pro, 402 × 874) and a 
 They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 photos of other homes
 ([credits](../dev/demo-pictures/CREDITS.md)). `make screenshots` makes them again.
 
-[Phone and tablet](#phone-and-tablet) · [Apple Home theme](#apple-home-theme) · [Devices](#devices) · [Cameras and intercom](#cameras-and-intercom) · [Energy](#energy) · [Shortcuts and blocks](#shortcuts-and-blocks) · [Personal layout and settings](#personal-layout-and-settings) · [Look and themes](#look-and-themes)
+[Phone and tablet](#phone-and-tablet) · [Apple Home theme](#apple-home-theme) · [Devices](#devices) · [Cameras and intercom](#cameras-and-intercom) · [Energy](#energy) · [Shortcuts and blocks](#shortcuts-and-blocks) · [Personal layout and settings](#personal-layout-and-settings) · [Look and themes](#look-and-themes) · [The editor on a computer](#the-editor-on-a-computer)
 
 ## Phone and tablet
 
@@ -143,5 +143,25 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 | Bar | Windows | Themes | Importing a theme |
 |---|---|---|---|
 | ![Bar](screenshots/en/look-nav.png) | ![Windows](screenshots/en/look-sheets.png) | ![Themes](screenshots/en/look-themes.png) | ![Importing a theme](screenshots/en/theme-import.png) |
+
+## The editor on a computer
+
+The editor on a computer, at 1600 × 960; a step-by-step guide is in [The dashboard editor](editor.md).
+
+| Home in the editor | Rooms from areas | A room |
+|---|---|---|
+| ![Home in the editor](screenshots/en/editor-home.png) | ![Rooms from areas](screenshots/en/editor-generate.png) | ![A room](screenshots/en/editor-room.png) |
+
+| A section | Choosing entities | A block |
+|---|---|---|
+| ![A section](screenshots/en/editor-section.png) | ![Choosing entities](screenshots/en/editor-picker.png) | ![A block](screenshots/en/editor-block.png) |
+
+| Look and backgrounds | A background colour | Status bar |
+|---|---|---|
+| ![Look and backgrounds](screenshots/en/editor-look.png) | ![A background colour](screenshots/en/editor-background.png) | ![Status bar](screenshots/en/editor-status.png) |
+
+| Menu | Publishing | History |
+|---|---|---|
+| ![Menu](screenshots/en/editor-menu.png) | ![Publishing](screenshots/en/editor-publish.png) | ![History](screenshots/en/editor-history.png) |
 
 [← Back to the README](../README.md) · [Polski](gallery.pl.md)

@@ -19,6 +19,7 @@ import {
 import { createSoundMixer, hasSound } from "./sound.js";
 import { microphoneReachable, startTalk, TALK_LIMIT_MS } from "./talk.js";
 import { clipFor, PictureZoom } from "./zoom.js";
+import { mediaQuery } from "./media.js";
 
 export const CameraSheets = (Base) =>
   class extends Base {
@@ -435,7 +436,7 @@ export const CameraSheets = (Base) =>
     _tapPicture(event) {
       // A pinch, a move of a zoomed picture or a double tap is not also a tap on the picture.
       if (this._zoomer?.takeGesture()) return;
-      if (!window.matchMedia(LANDSCAPE_PHONE).matches || (!this._daysOpen && !this._lineOpen && !this._camerasOpen)) return;
+      if (!mediaQuery(LANDSCAPE_PHONE).matches || (!this._daysOpen && !this._lineOpen && !this._camerasOpen)) return;
       if (event.composedPath().some((node) => node.localName === "button" || node.localName === "select")) return;
       this._daysOpen = false;
       this._lineOpen = false;

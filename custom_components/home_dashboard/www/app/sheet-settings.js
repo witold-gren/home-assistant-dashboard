@@ -10,6 +10,7 @@ import {
   roomViewChoices,
   sharedLayoutChoices,
 } from "./model.js";
+import "./background-maker.js";
 import { personalPrefs, savePrefs } from "./prefs.js";
 import { dashboardStart, setDashboardStart } from "./settings.js";
 import { BACKGROUNDS, EVERYONE_ELSE } from "./sheet-shared.js";
@@ -40,6 +41,7 @@ export const SettingsSheets = (Base) =>
               </button>
             `,
           )}
+          ${this._renderCalendarLink()}
           <hr />
           ${this.hass.user?.is_admin
             ? html`
@@ -565,7 +567,26 @@ export const SettingsSheets = (Base) =>
       `;
     }
 
+    // The maker in place of the window; what it makes fills the slots of the look chosen, saved with the window.
+    _renderBackgroundMaker() {
+      return html`
+        ${this._renderHeader(this._t("maker_title"), false, false)}
+        <home-dashboard-background-maker
+          class="rows"
+          .hass=${this.hass}
+          heading=${this.sheet.title ?? ""}
+          look=${this._bgMode}
+          @maker-done=${(event) => {
+            this._bg = { ...this._bg, ...event.detail.slots };
+            this._bgMaker = false;
+          }}
+          @maker-cancel=${() => (this._bgMaker = false)}
+        ></home-dashboard-background-maker>
+      `;
+    }
+
     _renderBackground() {
+      if (this._bgMaker) return this._renderBackgroundMaker();
       const current = this._bg[backgroundSlot(this._bgMode, this._bgShape)];
       return html`
         ${this._renderHeader(this._t("screen_background"), false, false)}
@@ -616,6 +637,10 @@ export const SettingsSheets = (Base) =>
             <span>${this._t("background_picture")}</span>
             <input type="file" accept="image/*" data-picture @change=${this._uploadBackground} />
           </label>
+          <button class="row off" data-background-maker @click=${() => (this._bgMaker = true)}>
+            <span class="row-icon"><ha-icon icon="mdi:auto-fix"></ha-icon></span>
+            <span class="row-text"><strong>${this._t("maker_open")}</strong><small>${this._t("maker_open_hint")}</small></span>
+          </button>
           <p class="hint">${this._t("background_position_hint")}</p>
           ${this._renderBackgroundChoices(
             "bg-position",

@@ -433,6 +433,10 @@ export const cameraStyles = css`
     overflow: hidden;
     touch-action: pan-y;
   }
+  /* The zoom takes the corner of the battery, which moves down under it. */
+  .stage.zoomed .camera-battery {
+    top: 40px;
+  }
   .stage.zoomed {
     touch-action: none;
   }
@@ -965,6 +969,11 @@ export const cameraStyles = css`
     .panel.roomy .rows > :not(.stats):not(.block-actions) {
       grid-column: 1 / -1;
     }
+    /* More than three buttons do not fit beside the numbers: the numbers take the row, the buttons an even row below. */
+    .panel.roomy .rows:has(> .block-actions > .block-action:nth-child(4)) > .stats,
+    .panel.roomy .rows:has(> .block-actions > .block-action:nth-child(4)) > .block-actions {
+      grid-column: 1 / -1;
+    }
     .panel.roomy .panel-groups {
       display: block;
       columns: 300px;
@@ -1124,6 +1133,16 @@ export const cameraStyles = css`
     /* In the corner of the picture, not of the screen, when bands stand beside it (a wide window). */
     .camera-body .age {
       left: calc(var(--media-left, 0px) + 8px);
+    }
+    /* The battery in the picture's top right corner, under the header: at the top of the screen it lay under the
+       settings button (and the status bar of iPadOS). It stands in the stage, the whole screen, so it goes below a
+       band over the picture too; zoomed, under the zoom. */
+    .camera-body .camera-battery {
+      top: max(64px, calc(var(--media-top, 0px) + 8px));
+      right: calc(var(--media-right, 0px) + 8px);
+    }
+    .camera-body .stage.zoomed .camera-battery {
+      top: calc(max(64px, calc(var(--media-top, 0px) + 8px)) + 32px);
     }
     .camera-body .sound-level {
       top: 60px;

@@ -8,7 +8,7 @@ na tablecie. Całość powstaje automatycznie z Twoich pokoi, więc nie piszesz 
 samym dashboardzie i zapisujesz jako motyw, którym możesz się podzielić; w zestawie są dwa: **Home Dashboard** i
 **Apple Home**.
 
-Stan: wczesna wersja.
+Wersja 1.0: dashboard i jego edytor na komputerze.
 
 <p align="center">
   <img src="docs/screenshots/pl/home.png" alt="Strona główna na iPhonie" height="380">
@@ -246,6 +246,22 @@ Domyślny dashboard HA należy do konta albo całego systemu. Przełącznik w us
 zapisuje się na urządzeniu: przy starcie aplikacji, z domyślnej strony, otwiera ten dashboard. Linki do
 innych stron działają normalnie.
 
+## Edytor dashboardu
+
+**Edytor dashboardu** w bocznym menu (administratorzy) buduje i edytuje dashboard na komputerze: drzewo pokoi,
+sekcji, kafelków i bloków z formularzem dla każdego klucza, podgląd na żywo iPhone'a i iPada (z powiększeniem
+aplikacji), który zaznacza na czerwono to, co edytujesz, wybór encji, cofanie i ponawianie oraz szkic, który niczego
+nie zmienia, dopóki go nie opublikujesz: najpierw jednej osobie do sprawdzenia, potem wszystkim, z historią do
+przywracania.
+
+<p align="center">
+  <img src="docs/screenshots/pl/editor-home.png" alt="Edytor dashboardu: kafelek strony głównej wybrany w drzewie, zaznaczony w podglądzie iPhone'a i iPada" width="900">
+</p>
+
+**[Edytor od zera do gotowego dashboardu](docs/editor.pl.md)** prowadzi krok po kroku przez wszystko: pierwsze pokoje
+z obszarów, kafelki, stronę główną, bloki, wygląd i tła, pasek statusu tabletu, menu, to, kto co widzi, i
+publikowanie.
+
 ## Układ pokoi
 
 Bez konfiguracji pokoje budują się same z obszarów. Możesz też opisać je w `layout`: kolejność pokoi,
@@ -477,6 +493,27 @@ Frontend nie ma kroku budowania: to zwykłe moduły ES, a Lit jest w `www/vendor
 skryptem `scripts/make_fixture.py`.
 
 ## FAQ
+
+**W edytorze okno bloku zostaje nad podglądem po wybraniu innego pokoju** — okno zamykało się krokiem wstecz w historii
+ramki, co cofało przejście ramki do drugiego pokoju. Od tej wersji podgląd zamyka je od razu.
+
+**„Na stronie głównej” pokoju w edytorze pisze „Ta część nie ma jeszcze formularza”** — to lista kafelków. Od tej
+wersji zakładka Właściwości pokazuje je: kliknięcie otwiera kafelek w jego formularzu, strzałki przesuwają, kosz
+usuwa; pole powyżej dodaje jeden, „Wybierz z listy…” kilka naraz.
+
+**Okno kamery na baterię nie pokazuje baterii na iPadzie albo na obróconym telefonie** — w poziomie obraz zajmuje
+cały ekran, a nagłówek leży nad nim; bateria została w samym rogu ekranu, pod przyciskiem ustawień (i paskiem stanu
+iPadOS). Od tej wersji stoi w prawym górnym rogu obrazu, pod nagłówkiem. Nic nie trzeba zmieniać w ustawieniach.
+
+**„null is not an object (evaluating 'window.matchMedia(TABLET_MEDIA_QUERY).matches')”** — Safari, iPhone i iPad nie
+odpowiadają na zapytanie o ekran w stronie, której ramki już nie ma (ramka podglądu w edytorze właśnie wymieniona,
+zamykany widok aplikacji), a jej ostatnie rysowanie jeszcze trwa. Nic się nie psuło, ale komunikat się pokazywał. Od
+tej wersji taka strona traktuje każde zapytanie jako niepasujące i komunikat znika.
+
+**Opublikowana pozycja menu się nie pokazuje** — pozycja miała wypełnione pole **Blok** (`shortcut`) własną nazwą,
+np. `shortcut: HD Editor`. To pole nie jest krótką nazwą: otwiera blok o tej nazwie, a pozycja wskazująca nieistniejący
+blok była pomijana. Od tej wersji taka pozycja pokazuje się jako swój link (`path`, `addon` albo `action`), a w
+edytorze pole jest listą istniejących bloków. Naprawa starszej pozycji: Menu → pozycja → wyczyść **Blok** → Publikuj.
 
 **Koniec nagranej wiadomości interkomu jest ucięty** — przeglądarka trzyma ostatnią chwilę głosu w buforach dźwięku,
 a natychmiastowe zatrzymanie po „Gotowe” ją gubiło. Od tej wersji nagrywanie trwa jeszcze 0,7 s po „Gotowe” (okno

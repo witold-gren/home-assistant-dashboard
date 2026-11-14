@@ -6,10 +6,22 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 import voluptuous as vol
 
-from .const import COLOR_MODE_AUTO, COLOR_MODES, CONF_COLOR_MODE, DOMAIN
+from .const import (
+    COLOR_MODE_AUTO,
+    COLOR_MODES,
+    CONF_COLOR_MODE,
+    CONF_EDITOR_IN_SIDEBAR,
+    DEFAULT_EDITOR_IN_SIDEBAR,
+    DOMAIN,
+)
 
 
 class HomeDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -34,7 +46,7 @@ class HomeDashboardOptionsFlow(OptionsFlow):
     """Options that apply to every dashboard and device."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Choose the colours."""
+        """Choose the colours and whether the editor is in the sidebar."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
         current = self.config_entry.options.get(CONF_COLOR_MODE, COLOR_MODE_AUTO)
@@ -43,5 +55,11 @@ class HomeDashboardOptionsFlow(OptionsFlow):
                 options=COLOR_MODES, mode=SelectSelectorMode.LIST, translation_key=CONF_COLOR_MODE
             )
         )
-        schema = vol.Schema({vol.Required(CONF_COLOR_MODE, default=current): selector})
+        in_sidebar = self.config_entry.options.get(CONF_EDITOR_IN_SIDEBAR, DEFAULT_EDITOR_IN_SIDEBAR)
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_COLOR_MODE, default=current): selector,
+                vol.Required(CONF_EDITOR_IN_SIDEBAR, default=in_sidebar): BooleanSelector(),
+            }
+        )
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -7,7 +7,7 @@ with pastel tiles, summary chips, bottom navigation on phones and a side rail on
 dashboard is generated from your rooms, so there are no cards to write by hand. The look is set in the dashboard
 itself and kept as a theme you can share; two come with it: **Home Dashboard** and **Apple Home**.
 
-Status: early version.
+Version 1.0: the dashboard and its editor on a computer.
 
 <p align="center">
   <img src="docs/screenshots/en/home.png" alt="Home on an iPhone" height="380">
@@ -247,6 +247,21 @@ Home Assistant's default dashboard belongs to the account or the whole system. T
 dashboard's settings is stored on the device: at app start, from a default page, it opens this
 dashboard. Links to other pages keep working.
 
+## Dashboard editor
+
+**Dashboard editor** in the sidebar (administrators) builds and edits the dashboard on a computer: the tree of rooms,
+sections, tiles and blocks with a form for every key, a live preview of an iPhone and an iPad (with the zoom of the
+app) that marks in red what you edit, a picker of entities, undo and redo, and a draft that changes nothing until it is
+published, first for one person to check, then for everyone, with a history to go back to.
+
+<p align="center">
+  <img src="docs/screenshots/en/editor-home.png" alt="The dashboard editor: a tile of the Home page chosen in the tree, marked in the preview of an iPhone and an iPad" width="900">
+</p>
+
+**[The editor, from zero to a finished dashboard](docs/editor.md)** goes step by step through everything: the first
+rooms from areas, tiles, the Home page, blocks, the look and backgrounds, the status bar of a tablet, the menu, who sees
+what, and publishing.
+
 ## Room layout
 
 With no configuration, rooms are built from the areas. You can also describe them in `layout`: the
@@ -473,6 +488,30 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 `scripts/make_fixture.py`.
 
 ## FAQ
+
+**In the editor the window of a block stays over the preview after choosing another room** — the window closed
+by a step back in the history of the frame, which undid the frame's move to the other room. From this version the
+preview closes it at once.
+
+**A room's "On Home" in the editor says "This part has no form yet"** — it is a list of tiles. From this version its
+Properties tab lists them: a click opens a tile in its form, the arrows move it, the bin removes it; the field above
+adds one, "Choose from the list" several.
+
+**The window of a camera on a battery shows no battery on an iPad or a phone on its side** — on a side the picture
+fills the screen and the header lies over it; the battery stayed in the very corner of the screen, under the settings
+button (and the status bar of iPadOS). From this version it stands in the top right corner of the picture, under the
+header. Nothing to change in the settings.
+
+**"null is not an object (evaluating 'window.matchMedia(TABLET_MEDIA_QUERY).matches')"** — Safari, iPhone and iPad
+give no answer to a media query in a page whose frame is already gone (a preview frame of the editor just replaced,
+a view of the app being closed) while its last drawing still runs. Nothing broke, but the message showed. From this
+version such a page reads every query as not matching and the message is gone.
+
+**A published menu entry does not show** — the entry had the field **Block** (`shortcut`) filled with a name of its
+own, e.g. `shortcut: HD Editor`. That field is not a short name: it opens the block of that name, and an entry naming a
+block that is not there was left out. From this version such an entry shows as its own link (`path`, `addon` or
+`action`), and in the editor the field is a choice of the blocks there are. To fix an older entry: Menu → the entry →
+empty **Block** → Publish.
 
 **The end of a recorded intercom message is cut off** — the browser holds the last moment of the voice in its audio
 buffers, and stopping at once on Done lost it. From this version the recording goes on for 0.7 s after Done (the

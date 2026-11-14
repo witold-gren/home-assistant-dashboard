@@ -4,6 +4,7 @@
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { tokens } from "./styles.js";
+import { formatHours } from "./panel.js";
 
 const CLOCK_TICK_MS = 15000;
 const NOTHING_TO_SHOW = new Set(["", "0", "—", "none", "unknown", "unavailable"]);
@@ -76,9 +77,11 @@ function listedRows(hass, { list }) {
 }
 
 function shownFacts(hass, facts) {
-  return (facts ?? []).flatMap(({ name, entity, unit }) => {
+  return (facts ?? []).flatMap(({ name, entity, unit, format }) => {
     const value = hass.states[entity]?.state ?? "";
-    return NOTHING_TO_SHOW.has(value.trim()) ? [] : [{ name, value: unit ? `${value} ${unit}` : value }];
+    if (NOTHING_TO_SHOW.has(value.trim())) return [];
+    if (format === "hours") return [{ name, value: formatHours(value) }];
+    return [{ name, value: unit ? `${value} ${unit}` : value }];
   });
 }
 
@@ -95,7 +98,11 @@ export function overviewItem(hass, item, now = new Date()) {
   }
   if (item.entity) {
     const state = hass.states[item.entity]?.state;
-    if (!asList(item.state ?? "on").includes(state)) return null;
+    // A state of several words (a UPS: "OB DISCHRG") shows for one of them; whole states as before.
+    const words = asList(item.state_words ?? []);
+    const byWord = words.length > 0 && String(state ?? "").split(/\s+/).some((word) => words.includes(word));
+    const byState = (item.state !== undefined || !words.length) && asList(item.state ?? "on").includes(state);
+    if (!byWord && !byState) return null;
     return { name, icon, text: item.labels?.[state], facts: shownFacts(hass, item.facts) };
   }
   const entries =

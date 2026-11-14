@@ -321,10 +321,16 @@ shortcuts:
 |---|---|
 | ![Connections of a camera](screenshots/en/connections.png) | ![Camera window on a tablet](screenshots/en/camera-tablet.png) |
 
+**Battery.** The window of a camera whose device has a battery sensor shows the percentage of its battery in the top
+right corner of the picture; up to 20 % the badge is red. The pages and all cameras leave it out, so it does not cover
+the pictures. A picture
+(`image.*`) takes the battery of the camera that plays it live (`cameras.live`) or of the same camera in another
+integration (`cameras.controls`).
+
 A red, blinking dot in the top right corner of a picture (on Home, in all cameras and in a camera window) says a stream
 of that camera is open now: from the dashboard, another window of Home Assistant or anything asking the bridge. The
 camera is awake then and uses its battery. The dashboard reads it from the sensors of the camera's device: eufy
-`binary_sensor.*_streaming`, Neolink `*_camera_link` and `*_recording_live_view`.
+`binary_sensor.*_streaming`, Neolink `*_camera_link` and `*_recording_live_view`. In the window of a camera on a battery the dot sits in the badge of the battery.
 
 In the camera's settings (the gear) the **Connections** tab shows, from the history of Home Assistant, the last 24 hours
 or 7 days: how many times it was woken (streams), for how long in all and how many lasted over 5 minutes, and under it
@@ -1036,6 +1042,23 @@ account, so it follows the person to all their devices.
 separately for the light and dark look; a look without its own background shows the plain page. At the top of this window you also choose the look of the whole dashboard for yourself: System, Light or Dark. **For everyone** appears for administrators and makes it the default.
 Without it the background stays with that account. A person's own background beats the default.
 
+**Make a background** in the same window opens the background maker, much like apps that make wallpapers for the Home
+app: pick one of 16 ready backgrounds, or a pattern and a gradient (48 to choose from, or your own two colours), and
+lay a photo over it if you like, see-through, greyed or blurred. The preview shows a few tiles on it, so you see at
+once whether the dashboard stays readable. **Use as background** makes an upright and a wide picture at once and puts
+them in the light look, the dark one or both. In the editor on a computer the same maker opens wide from **Make a
+background** in an entry of **Backgrounds of pages** (Look → Themes and backgrounds), with a phone and a tablet side
+by side.
+
+Each field of such an entry (light, dark and both wide) shows at its end what it holds: a sample of the colour or the
+gradient, or a magnifier that opens the picture big. A click on the field opens a window with two tabs. **Pictures**
+shows those sent to Home Assistant and those in the `/config/www` folder as small pictures (a click chooses one, the
+magnifier opens it big), and **Send a picture from the computer** adds a new one. **Colour and gradient** sets one
+colour from a palette, or a gradient of its colours, their places in percent and its direction, with 48 ready
+gradients and a large preview; the CSS it makes stays below, to change by hand. Any other field of the editor that holds
+the address of a picture also has a magnifier. The pictures of the `www` folder show after a restart of Home Assistant
+on a new version of the integration.
+
 Upright and wide screens can have different pictures, because an upright picture is cropped hard on a laptop:
 
 | Shape | When | Key in the configuration |
@@ -1310,9 +1333,17 @@ what is going on, for a glance from across the room. The pages (Home, Music, Ene
   **Now** when nothing runs, closed doors and windows and no lights in **At home**.
 - **The button at the top right** folds the column to the usual narrow bar; the tablet remembers it. The folded bar has
   this button on top and the menu and the assistant at the bottom.
-- **A tap on a part** opens its window: the weather its window, **At home** the Status screen (the first Status block;
-  without one, the door's details), the trams the timetable, the power the Energy page, and **Heads up** and **Now**
-  the device's details.
+- **A tap on a part** opens its window: the weather its window, in **At home** the count of lights or devices a list
+  of what is on (with its room and the time it went on; a tap opens that device's window), and open doors the Status
+  screen (the first Status block; without one, the door's details), the trams the timetable, the power the Energy
+  page, and **Heads up** and **Now** the device's details.
+- **"Don't count"** in that list (an administrator only) leaves a light or a device out of the count, such as a lamp
+  that follows its own schedule. The list still shows it apart, with **"Count again"**. It is saved for everyone as
+  [`status_panel.ignore`](configuration.md#11-tablet-status-bar).
+- **My calendars** (a phone): the list of areas has under its rooms **My calendars**, with today's titles and how
+  many; a tap opens today and the next 14 days that hold something, each event with its hour, place and description.
+  The gear chooses the person's own calendars and whether they see the home's, kept in their own settings, so they
+  follow them to every device. A tablet signed in as its own user sees the home's calendars.
 - **Holding this button** opens the menu: a ring round it fills for half a second. A bubble tells about it the first
   three times. The arrow in the menu goes back to the bar. Under the button is the assistant's microphone.
 
@@ -1321,6 +1352,7 @@ Parts:
 | Part | What it shows | From |
 |---|---|---|
 | **Weather** | temperature, condition, today's low/high, the next rain or snow within 12 h | the weather entity of chapter 4 |
+| **Today** | today's events of the calendars: all-day ones softly in their calendar's colour at the top, the others with their hour and "in 3 h", "now" with a line while they last; one goes once it is over. At most 3, then "+N more"; a tap opens the calendar (a month on a tablet, the events of the day chosen beside it) | `status_panel.calendars` (Status bar → Calendar in the editor) and the person's own |
 | **At home** | lights and devices on, doors and windows open | the rooms of the dashboard, `status_panel.doors` |
 | **Heads up** | the same warnings as the cards on Home | Status items with `notify: true` |
 | **Now** | what runs or happens (a washer, Sunday mass, a vacuum) | `status_panel.now` |
@@ -1387,7 +1419,113 @@ intercom:
 With `upload` anyone signed in may record, the account of a tablet on the wall too. Without it a recording goes to
 `media_folder`, which only an administrator may upload to.
 
-## 12. When something is wrong
+## 12. The editor on a computer
+
+A step-by-step guide with pictures, from an empty Home Assistant to a finished dashboard, is in
+**[The dashboard editor](editor.md)**. This chapter sums it up.
+
+**Dashboard editor** in the sidebar of Home Assistant (administrators only) edits the dashboard on a big screen,
+with the phone and the tablet side by side. Nothing changes on the devices of the home until you publish. The
+integration's option *Show the editor in the sidebar* (Settings → Devices & services → Home Dashboard → Configure)
+takes it out of the sidebar; it then opens at `/home-dashboard-editor`. The editor itself has a light and a dark look:
+as Home Assistant by default, and a button in the top bar switches Auto, Light and Dark (the browser remembers it). The
+preview has its own choice of a light or a dark dashboard.
+
+What is chosen in the tree has a red dashed frame in the preview, so you see which element the form edits: a tile, a
+section, a room, the window of a block, or a number, a button, a group or a row in that window. The settings have none.
+
+**Editor settings** (the gear in the top bar) list the phones and tablets the preview can show. Each built-in model
+(Apple's) can be hidden from the choice, renamed or resized, and set back with the arrow; below each list you add a
+device of your own of any make with a name, a width and a height in points (CSS pixels: the resolution of the screen
+divided by its pixel ratio, e.g. 1280 × 800 for a Galaxy Tab S9). A phone always stands upright and a tablet on its
+side, whatever order the size is typed in. The list is kept in this browser; one model of each kind always stays shown.
+
+**The three columns.** On the left the tree of the dashboard: Home (favourites, scenes), every room with its Home
+list, its scenes and its sections, the blocks, and the other settings. *Fold all* and *Unfold all* fold the tree (the groups stay open), the arrow by a group's name folds the group itself,
+and the icon on its right folds or unfolds everything inside that group,
+the search finds a room, a tile or an entity, and a tile whose entity does not exist is marked. In the middle the
+preview, on the right the properties of what is chosen. Drag the bars between the columns to make them wider; a
+double click gives the first width back. The button ☰ at the top left opens the menu of Home Assistant.
+
+**The preview** is the real dashboard in frames of an iPhone and an iPad, showing the draft at once, before it is
+saved. Choose *iPhone*, *iPad* or *Both*, light or dark, and *As* a person to see their view. The lists of the phone and
+the tablet hold every size of an Apple screen once, with the models of that size: from the iPhone SE 1 (320 × 568)
+and SE 2–3, 6, 7, 8 (375 × 667) to the iPhone 16 Pro Max and 17 Pro Max (440 × 956), from the iPad 1–6 (1024 × 768)
+and iPad mini 6–7 to the iPad Pro 13″ M4+ (1376 × 1032). The browser remembers the choice. Set the **zoom** of
+the Home Assistant app of each device (Settings → Companion app → General → Zoom): an iPad Air at 85 % shows the
+page as 1388 × 965, and so does the preview. A touch in the preview chooses that tile in the tree; the frames never
+switch anything and never call a service. Choosing a room takes the frames there.
+
+**Properties.** Every tile, section and room has a form with every key it takes, the name of the key in YAML beside
+each field; the *YAML* tab shows and edits the same as text. Keys a form does not know are kept. A tile of a list
+gets *Mark, then run* and names of its options.
+
+**Starting quickly.** Right after the installation the editor offers to create the dashboard and make its rooms
+from the areas of Home Assistant: one room for each area, its devices in sections by kind (lights, climate and
+blinds, media, devices, safety, automations if you tick them), a few tiles of each on Home. Hidden and technical
+entities stay out, and of a device seen from two integrations (Netatmo and HomeKit) only one tile is made. The same
+comes later with ✨ beside *Rooms* for areas that have no room yet. What you tick shows in the preview first.
+
+**Building.** *+* beside *Rooms* adds a room; a room gets sections, a section, a room's Home list, the favourites and
+the scenes get tiles by their entity, or with *Choose from the list…*: every entity of the home with its area and
+battery, filtered by the room, by kind, hiding those already shown; it warns when a blind, thermostat or lock may be
+one device from two integrations and suggests settings. What you tick shows in the preview before you add it.
+Tiles, sections and rooms are duplicated, moved up and down, removed, or dragged in the tree. **Undo** and **Redo**
+(⌘Z, ⇧⌘Z) take back any step.
+
+**Blocks.** A block of several entities opens in the tree into its numbers, buttons and groups with their rows, each
+with a form. The options of a list (as the profiles of a coffee machine) are ordered, named and hidden with the eye.
+*From the device, not in the block yet* lists the entities of the block's devices its window leaves out: a click
+adds one as a row. Choosing a block opens its window in the preview and says whether it fits on the tablet without
+scrolling. The other blocks (Status, departures, news, host, school year, add-on, page, TV, scale) have a form with
+the same fields as the block form of the tablet: lists (the sections of a Status screen with their entries, a host's
+columns, the entities of departures) unfold, move with the arrows and go; what has no field is typed as YAML in the
+field itself. A host's column has bars (with their unit, maximum and the yellow and red thresholds), details with a
+type to choose, machines inside (name, status, processor, memory) and power (power, plug, voltage, current, energy);
+only the graph is a card in YAML. The school year names each sensor, the Rodzinnik one shown greyed when the field is
+empty. Departures get a colour per line, and an entry of a Status screen can be an alarm. Own words for states (an
+entry of a Status screen, an energy storage) are pairs state → word, an own way to turn a TV or a media tile on or
+off is a service and an entity, the patterns of speakers are lines, and the backgrounds of pages have a field per
+look. YAML is left only for Home Assistant cards and the library of themes. A block renamed is renamed in its tiles, the menu, the status bar and the rules of access and
+visibility too.
+
+**Settings.** The nodes under *Settings* have forms in parts, each showing the key it writes. **Status bar** sets the
+look of the bar (`appearance.status`: whether it shows, its parts and their order, colours, opacity, blur) and what it
+shows (`status_panel`: doors and windows, lights and devices not counted, Now, power, departures). The iPad preview
+shows the bar of the draft at once. A part you empty leaves the configuration. **Look and themes** has a part for each
+group of the look (the whole dashboard, page backgrounds, tiles with colours by kind, writing, the blocks at the top,
+round buttons, badges, windows, the map, the player), with the same fields as the Look window of the tablet, and the
+themes and page backgrounds. A long form starts folded; a click on a heading unfolds a part. **Menu** holds the
+groups of the left menu and their entries (block, add-on, address, action, administrators only, who sees it, hidden
+in guest mode); choosing it opens the menu in the preview. **Bar of pages** holds the places on the bar (2 to 5:
+pages, the scenes, the menu or a room) in order and its look. Choosing a block of any kind opens its window in the
+preview. **Cameras** has three parts: which cameras and in what order, privacy and guest mode (rules with a switch,
+the cameras they hide and the people), and single cameras (the live camera of a picture, the same camera in another
+integration, talking, round buttons, turning and the entities under the gear of each camera). **Intercom** holds the
+script of messages, the rooms to tick and the fields of the call, and **Energy** the phases of the meter, the range
+of the voltage and the energy storage. **People access** starts with a person, then what they do not see, in the same
+groups as the tablet's window (cameras, rooms, sections, the blocks at the top, lights, media, security, scenes and
+scripts, the rest), with an eye by each. Below are the rules of visibility: an entity, `block:<name>` or
+`shortcut:<name>` and the people who see it (*only*) or do not (*except*). The other nodes are **Rooms: order and
+hidden**, **Entities** (added to a room, never shown by themselves, an entity's own name, icon, area or card),
+**Lights** (a group for its lamps), **Home page and tablet** (weather, security, a tablet left alone going back, the
+layout of the scenes) and the **Music**, **Media** and **Map** pages. So every setting of the dashboard has a form;
+the YAML tab stays beside it for what you would rather type.
+
+**Publishing.** The draft is saved on the server a moment after each change, so it waits for you on another computer
+too; *Throw away* drops it. *Publish* shows what changes in plain words and in YAML, the entities that are missing,
+and a field for a note. Then either:
+
+- **Publish for checking** to one person: their dashboard shows this version, with a banner *A version to check*
+  and a button back to the usual one; nobody else sees it. The top of the editor says who checks it; *End* stops it.
+- **Publish for everyone**: the dashboard of every device loads the new version, and the version it replaces goes to
+  the **History**. If the dashboard was changed elsewhere since the draft began (on a phone), the editor says so
+  instead of replacing that change; *Publish anyway* does.
+
+**History** keeps the last 30 published versions with who published them and the note. Choose one to see how it
+differs from the version now; *Take back as a draft* makes it the draft, to look at and publish like any other.
+
+## 13. When something is wrong
 
 | Symptom | Look at |
 |---|---|

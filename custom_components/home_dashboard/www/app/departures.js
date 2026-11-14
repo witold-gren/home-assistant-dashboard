@@ -4,6 +4,7 @@
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { tokens } from "./styles.js";
+import { mediaQuery } from "./media.js";
 
 const SECONDS_IN_MINUTE = 60;
 // A tablet on its side shows the departures on the whole screen: the next one large, all of them in order, the next
@@ -65,7 +66,7 @@ export class HomeDashboardDepartures extends LitElement {
     item: { attribute: false },
   };
 
-  _wide = window.matchMedia(WIDE_DEPARTURES);
+  _wide = mediaQuery(WIDE_DEPARTURES);
 
   _redraw = () => this.requestUpdate();
 

@@ -13,10 +13,14 @@
   "options": {
     "step": {
       "init": {
-        "title": "Colours",
-        "description": "Applies to every dashboard and device, at once.",
+        "title": "Settings",
+        "description": "Apply to every dashboard and device, at once.",
         "data": {
-          "color_mode": "Colour mode"
+          "color_mode": "Colour mode",
+          "editor_in_sidebar": "Show the editor in the sidebar"
+        },
+        "data_description": {
+          "editor_in_sidebar": "The Dashboard editor panel (administrators only). Hidden, it still opens at /home-dashboard-editor."
         }
       }
     }

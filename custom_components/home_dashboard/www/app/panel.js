@@ -38,6 +38,16 @@ function formatDuration(seconds) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/** Seconds as hours and minutes ("1 h 14 min"), as a battery's time left reads best. */
+export function formatHours(seconds) {
+  const total = Math.round(Number(seconds));
+  if (!Number.isFinite(total) || total <= 0) return NO_VALUE;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (!hours) return `${minutes} min`;
+  return minutes ? `${hours} h ${minutes} min` : `${hours} h`;
+}
+
 function formatNumber(hass, value, digits) {
   return Number(value).toLocaleString(hass.language, {
     minimumFractionDigits: digits,
@@ -45,12 +55,23 @@ function formatNumber(hass, value, digits) {
   });
 }
 
-export function panelValue(hass, row) {
-  const stateObj = hass.states[row.entity];
+// A time in seconds from a state in its own unit (history_stats counts hours).
+const SECONDS_IN = { s: 1, min: 60, h: 3600, d: 86400 };
+const asSeconds = (value, unit) => Number(value) * (SECONDS_IN[unit] ?? 1);
+
+// `given` is a state to show instead of the entity's own (a value being chosen, not sent yet).
+export function panelValue(hass, row, given = undefined) {
+  const stateObj = given ?? hass.states[row.entity];
   if (!stateObj || MISSING_STATES.has(stateObj.state)) return NO_VALUE;
+  // An attribute instead of the state: the game a console plays.
+  if (row.attribute) {
+    const value = stateObj.attributes?.[row.attribute];
+    return value === undefined || value === null || value === "" ? NO_VALUE : String(value);
+  }
   const { state } = stateObj;
   if (row.labels?.[state]) return row.labels[state];
   if (row.format === "duration") return formatDuration(state);
+  if (row.format === "hours") return formatHours(asSeconds(state, stateObj.attributes?.unit_of_measurement));
   const numeric = row.digits !== undefined && !Number.isNaN(Number(state));
   const value = numeric ? formatNumber(hass, state, row.digits) : null;
   if (row.unit) return `${value ?? state} ${row.unit}`;
@@ -80,6 +101,8 @@ export function panelTile(hass, item) {
     available: stateObj?.state !== "unavailable",
     iconAction: null,
     tapAction: "panel",
+    // A button on the tile while its device is on (a console: Turn off), asked first in the block's window.
+    quick: item.quick && stateObj && !["off", "unavailable", "unknown"].includes(stateObj.state) ? item.quick : null,
     stats: item.compact ? [] : panelStats(hass, item),
   };
 }
@@ -168,7 +191,9 @@ export function matchSource(sources, name) {
 export function runAction(hass, action) {
   if (!action?.service) return;
   const [domain, service] = action.service.split(".");
-  hass.callService(domain, service, action.target ? { entity_id: action.target } : {});
+  // A script called by its own name takes only its fields (`data`, e.g. minutes); anything else its entity too.
+  const target = action.target && !(domain === "script" && service !== "turn_on") ? { entity_id: action.target } : {};
+  hass.callService(domain, service, { ...target, ...(action.data ?? {}) });
 }
 
 // The sheet may be closed long before the TV has started, so the current hass comes from outside.
