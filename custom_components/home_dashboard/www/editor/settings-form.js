@@ -456,6 +456,7 @@ export const entitySections = (strategy, language, hass) => {
               { key: "area", type: "select", options: Object.keys(names), labelKey: "editor_entities_area" },
               { key: "name", type: "text" },
               { key: "icon", type: "icon" },
+              { key: "light", type: "boolean", labelKey: "editor_entities_light", helpKey: "editor_entities_light_hint" },
               { key: "card", type: "yaml", labelKey: "editor_entities_card" },
             ],
           },

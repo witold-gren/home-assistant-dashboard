@@ -231,7 +231,7 @@ Zapisuje je **Mój układ → Obszary → Dla wszystkich**. Własna kolejność 
 |---|---|---|---|
 | `include` | mapa id pokoju → lista encji | `{}` | dodaje encje dowolnej domeny do pokoju bez `layout` |
 | `exclude` | lista encji | `[]` | nigdy nie pokazuje ich samodzielnie |
-| `overrides` | mapa encja → opcje | `{}` | dla jednej encji: `area`, `name`, `icon`, `card` |
+| `overrides` | mapa encja → opcje | `{}` | dla jednej encji: `area`, `name`, `icon`, `light`, `card` |
 
 Opcje `overrides`:
 
@@ -240,6 +240,7 @@ Opcje `overrides`:
 | `area` | id obszaru; encja liczy się tak, jakby tam była |
 | `name` | nazwa w całym dashboardzie |
 | `icon` | ikona w całym dashboardzie |
+| `light` | `true`: przełącznik zasilający lampę jest światłem (żółty, gdy włączony, liczony i filtrowany ze światłami); `false`: nie jest. Bez tego przełącznik z ikoną lampy (`mdi:outdoor-lamp`, `mdi:coach-lamp`, `mdi:wall-sconce`…) jest światłem sam |
 | `card` | karta Home Assistant otwierana zamiast okna dashboardu; okrągła ikona też ją otwiera |
 
 ```yaml
@@ -250,6 +251,7 @@ entities:
   overrides:
     cover.window_3: {area: bedroom, name: Roleta, icon: mdi:blinds}
     light.aquarium: {card: {type: custom:lamp-card, entity: light.aquarium}}
+    switch.hall_sconce: {light: true}
 ```
 
 ### `lights`

@@ -229,7 +229,7 @@ export function selectEntities(hass, config) {
       !excluded.has(id) &&
       hass.states[id] &&
       isPrimary(hass.entities[id]) &&
-      DEFAULT_DOMAINS.includes(domainOf(id)),
+      (DEFAULT_DOMAINS.includes(domainOf(id)) || isLight(hass, id, config)),
   );
   const members = config.lights.prefer_groups
     ? lightGroupMembers(hass, selected.filter((id) => domainOf(id) === "light"))
@@ -266,6 +266,23 @@ function saturation([red, green, blue]) {
 }
 
 // White lights also report an rgb_color, a strongly orange one when they are warm.
+// A switch that powers a lamp (a relay behind a wall lamp or a sconce) is a light to a person: yellow while on and
+// counted with the lights. Its icon says so (mdi:outdoor-lamp, mdi:coach-lamp, mdi:wall-sconce…), or
+// `entities.overrides.<id>.light` says it either way.
+const LAMP_ICON =
+  /(^|-)(lamps?|lightbulb|sconce|chandelier|led-strip|string-lights|light-recessed|light-flood)(-|$)|^(ceiling|floor|track|globe|vanity|wall|desk)-light/;
+
+export function isLight(hass, entityId, config) {
+  const domain = domainOf(entityId);
+  if (domain === "light") return true;
+  if (domain !== "switch") return false;
+  const override = config?.entities?.overrides?.[entityId];
+  if (typeof override?.light === "boolean") return override.light;
+  const icon = config?.appearance?.icons?.[entityId] ?? override?.icon ?? hass.states[entityId]?.attributes?.icon;
+  if (typeof icon !== "string" || !icon.startsWith("mdi:")) return false;
+  return LAMP_ICON.test(icon.slice(4));
+}
+
 function lightTint(stateObj) {
   const { rgb_color: rgb, color_mode: colorMode } = stateObj.attributes ?? {};
   if (stateObj.state !== "on" || colorMode === "color_temp" || !Array.isArray(rgb)) return null;
@@ -374,13 +391,15 @@ export function buildTile(hass, entityId, roomName, config, layout = "phone") {
   const domain = domainOf(entityId);
   const available = stateObj.state !== "unavailable";
   const current = stateObj.attributes?.current_temperature;
+  const light = isLight(hass, entityId, config);
   const tile = {
     entityId,
     domain,
+    light,
     roomName,
     name: displayName(hass, entityId, roomName, config),
     stateText: tileStateText(hass, domain, stateObj),
-    tone: available ? tileTone(domain, stateObj) : "off",
+    tone: available ? (light && !INACTIVE_STATES.has(stateObj.state) ? "light" : tileTone(domain, stateObj)) : "off",
     tint: domain === "light" ? lightTint(stateObj) : null,
     kind: tileKind(domain),
     icon: config.appearance?.icons?.[entityId] ?? tileIcon(stateObj, entityId, config),
@@ -1264,7 +1283,7 @@ function climateChip(hass, ids) {
 const FILTERS = {
   climate: (tile) =>
     tile.domain === "climate" || tile.domain === "fan" || (tile.domain === "cover" && !SECURITY_COVERS.has(tile.deviceClass)),
-  lights: (tile) => tile.domain === "light",
+  lights: (tile) => tile.domain === "light" || tile.light,
   security: (tile) =>
     tile.domain === "lock" ||
     tile.domain === "alarm_control_panel" ||
@@ -1315,11 +1334,12 @@ export function arrangeChips(entries, config, selected) {
   return inOrder(entries, order, ({ id }) => id).filter(({ id }) => id === selected || !hidden.includes(id));
 }
 
-export function buildChips(hass, selection) {
+export function buildChips(hass, selection, config) {
   const { language } = hass;
   const ids = selection.entityIds;
   const count = (domain, state) =>
     ids.filter((id) => domainOf(id) === domain && hass.states[id].state === state).length;
+  const lightsOn = ids.filter((id) => isLight(hass, id, config) && hass.states[id].state === "on").length;
   const unlocked = ids.filter((id) => domainOf(id) === "lock" && hass.states[id].state === "unlocked").length;
   const triggered = alarmPanels(hass).filter((id) => hass.states[id].state === "triggered").length;
   const playing = selection.mediaGroups.filter((members) =>
@@ -1327,7 +1347,7 @@ export function buildChips(hass, selection) {
   ).length;
   return [
     { key: "climate", icon: "mdi:thermometer", tone: "climate", label: translate(language, "chip_climate"), value: climateChip(hass, ids) },
-    { key: "lights", icon: "mdi:lightbulb", tone: "light", label: translate(language, "chip_lights"), value: translate(language, "lights_on", { count: count("light", "on") }) },
+    { key: "lights", icon: "mdi:lightbulb", tone: "light", label: translate(language, "chip_lights"), value: translate(language, "lights_on", { count: lightsOn }) },
     {
       key: "security",
       icon: triggered ? "mdi:alarm-light" : unlocked ? "mdi:lock-open-variant" : "mdi:lock",
@@ -1440,7 +1460,7 @@ function filterRooms(hass, config, selection, layout) {
 export function buildHomeModel(hass, config, selection, layout = "phone", now = new Date()) {
   return {
     title: greeting(hass, now),
-    chips: buildChips(hass, selection),
+    chips: buildChips(hass, selection, config),
     weather: buildWeather(hass, config),
     cameras: buildCameras(hass, config),
     favorites: config.favorites
@@ -1830,13 +1850,13 @@ export function buildRoomModel(hass, config, selection, roomId, layout = "phone"
     key: section.key,
     id: section.key,
     title: translate(hass.language, section.title),
-    tiles: kept.filter((tile) => section.domains.includes(tile.domain)),
+    tiles: kept.filter((tile) => section.domains.includes(tile.light ? "light" : tile.domain)),
   }));
   sections.push({
     key: "other",
     id: "other",
     title: translate(hass.language, "section_other"),
-    tiles: kept.filter((tile) => !known.has(tile.domain)),
+    tiles: kept.filter((tile) => !known.has(tile.light ? "light" : tile.domain)),
   });
   return {
     id: roomId,

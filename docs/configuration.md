@@ -230,7 +230,7 @@ Written by **My layout → Areas → For everyone**. A person's own order replac
 |---|---|---|---|
 | `include` | mapping room id → entity ids | `{}` | adds entities, of any domain, to a room without `layout` |
 | `exclude` | list of entity ids | `[]` | never shown on its own |
-| `overrides` | mapping entity id → options | `{}` | per entity: `area`, `name`, `icon`, `card` |
+| `overrides` | mapping entity id → options | `{}` | per entity: `area`, `name`, `icon`, `light`, `card` |
 
 `overrides` options:
 
@@ -239,6 +239,7 @@ Written by **My layout → Areas → For everyone**. A person's own order replac
 | `area` | area id; the entity counts as being there |
 | `name` | name everywhere in the dashboard |
 | `icon` | icon everywhere in the dashboard |
+| `light` | `true`: a switch that powers a lamp is a light (yellow while on, counted and filtered with the lights); `false`: it is not. Without it a switch whose icon is a lamp (`mdi:outdoor-lamp`, `mdi:coach-lamp`, `mdi:wall-sconce`…) is a light by itself |
 | `card` | a Home Assistant card that opens instead of the dashboard's window; the round icon opens it too |
 
 ```yaml
@@ -249,6 +250,7 @@ entities:
   overrides:
     cover.window_3: {area: bedroom, name: Blind, icon: mdi:blinds}
     light.aquarium: {card: {type: custom:lamp-card, entity: light.aquarium}}
+    switch.hall_sconce: {light: true}
 ```
 
 ### `lights`

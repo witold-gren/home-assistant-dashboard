@@ -8,7 +8,7 @@ import { homeAlerts, shownAlerts } from "./alerts.js";
 import { STATUS_PARTS } from "./appearance.js";
 import { departureLines, lineColours } from "./departures.js";
 import { countLabel, translate } from "./i18n.js";
-import { blockFor, buildWeather, domainOf, FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
+import { blockFor, buildWeather, domainOf, FORECAST_DAILY, FORECAST_HOURLY, isLight, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
 import {
   addDays,
@@ -67,7 +67,9 @@ export const COUNTED = { lights: ["light"], devices: ["switch", "fan"] };
 export function statusHome(hass, selection, config) {
   const ignore = new Set(config.status_panel?.ignore ?? []);
   const ids = (selection?.entityIds ?? []).filter((id) => !ignore.has(id));
-  const counted = (domains) => ids.filter((id) => domains.includes(domainOf(id)));
+  // A switch behind a lamp counts with the lights, not with the devices.
+  const kind = (id) => (isLight(hass, id, config) ? "light" : domainOf(id));
+  const counted = (domains) => ids.filter((id) => domains.includes(kind(id)));
   const on = (list) => list.filter((id) => hass.states[id]?.state === "on").length;
   const language = hass.language;
   const facts = [];

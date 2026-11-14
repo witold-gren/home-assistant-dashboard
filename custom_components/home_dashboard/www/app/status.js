@@ -1,7 +1,7 @@
 // The row of round icons at the top of a room: what the room reports, without opening anything.
 
 import { countLabel, translate } from "./i18n.js";
-import { buildTile, domainOf, effectiveArea, isPrimary, layoutEntry, layoutTile } from "./model.js";
+import { buildTile, domainOf, effectiveArea, isLight, isPrimary, layoutEntry, layoutTile } from "./model.js";
 
 // These report on a machine, not on the room: a server in the hallway is not the hallway at 40°.
 const SKIPPED_PLATFORMS = new Set([
@@ -120,13 +120,13 @@ export function buildRoomStatus(hass, config, areas, fixed = []) {
     add("climate", "mdi:thermostat", title, value, thermostats, stateObj.state === "off" ? "off" : "climate");
   }
 
-  const lights = everything.filter((id) => domainOf(id) === "light" && !hass.states[id].attributes?.entity_id);
+  const lights = everything.filter((id) => isLight(hass, id, config) && !hass.states[id].attributes?.entity_id);
   const lightsOn = lights.filter(isOn);
   if (lightsOn.length) {
     add("lights", "mdi:lightbulb-on-outline", counted("lights", lightsOn.length), stateOf("lights", lightsOn.length, "status_on"), lights, "light");
   }
 
-  const switches = sensors.filter((id) => domainOf(id) === "switch");
+  const switches = sensors.filter((id) => domainOf(id) === "switch" && !isLight(hass, id, config));
   const switchesOn = switches.filter(isOn);
   if (switchesOn.length) {
     add("switches", "mdi:toggle-switch-variant", counted("switches", switchesOn.length), stateOf("switches", switchesOn.length, "status_on"), switches, "appliance");
