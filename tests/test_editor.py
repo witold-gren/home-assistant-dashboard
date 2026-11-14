@@ -12,7 +12,13 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, MockUser
 
 from custom_components.home_dashboard.const import DOMAIN
-from custom_components.home_dashboard.editor import HISTORY_LIMIT, PANEL_URL, STORAGE_KEY, config_hash, list_pictures
+from custom_components.home_dashboard.editor import (
+    HISTORY_LIMIT,
+    PANEL_URL,
+    STORAGE_KEY,
+    config_hash,
+    list_pictures,
+)
 
 URL = "home-dashboard"
 LIVE = {"strategy": {"type": "custom:home-dashboard", "layout": [{"id": "living", "name": "Living room"}]}}

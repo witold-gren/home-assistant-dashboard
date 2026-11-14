@@ -1,6 +1,6 @@
 # Home Dashboard
 
-[Polski](README.pl.md)
+[Polski](README.pl.md) · [Documentation site](https://witold-gren.github.io/home-assistant-dashboard/)
 
 A touch-first dashboard strategy for Home Assistant: one dashboard for a phone and a wall tablet,
 with pastel tiles, summary chips, bottom navigation on phones and a side rail on tablets. The whole

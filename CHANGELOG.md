@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Documentation site on GitHub Pages (https://witold-gren.github.io/home-assistant-dashboard/), English and Polish,
+  made from `docs/`, the README and this changelog with MkDocs Material (`make docs-site` to preview it,
+  `make docs-build` to build it as GitHub does).
+- The checks of GitHub pass again: the integration names `lovelace` among its `after_dependencies` (hassfest), and
+  ruff is clean.
+
 ## 1.0.0 (2026-11-14)
 
 The dashboard and its editor on a computer, with a guide from zero to a finished dashboard in English and Polish

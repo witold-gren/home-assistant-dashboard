@@ -1,6 +1,6 @@
 # Home Dashboard
 
-[English](README.md)
+[English](README.md) · [Strona z dokumentacją](https://witold-gren.github.io/home-assistant-dashboard/pl/)
 
 Strategia dashboardu dla Home Assistant zaprojektowana pod dotyk: jeden dashboard na telefon
 i tablet ścienny, z pastelowymi kafelkami, podsumowaniami, dolnym paskiem na telefonie i bocznym

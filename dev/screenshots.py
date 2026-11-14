@@ -566,7 +566,8 @@ def open_editor(browser, base: str, language: str, query: str = "") -> Page:
 def choose(page: Page, key: str, wait: int = 1800) -> None:
     """A node of the tree, unfolded on the way and scrolled to, as a person would click it."""
     page.locator(APP).evaluate(
-        "(app, key) => app._unfoldTo(key.split('/').map((part) => (/^\\d+$/.test(part) ? Number(part) : part)))", key
+        "(app, key) => app._unfoldTo(key.split('/').map((part) => (/^\\d+$/.test(part) ? +part : part)))",
+        key,
     )
     node = page.locator(f"{APP} [data-node='{key}']").first
     node.scroll_into_view_if_needed()

@@ -13,3 +13,11 @@ scripts/import_overview.py
 tests/test_import_overview.py
 .demo-icons/
 .demo-tiles/
+# The documentation site: made by `make docs-site` (dev/docs_site.py), published by .github/workflows/docs.yml
+.venv-docs/
+site/
+docs/index.md
+docs/index.pl.md
+docs/changelog.md
+docs/assets/
+.DS_Store

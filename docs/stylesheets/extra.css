@@ -1,0 +1,13 @@
+/* The documentation site (mkdocs.yml): pictures of a phone held upright would fill the whole screen at the
+   width of the text, so every picture is at most this tall and keeps its proportions; wide pictures of a tablet
+   are lower than this anyway and stay as wide as the text. */
+.md-typeset img {
+  max-height: 600px;
+  width: auto;
+  height: auto;
+}
+
+/* Small pictures side by side in a table (the gallery, the guide) stay as they are. */
+.md-typeset table img {
+  max-height: 420px;
+}

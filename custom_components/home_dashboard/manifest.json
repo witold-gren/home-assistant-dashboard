@@ -1,6 +1,9 @@
 {
   "domain": "home_dashboard",
   "name": "Home Dashboard",
+  "after_dependencies": [
+    "lovelace"
+  ],
   "codeowners": [
     "@witold-gren"
   ],

@@ -11,10 +11,11 @@ TESTED_HA ?= 2026.11.0
 
 VENV := .venv
 VENV_DEV := .venv-dev
+VENV_DOCS := .venv-docs
 HELP_LANG ?= $(if $(filter pl%,$(LANG)),pl,en)
 
 .DEFAULT_GOAL := help
-.PHONY: screenshots help setup setup-dev doctor ui test test-browser test-all lint deploy docs clean
+.PHONY: screenshots help setup setup-dev doctor ui test test-browser test-all lint deploy docs docs-site docs-build clean
 
 ##@ Start | Start
 
@@ -90,6 +91,19 @@ lint: setup ## Check the Python code | Sprawdź kod Pythona
 docs: ## Open the README | Otwórz README
 	@open README$(if $(filter pl,$(HELP_LANG)),.pl,).md 2>/dev/null || xdg-open README.md
 
+$(VENV_DOCS)/bin/mkdocs: requirements_docs.txt
+	@echo "==> Documentation site environment in $(VENV_DOCS) ($(PYTHON))"
+	@test -d $(VENV_DOCS) || $(PYTHON) -m venv $(VENV_DOCS)
+	@$(VENV_DOCS)/bin/pip install -q --upgrade pip
+	@$(VENV_DOCS)/bin/pip install -q -r requirements_docs.txt
+	@touch $@
+
+docs-site: $(VENV_DOCS)/bin/mkdocs ## Preview the documentation site (http://127.0.0.1:8000/home-assistant-dashboard/) | Podgląd strony dokumentacji (http://127.0.0.1:8000/home-assistant-dashboard/)
+	NO_MKDOCS_2_WARNING=1 $(VENV_DOCS)/bin/mkdocs serve
+
+docs-build: $(VENV_DOCS)/bin/mkdocs ## Build the documentation site into site/, as GitHub Pages does | Zbuduj stronę dokumentacji do site/, tak jak GitHub Pages
+	NO_MKDOCS_2_WARNING=1 $(VENV_DOCS)/bin/mkdocs build --strict
+
 clean: ## Remove caches and the test instance (keeps the environment) | Usuń pliki tymczasowe i testową instancję (środowisko zostaje)
 	find . -name __pycache__ -type d -prune -not -path "./.venv*" -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache .dev-config tests/browser/output
+	rm -rf .pytest_cache .ruff_cache .dev-config tests/browser/output site

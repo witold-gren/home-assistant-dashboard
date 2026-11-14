@@ -16,7 +16,7 @@ target-version = "py314"
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/browser/*" = ["E501"]  # JavaScript embedded in strings
+"tests/browser/*" = ["E501", "RUF001"]  # JavaScript embedded in strings; the texts of the UI (1180 × 820)
 "dev/check_frontend.py" = ["E501"]
 
 [tool.ruff.lint.isort]

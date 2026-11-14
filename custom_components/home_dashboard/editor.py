@@ -365,14 +365,18 @@ def _review_changed(hass: HomeAssistant, url_path: str) -> None:
 
 
 def list_pictures(www: Path, limit: int = PICTURE_LIMIT) -> list[dict[str, Any]]:
-    """The pictures under `www` as their `/local/` addresses, newest first; hidden folders and links out stay out."""
+    """The pictures under `www` as their `/local/` addresses, newest first.
+
+    Hidden folders and links leading out of `www` stay out.
+    """
     if not www.is_dir():
         return []
     root = www.resolve()
     found = []
     for path in www.rglob("*"):
         relative = path.relative_to(www)
-        if any(part.startswith(".") for part in relative.parts) or path.suffix.lower() not in PICTURE_SUFFIXES:
+        hidden = any(part.startswith(".") for part in relative.parts)
+        if hidden or path.suffix.lower() not in PICTURE_SUFFIXES:
             continue
         try:
             if not path.is_file() or not path.resolve().is_relative_to(root):
@@ -380,7 +384,8 @@ def list_pictures(www: Path, limit: int = PICTURE_LIMIT) -> list[dict[str, Any]]
             stat = path.stat()
         except OSError:
             continue
-        found.append({"url": f"/local/{relative.as_posix()}", "size": stat.st_size, "modified": stat.st_mtime})
+        url = f"/local/{relative.as_posix()}"
+        found.append({"url": url, "size": stat.st_size, "modified": stat.st_mtime})
     found.sort(key=lambda item: (-item["modified"], item["url"]))
     return found[:limit]
 

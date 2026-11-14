@@ -1,0 +1,113 @@
+# The documentation site, published on GitHub Pages by .github/workflows/docs.yml.
+# The pages are the Markdown files of docs/ (English, and Polish beside them as *.pl.md); the start page and the
+# changelog are made from README.md, README.pl.md and CHANGELOG.md by dev/docs_site.py on every build.
+site_name: Home Dashboard
+site_description: A touch-first Home Assistant dashboard for phones and wall tablets, with its own editor.
+site_url: https://witold-gren.github.io/home-assistant-dashboard/
+repo_url: https://github.com/witold-gren/home-assistant-dashboard
+repo_name: witold-gren/home-assistant-dashboard
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+
+exclude_docs: |
+  design/
+  reference/
+
+extra_css:
+  - stylesheets/extra.css
+
+hooks:
+  - dev/docs_site.py
+
+theme:
+  name: material
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: pl
+          name: Polski
+          build: true
+          site_description: Dashboard Home Assistant do dotyku na telefony i tablety ścienne, z własnym edytorem.
+          nav_translations:
+            Home: Start
+            Guide: Przewodnik
+            Editor: Edytor
+            Configuration: Konfiguracja
+            Gallery: Galeria
+            Own devices: Własne urządzenia
+            Apple Home look: Wygląd Apple Home
+            Changelog: Lista zmian
+
+nav:
+  - Home: index.md
+  - Guide: guide.md
+  - Editor: editor.md
+  - Configuration: configuration.md
+  - Gallery: gallery.md
+  - Own devices: own-devices.md
+  - Apple Home look: apple-home.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      # Anchors as GitHub makes them (Polish letters kept), so links like guide.pl.md#wygląd work on both.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+
+validation:
+  # Links to the same page in the other language are written as the site's own addresses (dev/docs_site.py).
+  links:
+    absolute_links: ignore

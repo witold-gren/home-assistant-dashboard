@@ -849,7 +849,7 @@ def test_a_script_gets_its_fields_only(phone):
     assert calls(phone) == [{"type": "service", "domain": "script", "service": "xbox_turn_off_in", "data": {"minutes": 15}}]
 
 
-# Numbers in rows: − and + with the value between them, sent once the taps stop; a slider says its value as it moves.
+# Numbers in rows: minus and plus buttons with the value between them, sent once the taps stop; a slider says its value as it moves.
 
 LIMITS = {
     "kind": "panel", "name": "Limity", "entity": "sensor.machine",
