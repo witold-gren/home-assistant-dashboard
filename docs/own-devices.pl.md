@@ -6,6 +6,9 @@ Każdy dom ma inne urządzenia: pralkę, oczyszczacz powietrza, kosiarkę, druka
 musi znać ich z góry. Masz cztery drogi, żeby urządzenie dostało swój przycisk i swoje okno, od najprostszej do
 najbardziej rozbudowanej. Żadna nie wymaga programowania, a okna same biorą wygląd motywu.
 
+Każdą drogę przejdziesz w [edytorze dashboardu](editor.pl.md) na komputerze, bez YAML, a większość także na samym
+tablecie. Przykłady YAML niżej są dla tych, którzy wolą wpisać konfigurację.
+
 | Odkurzacz jako blok | Przełącznik | Roleta |
 |---|---|---|
 | ![Odkurzacz](screenshots/pl/vacuum.png) | ![Przełącznik](screenshots/pl/switch.png) | ![Roleta](screenshots/pl/blind.png) |
@@ -19,10 +22,29 @@ najbardziej rozbudowanej. Żadna nie wymaga programowania, a okna same biorą wy
 | Urządzenie, które ma dobrą kartę Home Assistant albo z HACS | [własna karta urządzenia](#3-własna-karta-urządzenia) | ta karta w oknie dashboardu |
 | Urządzenie z wieloma wartościami i przyciskami | [blok z własnym oknem](#4-blok-z-własnym-oknem) | okno złożone z liczb, przycisków, wierszy i karty |
 
+Gdzie przejdziesz każdą drogę:
+
+| Droga | Edytor na komputerze | Na tablecie lub telefonie |
+|---|---|---|
+| Kafelek w pokoju | pokój → sekcja → **Encja…** → **Dodaj** albo **Wybierz z listy…** | trzy kropki → **Edytuj ten ekran** → **Dodaj kafelek** |
+| Własna karta urządzenia | kafelek → **Okno urządzenia** → **Własna karta (YAML)** | tylko YAML (**Edytuj konfigurację**) |
+| Blok na stronie głównej | **Bloki** → **+** → **Blok** | **Odznaki podsumowania** → **Dodaj** → **Blok** |
+| Blok w pokoju | kafelek → **Zrób blok z tego kafelka** albo pole **Blok** kafelka | tylko YAML; potem edycja w formularzu |
+
 ## 2. Kafelek w pokoju
 
 Pokój to obszar Home Assistant. Światła, klimat, rolety i zamki z obszaru pojawiają się w pokoju same. Każde inne
-urządzenie dodasz ręcznie:
+urządzenie dodasz ręcznie.
+
+**W edytorze na komputerze:**
+
+1. W drzewie rozwiń pokój w **Pokoje** i wybierz sekcję (albo dodaj nową).
+2. Wpisz encję w polu **Encja…** pod właściwościami i kliknij **Dodaj** albo otwórz **Wybierz z listy…**, żeby
+   zaznaczyć kilka naraz, z filtrem pokoju i rodzaju.
+3. Nowy kafelek od razu jest wybrany: nazwa, ikona, rozmiar i pozostałe opcje to pola jego formularza.
+4. **Opublikuj**, gdy szkic jest gotowy.
+
+**Na tablecie:**
 
 1. Otwórz pokój, trzy kropki → **Edytuj ten ekran**.
 2. **Dodaj kafelek** w wybranej sekcji, wyszukaj encję i zapisz.
@@ -73,7 +95,23 @@ Wiele urządzeń ma świetne karty w Home Assistant albo w HACS: mapa odkurzacza
 podpiąć taką kartę pod kafelek urządzenia. Dotknięcie kafelka i jego ikony otworzy wtedy tę kartę w oknie
 dashboardu, na każdej stronie i w każdym filtrze.
 
-W **Ustawienia dashboardu → Edytuj konfigurację**:
+**W edytorze na komputerze:**
+
+1. Wybierz kafelek urządzenia w jego pokoju.
+2. Pod właściwościami, w **Okno urządzenia**, jest pole **Własna karta (YAML)**. Wpisz tam kartę tak jak w edytorze
+   kart Home Assistant, zaczynając od `type`:
+
+   ```yaml
+   type: custom:lawn-mower-card
+   entity: lawn_mower.garden
+   ```
+
+3. Podgląd od razu otwiera kartę po dotknięciu. Wyczyszczenie pola przywraca okno dashboardu.
+
+Karta należy do encji, a nie do jednego kafelka: otwiera się wszędzie, gdzie ta encja jest. To samo pole jest w
+**Ustawienia → Encje: dodane, pominięte, własne → Własne ustawienia encji**, gdzie widać też wszystkie encje z kartą.
+
+**Na tablecie** kartę wpisujesz w YAML, w **Ustawienia dashboardu → Edytuj konfigurację**:
 
 ```yaml
 entities:
@@ -93,7 +131,19 @@ Blok to okno zbudowane z kilku encji: liczby na górze, przyciski akcji, wiersze
 suwakami, a na końcu, jeśli chcesz, karta Home Assistant. Tak zbudowany jest Odkurzacz na zrzucie. Blok pokazuje się
 jako skrót na stronie głównej, w menu albo jako kafelek w pokoju.
 
-### Krok po kroku w edytorze
+### Krok po kroku w edytorze na komputerze
+
+1. W drzewie **+** obok **Bloki** → **Blok**. Nowy blok „Blok” zostaje dodany i wybrany (blok innego rodzaju, np.
+   **Status**, **Odjazdy** albo **Maszyny**, wybierasz z tej samej listy).
+2. Uzupełnij **Nazwę**, **Ikonę** i **Encję**, czyli główną encję urządzenia.
+3. Rozwiń blok w drzewie: **Liczby na górze**, **Przyciski** i **Grupy** mają pole do dodania encji, a grupa swoje
+   wiersze. Każda część wybrana w drzewie ma własny formularz.
+4. **Z urządzenia, jeszcze nie w bloku** wypisuje pozostałe encje urządzenia: jedno kliknięcie dodaje każdą jako
+   wiersz.
+5. Podgląd otwiera okno bloku w trakcie pracy i obrysowuje na czerwono to, co jest wybrane.
+6. **Opublikuj**. Blok pojawia się wśród odznak strony głównej.
+
+### Krok po kroku na tablecie
 
 1. Trzy kropki na stronie głównej → **Odznaki podsumowania** (konto administratora) → **Dodaj** → **Blok**.
 2. **Nazwa**, **Ikona** i **Encja**: główna encja urządzenia, od której blok bierze stan.
@@ -177,8 +227,17 @@ shortcuts:
 
 ### Blok w pokoju
 
-Blok może stać w pokoju jak zwykły kafelek. W **Ustawienia dashboardu → Edytuj konfigurację** wstaw całą definicję
-bloku (z `kind: panel`) do listy `tiles` sekcji pokoju, między zwykłe kafelki:
+Blok może stać w pokoju jak zwykły kafelek. W edytorze na komputerze są dwie drogi:
+
+- **Zrób blok z tego kafelka:** wybierz kafelek urządzenia w jego pokoju; przycisk w **Okno urządzenia** zamienia
+  kafelek na miejscu w blok, z jego nazwą, ikoną i rozmiarem. Kafelek rozwija się w drzewie w **Liczby na górze**,
+  **Przyciski** i **Grupy**, a pozostałe encje urządzenia dodasz jednym kliknięciem. Taki blok należy tylko do
+  pokoju i nie pokazuje się na stronie głównej.
+- **Pole Blok kafelka:** kafelek wybiera blok z **Bloki** w polu **Blok** (`shortcut`). Kafelek otwiera wtedy ten
+  blok; jeden blok może stać w kilku pokojach i na stronie głównej naraz.
+
+Na tablecie, w **Ustawienia dashboardu → Edytuj konfigurację**, wstaw całą definicję bloku (z `kind: panel`) do
+listy `tiles` sekcji pokoju, między zwykłe kafelki:
 
 ```yaml
 layout:

@@ -227,6 +227,16 @@ Dwa sposoby, oba nad formularzem:
 | Usługa dotknięcia | `action` | skrypt albo usługa wywołana zamiast tego przy dotknięciu |
 | Zaznacz, potem uruchom; Nazwy opcji | `confirm`, `labels` | dla listy (`select`): uruchomienie dopiero po wyborze i własne nazwy opcji |
 
+Pod formularzem **Okno urządzenia** mówi, co otwiera dotknięcie kafelka:
+
+- **Własna karta (YAML)**: karta Home Assistant otwiera się zamiast okna dashboardu, dla tej encji w całym
+  dashboardzie (`entities.overrides.<id>.card`). Wpisz ją razem z `type`, np. `type: custom:lamp-card`; puste pole
+  przywraca okno dashboardu.
+- **Zrób blok z tego kafelka**: kafelek staje się na miejscu blokiem, z nazwą, ikoną i rozmiarem (rozdział 9).
+
+Kafelek, który już jest blokiem albo go otwiera, nie ma tej części: jego blok ma własne formularze. Jak wybrać między
+kafelkiem, kartą a blokiem, opisuje [Okna dla własnych urządzeń](own-devices.pl.md).
+
 Zakładka **YAML** pokazuje kafelek jako tekst:
 
 ![Ten sam kafelek w YAML](screenshots/pl/editor-yaml.png)
@@ -256,6 +266,10 @@ ochrona, media) tworzy sam dashboard.
 **Blok** to kafelek, który zamiast jednego urządzenia otwiera własny ekran: ekspres z liczbami i ustawieniami, pralka,
 samochód, odkurzacz, serwer, plan lekcji, tramwaje. Bloki są w drzewie pod **Bloki** albo bezpośrednio w sekcji
 (kafelek z `kind`).
+
+**Nowy blok:** **+** obok **Bloki** wypisuje rodzaje (Blok, Status, Odjazdy, Aplikacja, Wiadomości, Maszyny, Strona),
+te same co **Dodaj** na tablecie; nowy blok od razu jest wybrany i pojawia się wśród odznak strony głównej. **Blok w
+pokoju:** **Zrób blok z tego kafelka** pod formularzem kafelka albo blok wybrany w polu **Blok** kafelka.
 
 ![Blok: jego okno w podglądzie, wybrana jedna liczba](screenshots/pl/editor-block.png)
 

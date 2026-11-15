@@ -230,6 +230,16 @@ Two ways, both above the form:
 | Service of a touch | `action` | a script or service called on a touch instead |
 | Mark, then run; Names of options | `confirm`, `labels` | for a list (`select`): run only after choosing, and own names of its options |
 
+Under the form, **Window of the device** says what a tap on the tile opens:
+
+- **Own card (YAML)**: a card of Home Assistant opens instead of the dashboard's window, for this entity everywhere
+  on the dashboard (`entities.overrides.<id>.card`). Type it with its `type`, e.g. `type: custom:lamp-card`; empty
+  brings the dashboard's window back.
+- **Make a block of this tile**: the tile becomes a block in its place, with its name, icon and size (chapter 9).
+
+A tile that already is a block, or opens one, has no such part: its block has its own forms. How to choose between
+a tile, a card and a block is in [Windows for your own devices](own-devices.md).
+
 The **YAML** tab shows the tile as text:
 
 ![The same tile in YAML](screenshots/en/editor-yaml.png)
@@ -259,6 +269,10 @@ security, media) come from the dashboard itself.
 A **block** is a tile that opens a screen of its own instead of a single device: a coffee machine with its numbers
 and settings, a washing machine, a car, a vacuum, a server, the school plan, the trams. Blocks live under **Blocks**
 in the tree, or directly in a section (a tile with `kind`).
+
+**A new block:** **+** beside **Blocks** lists the kinds (Block, Status, Departures, App, News, Machines, Page), the
+same as **Add** on the tablet; the new block is chosen at once and shows among the badges of Home. **A block in a
+room:** **Make a block of this tile** under a tile's form, or a block chosen in the tile's **Block** field.
 
 ![A block: its window in the preview, a number of it chosen](screenshots/en/editor-block.png)
 

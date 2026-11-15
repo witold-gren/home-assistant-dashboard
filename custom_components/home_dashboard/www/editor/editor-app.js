@@ -13,7 +13,16 @@ import "./publish.js";
 import "./generate-dialog.js";
 import { withGeneratedRooms } from "./generate.js";
 import { roomAreas } from "./picker-model.js";
-import { addBlockRow, blockPathOf, deviceLeftovers, groupIndexOf } from "./block-model.js";
+import {
+  addBlockRow,
+  blockPathOf,
+  deviceLeftovers,
+  groupIndexOf,
+  tileAsBlock,
+  withEntityCard,
+  withNewBlock,
+} from "./block-model.js";
+import { NEW_BLOCK_ICONS } from "../app/block-editor.js";
 import { highlightSpec } from "./highlight.js";
 import { deviceCatalog, deviceList, readDevicePrefs, shownModel, writeDevicePrefs } from "./devices.js";
 import "./devices.js";
@@ -231,6 +240,8 @@ export class HomeDashboardEditorApp extends LitElement {
     _picker: { state: true },
     _fit: { state: true },
     _dialog: { state: true },
+    _blockMenu: { state: true },
+    _cardError: { state: true },
   };
 
   constructor() {
@@ -455,6 +466,14 @@ export class HomeDashboardEditorApp extends LitElement {
     const layout = this._strategy.layout ?? [];
     this._change(insertAt(this._strategy, ["layout"], layout.length, { id, name, sections: [] }));
     this._selectPath(["layout", layout.length]);
+  }
+
+  /** A new block of a kind among the blocks, chosen at once to be filled in. */
+  _addBlock(kind) {
+    const added = withNewBlock(this._strategy, kind, this._t(`block_kind_${kind}`), NEW_BLOCK_ICONS[kind]);
+    this._blockMenu = false;
+    this._change(added.strategy);
+    this._selectPath(added.path);
   }
 
   _addSection(roomPath) {
@@ -1058,6 +1077,12 @@ export class HomeDashboardEditorApp extends LitElement {
                   </button>
                 </span>`
               : nothing}
+            ${item.key === "blocks"
+              ? html`<button class="ghost add" data-add-block title=${this._t("editor_add_block")}
+                  aria-expanded=${this._blockMenu ? "true" : "false"} @click=${() => (this._blockMenu = !this._blockMenu)}>
+                  <ha-icon icon="mdi:plus"></ha-icon>
+                </button>`
+              : nothing}
             ${item.children.length
               ? html`<button
                   class="ghost add"
@@ -1070,6 +1095,16 @@ export class HomeDashboardEditorApp extends LitElement {
                 </button>`
               : nothing}
           </div>
+          ${item.key === "blocks" && this._blockMenu
+            ? html`<div class="block-kinds" data-block-kinds>
+                <small class="hint">${this._t("editor_add_block_hint")}</small>
+                ${Object.entries(NEW_BLOCK_ICONS).map(
+                  ([kind, icon]) => html`<button class="start" data-block-new=${kind} @click=${() => this._addBlock(kind)}>
+                    <ha-icon .icon=${icon}></ha-icon>${this._t(`block_kind_${kind}`)}
+                  </button>`,
+                )}
+              </div>`
+            : nothing}
           ${item.key === "rooms" && !item.children.length && !searching
             ? html`<button class="start" data-generate-start @click=${() => (this._dialog = "generate")}>
                 <ha-icon icon="mdi:auto-fix"></ha-icon>${this._t("editor_generate_start")}
@@ -1404,6 +1439,7 @@ export class HomeDashboardEditorApp extends LitElement {
               }}
             ></home-dashboard-editor-props>
             ${this._renderPageLink(node, value)}
+            ${this._renderDeviceWindow(node, value)}
             ${this._renderPartList(node)}`
           : html`<textarea
                 data-yaml
@@ -1421,6 +1457,57 @@ export class HomeDashboardEditorApp extends LitElement {
    * What a list holds (the tiles of a section or of a room's Home, the favourites, the parts of a block): a row each,
    * a click opens it in its form, with buttons to move and remove it in place.
    */
+  /**
+   * What a tile of a room opens: the dashboard's own window, a card of Home Assistant in its place (for this entity
+   * everywhere), or a block built from the tile. A tile that is a block, or opens one, has its own forms.
+   */
+  _renderDeviceWindow(node, value) {
+    if (node.kind !== "tile" || !value?.entity || value.kind || value.shortcut) return nothing;
+    const entity = value.entity;
+    const card = this._strategy.entities?.overrides?.[entity]?.card;
+    const setCard = (text) => {
+      let parsed;
+      try {
+        parsed = text.trim() ? this._yaml.load(text) : null;
+      } catch (error) {
+        this._cardError = error.reason ?? error.message;
+        return;
+      }
+      if (parsed !== null && (typeof parsed !== "object" || Array.isArray(parsed) || !parsed.type)) {
+        this._cardError = this._t("editor_device_card_type");
+        return;
+      }
+      this._cardError = null;
+      this._change(withEntityCard(this._strategy, entity, parsed), `card:${entity}`);
+    };
+    const toBlock = () => {
+      this._change(setAt(this._strategy, node.path, tileAsBlock(this.hass, value)));
+      this._selectPath(node.path);
+    };
+    return html`<div class="device-window" data-device-window>
+      <h4>${this._t("editor_device_window")}</h4>
+      <p class="hint">${this._t("editor_device_window_hint")}</p>
+      <label class="device-card">
+        <span>${this._t("editor_entities_card")} <code>entities.overrides.${entity}.card</code></span>
+        <textarea
+          data-device-card
+          rows="4"
+          spellcheck="false"
+          placeholder=${`type: custom:lamp-card
+entity: ${entity}`}
+          .value=${card ? this._dump(card) : ""}
+          @change=${(event) => setCard(event.target.value)}
+        ></textarea>
+      </label>
+      ${this._cardError ? html`<p class="hint problem" data-device-card-error>${this._cardError}</p>` : nothing}
+      <small class="hint">${this._t("editor_device_card_hint")}</small>
+      <button class="open" data-tile-to-block @click=${toBlock}>
+        <ha-icon icon="mdi:view-dashboard-edit-outline"></ha-icon><span>${this._t("editor_tile_to_block")}</span>
+      </button>
+      <small class="hint">${this._t("editor_tile_to_block_hint")}</small>
+    </div>`;
+  }
+
   /** A block that opens a page (Media, Music, Map, Energy): what is on that page is edited in its settings. */
   _renderPageLink(node, value) {
     const key = node.kind === "block" ? PAGE_SETTINGS[value?.page] : null;
@@ -1919,6 +2006,64 @@ export class HomeDashboardEditorApp extends LitElement {
     }
     .pick {
       justify-content: center;
+    }
+    .device-window {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 4px 0 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .device-window h4 {
+      margin: 0;
+      font-size: 13px;
+    }
+    .device-window .device-card {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .device-window .device-card code {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+    .device-window textarea {
+      min-height: 72px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel2);
+      color: var(--text);
+      font: 12px/1.4 ui-monospace, Menlo, monospace;
+      resize: vertical;
+    }
+    .device-window .open {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel2);
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .block-kinds {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 2px 8px 8px;
+    }
+    .block-kinds .start {
+      justify-content: flex-start;
+      gap: 8px;
     }
     .page-link {
       display: flex;

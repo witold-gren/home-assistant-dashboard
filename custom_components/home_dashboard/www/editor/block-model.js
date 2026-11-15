@@ -61,3 +61,49 @@ export function groupIndexOf(blockPath, path) {
   const rest = path.slice(blockPath.length);
   return rest[0] === "groups" && Number.isInteger(rest[1]) ? rest[1] : null;
 }
+
+/** A name no block has yet: tiles, the menu and the rules point to a block by its name. */
+export function freeBlockName(strategy, name) {
+  const used = new Set((strategy.shortcuts ?? []).map((block) => block.name));
+  if (!used.has(name)) return name;
+  for (let n = 2; ; n += 1) if (!used.has(`${name} ${n}`)) return `${name} ${n}`;
+}
+
+/** A new block of a kind at the end of the blocks (shortcuts), as the tablet's "Add" makes it; and where it went. */
+export function withNewBlock(strategy, kind, name, icon) {
+  const index = (strategy.shortcuts ?? []).length;
+  const block = { kind, name: freeBlockName(strategy, name), icon };
+  return { strategy: insertAt(strategy, ["shortcuts"], index, block), path: ["shortcuts", index] };
+}
+
+/**
+ * A tile of a room turned into a block in its place: its entity, name, icon and size stay, the window becomes the
+ * block's (numbers, buttons and rows added next, the device's other entities offered one click each).
+ */
+export function tileAsBlock(hass, tile) {
+  const stateObj = hass.states?.[tile.entity];
+  const block = {
+    kind: "panel",
+    name: tile.name ?? stateObj?.attributes?.friendly_name ?? tile.entity,
+    icon: tile.icon ?? stateObj?.attributes?.icon ?? "mdi:view-dashboard-outline",
+    entity: tile.entity,
+  };
+  if (tile.size) block.size = tile.size;
+  return block;
+}
+
+/**
+ * The card of Home Assistant an entity's tile opens instead of the dashboard's window, everywhere on the dashboard
+ * (`entities.overrides.<id>.card`); none takes it away, and an override left empty goes too.
+ */
+export function withEntityCard(strategy, entity, card) {
+  const entities = strategy.entities ?? {};
+  const overrides = { ...(entities.overrides ?? {}) };
+  const { card: _old, ...own } = overrides[entity] ?? {};
+  if (card) overrides[entity] = { ...own, card };
+  else if (Object.keys(own).length) overrides[entity] = own;
+  else delete overrides[entity];
+  const next = { ...entities, overrides };
+  if (!Object.keys(overrides).length) delete next.overrides;
+  return { ...strategy, entities: next };
+}

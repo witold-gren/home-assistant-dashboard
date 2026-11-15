@@ -6,6 +6,9 @@ Every home has different devices: a washing machine, an air purifier, a lawn mow
 Dashboard does not need to know them in advance. There are four ways to give a device its button and its window, from
 the simplest to the richest. None needs programming, and the windows take the look of the theme on their own.
 
+Each way can be taken in the [dashboard editor](editor.md) on a computer, without YAML, and most of them right on
+the tablet too. The YAML examples below are for those who prefer to type.
+
 | Vacuum as a block | Switch | Blind |
 |---|---|---|
 | ![Vacuum](screenshots/en/vacuum.png) | ![Switch](screenshots/en/switch.png) | ![Blind](screenshots/en/blind.png) |
@@ -19,10 +22,29 @@ the simplest to the richest. None needs programming, and the windows take the lo
 | A device with a good card in Home Assistant or HACS | [own card of a device](#3-own-card-of-a-device) | that card in a window of the dashboard |
 | A device with many values and buttons | [block with its own window](#4-block-with-its-own-window) | a window made of numbers, buttons, rows and a card |
 
+Where each way is done:
+
+| Way | Editor on a computer | On the tablet or phone |
+|---|---|---|
+| Tile in a room | room → section → **Entity…** → **Add**, or **Choose from the list…** | three dots → **Edit this screen** → **Add a tile** |
+| Own card of a device | the tile → **Window of the device** → **Own card (YAML)** | YAML only (**Edit configuration**) |
+| Block on Home | **Blocks** → **+** → **Block** | **Summary badges** → **Add** → **Block** |
+| Block in a room | the tile → **Make a block of this tile**, or the tile's **Block** field | YAML only; then edited in its form |
+
 ## 2. Tile in a room
 
 A room is an area of Home Assistant. Lights, climate, blinds and locks of the area show in the room by themselves.
-Any other device is added by hand:
+Any other device is added by hand.
+
+**In the editor on a computer:**
+
+1. In the tree, unfold the room under **Rooms** and choose a section (or add one).
+2. Type the entity in **Entity…** under the properties and press **Add**, or open **Choose from the list…** to pick
+   several at once, filtered by room and kind.
+3. The new tile is chosen at once: name, icon, size and the other options are fields of its form.
+4. **Publish** when the draft is ready.
+
+**On the tablet:**
 
 1. Open the room, three dots → **Edit this screen**.
 2. **Add a tile** in a section, search for the entity and save.
@@ -73,7 +95,24 @@ Many devices have great cards in Home Assistant or HACS: a vacuum map, a lawn mo
 be put behind the tile of the device. A tap on the tile and on its icon then opens that card in a window of the
 dashboard, on every page and in every filter.
 
-In **Dashboard settings → Edit configuration**:
+**In the editor on a computer:**
+
+1. Choose the tile of the device in its room.
+2. Under its properties, **Window of the device** has the field **Own card (YAML)**. Type the card there, as in the
+   card editor of Home Assistant, starting with its `type`:
+
+   ```yaml
+   type: custom:lawn-mower-card
+   entity: lawn_mower.garden
+   ```
+
+3. The preview opens the card on a tap at once. Emptying the field brings the dashboard's window back.
+
+The card belongs to the entity, not to one tile: it opens wherever the entity is shown. The same field is under
+**Settings → Entities: added, left out, own → Own settings of an entity**, where you also see every entity that has
+a card.
+
+**On the tablet** the card is typed in YAML, in **Dashboard settings → Edit configuration**:
 
 ```yaml
 entities:
@@ -93,7 +132,18 @@ A block is a window built from several entities: numbers at the top, action butt
 sliders, and at the end, if you like, a card of Home Assistant. The Vacuum in the picture is built that way. A block
 shows as a shortcut on Home, in the menu, or as a tile in a room.
 
-### Step by step in the editor
+### Step by step in the editor on a computer
+
+1. In the tree, **+** beside **Blocks** → **Block**. A new block "Block" is added and chosen (a block of another kind,
+   such as **Status**, **Departures** or **Machines**, is chosen in the same list).
+2. Fill in **Name**, **Icon** and **Entity**, the main entity of the device.
+3. Unfold the block in the tree: **Numbers at the top**, **Buttons** and **Groups** each have a field to add an
+   entity, and a group has its rows. Each part chosen in the tree has its own form.
+4. **From the device, not in the block yet** lists the other entities of the device: one click adds each as a row.
+5. The preview opens the block's window while you work on it, and outlines in red what is chosen.
+6. **Publish**. The block shows among the badges of Home.
+
+### Step by step on the tablet
 
 1. Three dots on Home → **Summary badges** (administrator account) → **Add** → **Block**.
 2. **Name**, **Icon** and **Entity**: the main entity of the device, which gives the block its state.
@@ -177,8 +227,17 @@ shortcuts:
 
 ### Block in a room
 
-A block can stand in a room like a tile. In **Dashboard settings → Edit configuration** put the whole definition of
-the block (with `kind: panel`) in the `tiles` list of a section of the room, between ordinary tiles:
+A block can stand in a room like a tile. In the editor on a computer there are two ways:
+
+- **Make a block of this tile:** choose the device's tile in its room; under **Window of the device** the button
+  turns the tile into a block in its place, with its name, icon and size. The tile unfolds in the tree into
+  **Numbers at the top**, **Buttons** and **Groups**, and the device's other entities are offered one click each.
+  The block belongs to the room only and does not show on Home.
+- **The Block field of a tile:** a tile chooses a block from **Blocks** in its **Block** field (`shortcut`). The tile
+  then opens that block; one block can stand in several rooms and on Home at once.
+
+On the tablet, in **Dashboard settings → Edit configuration**, put the whole definition of the block (with
+`kind: panel`) in the `tiles` list of a section of the room, between ordinary tiles:
 
 ```yaml
 layout:

@@ -2,6 +2,12 @@
 
 ## 1.0.1 (2026-11-15)
 
+- Editor: **+** beside **Blocks** adds a block of any kind (Block, Status, Departures, App, News, Machines, Page),
+  as **Add** does on the tablet.
+- Editor: under a tile of a room, **Window of the device** sets a card of Home Assistant for its entity
+  (`entities.overrides.<id>.card`) and **Make a block of this tile** turns the tile into a block in its place.
+- Docs: [Windows for your own devices](docs/own-devices.md) says for each way where it is done, in the editor on a
+  computer and on the tablet, with the steps in the editor.
 - A switch that powers a lamp is a light: yellow while on, counted in the Lights chip and the status bar and shown
   by the Lights filter. A switch whose icon is a lamp is one by itself; `entities.overrides.<id>.light` (also a
   field of the editor, and **It is a light** under the pencil of a switch's window on the device) says it either way.
