@@ -803,6 +803,16 @@ def test_a_time_in_seconds_reads_as_hours_and_minutes(phone):
     assert said == ["1 h 14 min", "5 min"]
 
 
+def test_time_left_below_zero_reads_as_the_limit_passed_by(phone):
+    add_entity(phone, "sensor.left_today", "-10", {"unit_of_measurement": "min"})
+    add_entity(phone, "sensor.left_week", "-78", {"unit_of_measurement": "min"})
+    add_entity(phone, "sensor.left_none", "0", {"unit_of_measurement": "min"})
+    said = phone.evaluate("""async () => { const p = await import('/custom_components/home_dashboard/www/app/panel.js');
+        const hass = window.dashboard.hass();
+        return ['sensor.left_today', 'sensor.left_week', 'sensor.left_none'].map((entity) => p.panelValue(hass, { entity, format: 'hours' })); }""")
+    assert said == ["przekroczono o 10 min", "przekroczono o 1 h 18 min", "–"]
+
+
 # A console: a button on its tile, numbers of time in their own units, the game as an attribute, scripts with fields.
 
 XBOX = {
@@ -840,6 +850,22 @@ def test_an_off_console_has_no_button(phone):
     mount(phone, room_with(XBOX))
     phone.locator("home-dashboard-page [data-tile='Xbox']").wait_for()
     assert phone.locator("home-dashboard-page [data-tile-quick]").count() == 0
+
+
+# The cloud state of a console can stay "on" after it went off; a sensor that pings it says better.
+XBOX_CHECKED = {**XBOX, "status": "binary_sensor.xbox_playing", "labels": {"on": "Włączony", "off": "Wyłączony"},
+                "active": "binary_sensor.xbox_playing"}
+
+
+@pytest.mark.parametrize(("playing", "status", "buttons"), [("off", "Wyłączony", 0), ("on", "Włączony", 1)])
+def test_a_console_off_by_its_active_sensor_has_no_button_though_its_cloud_says_on(phone, playing, status, buttons):
+    add_xbox(phone, "on")
+    add_entity(phone, "binary_sensor.xbox_playing", playing, {})
+    mount(phone, room_with(XBOX_CHECKED))
+    tile = phone.locator("home-dashboard-page [data-tile='Xbox']")
+    tile.wait_for()
+    assert status in tile.inner_text()
+    assert tile.locator("[data-tile-quick]").count() == buttons
 
 
 def test_a_script_gets_its_fields_only(phone):

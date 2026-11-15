@@ -113,6 +113,7 @@ obok *Pokoje* i proponuje tylko obszary, które nie mają jeszcze pokoju.
 | *Wyrzuć* | wyrzuca szkic i wraca do opublikowanej wersji (tylko gdy jest szkic) |
 | połowa słońca | wygląd edytora: Auto, Jasny, Ciemny |
 | **{} YAML** | cały dashboard jako YAML, do przeczytania albo wklejenia |
+| ? | ten przewodnik na stronie dokumentacji, w nowej karcie (po polsku albo po angielsku, jak Home Assistant) |
 | ⚙ | ustawienia edytora: telefony i tablety podglądu (rozdział 16) |
 | **Historia** | opublikowane wersje (rozdział 15) |
 | **Opublikuj** | publikuje szkic (rozdział 15) |
@@ -287,7 +288,10 @@ Blok kilku encji (`kind: panel`) rozwija się w drzewie na części, każda z fo
   jedną jako wiersz.
 - W formularzu samego bloku: nazwa, ikona, encja i stan jego kafelka, własne nazwy stanów, kiedy kafelek jest
   „włączony” (`active`, `active_state`), karta Home Assistanta na końcu, cały ekran.
-- Przycisk na kafelku, gdy urządzenie działa (`quick`, np. *Wyłącz* przy konsoli), ustawia się w YAML.
+- Przycisk na kafelku, gdy urządzenie działa (`quick`, np. *Wyłącz* przy konsoli), ustawia się w YAML. Z `active`
+  przycisk patrzy na tę encję, a nie na encję kafelka: konsola Xbox ma `active: binary_sensor.xbox_playing` (chmura
+  i ping razem), bo jej stan z chmury potrafi zostać „włączony” po wyłączeniu. Czas poniżej zera w formacie *Czas
+  (h min)* brzmi „przekroczono o 10 min”.
 
 Wybranie bloku otwiera jego okno w podglądzie, a pod tabletem edytor mówi, czy mieści się bez przewijania. Kafelek
 staje się blokiem po wybraniu bloku w jego polu **Blok**; zmiana nazwy bloku zmienia ją też w jego kafelkach, menu,
@@ -295,7 +299,10 @@ pasku statusu i zasadach dostępu.
 
 **Inne rodzaje bloków** mają formularz z tymi samymi polami co formularz bloku na tablecie. Na przykład ekran Status
 ma sekcje z pozycjami (lista włączonych świateł, alarm wody, słaba bateria, urządzenie w danym stanie, słowo stanu
-jak `OB` UPS-a na baterii):
+jak `OB` UPS-a na baterii). Pozycja z **Pokazuj też jako ostrzeżenie na stronie głównej** (`notify`) jest też paskiem nad
+kamerami na stronie głównej, jak słaba bateria; z **Alarm (czerwony, nie da się zamknąć na stronie głównej)** (`alarm`)
+nie da się go zamknąć, dopóki stan trwa (wyciek wody, dym, alarm
+wywołany):
 
 ![Blok Status: jego sekcje w formularzu](screenshots/pl/editor-status-block.png)
 
@@ -325,7 +332,10 @@ oknie. Kliknięcie w pole otwiera okno:
   odwrócenia, 48 gotowych gradientów i duży podgląd. CSS zostaje pod spodem do ręcznej zmiany.
 
 **Utwórz tło** pod polami otwiera kreator tła: 16 gotowych teł, wzory, gradienty i własne zdjęcie, przezroczyste,
-odbarwione albo rozmyte, z telefonem i tabletem obok. **Użyj jako tło** tworzy obraz pionowy i szeroki i wpisuje je do
+odbarwione albo rozmyte, z telefonem i tabletem obok. Zdjęcie można zmniejszyć i położyć w rogu, z boku albo na
+środku (**Rozmiar i położenie**), przesunąć, obrócić, odbić i wygasić od najwyżej trzech krawędzi (**Wygaszanie od
+krawędzi**), np. pokój w prawym górnym rogu, który z lewej i od dołu przechodzi w gradient. Tryb **Zabarwione tłem** (domyślny)
+nadaje zdjęciu kolory gradientu pod nim: ciemne miejsca dostają głęboki odcień tła, jasne jego jasny odcień. **Użyj jako tło** tworzy obraz pionowy i szeroki i wpisuje je do
 jasnego wyglądu, ciemnego albo obu.
 
 **Motywy:** wygląd można zapisać na tablecie jako motyw (Menu → Wygląd → Motywy) i udostępnić jako plik. Z
@@ -344,8 +354,15 @@ wąskiego paska. **Ustawienia → Pasek statusu**:
   statusu*. Dotknięcie otwiera miesiąc z wydarzeniami wybranego dnia. *Kolory kalendarzy* nadają każdemu kalendarzowi
   kolor. Na telefonie te same wydarzenia są w *Wybierz obszar → Moje kalendarze*, gdzie każda osoba dodaje pod
   trybikiem własne kalendarze.
-- **Co pokazuje pasek** (`status_panel`): drzwi i okna (*W domu*), światła i urządzenia nieliczone, co *Teraz* działa
-  (pralka z programem i pozostałym czasem), pobór mocy z wykresem ostatnich godzin, tramwaje.
+- **Co pokazuje pasek** (`status_panel`), czyli plakietki *W domu* i reszta paska:
+  - **Drzwi (W domu)** i **Okna (W domu)** (`doors`, `windows`): każda lista ma swoją plakietkę, gdy coś z niej jest
+    otwarte; dotknięcie na tablecie pokazuje listę otwartych z godziną otwarcia. Wpisz tylko te, które mają mówić
+    (wejściowe, balkon, toaleta), nie drzwi pokoi, które zwykle są otwarte.
+  - **Znaczniki (W domu)** (`flags`): plakietka, dopóki pomocnik jest włączony, np. **Poczta** z
+    `input_boolean.mail_in_mailbox`, który włącza otwarcie skrzynki; dotknięcie otwiera pomocnika, żeby go wyłączyć.
+  - **Nieliczone w W domu** (`ignore`): światła i urządzenia poza licznikiem, np. lampa z własnym harmonogramem. To
+    jedyne miejsce tego ustawienia; tablet pokazuje je tylko osobno na liście włączonych.
+  - co *Teraz* działa (pralka z programem i pozostałym czasem), pobór mocy z wykresem ostatnich godzin, tramwaje.
 
 iPad w podglądzie od razu pokazuje pasek ze szkicu.
 
@@ -449,8 +466,9 @@ Kolejność, która najlepiej działa dla nowego domu:
 6. **Dodaj bloki** dla rzeczy z wieloma encjami: ekspres, pralka, samochód, odkurzacz, serwer, UPS. Zacznij od
    najważniejszych liczb, potem grupy; *Z urządzenia, jeszcze nie w bloku* pokazuje, co zostało.
 7. **Wybierz wygląd:** motyw, tło dla strony głównej i każdego pokoju (pomoże kreator tła), kolory kafelków.
-8. **Przygotuj tablet na ścianę:** pasek statusu z kalendarzami i tym, co pokazuje, powrót tabletu na stronę główną,
-   pasek stron i menu.
+8. **Przygotuj tablet na ścianę:** pasek statusu z kalendarzami i tym, co pokazuje (drzwi i okna, które mają mówić,
+   znaczniki jak poczta, lampy nieliczone), na ekranie Status ostrzeżenia na stronę główną (woda, dym, alarm, słabe
+   baterie), powrót tabletu na stronę główną, pasek stron i menu.
 9. **Zdecyduj, kto co widzi**, i sprawdź to przez **Jako** w podglądzie.
 10. **Opublikuj do sprawdzenia** na jednym tablecie, potem **Opublikuj dla wszystkich**. Zostaw notatkę w historii.
 

@@ -42,3 +42,11 @@ def test_the_dashboard_settings_offer_it_and_the_look_does_not(phone):
     phone.evaluate("() => document.querySelector('home-dashboard-chrome').open({ type: 'settings' })")
     phone.wait_for_selector("home-dashboard-settings [data-reload-app]")
     assert "od nowa" in phone.locator("home-dashboard-settings [data-reload-app] strong").inner_text()
+
+
+def test_it_is_the_first_thing_of_the_dashboard_settings(phone):
+    mount_admin(phone, {})
+    phone.evaluate("() => document.querySelector('home-dashboard-chrome').open({ type: 'settings' })")
+    phone.wait_for_selector("home-dashboard-settings [data-reload-app]")
+    first = phone.locator("home-dashboard-settings .content > *").first
+    assert first.get_attribute("data-reload-app") is not None

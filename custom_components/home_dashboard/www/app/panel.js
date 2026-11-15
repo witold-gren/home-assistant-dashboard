@@ -71,7 +71,12 @@ export function panelValue(hass, row, given = undefined) {
   const { state } = stateObj;
   if (row.labels?.[state]) return row.labels[state];
   if (row.format === "duration") return formatDuration(state);
-  if (row.format === "hours") return formatHours(asSeconds(state, stateObj.attributes?.unit_of_measurement));
+  if (row.format === "hours") {
+    const seconds = asSeconds(state, stateObj.attributes?.unit_of_measurement);
+    // Time left below zero: a limit already passed, by how much.
+    if (seconds <= -60) return translate(hass.language, "panel_over_by", { time: formatHours(-seconds) });
+    return formatHours(seconds);
+  }
   const numeric = row.digits !== undefined && !Number.isNaN(Number(state));
   const value = numeric ? formatNumber(hass, state, row.digits) : null;
   if (row.unit) return `${value ?? state} ${row.unit}`;
@@ -102,7 +107,8 @@ export function panelTile(hass, item) {
     iconAction: null,
     tapAction: "panel",
     // A button on the tile while its device is on (a console: Turn off), asked first in the block's window.
-    quick: item.quick && stateObj && !["off", "unavailable", "unknown"].includes(stateObj.state) ? item.quick : null,
+    // With `active`, that entity says so (a console whose cloud state is stuck on "on").
+    quick: item.quick && stateObj && (item.active ? isActive(hass, item) : !["off", "unavailable", "unknown"].includes(stateObj.state)) ? item.quick : null,
     stats: item.compact ? [] : panelStats(hass, item),
   };
 }

@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.2 (2026-11-15)
+
+- Background maker: the photo can be made smaller (20–100 %), put in a corner, at a side or in the middle and moved
+  from there, turned by 90°, mirrored sideways and upside down, and faded out from up to three of its edges (it faded
+  only downwards, always covering the whole screen). A recipe from before keeps its photo where it was.
+- Background maker: **Tinted by the background**, the new default way a photo mixes: it wears the colours of the
+  gradient under it, deep in its darks and light in its lights, instead of lying grey over it.
+- Editor: **?** in the top bar opens the guide to the editor on the documentation site in a new tab, in Polish
+  or English as Home Assistant is. The integration's documentation link points at the site too.
+- Dashboard settings: **Reload the app** is the first thing of the window, not the last.
+- At home: windows have a badge of their own (`status_panel.windows`), and a tap on the doors or the windows lists the
+  open ones by name with when they opened, as the lights do, instead of opening the Status screen. Several read as
+  "2 open windows". All the badges are in the same weight (an open door was bold).
+- At home: flags (`status_panel.flags`), a badge while a helper is on, e.g. mail in the mailbox; a tap opens it.
+- An item of the Status screen of one entity in a state (`entity` + `state`) with `notify` is a card on Home too; it
+  never was (a UPS on battery showed only on the Status screen).
+- The list of lights or devices on (a tap on the count in At home) has no **Don't count** button any more: what is
+  not counted is configuration, set in the editor on a computer (**Status bar → Not counted in At home**). The list
+  still shows those apart and says where they are set.
+- A block's `quick` button (e.g. **Turn off** on a console) follows its `active` entity when one is set, so a
+  console whose cloud state is stuck on `on` shows no button once a pinging sensor says it is off.
+- A time left below zero in `format: hours` reads as **over by 10 min** (PL: **przekroczono o 10 min**) instead of `–`.
+
 ## 1.0.1 (2026-11-15)
 
 - Editor: **+** beside **Blocks** adds a block of any kind (Block, Status, Departures, App, News, Machines, Page),

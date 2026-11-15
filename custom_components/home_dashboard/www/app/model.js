@@ -161,7 +161,7 @@ export function normalizeConfig(config = {}) {
     security: { unlock_on_tablet: false, group: null, ...config.security },
     idle: { return_after: DEFAULT_IDLE_SECONDS, ...config.idle },
     // Where the facts of the status bar of a tablet come from; what it shows is part of the look.
-    status_panel: { doors: [], now: [], power: [], departures: null, ...config.status_panel },
+    status_panel: { doors: [], windows: [], flags: [], now: [], power: [], departures: null, ...config.status_panel },
     // The phases of the grid meter on the Energy page, found by themselves unless listed here.
     energy: { phases: null, voltage_range: null, ...config.energy },
   };

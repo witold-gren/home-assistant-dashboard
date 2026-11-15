@@ -552,8 +552,17 @@ ostatni obrazek kamery. Jeśli dalej widzisz czarny ekran, wczytaj aplikację od
 Połącz ją z tą samą kamerą z eufy w **Ustawienia dashboardu → Ta sama kamera w innej integracji** i ustaw **Mówienie
 w oknie kamery → Głośnik kamery**.
 
+**Plakietka znacznika (np. „Poczta”) się nie pojawia** — pomocnik z `status_panel.flags` nie istnieje w Home Assistant
+albo jest wyłączony. Pomocnik dodany w YAML powstaje dopiero po przeładowaniu (Narzędzia deweloperskie → YAML →
+**Pomocnicy: przełączniki**), a jego automatyzacja po przeładowaniu **Automatyzacji**. Zdarzenie sprzed przeładowania
+nie włączy go już samo.
+
+**Konsola jest wyłączona, a kafelek pokazuje „Włączony” i przycisk „Wyłącz”** — stan z chmury (np. Xbox) potrafi
+zostać „on” po wyłączeniu. Daj blokowi `status`, `labels` i `active` z czujnikiem, który sprawdza konsolę w sieci
+(np. szablon: chmura „on” i ping „on”); przycisk na kafelku idzie wtedy za `active`.
+
 **Poza domem aplikacja pokazuje starą wersję dashboardu** — aplikacja Home Assistant wraca z tła ze starym kodem
-w pamięci albo trzyma kopię pliku. Menu → **Ustawienia dashboardu** → na dole **Wczytaj aplikację od nowa** (administratorzy): czyści pamięć
+w pamięci albo trzyma kopię pliku. Menu → **Ustawienia dashboardu** → na górze **Wczytaj aplikację od nowa** (administratorzy): czyści pamięć
 podręczną, pobiera świeże pliki dashboardu i otwiera stronę od nowa. Działa przez każdą sieć, którą aplikacja łączy
 się z Home Assistant. Gdy i to nie pomoże: Ustawienia aplikacji → Companion App → Debugowanie → Resetuj pamięć
 frontendu.

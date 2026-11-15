@@ -13,11 +13,11 @@
     "http",
     "websocket_api"
   ],
-  "documentation": "https://github.com/witold-gren/home-assistant-dashboard",
+  "documentation": "https://witold-gren.github.io/home-assistant-dashboard/",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/witold-gren/home-assistant-dashboard/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.0.1"
+  "version": "1.0.2"
 }

@@ -1028,9 +1028,9 @@ go po połączeniu z Home Assistant.
 Administrator w zakładkach **Obszary** i **Ulubione** zaznacza **Dla wszystkich** i ustawia wtedy wspólną kolejność
 obszarów, ich ukrycie oraz wspólne ulubione, od których zaczyna każdy. Zmiany zapisuje **Zapisz dla wszystkich**. Obszar
 ukryty dla wszystkich zostaje na tej liście, więc da się go przywrócić. To jedyne miejsce tych ustawień: okno
-**Ustawienia dashboardu** ma powrót po bezczynności, start na tym urządzeniu, mówienie w oknie kamery, powiązanie
-kamer z rejestratora z tymi samymi kamerami w innej integracji, edytor konfiguracji i na dole **Wczytaj aplikację od
-nowa**: pobiera świeże pliki dashboardu i otwiera stronę od nowa, gdy aplikacja, np. poza domem, pokazuje starą wersję.
+**Ustawienia dashboardu** ma na górze **Wczytaj aplikację od nowa**, a pod nim powrót po bezczynności, start na tym
+urządzeniu, mówienie w oknie kamery, powiązanie kamer z rejestratora z tymi samymi kamerami w innej integracji i edytor
+konfiguracji. **Wczytaj aplikację od nowa** pobiera świeże pliki dashboardu i otwiera stronę od nowa, gdy aplikacja, np. poza domem, pokazuje starą wersję.
 
 **Mój widok** (trzy kropki w pokoju, dla każdego): ukrywa dla Ciebie całą sekcję albo pojedynczy kafelek, także grupę
 **Sceny**. Ukryty kafelek znika z pokoju i z jego miejsca na stronie głównej. **Pokaż wszystko w tym pokoju** przywraca
@@ -1047,7 +1047,8 @@ na koncie tej osoby. Własne tło wygrywa z domyślnym.
 
 **Utwórz tło** w tym samym oknie otwiera kreator tła, podobny do aplikacji tworzących tapety do aplikacji Dom: wybierasz
 jedno z 16 gotowych teł albo wzór i gradient (48 do wyboru albo własne dwa kolory) i jeśli chcesz, kładziesz na to
-zdjęcie, przezroczyste, odbarwione albo rozmyte. Podgląd pokazuje na tle kilka kafelków, więc od razu widać, czy
+zdjęcie, przezroczyste, odbarwione albo rozmyte, mniejsze i w rogu, obrócone albo odbite, wygaszone od najwyżej trzech
+krawędzi. Podgląd pokazuje na tle kilka kafelków, więc od razu widać, czy
 dashboard zostaje czytelny. **Użyj jako tło** tworzy naraz obraz pionowy i szeroki i wpisuje je do jasnego wyglądu,
 ciemnego albo obu. W edytorze na komputerze ten sam kreator otwiera się szeroko przyciskiem **Utwórz tło** we wpisie
 **Tła stron** (Wygląd → Motywy i tła), z telefonem i tabletem obok siebie.
@@ -1333,9 +1334,17 @@ szybkie spojrzenie z drugiego końca pokoju. Strony (Dom, Muzyka, Energia, Mapa)
   co jest włączone (z pokojem i godziną włączenia; dotknięcie otwiera okno tego urządzenia), a otwarte drzwi ekran
   Status (pierwszy blok Statusu; bez niego szczegóły drzwi), tramwaje okno rozkładu, pobór mocy stronę Energia,
   a **Uwaga** i **Teraz** szczegóły urządzenia.
-- **„Nie licz”** w tej liście (tylko administrator) zostawia światło albo urządzenie poza licznikiem, np. lampę,
-  która działa według własnego harmonogramu. Lista pokazuje je dalej osobno, z przyciskiem **„Licz znowu”**. Zapisuje
-  się dla wszystkich jako [`status_panel.ignore`](configuration.pl.md#11-pasek-statusu-tabletu).
+- Światło albo urządzenie poza licznikiem, np. lampę, która działa według własnego harmonogramu, ustawia się w
+  konfiguracji: w edytorze na komputerze **Pasek statusu → Nieliczone w W domu**
+  ([`status_panel.ignore`](configuration.pl.md#11-pasek-statusu-tabletu)). Lista pokazuje je osobno, jako
+  **Włączone, ale nieliczone**; na tablecie nie ma przycisku, który to zmienia.
+- Drzwi i okna w **W domu** to listy **Pasek statusu → Drzwi (W domu)** i **Okna (W domu)** (`status_panel.doors`,
+  `windows`): każda ma swoją plakietkę z otwartymi z tej listy, a nie wszystkimi czujnikami domu (drzwi pokoi zwykle
+  są otwarte). Dotknięcie pokazuje listę otwartych z godziną otwarcia, jak przy światłach.
+- **Znaczniki (W domu)** (`status_panel.flags`): plakietka, dopóki pomocnik jest włączony, np. **Poczta**, gdy ktoś
+  otworzył skrzynkę na listy. Dotknięcie otwiera pomocnika; kto odebrał listy, wyłącza go.
+- Pozycja ekranu Status z jedną encją w danym stanie (np. alarm wywołany, UPS na baterii) z `notify` jest też
+  czerwonym paskiem na stronie głównej, jak słaba bateria; z `alarm: true` zostaje, dopóki stan trwa.
 - **Moje kalendarze** (telefon): okno wyboru obszaru ma pod pokojami **Moje kalendarze** z dzisiejszymi tytułami i ich
   liczbą; dotknięcie otwiera dziś i kolejne 14 dni, w których coś jest, każde wydarzenie z godziną, miejscem i opisem.
   Trybik wybiera własne kalendarze osoby i to, czy widzi kalendarze domu; zapisuje się w jej ustawieniach, więc idzie

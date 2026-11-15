@@ -458,6 +458,9 @@ Pozycje `actions`:
 
 `quick` (mapa jak akcja: `name`, `icon`, `service`, `confirm`, `data`) dodaje przycisk na kafelku bloku, gdy jego encja
 jest włączona (nie `off` ani niedostępna), np. **Wyłącz** przy konsoli; z `confirm` okno otwiera się od pytania.
+Z `active` przycisk patrzy na tę encję, np. przy konsoli, której stan z chmury zostaje `on` po wyłączeniu
+(`active: binary_sensor.xbox_playing`, czujnik, który ją też pinguje; `status` i `labels` pokazują to samo na kafelku).
+Czas pozostały poniżej zera (`format: hours`) brzmi **przekroczono o 10 min**.
 
 Pozycje `groups`:
 
@@ -914,7 +917,9 @@ visibility:
 
 | Klucz | Typ | Domyślnie | Znaczenie |
 |---|---|---|---|
-| `doors` | lista encji albo `{entity, name}` | `[]` | drzwi i okna w **W domu**; otwarte przy `on` lub `open` |
+| `doors` | lista encji albo `{entity, name}` | `[]` | drzwi w **W domu**; otwarte przy `on` lub `open` (zamek: niezamknięty); dotknięcie pokazuje listę otwartych |
+| `windows` | lista encji albo `{entity, name}` | `[]` | okna w **W domu**, osobna plakietka; dotknięcie pokazuje listę otwartych |
+| `flags` | lista encji albo `{entity, name, icon}` | `[]` | plakietka, gdy pomocnik jest `on`, np. poczta w skrzynce; dotknięcie otwiera pomocnika, żeby go wyłączyć |
 | `now` | lista | `[]` | pozycje **Teraz**, patrz niżej |
 | `power` | lista encji albo `{entity, name, color}` | `[]` | moc teraz z linią z 6 godzin |
 | `departures` | lista encji albo `null` | `null` | tramwaje; `null` bierze pierwszy blok odjazdów |
@@ -1118,8 +1123,9 @@ danych użytkownika.
 **Utwórz tło** otwiera kreator tła: 16 gotowych teł, 16 wzorów rysowanych przez kod (wzgórza, góry, wydmy, fale,
 zorza, światełka, plamy koloru, zachód, kręgi, poziomice, pasy, szkło, płatki, gwiazdy, łuki, papier) z przyciskiem
 **Inna wersja wzoru**, 48 gradientów w sześciu grupach (spokojne, chłodne, ciepłe, natura, pastele, noc) albo dwa
-własne kolory i kierunek, a do tego opcjonalnie zdjęcie: widoczność, odbarwienie, rozmycie, wygaszanie ku dołowi,
-sposób mieszania z gradientem i zostawiana część. **Dla wyglądu** wybiera jasny, ciemny albo oba. **Użyj jako tło**
+własne kolory i kierunek, a do tego opcjonalnie zdjęcie: widoczność, odbarwienie, rozmycie, sposób mieszania z
+gradientem (domyślnie *Zabarwione tłem*: zdjęcie w kolorach gradientu pod nim), rozmiar (20–100 %), położenie (róg, bok albo środek) i przesunięcie, obrót o 90°, odbicie w poziomie i
+pionie oraz wygaszanie od najwyżej trzech krawędzi z jego szerokością. **Dla wyglądu** wybiera jasny, ciemny albo oba. **Użyj jako tło**
 wysyła do Home Assistant dwa obrazy JPEG (pionowy 1290 × 2796 i szeroki 2732 × 2048, przez `/api/image/upload`)
 i wpisuje je w miejsca tego wyglądu (`light` i `light_wide` albo ciemne); okno zapisuje je potem jak każde zdjęcie.
 **Pobierz** zapisuje obraz pokazanego kształtu jako plik. Ostatnie ustawienia kreatora zostają na urządzeniu.

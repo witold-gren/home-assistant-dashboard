@@ -43,8 +43,8 @@ const SPARK = { width: 240, height: 40 };
 const MINUTES_SHOWN = 60;
 const DOMAIN_ICONS = { vacuum: "mdi:robot-vacuum", sensor: "mdi:information-outline", binary_sensor: "mdi:information-outline" };
 
-const asItem = (item) => (typeof item === "string" ? { entity: item } : (item ?? {}));
-const nameOf = (hass, item) => item.name ?? hass.states[item.entity]?.attributes?.friendly_name ?? item.entity;
+export const asItem = (item) => (typeof item === "string" ? { entity: item } : (item ?? {}));
+export const nameOf = (hass, item) => item.name ?? hass.states[item.entity]?.attributes?.friendly_name ?? item.entity;
 const shown = (hass, entityId) => {
   const stateObj = hass.states[entityId];
   return stateObj ? (hass.formatEntityState?.(stateObj) ?? stateObj.state) : "";
@@ -55,6 +55,11 @@ export const statusWidgets = (chosen) => (chosen?.length ? chosen.filter((key) =
 
 // A door is open as a sensor says "on", a cover "open", and a lock that is not locked.
 const OPEN_STATES = ["on", "open", "opening", "unlocked", "unlocking", "jammed"];
+
+/** The doors or windows of the status bar (`status_panel.doors`, `windows`) that are open now. */
+export function openItems(hass, config, key) {
+  return (config?.status_panel?.[key] ?? []).map(asItem).filter((item) => OPEN_STATES.includes(hass.states[item.entity]?.state));
+}
 
 // The kinds of things the status bar counts while they are on.
 export const COUNTED = { lights: ["light"], devices: ["switch", "fan"] };
@@ -79,13 +84,19 @@ export function statusHome(hass, selection, config) {
   const deviceIds = counted(COUNTED.devices);
   const devices = on(deviceIds);
   if (devices) facts.push({ key: "devices", icon: "mdi:power-plug", tone: "", count: devices, label: countLabel(language, "devices", devices), ids: deviceIds });
-  const open = (config.status_panel?.doors ?? [])
-    .map(asItem)
-    .filter((item) => OPEN_STATES.includes(hass.states[item.entity]?.state));
-  if (open.length === 1) {
-    facts.push({ key: "open", icon: "mdi:door-open", tone: "open", count: 1, label: `1 ${nameOf(hass, open[0]).toLocaleLowerCase(language)}`, entity: open[0].entity });
-  } else if (open.length) {
-    facts.push({ key: "open", icon: "mdi:door-open", tone: "open", count: open.length, label: translate(language, "status_open_many", { count: open.length }), names: open.map((item) => nameOf(hass, item)) });
+  // Doors and windows that are watched (`status_panel.doors`, `windows`): a tap lists the open ones.
+  for (const [key, icon] of [["doors", "mdi:door-open"], ["windows", "mdi:window-open-variant"]]) {
+    const items = openItems(hass, config, key);
+    if (items.length === 1) {
+      facts.push({ key, icon, tone: "open", count: 1, label: `1 ${nameOf(hass, items[0]).toLocaleLowerCase(language)}`, group: key });
+    } else if (items.length) {
+      facts.push({ key, icon, tone: "open", count: items.length, label: countLabel(language, `open_${key}`, items.length), group: key });
+    }
+  }
+  // Flags (`status_panel.flags`): a helper that is on until someone turns it off, e.g. mail in the mailbox.
+  for (const item of (config.status_panel?.flags ?? []).map(asItem)) {
+    if (hass.states[item.entity]?.state !== "on") continue;
+    facts.push({ key: `flag:${item.entity}`, icon: item.icon ?? "mdi:bell-outline", tone: "open", count: 1, label: nameOf(hass, item), entity: item.entity });
   }
   return facts;
 }
@@ -451,7 +462,7 @@ export class HomeDashboardStatusPanel extends LitElement {
         ${facts.map(
           (fact) => html`
             <button class="fact ${fact.tone}" data-status-fact=${fact.key} title=${fact.names?.join(", ") ?? ""}
-              @click=${() => this._open(fact.ids ? { kind: "status-on", group: fact.key } : { kind: "status", entity: fact.entity })}>
+              @click=${() => (fact.entity ? this._more(fact.entity) : this._open({ kind: "status-on", group: fact.group ?? fact.key }))}>
               <ha-icon .icon=${fact.icon}></ha-icon><span>${fact.label}</span>
             </button>
           `,
@@ -687,9 +698,6 @@ export class HomeDashboardStatusPanel extends LitElement {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-      }
-      .fact.open {
-        font-weight: 600;
       }
       :host([colourful]) .fact.light {
         color: #ffd60a;

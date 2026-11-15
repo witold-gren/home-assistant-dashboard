@@ -13,6 +13,17 @@ const pad = (n) => String(n).padStart(2, "0");
 const dayOf = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const rowKey = (row) => row.entity ?? row.name;
 
+/**
+ * An item of one entity in its state (an alarm going off, a UPS on battery) has no rows of its own: as a warning it
+ * is one row of that entity, saying its label or its state, with the item's `alarm`.
+ */
+function asAlert(hass, item, shown) {
+  if (!shown || shown.rows || !item.entity) return shown;
+  const stateObj = hass.states[item.entity];
+  const said = shown.text ?? (stateObj ? (hass.formatEntityState?.(stateObj) ?? stateObj.state) : item.entity);
+  return { ...shown, rows: [{ entity: item.entity, name: said }], count: 1, notify: true, alarm: Boolean(item.alarm) };
+}
+
 /** The items of every Status screen that notify and have something to say now. */
 export function homeAlerts(hass, config, now = new Date()) {
   const screens = (config.shortcuts ?? []).filter((shortcut) => shortcut?.kind === "overview");
@@ -20,7 +31,7 @@ export function homeAlerts(hass, config, now = new Date()) {
     (screen.sections ?? []).flatMap((section) =>
       (section.items ?? [])
         .filter((item) => item.notify)
-        .map((item) => overviewItem(hass, item, now))
+        .map((item) => asAlert(hass, item, overviewItem(hass, item, now)))
         .filter((shown) => shown?.rows?.length)
         .map((shown) => ({ ...shown, alarm: Boolean(shown.alarm), key: `${screen.name ?? ""}/${shown.name}` })),
     ),

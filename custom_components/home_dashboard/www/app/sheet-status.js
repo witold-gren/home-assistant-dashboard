@@ -1,11 +1,14 @@
-// What the status bar counts as on: its lights or its devices, each with its room and since when it is on, and for
-// an administrator a way to leave one out of the count (`status_panel.ignore`) or count it again. A part of the sheet
-// (sheet.js), as a mixin of its methods.
+// What the status bar counts as on: its lights or its devices, each with its room and since when it is on, and those
+// left out of the count apart. What is left out is configuration (`status_panel.ignore`, the editor on a computer),
+// not a button here. A part of the sheet (sheet.js), as a mixin of its methods.
 
 import { html, nothing } from "../vendor/lit-all.min.js";
 import { effectiveArea } from "./model.js";
 import { TILE_SHEETS } from "./sheet-shared.js";
-import { COUNTED } from "./status-panel.js";
+import { COUNTED, nameOf, openItems } from "./status-panel.js";
+
+// Lists of what is open, not on: the doors and the windows the status bar watches.
+const OPEN_GROUPS = { doors: "mdi:door-open", windows: "mdi:window-open-variant" };
 
 const domainOf = (entityId) => entityId.split(".")[0];
 
@@ -18,17 +21,28 @@ export function sinceText(lastChanged, language, now = new Date()) {
   return `${date.toLocaleDateString(language, { day: "numeric", month: "short" })} ${time}`;
 }
 
-/** The entities of a count that are on now, and those of them left out of it: `{ on, ignored }`. */
+/**
+ * The entities of a count that are on now, and those of them left out of it: `{ on, ignored }`. Doors and windows
+ * are those of the status bar open now, with their names there (`names`).
+ */
 export function statusOn(hass, selection, config, group) {
+  const newest = (a, b) => String(hass.states[b].last_changed).localeCompare(String(hass.states[a].last_changed));
+  if (OPEN_GROUPS[group]) {
+    const items = openItems(hass, config, group);
+    return {
+      on: items.map((item) => item.entity).sort(newest),
+      ignored: [],
+      names: Object.fromEntries(items.map((item) => [item.entity, nameOf(hass, item)])),
+    };
+  }
   const domains = COUNTED[group] ?? [];
   const ignore = new Set(config?.status_panel?.ignore ?? []);
   const lit = (selection?.entityIds ?? []).filter(
     (id) => domains.includes(domainOf(id)) && hass.states[id]?.state === "on",
   );
-  const newestFirst = (a, b) => String(hass.states[b].last_changed).localeCompare(String(hass.states[a].last_changed));
   return {
-    on: lit.filter((id) => !ignore.has(id)).sort(newestFirst),
-    ignored: lit.filter((id) => ignore.has(id)).sort(newestFirst),
+    on: lit.filter((id) => !ignore.has(id)).sort(newest),
+    ignored: lit.filter((id) => ignore.has(id)).sort(newest),
   };
 }
 
@@ -36,19 +50,19 @@ export const StatusSheets = (Base) =>
   class extends Base {
     _renderStatusOn() {
       const { group } = this.sheet;
-      const { on, ignored } = statusOn(this.hass, this.selection, this.raw ?? this.config, group);
-      const admin = Boolean(this.hass.user?.is_admin);
+      const { on, ignored, names = {} } = statusOn(this.hass, this.selection, this.raw ?? this.config, group);
+      const icon = OPEN_GROUPS[group];
       return html`
         ${this._renderHeader(this._t(`status_on_${group}`), false, false)}
         <div class="status-on" data-status-on=${group}>
           ${on.length
-            ? on.map((id) => this._renderStatusRow(id, false, admin))
-            : html`<p class="hint" data-status-none>${this._t("status_on_none")}</p>`}
+            ? on.map((id) => this._renderStatusRow(id, false, names[id], icon))
+            : html`<p class="hint" data-status-none>${this._t(icon ? "status_open_none" : "status_on_none")}</p>`}
           ${ignored.length
             ? html`<h3 class="status-ignored">${this._t("status_on_ignored")}</h3>
-                ${ignored.map((id) => this._renderStatusRow(id, true, admin))}`
+                ${ignored.map((id) => this._renderStatusRow(id, true))}`
             : nothing}
-          ${admin ? html`<p class="hint">${this._t("status_on_ignore_hint")}</p>` : nothing}
+          ${ignored.length ? html`<p class="hint">${this._t("status_on_ignore_hint")}</p>` : nothing}
         </div>
       `;
     }
@@ -60,12 +74,12 @@ export const StatusSheets = (Base) =>
       else this.dispatchEvent(new CustomEvent("sheet-details", { detail: { entityId } }));
     }
 
-    _renderStatusRow(entityId, ignored, admin) {
+    _renderStatusRow(entityId, ignored, shownName = undefined, groupIcon = undefined) {
       const stateObj = this.hass.states[entityId];
-      const name = stateObj.attributes.friendly_name ?? entityId;
+      const name = shownName ?? stateObj.attributes.friendly_name ?? entityId;
       const area = this.hass.areas?.[effectiveArea(this.hass, entityId, this.config)]?.name;
       const since = sinceText(stateObj.last_changed, this.hass.language);
-      const icon = stateObj.attributes.icon ?? (domainOf(entityId) === "light" ? "mdi:lightbulb-on" : "mdi:power-plug");
+      const icon = groupIcon ?? stateObj.attributes.icon ?? (domainOf(entityId) === "light" ? "mdi:lightbulb-on" : "mdi:power-plug");
       return html`<div class="status-row ${ignored ? "ignored" : ""}" data-status-row=${entityId}>
         <button
           class="status-main"
@@ -78,16 +92,6 @@ export const StatusSheets = (Base) =>
             <span>${[area, since && this._t("status_on_since", { time: since })].filter(Boolean).join(" · ")}</span>
           </span>
         </button>
-        ${admin
-          ? html`<button
-              class="status-ignore"
-              data-status-ignore=${entityId}
-              @click=${() =>
-                this.dispatchEvent(new CustomEvent("sheet-status-ignore", { detail: { entityId, ignore: !ignored } }))}
-            >
-              ${ignored ? this._t("status_on_count_again") : this._t("status_on_ignore")}
-            </button>`
-          : nothing}
       </div>`;
     }
   };

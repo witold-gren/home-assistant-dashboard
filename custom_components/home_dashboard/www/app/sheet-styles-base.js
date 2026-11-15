@@ -517,16 +517,6 @@ export const baseStyles = css`
     color: var(--hd-text-muted);
     font-size: 13px;
   }
-  .status-ignore {
-    flex: none;
-    padding: 10px 12px;
-    border: 0;
-    border-radius: 12px;
-    color: inherit;
-    background: var(--hd-off);
-    font: inherit;
-    font-size: 13px;
-  }
   .status-ignored {
     margin: 12px 4px 0;
     font-size: 13px;

@@ -457,6 +457,9 @@ instead of the state, e.g. `media_title` of a console) and `labels`
 
 `quick` (a mapping like an action: `name`, `icon`, `service`, `confirm`, `data`) puts a button on the block's tile while
 its entity is on (not `off` or unavailable), e.g. **Turn off** on a console; with `confirm` the window opens asking first.
+With `active` the button follows that entity instead, for a console whose cloud state stays `on` after it went off
+(`active: binary_sensor.xbox_playing`, a sensor that also pings it; `status` and `labels` show the same on the tile).
+A time left below zero (`format: hours`) reads as **over by 10 min**.
 
 `groups` entries:
 
@@ -914,7 +917,9 @@ visibility:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `doors` | list of entity ids or `{entity, name}` | `[]` | doors and windows of **At home**; open while `on`, `open` |
+| `doors` | list of entity ids or `{entity, name}` | `[]` | doors of **At home**; open while `on`, `open` (a lock: not locked); a tap lists the open ones |
+| `windows` | list of entity ids or `{entity, name}` | `[]` | windows of **At home**, a badge of their own; a tap lists the open ones |
+| `flags` | list of entity ids or `{entity, name, icon}` | `[]` | a badge while a helper is `on`, e.g. mail in the mailbox; a tap opens the helper to turn it off |
 | `now` | list | `[]` | items of **Now**, see below |
 | `power` | list of entity ids or `{entity, name, color}` | `[]` | power now with a line of 6 hours |
 | `departures` | list of entity ids or `null` | `null` | the trams; `null` takes the first departures block |
@@ -1114,8 +1119,9 @@ picture** (`position`). At the top, your look: System, Light or Dark, kept in yo
 **Make a background** opens the background maker: 16 ready backgrounds, 16 patterns drawn by code (hills, mountains,
 dunes, waves, aurora, lights, colour blobs, sunset, ripples, contours, stripes, glass, petals, stars, arcs, paper)
 with **Another version of the pattern**, 48 gradients in six groups (calm, cool, warm, nature, pastel, night) or two
-colours of your own and their direction, and a photo if wanted: how much of it is seen, greyed, blur, fading out
-downwards, how it mixes with the gradient and the part kept. **For the look** chooses light, dark or both. **Use as
+colours of your own and their direction, and a photo if wanted: how much of it is seen, greyed, blur, how it
+mixes with the gradient (by default *Tinted by the background*: the photo in the colours of the gradient under it), its size (20–100 %), its place (a corner, a side or the middle) and a move from there, a turn
+by 90°, mirrors sideways and upside down, and fading out from up to three of its edges with how wide. **For the look** chooses light, dark or both. **Use as
 background** sends two JPEG pictures to Home Assistant (upright 1290 × 2796 and wide 2732 × 2048, through
 `/api/image/upload`) and puts them in the slots of that look (`light` and `light_wide`, or the dark ones); the window
 then saves them as any picture. **Download** saves the picture of the shape shown as a file. The last settings of the

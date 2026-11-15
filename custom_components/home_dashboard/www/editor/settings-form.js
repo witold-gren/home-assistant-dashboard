@@ -619,6 +619,22 @@ export const SETTINGS_FORMS = {
           fields: [{ key: "entity", type: "entity" }, { key: "name", type: "text" }],
         },
         {
+          key: "windows",
+          type: "list",
+          scalar: "entity",
+          labelKey: "editor_status_windows",
+          helpKey: "editor_status_windows_hint",
+          fields: [{ key: "entity", type: "entity" }, { key: "name", type: "text" }],
+        },
+        {
+          key: "flags",
+          type: "list",
+          scalar: "entity",
+          labelKey: "editor_status_flags",
+          helpKey: "editor_status_flags_hint",
+          fields: [{ key: "entity", type: "entity" }, { key: "name", type: "text" }, { key: "icon", type: "icon" }],
+        },
+        {
           key: "ignore",
           type: "entities",
           labelKey: "editor_status_ignore",

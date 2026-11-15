@@ -1,6 +1,7 @@
 // The background maker: a gradient of two colours, a pattern drawn over it (background-motifs.js) and, if wanted, a
-// photo laid on top, see-through, greyed, blurred or fading out downwards, so the text of the dashboard stays readable. It is drawn in the browser, once upright for phones and
-// once wide for tablets on their side, and sent to Home Assistant as pictures (or downloaded as files).
+// photo laid on top, smaller and in a corner if wished, turned or mirrored, see-through, greyed, blurred and fading
+// out from up to three of its edges, so the text of the dashboard stays readable. It is drawn in the browser, once
+// upright for phones and once wide for tablets on their side, and sent to Home Assistant as pictures (or downloaded as files).
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { MOTIF_NAMES, READY_BACKGROUNDS, drawMotif } from "./background-motifs.js";
@@ -36,8 +37,41 @@ export const MAKER_PALETTES = {
 export const MAKER_PRESETS = Object.values(MAKER_PALETTES).flat();
 export const MAKER_SIZES = { tall: [1290, 2796], wide: [2732, 2048] };
 export const MAKER_DIRECTIONS = [180, 135, 225, 90];
-export const MAKER_BLENDS = ["normal", "soft-light", "luminosity", "multiply", "screen"];
+// "tint": the photo takes the colours of the background under it, dark to light as it is (tintPixels)
+export const MAKER_BLENDS = ["tint", "normal", "soft-light", "luminosity", "multiply", "screen"];
+// How deep the darks and how light the lights of a tinted photo go, as shares of the background's colour
+export const TINT_DARK = 0.3;
+export const TINT_LIGHT = 0.55;
 export const MAKER_FOCUS = ["top", "center", "bottom"];
+// Where the photo lies on the screen, as shares of the room left beside it: a corner, a side or the middle.
+export const MAKER_ANCHORS = {
+  "top-left": [0, 0],
+  top: [0.5, 0],
+  "top-right": [1, 0],
+  left: [0, 0.5],
+  center: [0.5, 0.5],
+  right: [1, 0.5],
+  "bottom-left": [0, 1],
+  bottom: [0.5, 1],
+  "bottom-right": [1, 1],
+};
+export const MAKER_EDGES = ["top", "right", "bottom", "left"];
+export const MAKER_EDGES_MAX = 3;
+export const MAKER_ROTATIONS = [0, 90, 180, 270];
+// The biggest side of a photo as it is turned and mirrored: enough for the wide picture, quick to redraw.
+const SOURCE_MAX = 3000;
+const ANCHOR_ICONS = {
+  "top-left": "mdi:arrow-top-left",
+  top: "mdi:arrow-up",
+  "top-right": "mdi:arrow-top-right",
+  left: "mdi:arrow-left",
+  center: "mdi:circle-small",
+  right: "mdi:arrow-right",
+  "bottom-left": "mdi:arrow-bottom-left",
+  bottom: "mdi:arrow-down",
+  "bottom-right": "mdi:arrow-bottom-right",
+};
+const EDGE_ICONS = { top: "mdi:border-top-variant", right: "mdi:border-right-variant", bottom: "mdi:border-bottom-variant", left: "mdi:border-left-variant" };
 export const DEFAULT_RECIPE = {
   top: MAKER_PRESETS[0][0],
   bottom: MAKER_PRESETS[0][1],
@@ -46,8 +80,15 @@ export const DEFAULT_RECIPE = {
   grey: 0.7,
   blur: 0,
   fade: 0.5,
-  blend: "normal",
+  blend: "tint",
   focus: "center",
+  size: 1,
+  shift_x: 0,
+  shift_y: 0,
+  rotate: 0,
+  flip_x: false,
+  flip_y: false,
+  edges: ["bottom"],
   motif: "",
   seed: 7,
 };
@@ -66,8 +107,19 @@ export function recipeOf(recipe) {
     blur: clamp(merged.blur, 0, 20, 0),
     fade: clamp(merged.fade, 0, 1, DEFAULT_RECIPE.fade),
     angle: clamp(merged.angle, 0, 360, 180),
-    blend: MAKER_BLENDS.includes(merged.blend) ? merged.blend : "normal",
+    blend: MAKER_BLENDS.includes(merged.blend) ? merged.blend : DEFAULT_RECIPE.blend,
     focus: MAKER_FOCUS.includes(merged.focus) ? merged.focus : "center",
+    // A recipe from before the photo had a place keeps it where its focus was (top, middle, bottom)
+    anchor: MAKER_ANCHORS[recipe?.anchor] ? recipe.anchor : MAKER_FOCUS.includes(merged.focus) ? merged.focus : "center",
+    size: clamp(merged.size, 0.2, 1, 1),
+    shift_x: clamp(merged.shift_x, -0.5, 0.5, 0),
+    shift_y: clamp(merged.shift_y, -0.5, 0.5, 0),
+    rotate: MAKER_ROTATIONS.includes(Number(merged.rotate)) ? Number(merged.rotate) : 0,
+    flip_x: merged.flip_x === true,
+    flip_y: merged.flip_y === true,
+    edges: Array.isArray(merged.edges)
+      ? [...new Set(merged.edges.filter((edge) => MAKER_EDGES.includes(edge)))].slice(-MAKER_EDGES_MAX)
+      : [...DEFAULT_RECIPE.edges],
     motif: MOTIF_NAMES.includes(merged.motif) ? merged.motif : "",
     seed: Number.isInteger(merged.seed) ? merged.seed : 7,
   };
@@ -97,17 +149,63 @@ function canvasOf(width, height) {
   return canvas;
 }
 
-// The photo alone: covering the box, blurred by drawing it small and large again, greyed and fading out downwards.
+/**
+ * Where the photo lies on a screen: it covers the screen at `size` 1 and is smaller below, put at its `anchor` (a
+ * corner, a side, the middle) and moved by `shift_x`, `shift_y` (shares of the screen). `[x, y, width, height]`.
+ */
+export function photoRect(width, height, imageWidth, imageHeight, recipe) {
+  const made = recipeOf(recipe);
+  const scale = Math.max(width / imageWidth, height / imageHeight) * made.size;
+  const [w, h] = [imageWidth * scale, imageHeight * scale];
+  const [ax, ay] = MAKER_ANCHORS[made.anchor];
+  return [(width - w) * ax + made.shift_x * width, (height - h) * ay + made.shift_y * height, w, h];
+}
+
+/** The ends of the fade of one edge of the photo: from clear at that edge to whole `fade` of the photo inwards. */
+export function edgeLine([x, y, w, h], edge, fade) {
+  const reach = Math.max(0.001, fade);
+  if (edge === "top") return [x, y, x, y + h * reach];
+  if (edge === "bottom") return [x, y + h, x, y + h - h * reach];
+  if (edge === "left") return [x, y, x + w * reach, y];
+  return [x + w, y, x + w - w * reach, y];
+}
+
+const oriented = new WeakMap();
+
+// The photo turned and mirrored as the recipe says, no bigger than SOURCE_MAX on its longer side; kept per photo.
+function orientedPhoto(image, { rotate, flip_x: flipX, flip_y: flipY }) {
+  const key = `${rotate}|${flipX}|${flipY}`;
+  const kept = oriented.get(image);
+  if (kept?.key === key) return kept.canvas;
+  const imageWidth = image.naturalWidth ?? image.width;
+  const imageHeight = image.naturalHeight ?? image.height;
+  const shrink = Math.min(1, SOURCE_MAX / Math.max(imageWidth, imageHeight));
+  const [w, h] = [imageWidth * shrink, imageHeight * shrink];
+  const turned = rotate === 90 || rotate === 270;
+  const canvas = canvasOf(turned ? h : w, turned ? w : h);
+  const context = canvas.getContext("2d");
+  context.imageSmoothingQuality = "high";
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate((rotate * Math.PI) / 180);
+  context.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  context.drawImage(image, -w / 2, -h / 2, w, h);
+  oriented.set(image, { key, canvas });
+  return canvas;
+}
+
+// The photo alone: turned, mirrored, sized and put in its place, blurred by drawing it small and large again, greyed,
+// and fading out from the edges chosen.
 function photoLayer(width, height, recipe, image) {
   const layer = canvasOf(width, height);
   const context = layer.getContext("2d");
-  const imageWidth = image.naturalWidth ?? image.width;
-  const imageHeight = image.naturalHeight ?? image.height;
+  const source = orientedPhoto(image, recipe);
+  const box = photoRect(width, height, source.width, source.height, recipe);
+  const [x, y, w, h] = box;
   const shrink = 1 + recipe.blur * 1.5;
-  const small = canvasOf(width / shrink, height / shrink);
+  const small = canvasOf(w / shrink, h / shrink);
   const smallContext = small.getContext("2d");
   smallContext.imageSmoothingQuality = "high";
-  smallContext.drawImage(image, ...coverRect(small.width, small.height, imageWidth, imageHeight, recipe.focus));
+  smallContext.drawImage(source, 0, 0, small.width, small.height);
   if (recipe.grey > 0) {
     const pixels = smallContext.getImageData(0, 0, small.width, small.height);
     const data = pixels.data;
@@ -120,16 +218,38 @@ function photoLayer(width, height, recipe, image) {
     smallContext.putImageData(pixels, 0, 0);
   }
   context.imageSmoothingQuality = "high";
-  context.drawImage(small, 0, 0, width, height);
+  context.drawImage(small, x, y, w, h);
   if (recipe.fade > 0) {
-    const mask = context.createLinearGradient(0, 0, 0, height);
-    mask.addColorStop(Math.max(0, 1 - recipe.fade), "rgba(0, 0, 0, 1)");
-    mask.addColorStop(1, "rgba(0, 0, 0, 0)");
     context.globalCompositeOperation = "destination-in";
-    context.fillStyle = mask;
-    context.fillRect(0, 0, width, height);
+    for (const edge of recipe.edges) {
+      const mask = context.createLinearGradient(...edgeLine(box, edge, recipe.fade));
+      mask.addColorStop(0, "rgba(0, 0, 0, 0)");
+      mask.addColorStop(1, "rgba(0, 0, 0, 1)");
+      context.fillStyle = mask;
+      context.fillRect(0, 0, width, height);
+    }
   }
   return layer;
+}
+
+/**
+ * The photo tinted by the background under it, in place on the background's pixels: each pixel of the photo takes the
+ * colour beneath, from deep (its darks) to light (its lights) as bright as it is, seen as much as its alpha and the
+ * `opacity` let. So a room keeps its details and wears the colours of the gradient.
+ */
+export function tintPixels(back, photo, opacity = 1) {
+  for (let at = 0; at < back.length; at += 4) {
+    const seen = (photo[at + 3] / 255) * opacity;
+    if (!seen) continue;
+    const light = (0.2126 * photo[at] + 0.7152 * photo[at + 1] + 0.0722 * photo[at + 2]) / 255;
+    for (let channel = 0; channel < 3; channel += 1) {
+      const under = back[at + channel];
+      const deep = under * TINT_DARK;
+      const bright = under + (255 - under) * TINT_LIGHT;
+      back[at + channel] = under + (deep + (bright - deep) * light - under) * seen;
+    }
+  }
+  return back;
 }
 
 /** Draws the background on the canvas, at its size: the gradient, then the photo (if any) over it. */
@@ -146,9 +266,16 @@ export function drawBackground(canvas, recipe, image = null) {
   context.fillRect(0, 0, width, height);
   drawMotif(context, width, height, made.motif, made, made.seed);
   if (!image) return canvas;
+  const photo = photoLayer(width, height, made, image);
+  if (made.blend === "tint") {
+    const back = context.getImageData(0, 0, width, height);
+    tintPixels(back.data, photo.getContext("2d").getImageData(0, 0, width, height).data, made.opacity);
+    context.putImageData(back, 0, 0);
+    return canvas;
+  }
   context.globalAlpha = made.opacity;
   context.globalCompositeOperation = made.blend === "normal" ? "source-over" : made.blend;
-  context.drawImage(photoLayer(width, height, made, image), 0, 0);
+  context.drawImage(photo, 0, 0);
   context.globalCompositeOperation = "source-over";
   context.globalAlpha = 1;
   return canvas;
@@ -305,12 +432,12 @@ export class HomeDashboardBackgroundMaker extends LitElement {
     </div>`;
   }
 
-  _slider(key, max, step = 0.05) {
+  _slider(key, max, step = 0.05, min = 0) {
     const value = this._recipe[key];
-    const shown = max === 1 ? `${Math.round(value * 100)} %` : String(value);
+    const shown = max <= 1 ? `${Math.round(value * 100)} %` : String(value);
     return html`<label class="slider" data-maker-slider=${key}>
       <span>${this._t(key)}<b>${shown}</b></span>
-      <input type="range" min="0" max=${max} step=${step} .value=${String(value)}
+      <input type="range" min=${min} max=${max} step=${step} .value=${String(value)}
         @input=${(event) => this._set({ [key]: Number(event.target.value) })} />
     </label>`;
   }
@@ -338,6 +465,44 @@ export class HomeDashboardBackgroundMaker extends LitElement {
     return html`
       <div class="screens">${this._screen(this._shape)}</div>
       ${this._chips("shape", ["tall", "wide"], this._shape, (shape) => (this._shape = shape), (shape) => this._t(`shape_${shape}`))}
+    `;
+  }
+
+  // The place of the photo: its size, a corner, a side or the middle, a move from there, a turn, mirrors, and the
+  // edges it fades out from (three at most: a fourth one lets the first chosen go).
+  _renderPlacement(recipe) {
+    const edges = recipe.edges;
+    const toggleEdge = (edge) =>
+      this._set({ edges: edges.includes(edge) ? edges.filter((e) => e !== edge) : [...edges, edge].slice(-MAKER_EDGES_MAX) });
+    return html`
+      <h5>${this._t("place")}</h5>
+      ${this._slider("size", 1, 0.05, 0.2)}
+      <div class="anchors" data-maker-anchors>
+        ${Object.keys(MAKER_ANCHORS).map(
+          (anchor) => html`<button class=${recipe.anchor === anchor ? "on" : ""} data-maker-anchor=${anchor}
+            title=${this._t(`anchor_${anchor.replace("-", "_")}`)} aria-label=${this._t(`anchor_${anchor.replace("-", "_")}`)}
+            @click=${() => this._set({ anchor, focus: MAKER_FOCUS.includes(anchor) ? anchor : recipe.focus })}>
+            <ha-icon .icon=${ANCHOR_ICONS[anchor]}></ha-icon></button>`,
+        )}
+      </div>
+      ${this._slider("shift_x", 0.5, 0.01, -0.5)} ${this._slider("shift_y", 0.5, 0.01, -0.5)}
+      <h5>${this._t("turn")}</h5>
+      ${this._chips("rotate", MAKER_ROTATIONS, recipe.rotate, (rotate) => this._set({ rotate }), (rotate) => `${rotate}°`)}
+      <div class="chips" data-maker-flips>
+        <button class=${recipe.flip_x ? "on" : ""} data-maker-flip="x" @click=${() => this._set({ flip_x: !recipe.flip_x })}>
+          <ha-icon icon="mdi:flip-horizontal"></ha-icon>${this._t("flip_x")}</button>
+        <button class=${recipe.flip_y ? "on" : ""} data-maker-flip="y" @click=${() => this._set({ flip_y: !recipe.flip_y })}>
+          <ha-icon icon="mdi:flip-vertical"></ha-icon>${this._t("flip_y")}</button>
+      </div>
+      <h5>${this._t("edges")}</h5>
+      <div class="chips" data-maker-edges>
+        ${MAKER_EDGES.map(
+          (edge) => html`<button class=${edges.includes(edge) ? "on" : ""} data-maker-edge=${edge} @click=${() => toggleEdge(edge)}>
+            <ha-icon .icon=${EDGE_ICONS[edge]}></ha-icon>${this._t(`edge_${edge}`)}</button>`,
+        )}
+      </div>
+      <p class="hint">${this._t("edges_hint")}</p>
+      ${this._slider("fade", 1)}
     `;
   }
 
@@ -374,9 +539,9 @@ export class HomeDashboardBackgroundMaker extends LitElement {
         ${this._image
           ? html`
               <button class="plain" data-maker-photo-clear @click=${() => (this._image = null)}>${this._t("photo_none")}</button>
-              ${this._slider("opacity", 1)} ${this._slider("grey", 1)} ${this._slider("blur", 20, 1)} ${this._slider("fade", 1)}
+              ${this._slider("opacity", 1)} ${this._slider("grey", 1)} ${this._slider("blur", 20, 1)}
               ${this._chips("blend", MAKER_BLENDS, recipe.blend, (blend) => this._set({ blend }), (blend) => this._t(`blend_${blend}`))}
-              ${this._chips("focus", MAKER_FOCUS, recipe.focus, (focus) => this._set({ focus }), (focus) => this._t(`focus_${focus}`))}
+              ${this._renderPlacement(recipe)}
             `
           : html`<p class="hint">${this._t("photo_hint")}</p>`}
       </section>
@@ -552,6 +717,30 @@ export class HomeDashboardBackgroundMaker extends LitElement {
       text-transform: uppercase;
       color: var(--hd-text-muted, var(--muted, #9aa0a6));
     }
+    h5 {
+      margin: 6px 0 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .anchors {
+      display: grid;
+      grid-template-columns: repeat(3, 40px);
+      gap: 4px;
+    }
+    .anchors button {
+      display: grid;
+      place-items: center;
+      height: 34px;
+      border: 1px solid var(--hd-outline, var(--line, #2f343c));
+      border-radius: 9px;
+      background: transparent;
+    }
+    .anchors button ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    .chips ha-icon {
+      --mdc-icon-size: 16px;
+    }
     .group {
       font-size: 11px;
       color: var(--hd-text-muted, var(--muted, #9aa0a6));
@@ -585,7 +774,8 @@ export class HomeDashboardBackgroundMaker extends LitElement {
       opacity: 0.45;
       cursor: default;
     }
-    .chips button.on {
+    .chips button.on,
+    .anchors button.on {
       border-color: var(--hd-link, var(--accent, #4f8cff));
       background: var(--hd-link, var(--accent, #4f8cff));
       color: #fff;

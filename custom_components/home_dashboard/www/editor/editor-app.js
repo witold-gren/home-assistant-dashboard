@@ -11,6 +11,15 @@ import "./picker.js";
 import { SETTINGS_FORMS } from "./settings-form.js";
 import "./publish.js";
 import "./generate-dialog.js";
+
+// The documentation site (GitHub Pages): the guide to this editor, in Polish under /pl/.
+export const DOCS_SITE = "https://witold-gren.github.io/home-assistant-dashboard/";
+
+/** The page of the editor's guide on the documentation site, in the language of Home Assistant. */
+export function editorDocsUrl(language) {
+  const polish = String(language ?? "").split("-")[0] === "pl";
+  return `${DOCS_SITE}${polish ? "pl/" : ""}editor/`;
+}
 import { withGeneratedRooms } from "./generate.js";
 import { roomAreas } from "./picker-model.js";
 import {
@@ -1036,6 +1045,10 @@ export class HomeDashboardEditorApp extends LitElement {
               <button class="ghost" data-end-review @click=${this._endReview}>${this._t("editor_review_end")}</button>
             </span>`
           : nothing}
+        <button class="ghost" data-docs title=${this._t("editor_docs")} aria-label=${this._t("editor_docs")}
+          @click=${() => window.open(editorDocsUrl(this.hass?.language), "_blank", "noopener")}>
+          <ha-icon icon="mdi:help-circle-outline"></ha-icon>
+        </button>
         <button class="ghost" data-editor-settings title=${this._t("editor_settings")} aria-label=${this._t("editor_settings")}
           @click=${() => (this._dialog = "settings")}>
           <ha-icon icon="mdi:cog-outline"></ha-icon>

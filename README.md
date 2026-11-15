@@ -550,8 +550,16 @@ last picture until the video moves. If you still see black, load the app afresh 
 speaker. Link it to the same camera from eufy in **Dashboard settings → The same camera in another integration** and
 set **Talking in a camera window → The camera's speaker**.
 
+**A flag's badge (e.g. "Mail") does not show** — the helper of `status_panel.flags` does not exist in Home Assistant,
+or it is off. A helper added in YAML exists only after a reload (Developer tools → YAML → **Input booleans**), and its
+automation after a reload of **Automations**. What happened before the reload does not turn it on by itself.
+
+**The console is off, yet the tile says "On" with a "Turn off" button** — a cloud state (an Xbox, say) can stay "on"
+after the console went off. Give the block `status`, `labels` and `active` with a sensor that checks the console on the
+network (e.g. a template: the cloud "on" and a ping "on"); the tile's button then follows `active`.
+
 **Away from home the app shows an old version of the dashboard** — the Home Assistant app comes back from the
-background with old code in memory, or keeps a copy of a file. Menu → **Dashboard settings** → at the bottom **Load the app
+background with old code in memory, or keeps a copy of a file. Menu → **Dashboard settings** → at the top **Load the app
 afresh** (administrators): it empties the caches, fetches fresh files of the dashboard and opens the page again. It works over any
 network the app reaches Home Assistant through. If even that does not help: app settings → Companion App →
 Debugging → Reset frontend cache.

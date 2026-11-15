@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from .test_page import mount
 
 PAGE = "home-dashboard-page"
@@ -175,3 +177,24 @@ def test_the_block_form_offers_an_alarm_item(phone):
         const item = b.withItemKind({ name: 'Wyciek' }, 'alarm');
         return [b.itemKind(item), item.auto, item.classes, item.notify, b.itemKind({ auto: 'battery' })]; }""")
     assert kind == ["alarm", "alarm", ["moisture"], True, "battery"]
+
+
+ALARM_ITEM = {"name": "Alarm wywołany", "icon": "mdi:alarm-light", "entity": "alarm_control_panel.home",
+              "state": ["triggered"], "labels": {"triggered": "Wyzwolony"}, "alarm": True, "notify": True}
+
+
+@pytest.mark.parametrize(("state", "shown"), [("triggered", ["Status/Alarm wywołany"]), ("disarmed", [])])
+def test_an_item_of_one_entity_in_its_state_is_a_red_card_while_it_lasts(phone, state, shown):
+    phone.evaluate(BATTERIES, {"porch": "80", "garden": "80"})
+    phone.evaluate(
+        """(state) => { window.dashboard.snapshot.states['alarm_control_panel.home'] =
+            { entity_id: 'alarm_control_panel.home', state, attributes: { friendly_name: 'Alarm' } }; }""",
+        state,
+    )
+    mount(phone, {"shortcuts": [{**STATUS, "sections": [{"title": "Uwaga", "items": [ALARM_ITEM]}]}]})
+    phone.wait_for_selector(f"{PAGE} .chips", state="attached")
+    assert cards(phone) == shown
+    if shown:
+        card = phone.locator(f"{PAGE} [data-alert]")
+        assert "Wyzwolony" in card.inner_text()
+        assert "alarm" in (card.get_attribute("class") or "")

@@ -232,7 +232,56 @@ def test_home_counts_only_what_is_on_or_open(phone):
         const one = s.statusHome(hass, selection, { status_panel: { doors: ['binary_sensor.d'] } });
         const two = s.statusHome(hass, selection, { status_panel: { doors: ['binary_sensor.d', 'binary_sensor.e'] } });
         return [one.map((f) => f.label), two.map((f) => f.label)];""")
-    assert facts == [["2 światła", "1 drzwi wejściowe"], ["2 światła", "otwarte: 2"]]
+    assert facts == [["2 światła", "1 drzwi wejściowe"], ["2 światła", "2 otwarte drzwi"]]
+
+
+def test_windows_have_their_own_badge_and_doors_theirs(phone):
+    facts = run(phone, """
+        const hass = { language: 'pl', states: {
+            'binary_sensor.door': { state: 'on', attributes: { friendly_name: 'Drzwi do toalety' } },
+            'binary_sensor.w1': { state: 'on', attributes: { friendly_name: 'Salon okno' } },
+            'binary_sensor.w2': { state: 'on', attributes: {} }, 'binary_sensor.w3': { state: 'off', attributes: {} } } };
+        return s.statusHome(hass, { entityIds: [] }, { status_panel: {
+            doors: ['binary_sensor.door'], windows: ['binary_sensor.w1', 'binary_sensor.w2', 'binary_sensor.w3'] } })
+            .map((fact) => [fact.key, fact.icon, fact.label, fact.group]);""")
+    assert facts == [["doors", "mdi:door-open", "1 drzwi do toalety", "doors"],
+                     ["windows", "mdi:window-open-variant", "2 otwarte okna", "windows"]]
+
+
+def test_a_flag_shows_while_its_helper_is_on(phone):
+    facts = run(phone, """
+        const flags = [{ entity: 'input_boolean.mail', name: 'Poczta', icon: 'mdi:mailbox-up' }];
+        const of = (state) => s.statusHome({ language: 'pl', states: { 'input_boolean.mail': { state, attributes: {} } } },
+            { entityIds: [] }, { status_panel: { flags } }).map((fact) => [fact.label, fact.icon, fact.entity]);
+        return [of('on'), of('off')];""")
+    assert facts == [[["Poczta", "mdi:mailbox-up", "input_boolean.mail"]], []]
+
+
+DOORS = {"status_panel": {"doors": [{"entity": "binary_sensor.front", "name": "Drzwi wejściowe"},
+                                    {"entity": "binary_sensor.wc", "name": "Drzwi do toalety"},
+                                    {"entity": "binary_sensor.balcony", "name": "Balkon"}]}}
+
+
+def open_doors(tablet) -> None:
+    add_entity(tablet, "binary_sensor.front", "on", {"device_class": "door"})
+    add_entity(tablet, "binary_sensor.wc", "on", {"device_class": "door"})
+    add_entity(tablet, "binary_sensor.balcony", "off", {"device_class": "door"})
+    mount(tablet, DOORS)
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')?.shadowRoot.querySelector('[data-status-fact=\\'doors\\']')")
+
+
+def test_a_tap_on_the_doors_lists_the_open_ones_by_their_names(tablet):
+    open_doors(tablet)
+    tap(tablet, "[data-status-fact='doors']")
+    tablet.wait_for_selector(f"{SHEET} [data-status-on='doors']")
+    assert sorted(rows(tablet)) == ["binary_sensor.front", "binary_sensor.wc"]
+    assert "Drzwi do toalety" in tablet.locator(f"{SHEET} [data-status-row='binary_sensor.wc']").inner_text()
+
+
+def test_the_badges_of_at_home_are_all_in_the_same_weight(tablet):
+    open_doors(tablet)
+    weights = tablet.locator(f"{PANEL} .fact").evaluate_all("(facts) => facts.map((f) => getComputedStyle(f).fontWeight)")
+    assert len(set(weights)) == 1
 
 
 def test_a_lock_that_is_not_locked_counts_as_an_open_door(phone):
@@ -423,28 +472,17 @@ def test_a_tap_on_the_lights_lists_them_with_their_room_and_time(tablet):
     assert "Skylight" in text and "od " in text
 
 
-def test_a_light_left_out_of_the_count_is_saved_for_everyone(tablet):
-    open_lights(tablet)
-    tablet.locator(f"{SHEET} [data-status-ignore='light.sky']").click()
-    tablet.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
-    saved = tablet.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy")
-    assert saved["status_panel"]["ignore"] == ["light.sky"]
-    assert saved["status_panel"]["doors"]  # the rest of the status bar stays
-
-
-def test_a_light_not_counted_is_listed_apart_and_counted_again(tablet):
+def test_a_light_not_counted_is_listed_apart_with_where_to_change_it(tablet):
     open_lights(tablet, {"status_panel": {"ignore": ["light.sky"]}})
     assert "light.sky" in tablet.locator(f"{SHEET} .status-ignored ~ [data-status-row]").evaluate_all(
         "(rows) => rows.map((row) => row.dataset.statusRow)")
-    tablet.locator(f"{SHEET} [data-status-ignore='light.sky']").click()
-    tablet.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
-    saved = tablet.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy")
-    assert "status_panel" not in saved or "ignore" not in saved["status_panel"]
+    assert "Pasek statusu" in tablet.locator(f"{SHEET} [data-status-on] .hint").last.inner_text()
 
 
-def test_only_an_administrator_leaves_a_light_out(tablet):
-    open_lights(tablet, admin=False)
+def test_the_list_has_no_button_to_leave_a_light_out_it_is_configuration(tablet):
+    open_lights(tablet)
     assert tablet.locator(f"{SHEET} [data-status-ignore]").count() == 0
+    assert tablet.locator(f"{SHEET} [data-status-on] .hint").count() == 0
     assert "light.sky" in rows(tablet)
 
 

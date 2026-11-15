@@ -114,6 +114,7 @@ wand ✨ beside *Rooms* and offers only the areas that have no room yet.
 | *Throw away* | drops the draft and goes back to the published version (only while there is a draft) |
 | half sun | the look of the editor: Auto, Light, Dark |
 | **{} YAML** | the whole dashboard as YAML, to read or to paste |
+| ? | this guide on the documentation site, in a new tab (in English or Polish, as Home Assistant is) |
 | ⚙ | editor settings: the phones and tablets of the preview (chapter 16) |
 | **History** | the published versions (chapter 15) |
 | **Publish** | publishes the draft (chapter 15) |
@@ -290,7 +291,10 @@ A block of several entities (`kind: panel`) opens in the tree into its parts, ea
   one as a row.
 - In the form of the block itself: name, icon, the entity of its tile and its state, own names of states, when the
   tile is "on" (`active`, `active_state`), a card of Home Assistant at the end, the whole screen.
-- A button on the tile while the device is on (`quick`, e.g. *Turn off* on a console) is set in YAML.
+- A button on the tile while the device is on (`quick`, e.g. *Turn off* on a console) is set in YAML. With `active`
+  the button follows that entity, not the tile's: an Xbox has `active: binary_sensor.xbox_playing` (the cloud and a
+  ping together), as its cloud state can stay "on" after it went off. A time below zero in *Time (h min)* reads as
+  "over by 10 min".
 
 Choosing a block opens its window in the preview, and under the tablet the editor says whether it fits without
 scrolling. A tile becomes a block by choosing the block in its **Block** field; a block renamed is renamed in its
@@ -298,7 +302,10 @@ tiles, the menu, the status bar and the rules of access too.
 
 **Other kinds of blocks** have a form with the same fields as the block form on the tablet. A Status screen, for
 example, has sections with entries (a list of lights that are on, an alarm of water, a low battery, a device in a
-state, a word of a state such as `OB` of a UPS on battery):
+state, a word of a state such as `OB` of a UPS on battery). An entry with **Also as a warning on Home** (`notify`) is also a card
+over the cameras on Home, as a low battery is; with **Alarm (red, cannot be closed on Home)** (`alarm`) it cannot be
+closed while the state lasts (a water
+leak, smoke, an alarm going off):
 
 ![A Status block: its sections in the form](screenshots/en/editor-status-block.png)
 
@@ -328,7 +335,11 @@ picture big. A click on the field opens a window:
   direction, ⇅ to reverse it, 48 ready gradients and a large preview. The CSS stays below to change by hand.
 
 **Make a background** under the fields opens the background maker: 16 ready backgrounds, patterns, gradients and a
-photo of your own, see-through, greyed or blurred, with a phone and a tablet beside it. **Use as background** makes an
+photo of your own, see-through, greyed or blurred, with a phone and a tablet beside it. The photo can be made smaller
+and put in a corner, at a side or in the middle (**Size and place**), moved, turned, mirrored and faded out from up to
+three of its edges (**Fades out from**), e.g. a room in the top right corner melting into the gradient on its left and
+at its bottom. **Tinted by the background** (the default) gives the photo the colours of the gradient under it: its
+darks take the deep shade of the background, its lights the light one. **Use as background** makes an
 upright and a wide picture and puts them in the light look, the dark one or both.
 
 **Themes:** a look can be saved on a tablet as a theme (Menu → Look → Themes) and shared as a file. Two come with the
@@ -347,8 +358,15 @@ the narrow bar. **Settings → Status bar**:
   *At most in the status bar* of them. A tap opens a month with the events of the chosen day. *Colours of calendars*
   gives each calendar its colour. On a phone the same events are under *Choose an area → My calendars*, where each
   person adds their own calendars under the gear.
-- **What the bar shows** (`status_panel`): doors and windows (*At home*), lights and devices not counted, what runs
-  *Now* (a washer with its program and time left), power with a line of the last hours, trams.
+- **What the bar shows** (`status_panel`), the badges of *At home* and the rest of the bar:
+  - **Doors (At home)** and **Windows (At home)** (`doors`, `windows`): each list has its badge while something of it
+    is open; a tap on the tablet lists the open ones with when they opened. Put in only those that should speak (the
+    front door, the balcony, the toilet), not the doors of rooms, which are usually open.
+  - **Flags (At home)** (`flags`): a badge while a helper is on, e.g. **Mail** from `input_boolean.mail_in_mailbox`,
+    which opening the mailbox turns on; a tap opens the helper to turn it off.
+  - **Not counted in At home** (`ignore`): lights and devices left out of the count, e.g. a lamp with its own
+    schedule. This is the only place of the setting; the tablet only lists them apart among those on.
+  - what runs *Now* (a washer with its program and time left), power with a line of the last hours, trams.
 
 The iPad of the preview shows the bar of the draft at once.
 
@@ -451,8 +469,9 @@ The order that works best for a new home:
 6. **Add blocks** for things with many entities: a coffee machine, a washer, the car, a vacuum, a server, a UPS. Start
    with the numbers that matter most, then groups; *From the device, not in the block yet* lists what is left.
 7. **Choose the look:** a theme, a background for Home and each room (the background maker helps), colours of tiles.
-8. **Set up the wall tablet:** the status bar with its calendars and what it shows, a tablet going back to Home, the
-   bar of pages and the menu.
+8. **Set up the wall tablet:** the status bar with its calendars and what it shows (the doors and windows that should
+   speak, flags such as the mail, lamps not counted), on the Status screen the warnings for Home (water, smoke, the
+   alarm, low batteries), a tablet going back to Home, the bar of pages and the menu.
 9. **Decide who sees what** and check it with **As** in the preview.
 10. **Publish for checking** on one tablet, then **Publish for everyone**. Keep a note for the history.
 

@@ -1026,9 +1026,9 @@ connects to Home Assistant.
 On the **Areas** and **Favorites** tabs an administrator ticks **For everyone** and then sets the shared order of areas,
 which are hidden, and the shared favorites everyone starts from. **Save for everyone** saves them. An area hidden for
 everyone stays on that list, so it can be shown again. This is the only place for these settings: the **Dashboard
-settings** window has the return after idle time, the start on this device, talking in a camera window, linking
-recorder cameras to the same cameras in another integration, the configuration editor and at the bottom **Load the app
-afresh**: it fetches fresh files of the dashboard and opens the page again, when the app shows an old version, e.g.
+settings** window has at the top **Load the app afresh**, and under it the return after idle time, the start on this
+device, talking in a camera window, linking recorder cameras to the same cameras in another integration and the
+configuration editor. **Load the app afresh** it fetches fresh files of the dashboard and opens the page again, when the app shows an old version, e.g.
 away from home.
 
 **My view** (three dots in a room, for everyone): hides a whole section or a single tile for you, the **Scenes** group
@@ -1046,7 +1046,8 @@ Without it the background stays with that account. A person's own background bea
 
 **Make a background** in the same window opens the background maker, much like apps that make wallpapers for the Home
 app: pick one of 16 ready backgrounds, or a pattern and a gradient (48 to choose from, or your own two colours), and
-lay a photo over it if you like, see-through, greyed or blurred. The preview shows a few tiles on it, so you see at
+lay a photo over it if you like, see-through, greyed or blurred, smaller and in a corner, turned or mirrored, faded
+out from up to three of its edges. The preview shows a few tiles on it, so you see at
 once whether the dashboard stays readable. **Use as background** makes an upright and a wide picture at once and puts
 them in the light look, the dark one or both. In the editor on a computer the same maker opens wide from **Make a
 background** in an entry of **Backgrounds of pages** (Look → Themes and backgrounds), with a phone and a tablet side
@@ -1339,9 +1340,17 @@ what is going on, for a glance from across the room. The pages (Home, Music, Ene
   of what is on (with its room and the time it went on; a tap opens that device's window), and open doors the Status
   screen (the first Status block; without one, the door's details), the trams the timetable, the power the Energy
   page, and **Heads up** and **Now** the device's details.
-- **"Don't count"** in that list (an administrator only) leaves a light or a device out of the count, such as a lamp
-  that follows its own schedule. The list still shows it apart, with **"Count again"**. It is saved for everyone as
-  [`status_panel.ignore`](configuration.md#11-tablet-status-bar).
+- A light or a device left out of the count, such as a lamp that follows its own schedule, is configuration: in the
+  editor on a computer **Status bar → Not counted in At home**
+  ([`status_panel.ignore`](configuration.md#11-tablet-status-bar)). The list shows it apart, as **On, but not
+  counted**; the tablet has no button that changes it.
+- The doors and windows of **At home** are the lists **Status bar → Doors (At home)** and **Windows (At home)**
+  (`status_panel.doors`, `windows`): each has its badge with the open ones of its list, not every sensor of the home
+  (the doors of rooms are usually open). A tap lists the open ones with when they opened, as for the lights.
+- **Flags (At home)** (`status_panel.flags`): a badge while a helper is on, such as **Mail** once someone opened the
+  mailbox. A tap opens the helper; whoever took the letters turns it off.
+- An item of the Status screen of one entity in a state (an alarm going off, a UPS on battery) with `notify` is also a
+  red card on Home, as a low battery is; with `alarm: true` it stays while the state lasts.
 - **My calendars** (a phone): the list of areas has under its rooms **My calendars**, with today's titles and how
   many; a tap opens today and the next 14 days that hold something, each event with its hour, place and description.
   The gear chooses the person's own calendars and whether they see the home's, kept in their own settings, so they

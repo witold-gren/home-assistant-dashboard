@@ -495,6 +495,14 @@ export class HomeDashboardSettings extends LitElement {
           <button class="save" data-save ?disabled=${this._saving} @click=${this._save}>${this._t("save")}</button>
         </header>
         <div class="content">
+          <!-- First of all: what helps when the app shows an old version. -->
+          <button class="restore reload first" data-reload-app ?disabled=${this._reloading} @click=${this._reloadApp}>
+            <ha-icon icon="mdi:refresh"></ha-icon>
+            <span>
+              <strong>${this._t(this._reloading ? "reload_app_busy" : "reload_app")}</strong>
+              <small>${this._t("reload_app_hint")}</small>
+            </span>
+          </button>
           <h3>${this._t("idle_return")}</h3>
           <select
             data-idle
@@ -556,13 +564,6 @@ export class HomeDashboardSettings extends LitElement {
           ${this._renderCameraLinks()} ${this._renderCameraControls()}
           <button class="restore" data-editor @click=${this._openEditor}>
             <ha-icon icon="mdi:code-braces"></ha-icon>${this._t("yaml_open")}
-          </button>
-          <button class="restore reload" data-reload-app ?disabled=${this._reloading} @click=${this._reloadApp}>
-            <ha-icon icon="mdi:refresh"></ha-icon>
-            <span>
-              <strong>${this._t(this._reloading ? "reload_app_busy" : "reload_app")}</strong>
-              <small>${this._t("reload_app_hint")}</small>
-            </span>
           </button>
         </div>
       </section>
@@ -725,7 +726,8 @@ export class HomeDashboardSettings extends LitElement {
         gap: 8px;
         margin-top: 12px;
       }
-      .link-new .restore {
+      .link-new .restore,
+      .reload.first {
         margin-top: 0;
       }
       button[disabled] {

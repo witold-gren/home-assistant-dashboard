@@ -963,16 +963,6 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   // An entity left out of the counts of the status bar, or counted again; an empty list leaves the key out.
-  _saveStatusIgnore(event) {
-    const { entityId, ignore } = event.detail;
-    const { ignore: old = [], ...panel } = this.raw.status_panel ?? {};
-    const next = ignore ? [...new Set([...old, entityId])] : old.filter((id) => id !== entityId);
-    const statusPanel = next.length ? { ...panel, ignore: next } : panel;
-    const { status_panel: dropped, ...rest } = this.raw;
-    const dashboard = Object.keys(statusPanel).length ? { ...rest, status_panel: statusPanel } : rest;
-    return this._saveSettings({ detail: { dashboard } });
-  }
-
   _saveAccess(event) {
     return this._saveSettings({ detail: { dashboard: { ...this.raw, access: event.detail.access } } });
   }
@@ -1194,7 +1184,6 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-home=${this._pickHome}
       @sheet-edit=${this._editScreen}
       @sheet-access=${this._saveAccess}
-      @sheet-status-ignore=${this._saveStatusIgnore}
       @sheet-layout=${this._saveLayout}
       @sheet-appearance=${this._saveAppearance}
       @sheet-theme=${this._saveSettings}
