@@ -1198,6 +1198,7 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-layout=${this._saveLayout}
       @sheet-appearance=${this._saveAppearance}
       @sheet-theme=${this._saveSettings}
+      @sheet-dashboard=${this._saveSettings}
       @sheet-shortcuts=${this._saveShortcuts}
       @sheet-media=${this._saveMedia}
       @sheet-link=${(event) => this._pickLink(event.detail.path)}

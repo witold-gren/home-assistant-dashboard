@@ -699,7 +699,9 @@ Każde okno urządzenia ma w prawym górnym rogu dwa przyciski:
   tym oknie otwiera pełne okno Home Assistant.
 - **Ołówek** (tylko administratorzy) zmienia **nazwę**, **obszar**, **etykiety** i to, czy urządzenie jest
   **włączone**. Encja bez urządzenia zmienia się sama. Wyłączone urządzenie znika z Home Assistant i z dashboardu;
-  włączysz je z powrotem w Ustawienia → Urządzenia.
+  włączysz je z powrotem w Ustawienia → Urządzenia. Przełącznik ma też **To jest światło**: przełącznik zasilający
+  lampę jest wtedy żółty, gdy włączony, i liczony ze światłami. Przełącznik z ikoną lampy jest światłem sam; wybór
+  zapisuje się w dashboardzie (`entities.overrides.<id>.light`).
 
 Oba okna mają wygląd motywu z **Wygląd → Okna**, jak wszystkie okna dashboardu.
 

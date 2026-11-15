@@ -1,7 +1,7 @@
 // The layout editor, blocks of several entities and simple changes to a device. A part of the sheet (sheet.js), as a mixin of its methods.
 
 import { html, nothing } from "../vendor/lit-all.min.js";
-import { entityIcon } from "./model.js";
+import { domainOf, entityIcon, isLight, withLightOverride } from "./model.js";
 import { blockRowName, panelStats, panelValue, pressCall, rowControl, runAction, shownOptions } from "./panel.js";
 
 // A stepper sends its value once taps have stopped for a moment, and a held button steps on by itself.
@@ -575,6 +575,10 @@ export const BlockSheets = (Base) =>
           labels: [...(source.labels ?? [])],
           enabled: !source.disabled_by,
           wasEnabled: !source.disabled_by,
+          // A switch behind a lamp: whether the dashboard counts it with the lights (its own setting, not HA's).
+          lamp: domainOf(entityId) === "switch",
+          light: isLight(this.hass, entityId, this.config),
+          wasLight: isLight(this.hass, entityId, this.config),
           allLabels: [...(labels ?? [])].sort((a, b) => a.name.localeCompare(b.name, this.hass.language)),
         };
       } catch (error) {
@@ -598,6 +602,12 @@ export const BlockSheets = (Base) =>
         await this.hass.callWS(message);
       } catch (error) {
         this._editChange({ busy: false, problem: error?.message ?? String(error) });
+        return;
+      }
+      // Being a light is the dashboard's own setting: saved into it, and the dashboard loads again.
+      if (edit.lamp && edit.light !== edit.wasLight) {
+        const dashboard = withLightOverride(this.raw ?? {}, this.hass, this.sheet.entityId, edit.light);
+        this.dispatchEvent(new CustomEvent("sheet-dashboard", { detail: { dashboard } }));
         return;
       }
       // A switched off device is gone from Home Assistant, and so is its window.
@@ -648,6 +658,18 @@ export const BlockSheets = (Base) =>
                     </button>`,
                   )}
                 </div>`
+            : nothing}
+          ${edit.lamp
+            ? html`<label class="field">
+                  <span>${this._t("edit_light")}</span>
+                  <input
+                    type="checkbox"
+                    data-edit-light
+                    .checked=${edit.light}
+                    @change=${(event) => this._editChange({ light: event.target.checked })}
+                  />
+                </label>
+                <p class="hint" data-edit-light-hint>${this._t("edit_light_hint")}</p>`
             : nothing}
           <label class="field">
             <span>${this._t(edit.device ? "edit_enabled_device" : "edit_enabled_entity")}</span>

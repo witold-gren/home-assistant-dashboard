@@ -696,7 +696,9 @@ Every device window has two buttons in the top right corner:
   window opens the full window of Home Assistant.
 - **The pencil** (administrators only) changes the **name**, the **area**, the **labels** and whether the device is
   **enabled**. An entity without a device is changed itself. A disabled device disappears from Home Assistant and
-  from the dashboard; you enable it again in Settings → Devices.
+  from the dashboard; you enable it again in Settings → Devices. A switch also has **It is a light**: a switch that
+  powers a lamp is then yellow while on and counted with the lights. One with a lamp icon is a light by itself; the
+  choice is saved in the dashboard (`entities.overrides.<id>.light`).
 
 Both windows take the look of the theme from **Look → Windows**, like every window of the dashboard.
 

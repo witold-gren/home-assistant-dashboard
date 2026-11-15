@@ -4,7 +4,7 @@
 
 - A switch that powers a lamp is a light: yellow while on, counted in the Lights chip and the status bar and shown
   by the Lights filter. A switch whose icon is a lamp is one by itself; `entities.overrides.<id>.light` (also a
-  field of the editor) says it either way.
+  field of the editor, and **It is a light** under the pencil of a switch's window on the device) says it either way.
 - Documentation site on GitHub Pages (https://witold-gren.github.io/home-assistant-dashboard/), English and Polish,
   made from `docs/`, the README and this changelog with MkDocs Material (`make docs-site` to preview it,
   `make docs-build` to build it as GitHub does).

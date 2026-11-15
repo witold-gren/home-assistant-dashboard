@@ -173,3 +173,94 @@ def test_a_refused_change_says_why_and_keeps_the_form(phone):
     phone.wait_for_selector(f"{SHEET} [data-edit-problem]")
     assert "Not allowed" in phone.locator(f"{SHEET} [data-edit-problem]").inner_text()
     assert phone.locator(f"{SHEET} [data-device-edit]").count() == 1
+
+
+# A switch behind a lamp: the pencil says whether the dashboard counts it as a light, saved in the dashboard.
+
+LAMPS = """() => {
+    const snapshot = window.dashboard.snapshot;
+    const area = Object.keys(snapshot.areas)[0];
+    snapshot.devices.relay = { id: "relay", name: "Kinkieta", name_by_user: null, area_id: area, labels: [], disabled_by: null };
+    for (const [id, icon] of [["switch.sconce", "mdi:outdoor-lamp"], ["switch.plug", "mdi:power-socket-eu"]]) {
+        snapshot.entities[id] = { entity_id: id, device_id: "relay", entity_category: null, hidden: false };
+        snapshot.states[id] = { entity_id: id, state: "on", attributes: { friendly_name: "Kinkieta", icon } };
+    }
+    const original = window.dashboard.hass;
+    window.dashboard.hass = (overrides) => {
+        const hass = original(overrides);
+        const ask = hass.callWS;
+        hass.callWS = async (message) => {
+            if (message.type === "lovelace/config") return { strategy: { type: "custom:home-dashboard" } };
+            if (message.type === "lovelace/config/save") { window.asked.push(message); return null; }
+            return ask(message);
+        };
+        return hass;
+    };
+}"""
+
+
+def open_lamp(page, entity_id: str, raw: dict | None = None) -> None:
+    page.evaluate(SETUP)
+    page.evaluate(LAMPS)
+    mount_admin(page, raw or {}, admin=True)
+    page.evaluate("() => { document.querySelector('home-dashboard-chrome')._reload = () => { window.reloaded = true; }; }")
+    page.evaluate(f"""() => document.querySelector('home-dashboard-chrome')
+        .open({{ type: 'sheet', sheet: {{ kind: 'light', entityId: '{entity_id}' }} }})""")
+    page.wait_for_selector(f"{SHEET} header [data-edit-device]")
+    page.locator(f"{SHEET} header [data-edit-device]").click()
+    page.wait_for_selector(f"{SHEET} [data-device-edit]")
+
+
+def saved(page) -> list[dict]:
+    return page.evaluate("window.asked.filter((m) => m.type === 'lovelace/config/save').map((m) => m.config.strategy)")
+
+
+def test_a_switch_shows_whether_it_is_a_light_and_a_lamp_is_one_by_its_icon(phone):
+    open_lamp(phone, "switch.sconce")
+    assert phone.locator(f"{SHEET} [data-edit-light]").is_checked()
+    assert phone.locator(f"{SHEET} [data-edit-light-hint]").count() == 1
+
+
+def test_a_light_has_no_such_switch(phone):
+    open_sheet(phone)
+    phone.locator(f"{SHEET} header [data-edit-device]").click()
+    phone.wait_for_selector(f"{SHEET} [data-device-edit]")
+    assert phone.locator(f"{SHEET} [data-edit-light]").count() == 0
+
+
+def test_marking_a_plug_as_a_light_saves_it_in_the_dashboard(phone):
+    open_lamp(phone, "switch.plug")
+    assert not phone.locator(f"{SHEET} [data-edit-light]").is_checked()
+    phone.locator(f"{SHEET} [data-edit-light]").check()
+    phone.locator(f"{SHEET} [data-edit-save]").click()
+    phone.wait_for_function("window.reloaded === true")
+    assert saved(phone)[-1]["entities"]["overrides"] == {"switch.plug": {"light": True}}
+    # the device itself is saved too, as before
+    assert updates(phone)[0]["type"] == "config/device_registry/update"
+
+
+def test_unmarking_a_lamp_says_false_and_keeps_its_other_settings(phone):
+    open_lamp(phone, "switch.sconce", {"entities": {"overrides": {"switch.sconce": {"name": "Kinkiet"}}}})
+    phone.locator(f"{SHEET} [data-edit-light]").uncheck()
+    phone.locator(f"{SHEET} [data-edit-save]").click()
+    phone.wait_for_function("window.reloaded === true")
+    assert saved(phone)[-1]["entities"]["overrides"] == {"switch.sconce": {"name": "Kinkiet", "light": False}}
+
+
+def test_nothing_is_saved_in_the_dashboard_when_it_stays_as_it_was(phone):
+    open_lamp(phone, "switch.sconce")
+    phone.locator(f"{SHEET} [data-edit-save]").click()
+    phone.wait_for_function("window.asked.some((m) => m.type.endsWith('/update'))")
+    phone.wait_for_timeout(300)
+    assert saved(phone) == []
+
+
+def test_what_the_icon_says_needs_no_override(phone):
+    result = phone.evaluate("""async () => {
+        const m = await import('/custom_components/home_dashboard/www/app/model.js');
+        const hass = { states: { 'switch.sconce': { state: 'on', attributes: { icon: 'mdi:outdoor-lamp' } } } };
+        const raw = { entities: { overrides: { 'switch.sconce': { light: false } } } };
+        return [m.withLightOverride(raw, hass, 'switch.sconce', true).entities.overrides,
+                m.withLightOverride({}, hass, 'switch.sconce', false).entities.overrides];
+    }""")
+    assert result == [{}, {"switch.sconce": {"light": False}}]

@@ -283,6 +283,24 @@ export function isLight(hass, entityId, config) {
   return LAMP_ICON.test(icon.slice(4));
 }
 
+/**
+ * The dashboard with a switch said to be a light or not (`entities.overrides.<id>.light`). What its icon already
+ * says needs no word of its own, so the key goes and an override left empty goes too.
+ */
+export function withLightOverride(raw, hass, entityId, light) {
+  const entities = raw.entities ?? {};
+  const overrides = { ...(entities.overrides ?? {}) };
+  const { light: _said, ...own } = overrides[entityId] ?? {};
+  const config = { ...raw, entities: { ...entities, overrides: { ...overrides, [entityId]: own } } };
+  if (light === isLight(hass, entityId, config)) {
+    if (Object.keys(own).length) overrides[entityId] = own;
+    else delete overrides[entityId];
+  } else {
+    overrides[entityId] = { ...own, light };
+  }
+  return { ...raw, entities: { ...entities, overrides } };
+}
+
 function lightTint(stateObj) {
   const { rgb_color: rgb, color_mode: colorMode } = stateObj.attributes ?? {};
   if (stateObj.state !== "on" || colorMode === "color_temp" || !Array.isArray(rgb)) return null;
