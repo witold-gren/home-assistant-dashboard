@@ -1,10 +1,24 @@
 // A hass object built from the anonymised registry snapshot. Every outgoing call is recorded, so
 // tests can prove what was NOT called.
 
+// Home Assistant hands a new registry object whenever the registry changes, and the same one otherwise; the
+// dashboard keeps what it works out from a registry by that object (model.js entitiesOfDevice). Tests change the
+// snapshot's registry in place, so a changed one is handed over as a new object here, as Home Assistant would.
+const REGISTRY_COPIES = new WeakMap();
+
+function registryOf(entities) {
+  const copy = REGISTRY_COPIES.get(entities);
+  const keys = Object.keys(entities);
+  if (copy && keys.length === Object.keys(copy).length && keys.every((key) => copy[key] === entities[key])) return copy;
+  const fresh = { ...entities };
+  REGISTRY_COPIES.set(entities, fresh);
+  return fresh;
+}
+
 export function createHass(snapshot, overrides = {}) {
   const calls = [];
   return {
-    entities: snapshot.entities,
+    entities: registryOf(snapshot.entities),
     devices: snapshot.devices,
     areas: snapshot.areas,
     floors: snapshot.floors,

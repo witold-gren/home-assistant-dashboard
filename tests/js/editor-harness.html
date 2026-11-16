@@ -4,8 +4,13 @@
   <body>
     <script type="module">
       import { createHass } from "/tests/js/mock-hass.js";
+      // Every hass at once: the tests do not wait for the page's pace (HASS_TIMING, test_hass_pace.py).
+      import { HASS_TIMING } from "/custom_components/home_dashboard/www/app/page.js";
+      HASS_TIMING.shown = 0;
+      HASS_TIMING.hidden = 0;
+      EDITOR_TIMING.states = 0;
       import { createEditorServer, configHash } from "/tests/js/mock-editor.js";
-      import { mountEditor } from "/custom_components/home_dashboard/www/editor/editor-app.js";
+      import { mountEditor, EDITOR_TIMING } from "/custom_components/home_dashboard/www/editor/editor-app.js";
       import * as tree from "/custom_components/home_dashboard/www/editor/tree.js";
 
       customElements.define("ha-icon", class extends HTMLElement {});

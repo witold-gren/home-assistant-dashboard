@@ -701,6 +701,31 @@ function automaticCameraIds(hass, config) {
 // Below this the battery of a camera is shown red.
 export const LOW_BATTERY = 20;
 
+// The entities of each device, in the order of the registry, made once for each registry Home Assistant hands over.
+// The cameras look up their battery, live view and stream sensors on every change of a state, so a walk through all
+// the entities of the house for each camera every time would cost most of the page's work.
+const DEVICE_ENTITIES = new WeakMap();
+
+/** The entity ids of a device (registry order); [] for none. */
+export function entitiesOfDevice(hass, deviceId) {
+  const entities = hass?.entities;
+  if (!entities || !deviceId) return [];
+  let index = DEVICE_ENTITIES.get(entities);
+  if (!index) {
+    index = new Map();
+    for (const entry of Object.values(entities)) {
+      if (!entry?.device_id) continue;
+      if (!index.has(entry.device_id)) index.set(entry.device_id, []);
+      index.get(entry.device_id).push(entry.entity_id);
+    }
+    DEVICE_ENTITIES.set(entities, index);
+  }
+  return index.get(deviceId) ?? [];
+}
+
+const isBatterySensor = (hass, id) =>
+  domainOf(id) === "sensor" && hass.states[id]?.attributes?.device_class === "battery";
+
 /**
  * The battery of a camera, `{ level, low }`, from a battery sensor of its device, or of the device of the camera
  * that plays its picture live or stands for it in another integration; null for a camera without one.
@@ -710,13 +735,8 @@ export function cameraBattery(hass, entityId, config) {
     .map((id) => id && hass.entities[id]?.device_id)
     .filter(Boolean);
   for (const deviceId of devices) {
-    const sensor = Object.values(hass.entities).find(
-      (entity) =>
-        entity.device_id === deviceId &&
-        domainOf(entity.entity_id) === "sensor" &&
-        hass.states[entity.entity_id]?.attributes?.device_class === "battery",
-    );
-    const level = Number.parseFloat(hass.states[sensor?.entity_id]?.state);
+    const sensor = entitiesOfDevice(hass, deviceId).find((id) => isBatterySensor(hass, id));
+    const level = Number.parseFloat(hass.states[sensor]?.state);
     if (Number.isFinite(level)) return { level: Math.round(level), low: level <= LOW_BATTERY };
   }
   return null;
@@ -981,16 +1001,16 @@ const STREAM_SENSOR = /_(streaming|camera_link|recording_live_view)$/;
 /** The sensors that say a stream of this camera is open: on its device, or on the device it is linked to. */
 export function cameraStreamSensors(hass, entityId, config) {
   const devices = new Set([cameraDeviceId(hass, entityId, config), controlDeviceId(hass, entityId, config)].filter(Boolean));
-  return Object.keys(hass.entities)
-    .filter((id) => id.startsWith("binary_sensor.") && STREAM_SENSOR.test(id) && devices.has(hass.entities[id].device_id))
+  return [...devices]
+    .flatMap((deviceId) => entitiesOfDevice(hass, deviceId))
+    .filter((id) => id.startsWith("binary_sensor.") && STREAM_SENSOR.test(id))
     .sort();
 }
 
 /** Whether a stream of the camera is open now, from Home Assistant or anything else asking the bridge. */
 export const cameraStreaming = (hass, sensors) => sensors.some((id) => hass.states[id]?.state === "on");
 
-const deviceEntities = (hass, deviceId) =>
-  deviceId ? Object.keys(hass.entities).filter((id) => hass.entities[id].device_id === deviceId && hass.states[id]) : [];
+const deviceEntities = (hass, deviceId) => entitiesOfDevice(hass, deviceId).filter((id) => hass.states[id]);
 
 // The directions this camera can move in, and its saved positions if it has them.
 // The device whose buttons turn the camera. `cameras.controls` names another camera for it, when the picture comes
@@ -1267,11 +1287,7 @@ export function liveCameraFor(hass, imageId, config) {
   if (configured) return configured;
   const deviceId = hass.entities[imageId]?.device_id;
   if (!deviceId) return null;
-  return (
-    Object.keys(hass.entities).find(
-      (id) => domainOf(id) === "camera" && hass.entities[id].device_id === deviceId && isPrimary(hass.entities[id]),
-    ) ?? null
-  );
+  return entitiesOfDevice(hass, deviceId).find((id) => domainOf(id) === "camera" && isPrimary(hass.entities[id])) ?? null;
 }
 
 // A camera is on a battery when its platform is known to be, or when its device reports a battery level.
@@ -1279,12 +1295,7 @@ export function isBatteryCamera(hass, entityId, config) {
   if (config.cameras.battery_platforms.includes(hass.entities[entityId]?.platform)) return true;
   const deviceId = hass.entities[entityId]?.device_id;
   if (!deviceId) return false;
-  return Object.values(hass.entities).some(
-    (entity) =>
-      entity.device_id === deviceId &&
-      domainOf(entity.entity_id) === "sensor" &&
-      hass.states[entity.entity_id]?.attributes?.device_class === "battery",
-  );
+  return entitiesOfDevice(hass, deviceId).some((id) => isBatterySensor(hass, id));
 }
 
 function climateChip(hass, ids) {

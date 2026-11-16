@@ -6,6 +6,10 @@
       // A frame of the editor's preview: the dashboard's page, as Home Assistant would open it with ?hd_preview.
       import "/custom_components/home_dashboard/www/app/main.js";
       import { createHass } from "/tests/js/mock-hass.js";
+      // Every hass at once: the tests do not wait for the page's pace (HASS_TIMING, test_hass_pace.py).
+      import { HASS_TIMING } from "/custom_components/home_dashboard/www/app/page.js";
+      HASS_TIMING.shown = 0;
+      HASS_TIMING.hidden = 0;
 
       customElements.define("ha-icon", class extends HTMLElement {});
       window.loadCardHelpers = async () => ({ createCardElement: (config) => Object.assign(document.createElement("div"), { dataset: { card: config.type } }) });

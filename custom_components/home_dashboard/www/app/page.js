@@ -111,6 +111,11 @@ const SHEET_KINDS = {
   sensor: "sensor",
 };
 const PICTURE_REFRESH_MS = 30000;
+// Home Assistant hands a page a new hass on every change of a state in the house: many times a second where power is
+// metered. The page, its bar and its windows take one at most this often (ms); the first after a quiet while at once,
+// the last one always. A tab not shown takes one far less often and the newest as soon as it is shown again.
+// Tests set them to 0 to see every hass at once.
+export const HASS_TIMING = { shown: 500, hidden: 10000 };
 const SHORTCUT_TONES = ["green", "purple", "teal", "pink"];
 const DRAG_EDGE = 72;
 const DRAG_SCROLL = 12;
@@ -183,6 +188,9 @@ export class HomeDashboardPage extends LitElement {
     }
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
+    document.addEventListener("visibilitychange", this._onPageShown);
+    // Put back on the page with a hass that came while it was away.
+    if (this._nextHass) this._takeHass();
     // A page shown again, as Home after a room, puts its own background back on the view.
     if (this.hasUpdated) this.requestUpdate();
     // Turning a tablet changes the shape of the screen, and with it the background.
@@ -212,6 +220,9 @@ export class HomeDashboardPage extends LitElement {
     window.removeEventListener("message", this._onFrameMessage);
     clearTimeout(this._ranTimer);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
+    document.removeEventListener("visibilitychange", this._onPageShown);
+    clearTimeout(this._hassTimer);
+    this._hassTimer = null;
     this._shapeQuery?.removeEventListener("change", this._onShape);
     if (this._page === "music") tuckNavigation(this, false);
     window.removeEventListener("location-changed", this._onLocation);
@@ -261,7 +272,7 @@ export class HomeDashboardPage extends LitElement {
 
   _onPrefs = () => {
     this._selection = null;
-    if (this._hass) this.hass = this._hass;
+    this._reapplyHass();
   };
 
   _onShape = () => this.requestUpdate();
@@ -272,7 +283,7 @@ export class HomeDashboardPage extends LitElement {
     this._config = normalizeConfig(strategy);
     this._selection = null;
     if (!this._embedded && this._hass) attachChrome(this, this._hass, this._page, this._raw);
-    if (this._hass) this.hass = this._hass;
+    this._reapplyHass();
   };
 
   // The editor shows the window of the block it edits, and closes it when something else is chosen.
@@ -328,6 +339,40 @@ export class HomeDashboardPage extends LitElement {
   }
 
   set hass(hass) {
+    this._nextHass = hass;
+    if (this._hassTimer) return;
+    const interval = document.hidden ? HASS_TIMING.hidden : HASS_TIMING.shown;
+    const wait = this._hass && this._hassAt ? this._hassAt + interval - Date.now() : 0;
+    if (wait <= 0) this._takeHass();
+    else this._hassTimer = setTimeout(this._takeHass, wait);
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  _takeHass = () => {
+    clearTimeout(this._hassTimer);
+    this._hassTimer = null;
+    const hass = this._nextHass;
+    this._nextHass = null;
+    if (!hass || hass === this._hass) return;
+    this._hassAt = Date.now();
+    this._applyHass(hass);
+  };
+
+  // The configuration changed: the page is worked out again at once, with the newest hass.
+  _reapplyHass() {
+    if (this._nextHass) this._takeHass();
+    else if (this._hass) this._applyHass(this._hass);
+  }
+
+  // Shown again: the newest hass at once, not after the long wait of a hidden tab.
+  _onPageShown = () => {
+    if (!document.hidden && this._nextHass) this._takeHass();
+  };
+
+  _applyHass(hass) {
     guardPreviewConnection(hass);
     const previous = this._hass;
     this._hass = hass;
@@ -346,10 +391,6 @@ export class HomeDashboardPage extends LitElement {
     if (stale || !previous || changed || (this._page === "map" && previous.states !== hass.states)) {
       this._refresh();
     }
-  }
-
-  get hass() {
-    return this._hass;
   }
 
   _watchEntities() {

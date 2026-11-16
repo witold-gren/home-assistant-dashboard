@@ -132,6 +132,10 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     this._stopTalk();
     this._stopLive();
     this._stopWallLive();
+    // A window gone takes its sound with it: each mixer keeps an audio thread running, and a browser allows few.
+    this._soundMixer?.close();
+    this._soundMixer = null;
+    document.removeEventListener("visibilitychange", this._onTabShown);
     this._stopSd();
     clearInterval(this._ticker);
     clearTimeout(this._commitTimer);
@@ -146,12 +150,25 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
 
   connectedCallback() {
     super.connectedCallback();
+    document.addEventListener("visibilitychange", this._onTabShown);
     this.addEventListener("touchstart", this._touchStart, { passive: true });
     window.addEventListener("resize", this._onResize);
     this.addEventListener("touchmove", this._touchMove, { passive: false });
     this.addEventListener("touchend", this._touchEnd);
     this.addEventListener("touchcancel", this._touchEnd);
   }
+
+  // A tab nobody looks at streams no camera: the live view stops when the tab is hidden, and the wall of cameras
+  // starts its big camera again when it is shown (a single camera waits for a tap, as after its time limit).
+  _onTabShown = () => {
+    if (document.hidden) {
+      this._stopLive();
+      this._stopWallLive();
+      this.requestUpdate();
+    } else {
+      this._syncWallLive?.();
+    }
+  };
 
   willUpdate(changed) {
     // A camera that goes away while it streams: the live view ends and the window says the camera is gone.

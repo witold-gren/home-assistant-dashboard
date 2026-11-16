@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.4 (2026-11-16)
+
+- A tab with the dashboard or the editor stays light when it is open all day (the browser warned that it uses a
+  lot of energy or memory):
+  - The page, its bar and its windows take a new state of Home Assistant at most twice a second (the first at once,
+    the last always), not on every one of the many changes a second of power meters; a hidden tab every 10 s, and
+    the newest as soon as it is shown again. On a home of 4600 entities the main thread went from about 30 % to 8 %.
+  - The cameras find their battery, live view and stream sensors in an index of the entities of each device, made
+    once per registry, instead of going through every entity of the house for each camera.
+  - The editor is drawn at once for a new entity, device, area or language, and for states alone at most every 5 s.
+  - A frame of the preview loaded again (colour, person, phone or tablet) no longer stays in the editor's memory
+    with its listeners, which also ran on every change of the draft.
+  - The outline of what is chosen looks for its elements every second instead of every 0.3 s, and not in a hidden
+    tab.
+  - A hidden tab streams no camera: the live view stops, and the big camera of the wall plays again when the tab is
+    shown. A closed window closes its sound.
+- Docs site: the **Gallery** badge at the top of the start page leads to the gallery (it led to a missing file):
+  links written as HTML in the README now get the address of their page too.
+
 ## 1.0.3 (2026-11-16)
 
 - Windows: what is on or chosen (a source, a sound mode, OK of a remote, a switch, the fill of a slider) is milky

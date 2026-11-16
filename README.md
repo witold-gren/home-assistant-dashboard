@@ -561,6 +561,13 @@ waking up, the connection to Home Assistant coming back) emptied the lines drawn
 From 1.0.3 the lines stay and the read is tried again after 30 seconds; back on the page the history is
 read anew.
 
+**The browser warns that the tab with the dashboard or the editor uses a lot of energy or memory** (Safari: *This
+webpage is using significant energy* / *significant memory*) — up to 1.0.3 the page worked itself out again on every
+change of a state in Home Assistant, which on a home with power meters is many times a second, and the editor redrew
+itself as often; a frame of the editor's preview loaded again (colour, person, phone or tablet) also stayed in memory.
+From 1.0.4 the page takes a new state at most twice a second (a hidden tab every 10 seconds), the editor redraws for
+states at most every 5 seconds, and the old frames are let go. Load the tab again once after updating.
+
 **A flag's badge (e.g. "Mail") does not show** — the helper of `status_panel.flags` does not exist in Home Assistant,
 or it is off. A helper added in YAML exists only after a reload (Developer tools → YAML → **Input booleans**), and its
 automation after a reload of **Automations**. What happened before the reload does not turn it on by itself.

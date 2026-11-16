@@ -2,7 +2,9 @@
 // what the editor asks for (see www/editor/highlight.js), kept in place while the page scrolls or redraws. Only in the
 // editor's preview; nothing here touches the page itself.
 
-const REFRESH_MS = 300;
+// How often the outline looks for its elements again: each look walks the whole page with its shadow roots, and the
+// editor keeps something chosen all day. Scrolling and resizing redraw it at once, without looking again.
+export const REFRESH_MS = 1000;
 const PAD = 3;
 
 /** Every element under a root, looking into shadow roots too. */
@@ -137,6 +139,8 @@ export function createHighlighter(roots) {
   let shown = false;
   const host = newLayer();
   const refresh = () => {
+    // A tab not shown is drawn when it is shown again.
+    if (document.hidden) return;
     // The editor shows what it edits: a part folded away is opened first, then found again where it now stands.
     revealHighlighted(findHighlighted(spec, roots(), true));
     elements = findHighlighted(spec, roots());

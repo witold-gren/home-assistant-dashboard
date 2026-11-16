@@ -518,9 +518,10 @@ export const RecordingSheets = (Base) =>
     }
 
     // The big camera of the window of all cameras plays live by itself, and only it: another one taking its place lets
-    // it go. A camera on a battery stops after the same time as in its window, and a tap starts it again.
+    // it go. A camera on a battery stops after the same time as in its window, and a tap starts it again. A hidden tab
+    // plays none (sheet.js _onTabShown).
     _syncWallLive() {
-      const want = this.sheet?.kind === "cameras" && !this._wallPaused ? this._wallWanted : null;
+      const want = this.sheet?.kind === "cameras" && !this._wallPaused && !document.hidden ? this._wallWanted : null;
       if (want === (this._wallLive?.entityId ?? null)) return;
       this._stopWallLive();
       if (want) this._startWallLive(want);

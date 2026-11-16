@@ -563,6 +563,13 @@ jako ukryte, wyłącz raz w swoim profilu (kliknij swoje imię na dole menu) prz
 wybudza, połączenie z Home Assistant wraca) czyścił narysowane linie aż do kolejnego odczytu za 5 minut. Od wersji
 1.0.3 linie zostają, a odczyt jest powtarzany po 30 sekundach; po powrocie na stronę historia czyta się od nowa.
 
+**Przeglądarka ostrzega, że karta z dashboardem lub edytorem zużywa dużo energii lub pamięci** (Safari: *Ta strona
+zużywa dużo energii* / *dużo pamięci*) — do 1.0.3 strona przeliczała się od nowa przy każdej zmianie stanu w Home
+Assistant, czyli przy licznikach prądu wiele razy na sekundę, a edytor tak samo często się przerysowywał; ramka
+podglądu edytora wczytana ponownie (kolor, osoba, telefon lub tablet) zostawała też w pamięci. Od wersji 1.0.4 strona
+bierze nowy stan najwyżej dwa razy na sekundę (karta ukryta co 10 sekund), edytor przerysowuje się dla stanów najwyżej
+co 5 sekund, a stare ramki są zwalniane. Po aktualizacji wczytaj kartę raz od nowa.
+
 **Plakietka znacznika (np. „Poczta”) się nie pojawia** — pomocnik z `status_panel.flags` nie istnieje w Home Assistant
 albo jest wyłączony. Pomocnik dodany w YAML powstaje dopiero po przeładowaniu (Narzędzia deweloperskie → YAML →
 **Pomocnicy: przełączniki**), a jego automatyzacja po przeładowaniu **Automatyzacji**. Zdarzenie sprzed przeładowania

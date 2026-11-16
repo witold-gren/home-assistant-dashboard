@@ -44,20 +44,38 @@ export function previewColorMode() {
   return ["light", "dark"].includes(mode) ? mode : null;
 }
 
+/**
+ * Adds `callback` to a set of the editor's window, until it is stopped or this frame's page is gone. A frame that
+ * loads another page or is taken out never disconnects its elements, so without this the editor would keep the
+ * frame's whole dead page in memory and keep calling into it on every change.
+ */
+function listenUntilGone(set, callback) {
+  const entry = (value) => {
+    // A page whose frame was taken out has no window any more.
+    if (!document.defaultView) return stop();
+    return callback(value);
+  };
+  const stop = () => {
+    set.delete(entry);
+    window.removeEventListener("pagehide", stop);
+  };
+  set.add(entry);
+  window.addEventListener("pagehide", stop);
+  return stop;
+}
+
 /** Calls `callback(strategy)` on every change of the draft; returns what stops it. */
 export function onPreviewChange(callback) {
   const source = previewSource();
   if (!source) return () => {};
-  source.listeners.add(callback);
-  return () => source.listeners.delete(callback);
+  return listenUntilGone(source.listeners, callback);
 }
 
 /** Calls `callback(command)` for what the editor asks of the page (open a block's window); returns what stops it. */
 export function onPreviewCommand(callback) {
   const source = previewSource();
   if (!source?.commands) return () => {};
-  source.commands.add(callback);
-  return () => source.commands.delete(callback);
+  return listenUntilGone(source.commands, callback);
 }
 
 /** What the editor outlines now (see www/editor/highlight.js), for a page that comes in later. */

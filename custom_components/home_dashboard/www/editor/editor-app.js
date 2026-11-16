@@ -48,6 +48,11 @@ const APP_TAG = "home-dashboard-editor-app";
 const DOMAIN = "home_dashboard";
 // A draft is kept this long after the last change, so typing does not send every letter.
 export const DRAFT_SAVE_MS = 800;
+// Home Assistant hands the editor a new hass on every change of a state in the house, many times a second. The editor
+// is drawn at once for what it lists (entities, devices, areas, the language, the look), and for states alone at most
+// this often (ms). Tests set it to 0.
+export const EDITOR_TIMING = { states: 5000 };
+const HASS_KEYS = ["entities", "devices", "areas", "floors", "language", "locale", "user", "themes", "selectedTheme"];
 const COLLAPSED_KEY = "home-dashboard-editor-collapsed";
 const THEME_KEY = "home-dashboard-editor-theme";
 // The look of the editor (not of the preview, which has its own Light and Dark): as Home Assistant, or chosen here.
@@ -303,6 +308,8 @@ export class HomeDashboardEditorApp extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    clearTimeout(this._statesTimer);
+    this._statesTimer = null;
     window.removeEventListener("keydown", this._onKey);
     this._stageWatch?.disconnect();
     if (window.homeDashboardPreview === this._source) delete window.homeDashboardPreview;
@@ -1194,7 +1201,23 @@ export class HomeDashboardEditorApp extends LitElement {
     localStorage.setItem(THEME_KEY, this._theme);
   }
 
+  shouldUpdate(changed) {
+    if (changed.size !== 1 || !changed.has("hass")) return true;
+    const previous = changed.get("hass");
+    if (!previous || HASS_KEYS.some((key) => previous[key] !== this.hass?.[key])) return true;
+    const wait = (this._drawnAt ?? 0) + EDITOR_TIMING.states - Date.now();
+    if (wait <= 0) return true;
+    this._statesTimer ??= setTimeout(() => {
+      this._statesTimer = null;
+      this.requestUpdate();
+    }, wait);
+    return false;
+  }
+
   updated() {
+    this._drawnAt = Date.now();
+    clearTimeout(this._statesTimer);
+    this._statesTimer = null;
     const theme = editorTheme(this._theme, this.hass);
     if (this.dataset.theme !== theme) this.dataset.theme = theme;
     const stage = this.renderRoot.querySelector("[data-stage]");
