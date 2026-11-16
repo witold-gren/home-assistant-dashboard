@@ -178,7 +178,7 @@ export const lookStyles = css`
     transition: transform 180ms ease;
   }
   .switch.on {
-    background: var(--hd-appliance-icon);
+    background: var(--hd-accent);
   }
   .switch.on::after {
     transform: translateX(20px);
@@ -205,8 +205,8 @@ export const lookStyles = css`
     background: var(--hd-off);
   }
   .remote.on {
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .order-row {
     display: flex;
@@ -283,7 +283,7 @@ export const lookStyles = css`
     background: var(--hd-off);
   }
   .look.on {
-    border-color: var(--hd-appliance-icon);
+    border-color: var(--hd-accent);
   }
   .look strong {
     font-size: 14px;
@@ -349,8 +349,8 @@ export const lookStyles = css`
   .pin-keys .ok {
     font-size: 18px;
     font-weight: 500;
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .light-slider {
     background: var(--hd-off);
@@ -434,8 +434,8 @@ export const lookStyles = css`
     border-radius: 16px;
     font-size: 16px;
     font-weight: 500;
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .big-switch {
     position: relative;

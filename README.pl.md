@@ -552,6 +552,17 @@ ostatni obrazek kamery. Jeśli dalej widzisz czarny ekran, wczytaj aplikację od
 Połącz ją z tą samą kamerą z eufy w **Ustawienia dashboardu → Ta sama kamera w innej integracji** i ustaw **Mówienie
 w oknie kamery → Głośnik kamery**.
 
+**Po wyjściu z dashboardu (np. do Ustawień) menu Home Assistant jest schowane** — do 1.0.2 dashboard chował menu
+Home Assistant, zmieniając jego ustawienie, a Home Assistant zapisywał je przy każdym wczytaniu strony (gdy przychodzą
+ustawienia motywu) jako Twój wybór „zawsze ukryte”. Od wersji 1.0.3 dashboard chowa menu trybem kiosku Home
+Assistant, którego Home Assistant nie zapisuje, a na każdej innej stronie menu wraca. Jeśli menu zostało już zapisane
+jako ukryte, wyłącz raz w swoim profilu (kliknij swoje imię na dole menu) przełącznik, który po angielsku nazywa się
+*Always hide the sidebar*.
+
+**Wykresy poboru mocy w pasku statusu co jakiś czas znikają** — do 1.0.2 nieudany odczyt historii (tablet się
+wybudza, połączenie z Home Assistant wraca) czyścił narysowane linie aż do kolejnego odczytu za 5 minut. Od wersji
+1.0.3 linie zostają, a odczyt jest powtarzany po 30 sekundach; po powrocie na stronę historia czyta się od nowa.
+
 **Plakietka znacznika (np. „Poczta”) się nie pojawia** — pomocnik z `status_panel.flags` nie istnieje w Home Assistant
 albo jest wyłączony. Pomocnik dodany w YAML powstaje dopiero po przeładowaniu (Narzędzia deweloperskie → YAML →
 **Pomocnicy: przełączniki**), a jego automatyzacja po przeładowaniu **Automatyzacji**. Zdarzenie sprzed przeładowania

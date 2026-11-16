@@ -6,6 +6,7 @@
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { MOTIF_NAMES, READY_BACKGROUNDS, drawMotif } from "./background-motifs.js";
 import { translate } from "./i18n.js";
+import { followRanges, rangeStyles, syncRanges } from "./range.js";
 
 // Gradients to start from, in groups: a colour at the top and one at the bottom.
 export const MAKER_PALETTES = {
@@ -353,7 +354,12 @@ export class HomeDashboardBackgroundMaker extends LitElement {
     return this._chosenLook ?? (MAKER_LOOKS.includes(this.look) ? this.look : "light");
   }
 
+  firstUpdated() {
+    followRanges(this.renderRoot);
+  }
+
   updated() {
+    syncRanges(this.renderRoot);
     this.renderRoot.querySelectorAll("canvas[data-maker-preview]").forEach((canvas) => {
       const [width, height] = MAKER_SIZES[canvas.dataset.makerPreview];
       canvas.width = Math.round(width * PREVIEW_SCALE);
@@ -592,7 +598,7 @@ export class HomeDashboardBackgroundMaker extends LitElement {
     </div>`;
   }
 
-  static styles = css`
+  static styles = [rangeStyles, css`
     :host {
       display: block;
       --mdc-icon-size: 18px;
@@ -839,7 +845,9 @@ export class HomeDashboardBackgroundMaker extends LitElement {
       color: var(--hd-text, var(--text, #e8eaed));
     }
     .slider input {
-      accent-color: var(--hd-link, var(--accent, #4f8cff));
+      --hd-range-size: 26px;
+      --hd-range-fill: var(--hd-link, var(--accent, #4f8cff));
+      --hd-range-knob: #ffffff;
     }
     .hint,
     .problem {
@@ -868,7 +876,7 @@ export class HomeDashboardBackgroundMaker extends LitElement {
     .main[disabled] {
       opacity: 0.6;
     }
-  `;
+  `];
 }
 
 if (!customElements.get("home-dashboard-background-maker")) customElements.define("home-dashboard-background-maker", HomeDashboardBackgroundMaker);

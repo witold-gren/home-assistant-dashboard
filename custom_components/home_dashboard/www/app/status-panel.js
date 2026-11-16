@@ -36,6 +36,8 @@ const RESTING = new Set(["off", "idle", "docked", "standby", "unavailable", "unk
 const RAIN_HOURS = 12;
 const POWER_HOURS = 6;
 const POWER_REFRESH_MS = 5 * 60_000;
+// After a failed read of the history (a tablet waking up, the connection coming back): try again this soon.
+export const POWER_RETRY_MS = 30_000;
 const POWER_BUCKETS = 72;
 const CLOCK_MS = 15_000;
 const SPARK = { width: 240, height: 40 };
@@ -235,6 +237,9 @@ export class HomeDashboardStatusPanel extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._clock);
     clearInterval(this._powerTimer);
+    clearTimeout(this._powerRetry);
+    // Back on the page, the power is read again and its refresh starts anew
+    this._powerKey = null;
     clearInterval(this._calendarTimer);
     this._calendarTimer = null;
     this._calendarKey = null;
@@ -309,26 +314,34 @@ export class HomeDashboardStatusPanel extends LitElement {
     const ids = this._powerEntities.map((item) => item.entity);
     const now = Date.now();
     const from = now - POWER_HOURS * 3_600_000;
-    const history = await this.hass
-      .callWS({
+    let history;
+    try {
+      history = await this.hass.callWS({
         type: "history/history_during_period",
         start_time: new Date(from).toISOString(),
         end_time: new Date(now).toISOString(),
         entity_ids: ids,
         minimal_response: true,
         no_attributes: true,
-      })
-      .catch(() => ({}));
+      });
+    } catch {
+      // The lines drawn stay; they were emptied before and vanished until the next read, 5 minutes on
+      clearTimeout(this._powerRetry);
+      this._powerRetry = setTimeout(() => this._loadPower(), POWER_RETRY_MS);
+      return;
+    }
+    const previous = this._history ?? {};
     this._history = Object.fromEntries(
-      ids.map((id) => [
-        id,
-        bucketed(
+      ids.map((id) => {
+        const points = bucketed(
           (history?.[id] ?? []).map((row) => ({ time: (row.lu ?? row.lc ?? 0) * 1000, value: Number(row.s) })),
           POWER_BUCKETS,
           from,
           now,
-        ),
-      ]),
+        );
+        // A sensor without numbers in this read keeps its line from the last one
+        return [id, points.length >= 2 ? points : (previous[id] ?? points)];
+      }),
     );
   }
 
@@ -533,7 +546,8 @@ export class HomeDashboardStatusPanel extends LitElement {
   }
 
   _renderPower() {
-    const items = this._powerEntities;
+    // An item with a `switch` shows only while it is on, e.g. a charger: on, the iPad is charging.
+    const items = this._powerEntities.filter((item) => !item.switch || this.hass.states[item.switch]?.state === "on");
     if (!items.length) return nothing;
     return this._section(
       "power",

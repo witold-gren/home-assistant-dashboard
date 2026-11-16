@@ -1,6 +1,7 @@
 // How the page looks: how much of a background shows, whether the page bounces at its ends, and the
 // look of the tiles. An administrator sets it for everyone; each person may change any part of it
 // for themselves, and what they leave alone follows the shared choice.
+import { accentFor, milkyFor } from "./accent.js";
 
 export const DEFAULT_BACKGROUND_STRENGTH = 40;
 export const TILE_FILLS = ["tile", "icon"];
@@ -98,6 +99,8 @@ export const APPEARANCE_FIELDS = {
     text: colour(),
     controls: colour(),
     cards: colour(),
+    // What is on or chosen in a window; without it a milky pane of the writing of the window (accent.js).
+    accent: colour(),
     opacity: number(20, 100, 100),
     blur: number(0, 40, 0),
     scrim: number(0, 80, 45),
@@ -283,7 +286,10 @@ export function tileVariables(appearance) {
 // colours of the look inside it, so every kind of window follows at once.
 export function sheetVariables(appearance) {
   const { sheets } = mergeAppearance(appearance);
+  const accent = (sheets.accent && accentFor(sheets.accent)) || (sheets.text && milkyFor(sheets.text));
   const variables = {
+    "--hd-ov-accent": accent?.fill,
+    "--hd-ov-accent-ink": accent?.ink,
     "--hd-sheet-opacity": `${sheets.opacity}%`,
     "--hd-sheet-blur": `${sheets.blur}px`,
     "--hd-sheet-scrim": sheets.scrim / 100,

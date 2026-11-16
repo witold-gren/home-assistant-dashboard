@@ -54,6 +54,8 @@ const LIGHT = `
     --hd-link: #0b57d0;
     --hd-star: #b98900;
     --hd-control: var(--hd-ov-control, #45474d);
+    --hd-accent: var(--hd-ov-accent, color-mix(in srgb, var(--hd-text) 90%, transparent));
+    --hd-accent-ink: var(--hd-ov-accent-ink, #ffffff);
     --hd-radius: 20px;
     --hd-rail-width: 88px;
     --hd-nav-height: 72px;
@@ -104,6 +106,8 @@ const DARK = `
     --hd-link: #a8c7fa;
     --hd-star: #f0d24a;
     --hd-control: var(--hd-ov-control, #c8cad0);
+    --hd-accent: var(--hd-ov-accent, color-mix(in srgb, var(--hd-text) 90%, transparent));
+    --hd-accent-ink: var(--hd-ov-accent-ink, #1d1d1f);
 `;
 
 const COMMON = `

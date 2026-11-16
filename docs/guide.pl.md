@@ -721,7 +721,8 @@ wraca takie, jak było. Telefon w poziomie zostaje przy układzie telefonu, z tr
 
 W aplikacji Home Assistant przesunięcie palcem od lewej krawędzi otwiera na stronie głównej to menu zamiast menu Home
 Assistant. W każdym innym miejscu ten sam gest cofa: otwarte okno się zamyka, a pokój albo inna strona wraca na stronę
-główną.
+główną. Na stronie głównej menu wysuwa się razem z palcem: puszczone za jedną trzecią albo szybkim ruchem
+otwiera się, wcześniej wraca na miejsce. Wsuwa się i chowa z animacją.
 
 Wpisy z adresem `/history` i `/logbook` otwierają się w oknach dashboardu. Dziennik pokazuje urządzenia z dashboardu z
 ostatniej godziny, 6 lub 24 godzin, a Historia wykresy encji, które każdy wybiera dla siebie.
@@ -1362,7 +1363,7 @@ Części:
 | **Uwaga** | te same ostrzeżenia co karty na stronie głównej | pozycje Statusu z `notify: true` |
 | **Teraz** | to, co pracuje albo się dzieje (pralka, msza w niedzielę, odkurzacz) | `status_panel.now` |
 | **Odjazdy** | każda linia z minutami (powyżej godziny: godzina odjazdu) i trzema godzinami | pierwszy blok odjazdów albo `status_panel.departures` |
-| **Pobór mocy** | moc teraz i wykres z 6 godzin | `status_panel.power` |
+| **Pobór mocy** | moc teraz i wykres z 6 godzin; pozycja z **Tylko gdy włączony** jest widoczna tylko, gdy jej przełącznik jest włączony | `status_panel.power` |
 
 Dane ustawia się w YAML dashboardu (**Ustawienia → Dashboardy → Home Dashboard → ⋮ → Edytuj dashboard → ⋮ → Edytor
 surowej konfiguracji**, w bloku `strategy:`):

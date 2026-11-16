@@ -809,6 +809,7 @@ ciemnego wyglądu.
 | `badges.kinds` | logiczny | `true` | kółka w kolorach swoich rodzajów |
 | `badges.fill` | logiczny | `true` | `false`: kółka puste w środku |
 | `sheets.background`, `text`, `controls`, `cards` | kolor | brak | okna; `cards`: tło kart w nich |
+| `sheets.accent` | kolor | mleczny | to, co włączone lub wybrane w oknie, OK, wypełnienie suwaków; bez niego kolor napisów z kryciem 90 %, z napisem w przeciwnym tonie |
 | `sheets.opacity`, `blur`, `scrim` | 20-100, 0-40, 0-80 | `100`, `0`, `45` | okna i przyciemnienie strony |
 | `map.theme` | `auto`, `light`, `dark` | `auto` | kolory mapy |
 | `map.hours` | 6, 24, 72, 168 | `24` | początkowy zakres tras |
@@ -921,7 +922,7 @@ visibility:
 | `windows` | lista encji albo `{entity, name}` | `[]` | okna w **W domu**, osobna plakietka; dotknięcie pokazuje listę otwartych |
 | `flags` | lista encji albo `{entity, name, icon}` | `[]` | plakietka, gdy pomocnik jest `on`, np. poczta w skrzynce; dotknięcie otwiera pomocnika, żeby go wyłączyć |
 | `now` | lista | `[]` | pozycje **Teraz**, patrz niżej |
-| `power` | lista encji albo `{entity, name, color}` | `[]` | moc teraz z linią z 6 godzin |
+| `power` | lista encji albo `{entity, name, color, switch}` | `[]` | moc teraz z linią z 6 godzin; ze `switch` tylko, gdy ten przełącznik jest włączony (ładowarka) |
 | `departures` | lista encji albo `null` | `null` | tramwaje; `null` bierze pierwszy blok odjazdów |
 | `ignore` | lista encji | `[]` | światła i urządzenia, których **W domu** nie liczy (np. lampa z własnym harmonogramem) |
 | `calendars` | lista encji kalendarzy | `[]` | kalendarze domu: dzisiejsze wydarzenia pod pogodą, okno kalendarza i lista każdej osoby |

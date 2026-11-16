@@ -5,6 +5,7 @@
 // Every module of the app, the loader and the bundled libraries. A test keeps this list equal to the folder.
 export const APP_FILES = [
   "alerts.js",
+  "accent.js",
   "activity.js",
   "app-frame.js",
   "appearance.js",
@@ -37,6 +38,7 @@ export const APP_FILES = [
   "press.js",
   "preview.js",
   "preview-highlight.js",
+  "range.js",
   "recordings.js",
   "reload.js",
   "room-editor.js",

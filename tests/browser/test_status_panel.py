@@ -500,3 +500,69 @@ def test_since_says_the_hour_today_and_the_day_before(phone):
     assert result[0] == "09:45"
     assert result[1].endswith("22:05") and result[1] != "22:05"
     assert result[2] == ""
+
+
+def test_the_lines_of_power_stay_when_a_read_of_the_history_fails(phone):
+    result = run(phone, """
+        const now = Date.now() / 1000;
+        const rows = [{ s: '20', lu: now - 3600 }, { s: '30', lu: now - 1800 }, { s: '25', lu: now - 60 }];
+        let fail = false;
+        const hass = { language: 'pl', states: { 'sensor.jetson': { state: '25', attributes: {} } },
+            callWS: async () => { if (fail) throw new Error('connection lost'); return { 'sensor.jetson': rows }; } };
+        const panel = document.createElement('home-dashboard-status-panel');
+        panel.hass = hass;
+        panel.config = { status_panel: { power: ['sensor.jetson'] } };
+        await panel._loadPower();
+        const first = s.sparkPath(panel._history['sensor.jetson']);
+        fail = true;
+        await panel._loadPower();
+        const kept = s.sparkPath(panel._history['sensor.jetson']);
+        const retry = Boolean(panel._powerRetry);
+        clearTimeout(panel._powerRetry);
+        // A read without numbers for the sensor keeps its line too
+        fail = false; rows.length = 0;
+        await panel._loadPower();
+        return { first, kept, retry, empty: s.sparkPath(panel._history['sensor.jetson']), wait: s.POWER_RETRY_MS };""")
+    assert result["first"] != ""
+    assert result["kept"] == result["first"]
+    assert result["retry"] is True
+    assert result["empty"] == result["first"]
+    assert result["wait"] == 30_000
+
+
+def test_back_on_the_page_the_power_is_read_again(phone):
+    again = run(phone, """
+        const panel = document.createElement('home-dashboard-status-panel');
+        panel._powerKey = 'sensor.jetson';
+        panel.disconnectedCallback();
+        return panel._powerKey;""")
+    assert again is None
+
+
+def test_the_lists_of_at_home_keep_the_margin_of_the_list_of_areas(tablet):
+    open_doors(tablet)
+    tap(tablet, "[data-status-fact='doors']")
+    tablet.wait_for_selector(f"{SHEET} [data-status-on='doors']")
+    padding = tablet.locator(f"{SHEET} [data-status-on]").evaluate(
+        "(list) => { const style = getComputedStyle(list); return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]; }")
+    assert padding == ["8px", "16px", "16px", "16px"]
+
+
+def test_a_line_of_power_with_a_switch_shows_only_while_it_is_on(tablet):
+    mount(tablet, {"status_panel": {"power": [
+        {"entity": "sensor.charger_power", "name": "iPad", "switch": "switch.charger"},
+        {"entity": "sensor.server_power", "name": "Serwer"},
+    ]}}, states={"sensor.charger_power": ("9", {"unit_of_measurement": "W"}), "switch.charger": ("off", {}),
+                 "sensor.server_power": ("25", {"unit_of_measurement": "W"})})
+
+    def shown():
+        tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')?.shadowRoot.querySelector('[data-status-power]')")
+        return tablet.evaluate(f"""() => [...{CHROME}.shadowRoot.querySelector('{PANEL}').shadowRoot
+            .querySelectorAll('[data-status-power]')].map((row) => row.dataset.statusPower)""")
+
+    assert shown() == ["sensor.server_power"]
+    tablet.evaluate(f"""async () => {{ const chrome = {CHROME};
+        chrome.hass = {{ ...chrome.hass, states: {{ ...chrome.hass.states,
+            'switch.charger': {{ ...chrome.hass.states['switch.charger'], state: 'on' }} }} }};
+        await chrome.shadowRoot.querySelector('{PANEL}').updateComplete; }}""")
+    assert shown() == ["sensor.charger_power", "sensor.server_power"]

@@ -718,7 +718,9 @@ so the dashboard takes the whole screen. Your setting does not change: on other 
 back as it was. A phone on its side keeps the phone layout, with three tiles in a row.
 
 In the Home Assistant app a swipe from the left edge opens this menu on Home, instead of the menu of Home Assistant.
-Anywhere else the same swipe goes back: an open window closes, and a room or another page returns to Home.
+Anywhere else the same swipe goes back: an open window closes, and a room or another page returns to Home. On Home the
+menu follows the finger as it is drawn out: let go past a third of it, or with a flick, and it opens; short of that it
+goes back. It slides in and out.
 
 Entries with the address `/history` and `/logbook` open in windows of the dashboard. The logbook shows the devices of the
 dashboard for the last hour, 6 or 24 hours, and the history shows graphs of the entities each person picks for themselves.
@@ -1368,7 +1370,7 @@ Parts:
 | **Heads up** | the same warnings as the cards on Home | Status items with `notify: true` |
 | **Now** | what runs or happens (a washer, Sunday mass, a vacuum) | `status_panel.now` |
 | **Departures** | each line with its minutes (past an hour: the hour it leaves) and three times | the first departures block or `status_panel.departures` |
-| **Power** | power now and a line of the last 6 hours | `status_panel.power` |
+| **Power** | power now and a line of the last 6 hours; an item with **Only while on** shows only while its switch is on | `status_panel.power` |
 
 The facts are set in the dashboard's YAML (**Settings → Dashboards → Home Dashboard → ⋮ → Edit dashboard → ⋮ → Raw
 configuration editor**, in the `strategy:` block):

@@ -49,8 +49,8 @@ export const controlStyles = css`
   }
   .big-switch.on .big-thumb {
     bottom: 50%;
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .alarm-modes {
     display: grid;
@@ -100,8 +100,8 @@ export const controlStyles = css`
     color: var(--hd-text-muted);
   }
   .big-toggle.on {
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .big-toggle.on small {
     color: inherit;
@@ -140,8 +140,8 @@ export const controlStyles = css`
     background: var(--hd-off);
   }
   .choice.on {
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .facts {
     display: flex;
@@ -237,7 +237,7 @@ export const controlStyles = css`
     background: var(--hd-security);
   }
   .summary .choice.on {
-    background: var(--hd-appliance-icon);
+    background: var(--hd-accent);
   }
   .tv-now {
     display: flex;
@@ -324,8 +324,8 @@ export const controlStyles = css`
   .dpad .ok {
     grid-area: ok;
     border-radius: 0;
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .keys {
     display: grid;
@@ -401,8 +401,8 @@ export const controlStyles = css`
     --secondary-background-color: var(--hd-off);
     --card-background-color: transparent;
     --divider-color: var(--hd-outline);
-    --primary-color: var(--hd-appliance-icon);
-    --text-primary-color: #ffffff;
+    --primary-color: var(--hd-accent);
+    --text-primary-color: var(--hd-accent-ink);
   }
   .panel.whole .rows .panel-card {
     max-width: 760px;

@@ -344,6 +344,8 @@ export const LookSheets = (Base) =>
         ${this._renderColourField("sheets", "background")} ${this._renderColourField("sheets", "text")}
         ${this._renderColourField("sheets", "controls")} ${this._renderColourField("sheets", "cards")}
         <p class="hint">${this._t("look_sheets_cards_hint")}</p>
+        ${this._renderColourField("sheets", "accent")}
+        <p class="hint">${this._t("look_sheets_accent_hint")}</p>
         ${this._renderSlider("sheet-opacity", this._t("look_opacity_short"), sheets.opacity, [20, 100], "%", (value) => set({ opacity: value }))}
         ${this._renderSlider("sheet-blur", this._t("look_nav_blur"), sheets.blur, [0, 40], " px", (value) => set({ blur: value }))}
         ${this._renderSlider("sheet-scrim", this._t("look_sheets_scrim"), sheets.scrim, [0, 80], "%", (value) => set({ scrim: value }))}

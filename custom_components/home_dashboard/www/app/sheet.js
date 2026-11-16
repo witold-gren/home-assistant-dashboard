@@ -36,6 +36,7 @@ import { lookStyles } from "./sheet-styles-look.js";
 import { controlStyles } from "./sheet-styles-controls.js";
 import { cameraStyles } from "./sheet-styles-camera.js";
 import { mediaQuery } from "./media.js";
+import { followRanges, rangeStyles, syncRanges } from "./range.js";
 
 /** Whether a change asked with a PIN has happened: the state it was to take, as a number for a number. */
 export function pinDone(state, expect) {
@@ -312,7 +313,12 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     live.style.maxWidth = `${wanted}px`;
   }
 
+  firstUpdated() {
+    followRanges(this.renderRoot);
+  }
+
   updated(changed) {
+    syncRanges(this.renderRoot);
     this._syncCalendar?.();
     // The big camera of all cameras: the one just drawn plays, and only it.
     this._syncWallLive();
@@ -691,5 +697,6 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     controlStyles,
     cameraStyles,
     calendarStyles,
+    rangeStyles,
   ];
 }

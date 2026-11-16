@@ -550,6 +550,17 @@ last picture until the video moves. If you still see black, load the app afresh 
 speaker. Link it to the same camera from eufy in **Dashboard settings → The same camera in another integration** and
 set **Talking in a camera window → The camera's speaker**.
 
+**After leaving the dashboard (for Settings, say) the menu of Home Assistant is hidden** — up to 1.0.2 the dashboard
+hid the menu of Home Assistant by changing its setting, and Home Assistant saved it at every load (when the preferences
+of the theme arrive) as your own choice, always hidden. From 1.0.3 the dashboard hides the menu by the kiosk
+mode of Home Assistant, which Home Assistant never saves, and the menu comes back on any other page. If the menu was
+already saved hidden, turn off once in your profile (your name at the bottom of the menu) *Always hide the sidebar*.
+
+**The lines of power in the status bar vanish now and then** — up to 1.0.2 a failed read of the history (a tablet
+waking up, the connection to Home Assistant coming back) emptied the lines drawn until the next read, 5 minutes on.
+From 1.0.3 the lines stay and the read is tried again after 30 seconds; back on the page the history is
+read anew.
+
 **A flag's badge (e.g. "Mail") does not show** — the helper of `status_panel.flags` does not exist in Home Assistant,
 or it is off. A helper added in YAML exists only after a reload (Developer tools → YAML → **Input booleans**), and its
 automation after a reload of **Automations**. What happened before the reload does not turn it on by itself.

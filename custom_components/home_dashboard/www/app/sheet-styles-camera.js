@@ -384,8 +384,11 @@ export const cameraStyles = css`
     backdrop-filter: blur(20px);
   }
   .sound-level input {
+    --hd-range-size: 24px;
+    --hd-range-fill: #ffffff;
+    --hd-range-track: rgba(255, 255, 255, 0.25);
+    --hd-range-knob: #ffffff;
     width: 160px;
-    accent-color: #ffffff;
   }
   .picture img {
     width: auto;
@@ -928,7 +931,6 @@ export const cameraStyles = css`
   }
   .volume input {
     flex: 1;
-    accent-color: var(--hd-control);
   }
   .extras {
     margin-top: 8px;

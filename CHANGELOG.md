@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.3 (2026-11-16)
+
+- Windows: what is on or chosen (a source, a sound mode, OK of a remote, a switch, the fill of a slider) is milky
+  instead of green: the colour of the writing of the window, 90 % opaque, with dark writing on it (white in a light
+  window), so it fits a yellow, blue or purple background alike. **Colour of what is on** in *Look → Windows*
+  (`appearance.sheets.accent`) sets a colour of its own. Green stays where it means something: a disarmed alarm,
+  the colour of a kind of device.
+- Sliders (volume of a TV or a soundbar and of the player, a number of a block, the look, the background maker, the
+  sound of a recording) are a thick rounded bar filled up to a round white knob in the colour of the buttons that
+  are on, instead of the thin line of the browser.
+- Status bar: an item of **Power** can have a `switch` (**Only while on** in the editor) and then shows only while
+  that switch is on, e.g. the plug of a tablet's charger, to see when it charges.
+- The menu of the dashboard slides in and out, and in the Home Assistant app it follows the finger drawn from the
+  left edge on Home: let go past a third of it, or with a flick, and it opens, else it goes back. It used to appear
+  at once, only when the finger was lifted; the app's own swipe of the same finger is ignored.
+- The menu of Home Assistant is hidden on the dashboard by the kiosk mode of Home Assistant, which is never saved, and
+  comes back on any other page of Home Assistant (Settings, say). Changing `dockedSidebar` got saved by Home Assistant
+  at every load as the user's own choice, so the menu stayed hidden everywhere; an older Home Assistant without the
+  kiosk mode still gets `dockedSidebar`, given back when leaving.
+- At home: the lists of lights, devices, doors and windows on or open keep the same margin around their rows as the
+  list of areas, so the rows no longer touch the edges of the window.
+- Status bar: the lines of power no longer vanish now and then. A failed read of their history (a tablet waking up,
+  the connection coming back) emptied them until the next read, 5 minutes on; now they stay and the read is tried
+  again after 30 seconds, and a sensor without numbers in a read keeps its line. Back on the page the power is read
+  anew (its refresh did not start again).
+
 ## 1.0.2 (2026-11-15)
 
 - Background maker: the photo can be made smaller (20–100 %), put in a corner, at a side or in the middle and moved

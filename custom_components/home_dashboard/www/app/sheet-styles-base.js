@@ -219,8 +219,8 @@ export const baseStyles = css`
     cursor: pointer;
   }
   .room-chip.on {
-    color: #ffffff;
-    background: var(--hd-appliance-icon, #2b6cb0);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .room-run {
     display: flex;
@@ -241,8 +241,8 @@ export const baseStyles = css`
   }
   .room-go {
     flex: 1;
-    color: #ffffff;
-    background: var(--hd-appliance-icon, #2b6cb0);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   .room-go[disabled],
   .room-repeats[disabled] {
@@ -324,8 +324,8 @@ export const baseStyles = css`
     background: var(--hd-off);
   }
   .block-action.on {
-    color: #ffffff;
-    background: var(--hd-appliance-icon);
+    color: var(--hd-accent-ink);
+    background: var(--hd-accent);
   }
   /* A question before an action that cannot wait to be undone (turning a console off): the same dark glass in every
      look and theme, so it reads on light ones too; the action in red, the way back plain. */
@@ -484,11 +484,12 @@ export const baseStyles = css`
     background: transparent;
   }
   /* The list of what the status bar counts as on. */
+  /* The same margin around its rows as the list of areas (.rows), so they do not touch the edges of the window. */
   .status-on {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 0 4px 16px;
+    padding: 8px 16px 16px;
   }
   .status-row {
     display: flex;
@@ -507,7 +508,7 @@ export const baseStyles = css`
     min-width: 0;
     padding: 12px 14px;
     border: 0;
-    border-radius: 14px;
+    border-radius: var(--hd-radius);
     color: inherit;
     text-align: left;
     background: var(--hd-off);

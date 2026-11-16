@@ -55,7 +55,7 @@ def test_defaults_keep_the_page_as_it_was(phone):
         "buttons": {"background": None, "icon": None, "opacity": 100},
         "badges": {"text": None, "icon": None, "kinds": True, "fill": True},
         "page": {"background_light": None, "background_dark": None},
-        "sheets": {"background": None, "text": None, "controls": None, "cards": None, "opacity": 100, "blur": 0, "scrim": 45},
+        "sheets": {"background": None, "text": None, "controls": None, "cards": None, "accent": None, "opacity": 100, "blur": 0, "scrim": 45},
         "map": {"theme": "auto", "hours": 24},
         "player": {"background": None, "text": None, "opacity": 100, "blur": 0, "radius": 16, "paused_minutes": 10},
         "nav": {"items": None, "style": "docked", "background": None, "icon": None, "active": None,

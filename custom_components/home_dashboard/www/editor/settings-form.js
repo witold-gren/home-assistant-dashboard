@@ -665,6 +665,7 @@ export const SETTINGS_FORMS = {
             { key: "entity", type: "entity" },
             { key: "name", type: "text" },
             { key: "color", type: "colour", labelKey: "editor_status_colour" },
+            { key: "switch", type: "entity", labelKey: "editor_status_power_switch", helpKey: "editor_status_power_switch_hint" },
           ],
         },
         {

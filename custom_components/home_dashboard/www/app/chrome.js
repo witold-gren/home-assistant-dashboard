@@ -74,6 +74,22 @@ const BAND_REPEAT_MS = 800;
 const PLAYER_SPACE = "88px";
 // The status bar of a tablet: open or folded on this device, the hold on its button that opens the menu, and the hint
 // that tells about the hold the first few times the bar shows.
+// The menu drawn out by a finger from the left edge: where a touch counts as on the edge, how far it goes before the
+// menu shows, how far (a share of the menu) or how fast (px/ms) it is let go to open, how long the menu slides, and how
+// long after a drag the app's own swipe of the same finger is ignored.
+const EDGE_PX = 24;
+const DRAG_START_PX = 8;
+const DRAWER_OPEN_SHARE = 0.35;
+const DRAWER_FLING = 0.4;
+export const DRAWER_MS = 240;
+const NATIVE_SWIPE_MS = 800;
+const DRAWER_EASE = `${DRAWER_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+/** The app of Home Assistant: in a browser the left edge belongs to the browser, as its way back. */
+export const inHomeAssistantApp = () =>
+  /Home ?Assistant\//i.test(navigator.userAgent) || Boolean(window.externalApp || window.webkit?.messageHandlers?.externalBus);
+
 const STATUS_OPEN_KEY = "home-dashboard-status-open";
 const STATUS_HINT_KEY = "home-dashboard-status-hint";
 const STATUS_HOLD_MS = 550;
@@ -487,6 +503,7 @@ export class HomeDashboardChrome extends LitElement {
     super.connectedCallback();
     this._debug = new URLSearchParams(window.location.search).has("dashboard_debug");
     this._onPopState = () => {
+      this._followSidebar();
       if (!this._overlay) return;
       this._overlay = null;
       this._closing = null;
@@ -503,6 +520,8 @@ export class HomeDashboardChrome extends LitElement {
     window.addEventListener(PREFS_EVENT, this._onPrefs);
     window.addEventListener("location-changed", this._onLocation);
     this._lockZoom();
+    for (const [name, handler] of this._edgeHandlers) window.addEventListener(name, handler, { capture: true, passive: true });
+    this._ownPath = dashboardPath(window.location.pathname);
     this._hideSidebar();
     this._watchMenuGesture();
     watchPresses();
@@ -544,6 +563,7 @@ export class HomeDashboardChrome extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("popstate", this._onPopState);
+    for (const [name, handler] of this._edgeHandlers) window.removeEventListener(name, handler, { capture: true });
     ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, this._armIdle, { capture: true }));
     this._observer?.disconnect();
     window.removeEventListener("click", this._followRoot, { capture: true });
@@ -573,20 +593,41 @@ export class HomeDashboardChrome extends LitElement {
   // open window closes and another page returns to Home. The app asks the page for the menu, and this listener hears
   // it before Home Assistant does.
   // The menu of Home Assistant does not belong on this dashboard, which has its own; a wide phone or a tablet would keep
-  // it docked at the side. It is hidden while the dashboard is open, without saving that for the user, and comes back
-  // as it was when they leave.
+  // it docked at the side. It is hidden while the dashboard is open and comes back on any other page of Home Assistant.
+  // The kiosk mode of Home Assistant hides it as "always hidden" does, but Home Assistant never saves it: changing
+  // `dockedSidebar` instead got saved as the user's own choice whenever Home Assistant stored its settings (at every
+  // load, when the preferences of the theme arrive), and the menu stayed hidden everywhere. An older Home Assistant
+  // without the kiosk mode still gets `dockedSidebar`, given back when leaving.
   _hideSidebar() {
     const app = document.querySelector("home-assistant");
-    if (!app?._updateHass || !app.hass || app.hass.dockedSidebar === "always_hidden") return;
-    this._userDock = app.hass.dockedSidebar;
+    if (!app?._updateHass || !app.hass || this._sidebarHidden) return;
+    if ("kioskMode" in app.hass) {
+      if (app.hass.kioskMode) return; // in kiosk mode already, not by the dashboard
+      this._sidebarHidden = "kiosk";
+      app._updateHass({ kioskMode: true });
+      return;
+    }
+    if (app.hass.dockedSidebar === "always_hidden") return;
+    this._sidebarHidden = app.hass.dockedSidebar;
     app._updateHass({ dockedSidebar: "always_hidden" });
   }
 
   _restoreSidebar() {
+    const hidden = this._sidebarHidden;
+    this._sidebarHidden = undefined;
     const app = document.querySelector("home-assistant");
-    if (this._userDock === undefined || !app?._updateHass) return;
-    if (app.hass?.dockedSidebar === "always_hidden") app._updateHass({ dockedSidebar: this._userDock });
-    this._userDock = undefined;
+    if (!hidden || !app?._updateHass || !app.hass) return;
+    if (hidden === "kiosk") {
+      if (app.hass.kioskMode) app._updateHass({ kioskMode: false });
+    } else if (app.hass.dockedSidebar === "always_hidden") {
+      app._updateHass({ dockedSidebar: hidden });
+    }
+  }
+
+  // On the dashboard the menu of Home Assistant hides; on any other page of Home Assistant it comes back.
+  _followSidebar() {
+    if (dashboardPath(window.location.pathname) === this._ownPath) this._hideSidebar();
+    else this._restoreSidebar();
   }
 
   _watchMenuGesture() {
@@ -599,10 +640,115 @@ export class HomeDashboardChrome extends LitElement {
   _onMenuGesture = (event) => {
     if (event.detail?.open === false) return;
     event.stopImmediatePropagation();
+    // The same finger drew the menu out already: the app tells of its swipe only when the finger is lifted
+    if (this._drag?.shown || performance.now() - (this._draggedAt ?? -Infinity) < NATIVE_SWIPE_MS) return;
     if (this._overlay) this.close();
     else if (this.page === "home") this.open({ type: "drawer" });
     else this._navigate(PAGES[0]);
   };
+
+  // A finger from the left edge draws the menu out with it, on Home as the app's swipe opens it there; let go past a
+  // third of it, or with a flick, and it opens, else it goes back. Only in the app of Home Assistant (or when a test
+  // allows it): in a browser that edge is the way back. When the app takes the swipe over (touchcancel), it opens it.
+  get _edgeHandlers() {
+    this._edges ??= [
+      ["touchstart", this._onEdgeStart],
+      ["touchmove", this._onEdgeMove],
+      ["touchend", this._onEdgeEnd],
+      ["touchcancel", this._onEdgeEnd],
+    ];
+    return this._edges;
+  }
+
+  _onEdgeStart = (event) => {
+    this._drag = null;
+    const allowed = this.edgeDrag ?? inHomeAssistantApp();
+    if (!allowed || this._overlay || this.page !== "home" || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    if (touch.clientX > EDGE_PX) return;
+    this._drag = { x0: touch.clientX, y0: touch.clientY, x: touch.clientX, at: event.timeStamp, speed: 0, shown: false };
+  };
+
+  _onEdgeMove = (event) => {
+    const drag = this._drag;
+    if (!drag) return;
+    const touch = event.touches[0];
+    const [dx, dy] = [touch.clientX - drag.x0, touch.clientY - drag.y0];
+    if (!drag.shown) {
+      // Scrolling the page, not drawing the menu
+      if (Math.abs(dy) > DRAG_START_PX && Math.abs(dy) > dx) {
+        this._drag = null;
+        return;
+      }
+      if (dx < DRAG_START_PX) return;
+      drag.shown = true;
+      this.open({ type: "drawer", dragged: true });
+    }
+    drag.speed = (touch.clientX - drag.x) / Math.max(1, event.timeStamp - drag.at);
+    drag.x = touch.clientX;
+    drag.at = event.timeStamp;
+    this._placeDrawer(dx);
+  };
+
+  _onEdgeEnd = (event) => {
+    const drag = this._drag;
+    this._drag = null;
+    if (!drag?.shown) return;
+    this._draggedAt = performance.now();
+    const pulled = drag.x - drag.x0;
+    const opens = event.type === "touchcancel" || pulled > this._drawerWidth() * DRAWER_OPEN_SHARE || drag.speed > DRAWER_FLING;
+    this._settleDrawer(opens);
+  };
+
+  _drawerParts() {
+    return [this.renderRoot.querySelector("[data-drawer]"), this.renderRoot.querySelector(".scrim")];
+  }
+
+  _drawerWidth() {
+    return this._drawerParts()[0]?.offsetWidth || STATUS_WIDTH;
+  }
+
+  // The menu where the finger is: `pulled` pixels out of its width, the shade under it as dark as it is out.
+  async _placeDrawer(pulled) {
+    await this.updateComplete;
+    const [drawer, scrim] = this._drawerParts();
+    if (!drawer) return;
+    const width = drawer.offsetWidth || STATUS_WIDTH;
+    const x = Math.min(0, pulled - width);
+    drawer.style.transition = "none";
+    drawer.style.transform = `translateX(${x}px)`;
+    if (scrim) {
+      scrim.style.transition = "none";
+      scrim.style.opacity = String(Math.max(0, 1 + x / width));
+    }
+  }
+
+  // The menu slides the rest of the way, open or shut, from where it is.
+  async _settleDrawer(open) {
+    await this.updateComplete;
+    await this._slideDrawer(open);
+    if (open) {
+      const [drawer, scrim] = this._drawerParts();
+      for (const part of [drawer, scrim]) part?.style.removeProperty("transition");
+      drawer?.style.removeProperty("transform");
+      scrim?.style.removeProperty("opacity");
+    } else {
+      this._drawerOut = true;
+      await this.close();
+    }
+  }
+
+  async _slideDrawer(open) {
+    const [drawer, scrim] = this._drawerParts();
+    if (!drawer || mediaQuery(REDUCED_MOTION).matches) return;
+    drawer.style.transition = `transform ${DRAWER_EASE}`;
+    drawer.style.transform = open ? "translateX(0)" : "translateX(-100%)";
+    if (scrim) {
+      scrim.style.transition = `opacity ${DRAWER_EASE}`;
+      scrim.style.opacity = open ? "1" : "0";
+    }
+    await new Promise((resolve) => setTimeout(resolve, DRAWER_MS));
+  }
 
   // Tablets only: a phone is in someone's hand, and its page should wait for them.
   _armIdle = () => {
@@ -846,11 +992,21 @@ export class HomeDashboardChrome extends LitElement {
       this._overlay = this._overlay.opener;
       return Promise.resolve();
     }
-    this._closing ??= new Promise((resolve) => {
-      this._afterClose = resolve;
-      window.history.back();
-    });
+    this._closing ??= this._leaveDrawer().then(
+      () =>
+        new Promise((resolve) => {
+          this._afterClose = resolve;
+          window.history.back();
+        }),
+    );
     return this._closing;
+  }
+
+  // The menu slides away before it goes, unless a finger already pushed it out.
+  async _leaveDrawer() {
+    const pushed = this._drawerOut;
+    this._drawerOut = false;
+    if (this._overlay?.type === "drawer" && !pushed) await this._slideDrawer(false);
   }
 
   drop() {
@@ -898,7 +1054,10 @@ export class HomeDashboardChrome extends LitElement {
     else this._navigate(entry.page);
   }
 
-  _onLocation = () => this.requestUpdate();
+  _onLocation = () => {
+    this._followSidebar();
+    this.requestUpdate();
+  };
 
   _navigate(page) {
     if (page.key === this.page) return;
@@ -1074,8 +1233,8 @@ export class HomeDashboardChrome extends LitElement {
     const rooms = buildRoomList(this.hass, this._config, this._selection);
     const groups = shownMenu(this.hass, this._config, LINKS);
     return html`
-      <div class="scrim" @click=${() => this.close()}></div>
-      <aside class="drawer" data-drawer>
+      <div class="scrim ${this._overlay?.dragged ? "dragged" : ""}" @click=${() => this.close()}></div>
+      <aside class="drawer ${this._overlay?.dragged ? "dragged" : ""}" data-drawer>
         <div class="drawer-head">
           <button class="drawer-back" data-drawer-back aria-label=${translate(language, "back")} @click=${() => this.close()}>
             <ha-icon icon="mdi:chevron-left"></ha-icon>
@@ -1415,6 +1574,33 @@ export class HomeDashboardChrome extends LitElement {
         inset: 0;
         z-index: 7;
         background: rgba(0, 0, 0, 0.45);
+      }
+      /* The menu slides in from the left over a shade that darkens; drawn by a finger, it follows the finger instead. */
+      .scrim {
+        animation: scrim-in ${unsafeCSS(DRAWER_EASE)};
+      }
+      .drawer {
+        animation: drawer-in ${unsafeCSS(DRAWER_EASE)};
+      }
+      .scrim.dragged,
+      .drawer.dragged {
+        animation: none;
+      }
+      @keyframes drawer-in {
+        from {
+          transform: translateX(-100%);
+        }
+      }
+      @keyframes scrim-in {
+        from {
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .scrim,
+        .drawer {
+          animation: none;
+        }
       }
       .drawer {
         position: fixed;

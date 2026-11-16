@@ -810,6 +810,7 @@ look.
 | `badges.kinds` | boolean | `true` | circles in the colours of their kinds |
 | `badges.fill` | boolean | `true` | `false`: circles open inside |
 | `sheets.background`, `text`, `controls`, `cards` | colour | none | windows; `cards`: background of cards in them |
+| `sheets.accent` | colour | milky | what is on or chosen in a window, OK, the fill of sliders; without it the colour of the writing 90 % opaque, with writing in the opposite tone |
 | `sheets.opacity`, `blur`, `scrim` | 20-100, 0-40, 0-80 | `100`, `0`, `45` | windows and the dimming of the page |
 | `map.theme` | `auto`, `light`, `dark` | `auto` | colours of the map |
 | `map.hours` | 6, 24, 72, 168 | `24` | the range of routes at first |
@@ -921,7 +922,7 @@ visibility:
 | `windows` | list of entity ids or `{entity, name}` | `[]` | windows of **At home**, a badge of their own; a tap lists the open ones |
 | `flags` | list of entity ids or `{entity, name, icon}` | `[]` | a badge while a helper is `on`, e.g. mail in the mailbox; a tap opens the helper to turn it off |
 | `now` | list | `[]` | items of **Now**, see below |
-| `power` | list of entity ids or `{entity, name, color}` | `[]` | power now with a line of 6 hours |
+| `power` | list of entity ids or `{entity, name, color, switch}` | `[]` | power now with a line of 6 hours; with `switch` only while that switch is on (a charger) |
 | `departures` | list of entity ids or `null` | `null` | the trams; `null` takes the first departures block |
 | `ignore` | list of entity ids | `[]` | lights and devices **At home** does not count (e.g. a lamp with its own schedule) |
 | `calendars` | list of calendar entity ids | `[]` | the calendars of the home: today's events under the weather, the calendar window and each person's list |
