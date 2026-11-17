@@ -16,7 +16,11 @@ def test_a_tile_is_made_tall_in_the_editor_and_saved(phone):
     # The editor shows it tall at once.
     assert "tall" in phone.locator("[data-edit-list='0'] [data-edit-tile='A']").get_attribute("class")
     room = saved_room(phone)
-    assert room["sections"][0]["tiles"][0] == {"entity": room["sections"][0]["tiles"][0]["entity"], "name": "A", "size": "tall"}
+    assert room["sections"][0]["tiles"][0] == {
+        "entity": room["sections"][0]["tiles"][0]["entity"],
+        "name": "A",
+        "size": "tall",
+    }
 
 
 def test_flat_again_takes_the_size_away(phone):
@@ -51,7 +55,9 @@ def test_a_tall_tile_takes_two_rows_and_flat_ones_fill_beside_it(phone):
 
 def test_a_block_has_no_size_to_choose(phone):
     dashboard = layout_with(phone)
-    dashboard["layout"][0]["sections"][0]["tiles"].append({"kind": "panel", "name": "Blok", "icon": "mdi:cube"})
+    dashboard["layout"][0]["sections"][0]["tiles"].append(
+        {"kind": "panel", "name": "Blok", "icon": "mdi:cube"}
+    )
     open_editor(phone, dashboard)
     phone.locator("[data-edit-tile='Blok']").click()
     phone.wait_for_selector(f"{SHEET} [data-tile-save]")

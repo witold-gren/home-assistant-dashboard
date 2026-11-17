@@ -5,7 +5,9 @@ from __future__ import annotations
 from .test_entity_sheets import open_personal, user_data
 from .test_shortcuts import SHEET, mount_admin
 
-SHORTCUTS = {"shortcuts": [{"kind": "host", "name": "Host"}, {"kind": "host", "name": "Serwer", "entity": "sun.sun"}]}
+SHORTCUTS = {
+    "shortcuts": [{"kind": "host", "name": "Host"}, {"kind": "host", "name": "Serwer", "entity": "sun.sun"}]
+}
 ROW = "home-dashboard-page .chips .chip"
 
 
@@ -52,7 +54,14 @@ def open_tab(page) -> None:
 
 def test_my_layout_lists_every_chip_and_shortcut(phone):
     ids = [chip for chip, _ in arranged(phone, SHORTCUTS)]
-    assert {"chip:climate", "chip:lights", "chip:security", "chip:media", "block:Host", "block:Serwer"} <= set(ids)
+    assert {
+        "chip:climate",
+        "chip:lights",
+        "chip:security",
+        "chip:media",
+        "block:Host",
+        "block:Serwer",
+    } <= set(ids)
 
 
 def test_a_new_shortcut_lands_after_the_chosen_order(phone):
@@ -136,7 +145,9 @@ def test_hiding_a_chip_saves_it_and_can_be_undone(phone):
 
 def test_my_layout_opens_from_home_only(phone):
     phone.evaluate("window.history.replaceState(null, '', '?room=r')")
-    mount_admin(phone, {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": []}]}, "room")
+    mount_admin(
+        phone, {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": []}]}, "room"
+    )
     phone.locator("home-dashboard-page [data-rooms]").click()
     phone.wait_for_selector(f"{SHEET} [data-home-link]")
     assert phone.locator(f"{SHEET} [data-sheet-personal]").count() == 0
@@ -144,6 +155,7 @@ def test_my_layout_opens_from_home_only(phone):
 
 
 # Access ------------------------------------------------------------------------------------------
+
 
 def open_access(page, raw: dict) -> None:
     mount_admin(page, raw)

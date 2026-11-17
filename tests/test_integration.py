@@ -55,18 +55,35 @@ async def test_second_entry_is_refused(hass: HomeAssistant) -> None:
 async def test_colours_default_to_the_system_setting(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.FORM
-    assert result["data_schema"]({}) == {"color_mode": "auto", "editor_in_sidebar": True}
+    assert result["data_schema"]({}) == {
+        "color_mode": "auto",
+        "editor_in_sidebar": True,
+        "activity_in_sidebar": True,
+        "activity_record": True,
+    }
 
 
 async def test_chosen_colours_are_saved_and_shown_again(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"color_mode": "dark", "editor_in_sidebar": False}
-    )
+    chosen = {
+        "color_mode": "dark",
+        "editor_in_sidebar": False,
+        "activity_in_sidebar": False,
+        "activity_record": False,
+    }
+    result = await hass.config_entries.options.async_configure(result["flow_id"], chosen)
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"color_mode": "dark", "editor_in_sidebar": False}
+    assert entry.options == chosen
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["data_schema"]({}) == {"color_mode": "dark", "editor_in_sidebar": False}
+    assert result["data_schema"]({}) == chosen
+
+
+async def test_options_not_in_the_window_are_kept(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    hass.config_entries.async_update_entry(entry, options={"activity_viewers": ["someone"]})
+    await hass.async_block_till_done()
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(result["flow_id"], {"color_mode": "light"})
+    assert entry.options["activity_viewers"] == ["someone"]
 
 
 async def test_an_unknown_colour_mode_is_refused(hass: HomeAssistant, entry: MockConfigEntry) -> None:
@@ -81,10 +98,18 @@ async def test_open_pages_get_the_settings_and_every_change(
     client = await hass_ws_client(hass)
     await client.send_json({"id": 1, "type": f"{DOMAIN}/settings/subscribe"})
     assert (await client.receive_json())["success"]
-    assert (await client.receive_json())["event"] == {"color_mode": "auto"}
-    hass.config_entries.async_update_entry(entry, options={"color_mode": "light"})
+    assert (await client.receive_json())["event"] == {
+        "color_mode": "auto",
+        "activity_record": True,
+        "activity_viewer": False,
+    }
+    hass.config_entries.async_update_entry(entry, options={"color_mode": "light", "activity_record": False})
     await hass.async_block_till_done()
-    assert (await client.receive_json())["event"] == {"color_mode": "light"}
+    assert (await client.receive_json())["event"] == {
+        "color_mode": "light",
+        "activity_record": False,
+        "activity_viewer": False,
+    }
 
 
 @pytest.mark.parametrize("language", ["en", "pl"])
@@ -94,7 +119,7 @@ def test_every_colour_mode_has_a_name(language: str) -> None:
 
 
 async def test_loader_is_added_with_the_version(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    assert loader_urls(hass) == [f"{STATIC_URL}/{LOADER_FILENAME}?v=1.0.4"]
+    assert loader_urls(hass) == [f"{STATIC_URL}/{LOADER_FILENAME}?v=1.1.0"]
 
 
 async def test_unload_removes_and_reload_restores_the_loader(

@@ -17,6 +17,7 @@ MOUNT_ADMIN = """async ({ dashboard, room }) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard }, title: "x" };
             }
+            if (message.type === "home_dashboard/activity/seen") return null;
             if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
@@ -266,9 +267,17 @@ def test_a_room_from_the_areas_gets_its_own_entry(phone):
 def test_a_tile_hidden_on_the_page_can_still_be_edited(phone):
     open_editor(
         phone,
-        {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": [
-            {"title": "S", "tiles": [{"entity": "light.gone", "name": "Zniknął"}]}
-        ]}]},
+        {
+            "layout": [
+                {
+                    "id": "r",
+                    "name": "R",
+                    "areas": [],
+                    "home": [],
+                    "sections": [{"title": "S", "tiles": [{"entity": "light.gone", "name": "Zniknął"}]}],
+                }
+            ]
+        },
     )
     assert names(phone) == ["Zniknął"]
 
@@ -313,6 +322,7 @@ def test_the_page_does_not_scroll_sideways_while_editing(device, request):
 
 # Scenes of a room -------------------------------------------------------------------------------
 
+
 def add_scene(page, entity_id: str, name: str) -> None:
     page.evaluate(
         """({ id, name }) => {
@@ -355,7 +365,10 @@ def test_the_chosen_scenes_replace_those_of_the_areas(phone):
     add_scene(phone, "scene.film", "Film")
     add_scene(phone, "scene.relax", "Relaks")
     dashboard = layout_with(phone)
-    dashboard["layout"][0]["scenes"] = [{"entity": "scene.relax", "name": "Odpoczynek"}, {"entity": "scene.film"}]
+    dashboard["layout"][0]["scenes"] = [
+        {"entity": "scene.relax", "name": "Odpoczynek"},
+        {"entity": "scene.film"},
+    ]
     phone.evaluate(MOUNT_ADMIN, {"dashboard": dashboard, "room": "r"})
     section = phone.locator("home-dashboard-page [data-room-scenes]")
     section.wait_for()
@@ -376,8 +389,15 @@ def test_a_tile_naming_a_shortcut_stays_as_it_is_when_the_room_is_saved(phone):
     tile = {"shortcut": "Odkurzacz", "entity": light}
     dashboard = {
         "shortcuts": [vacuum],
-        "layout": [{"id": "r", "name": "Pokój", "areas": [], "home": [],
-                    "sections": [{"title": "Jeden", "tiles": [{"entity": light, "name": "A"}, tile]}]}],
+        "layout": [
+            {
+                "id": "r",
+                "name": "Pokój",
+                "areas": [],
+                "home": [],
+                "sections": [{"title": "Jeden", "tiles": [{"entity": light, "name": "A"}, tile]}],
+            }
+        ],
     }
     open_editor(phone, dashboard)
     room = saved_room(phone)

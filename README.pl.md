@@ -35,6 +35,18 @@ używają zastępczej aplikacji muzycznej i mapy, a Energia wymyślonych statyst
 Dashboard mówi językiem użytkownika Home Assistant. W zestawie są angielski i polski, a nowy język to
 kolejny blok w `www/app/i18n.js`. Test pilnuje, żeby miał wszystkie teksty.
 
+## Wypróbuj na Macu
+
+- **Potrzebne:** tylko [Docker Desktop](https://www.docker.com/products/docker-desktop/), uruchomiony. Bez Pythona,
+  bez własnego Home Assistant, bez GPU.
+- **Uruchom:** `make demo` (pierwsza budowa obrazu trwa kilka minut, kolejne sekundy).
+- **Otwórz:** <http://127.0.0.1:8124/home-dashboard/home>, użytkownik `dev`, hasło `dev`; edytor jest w menu bocznym.
+- **Udawane:** testowy Home Assistant z urządzeniami demo w kontenerze; nic nie trafia do Twojego Home Assistant.
+  Ctrl+C zatrzymuje i usuwa kontener, `make demo-clean` usuwa obraz.
+- **Dokumentacja i dla programisty:** `make docs` buduje tę dokumentację w Dockerze i ją otwiera. `make test`
+  i `make test-browser` potrzebują `make setup` (uv, który sam pobiera Pythona 3.14; Chrome do testów
+  w przeglądarce); `make demo-local` uruchamia to samo demo bez Dockera.
+
 ## Instalacja
 
 1. W HACS (od Home Assistant 2026.11 to Marketplace) otwórz trzy kropki → **Niestandardowe repozytoria**, dodaj
@@ -483,7 +495,7 @@ zwykłego okna, a z tabletu nie da się go otworzyć.
 
 ## Rozwój
 
-`make help` pokazuje kolejne kroki. `make ui` uruchamia testowy Home Assistant z prawdziwym
+`make help` pokazuje kolejne kroki. `make demo` uruchamia testowy Home Assistant z prawdziwym
 frontendem i encjami demo pod <http://127.0.0.1:8124/home-dashboard/home> (użytkownik `dev`, hasło `dev`).
 `make test-all` uruchamia wszystko. Dopisz `?dashboard_debug=1` do adresu, aby zobaczyć pomiary ekranu.
 
@@ -493,6 +505,29 @@ Frontend nie ma kroku budowania: to zwykłe moduły ES, a Lit jest w `www/vendor
 skryptem `scripts/make_fixture.py`.
 
 ## FAQ
+
+**Powiadomienie pokazuje `###` i samotne `!here`, bez kodu QR** (np. HomeKit Pairing) — treść jest w Markdown, a okno
+powiadomień znało tylko pogrubienie i linki. Od tej wersji czyta nagłówki, obrazki (tylko z samego Home Assistant
+albo po https, kod QR na białej karcie), listy, kursywę i kod; powiadomienie nadal nie może wnieść własnego HTML.
+
+**Safari: „Strona www została wczytana ponownie, ponieważ wykorzystywała dużo pamięci”** (przy dashboardzie otwartym
+godzinami) — kafelki kamer na stronie głównej co 30 s pobierają nowy obraz, a kamera Home Assistant podawała go w swoim
+rozmiarze: obraz Frigate 1920 × 1080 zajmuje w przeglądarce ok. 8 MB, a Safari powoli zwalnia podmienione obrazy. Od
+tej wersji kafelek pobiera obraz w swoim rozmiarze (1280 × 720 dla dużej kamery, 640 × 360 dla małych, 320 × 180
+w pasku okna kamery), ok. 4 do 25 razy mniej pamięci na każdy. Sam kod dashboardu trzyma przez godziny tę samą
+ilość pamięci (zmierzone: 8 MB po 1200 zmianach stanów i 30 oknach). Okno kamery nadal pokazuje pełny obraz.
+
+**„Docker nie działa - uruchom Docker Desktop i spróbuj ponownie”** (albo „Brak Dockera”) po `make demo`,
+`make docs` lub `make docs-serve` — te polecenia działają tylko w Dockerze. Zainstaluj Docker Desktop, uruchom go
+i poczekaj, aż pokaże, że działa, potem powtórz polecenie. `make doctor` pokazuje, czego brakuje.
+
+**„Brak uv - zainstaluj: …”** po `make setup`, `make test` lub `make lint` — środowisko programisty robi uv, który
+sam pobiera właściwego Pythona. Zainstaluj uv poleceniem z komunikatu
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`) i otwórz nowy terminal. Do wypróbowania dashboardu uv nie
+jest potrzebny.
+
+**„make: *** No rule to make target 'ui'”** — `make ui` było starą nazwą demo i zniknęło (jedna nazwa na jedną
+rzecz). Użyj `make demo`.
 
 **W edytorze okno bloku zostaje nad podglądem po wybraniu innego pokoju** — okno zamykało się krokiem wstecz w historii
 ramki, co cofało przejście ramki do drugiego pokoju. Od tej wersji podgląd zamyka je od razu.

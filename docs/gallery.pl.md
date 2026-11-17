@@ -76,17 +76,25 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 |---|---|---|---|
 | ![Kamera](screenshots/pl/camera.png) | ![Wszystkie kamery](screenshots/pl/cameras.png) | ![Połączenia kamery na baterię](screenshots/pl/connections.png) | ![Interkom](screenshots/pl/intercom.png) |
 
-| Wszystkie kamery na tablecie | Jedna duża kamera na żywo |
-|---|---|
-| ![Wszystkie kamery na tablecie](screenshots/pl/cameras-tablet.png) | ![Jedna duża kamera na żywo](screenshots/pl/cameras-featured.png) |
+| Pasek klipu: chwila nagrania | Pasek klipu przytrzymany | Linia przybliżona do klipu | Przybliżona linia przytrzymana |
+|---|---|---|---|
+| ![Pasek klipu: chwila nagrania](screenshots/pl/clip-bar.png) | ![Pasek klipu przytrzymany](screenshots/pl/clip-fine.png) | ![Linia przybliżona do klipu](screenshots/pl/clip-zoom.png) | ![Przybliżona linia przytrzymana](screenshots/pl/clip-zoom-fine.png) |
 
-| Okno kamery na tablecie | Kamera na telefonie trzymanym poziomo |
+| Pasek klipu na tablecie | Wszystkie kamery na tablecie |
 |---|---|
-| ![Okno kamery na tablecie](screenshots/pl/camera-tablet.png) | ![Kamera na telefonie trzymanym poziomo](screenshots/pl/camera-landscape.png) |
+| ![Pasek klipu na tablecie](screenshots/pl/clip-bar-tablet.png) | ![Wszystkie kamery na tablecie](screenshots/pl/cameras-tablet.png) |
 
-| Zapisane pozycje | Oś czasu |
+| Jedna duża kamera na żywo | Okno kamery na tablecie |
 |---|---|
-| ![Zapisane pozycje](screenshots/pl/camera-landscape-positions.png) | ![Oś czasu](screenshots/pl/camera-landscape-line.png) |
+| ![Jedna duża kamera na żywo](screenshots/pl/cameras-featured.png) | ![Okno kamery na tablecie](screenshots/pl/camera-tablet.png) |
+
+| Kamera na telefonie trzymanym poziomo | Zapisane pozycje |
+|---|---|
+| ![Kamera na telefonie trzymanym poziomo](screenshots/pl/camera-landscape.png) | ![Zapisane pozycje](screenshots/pl/camera-landscape-positions.png) |
+
+| Oś czasu |
+|---|
+| ![Oś czasu](screenshots/pl/camera-landscape-line.png) |
 
 ## Energia
 
@@ -148,20 +156,28 @@ Pokazują wymyślony dom z `dev/demo.js`, a obrazy z kamer to wolne zdjęcia CC0
 
 Edytor na komputerze, w oknie 1600 × 960; przewodnik krok po kroku jest w [Edytor dashboardu](editor.pl.md).
 
-| Strona główna w edytorze | Pokoje z obszarów | Pokój |
+| Nowy dashboard | Strona główna w edytorze | Pokoje z obszarów |
 |---|---|---|
-| ![Strona główna w edytorze](screenshots/pl/editor-home.png) | ![Pokoje z obszarów](screenshots/pl/editor-generate.png) | ![Pokój](screenshots/pl/editor-room.png) |
+| ![Nowy dashboard](screenshots/pl/editor-new.png) | ![Strona główna w edytorze](screenshots/pl/editor-home.png) | ![Pokoje z obszarów](screenshots/pl/editor-generate.png) |
 
-| Sekcja | Wybór encji | Blok |
+| Pokój | Sekcja | Wybór encji |
 |---|---|---|
-| ![Sekcja](screenshots/pl/editor-section.png) | ![Wybór encji](screenshots/pl/editor-picker.png) | ![Blok](screenshots/pl/editor-block.png) |
+| ![Pokój](screenshots/pl/editor-room.png) | ![Sekcja](screenshots/pl/editor-section.png) | ![Wybór encji](screenshots/pl/editor-picker.png) |
 
-| Wygląd i tła | Kolor tła | Pasek statusu |
+| Kafelek | Kafelek w YAML | Blok |
 |---|---|---|
-| ![Wygląd i tła](screenshots/pl/editor-look.png) | ![Kolor tła](screenshots/pl/editor-background.png) | ![Pasek statusu](screenshots/pl/editor-status.png) |
+| ![Kafelek](screenshots/pl/editor-tile.png) | ![Kafelek w YAML](screenshots/pl/editor-yaml.png) | ![Blok](screenshots/pl/editor-block.png) |
 
-| Menu | Publikowanie | Historia |
+| Blok statusu | Wygląd i tła | Kolor tła |
 |---|---|---|
-| ![Menu](screenshots/pl/editor-menu.png) | ![Publikowanie](screenshots/pl/editor-publish.png) | ![Historia](screenshots/pl/editor-history.png) |
+| ![Blok statusu](screenshots/pl/editor-status-block.png) | ![Wygląd i tła](screenshots/pl/editor-look.png) | ![Kolor tła](screenshots/pl/editor-background.png) |
+
+| Pasek statusu | Dostęp użytkowników | Menu |
+|---|---|---|
+| ![Pasek statusu](screenshots/pl/editor-status.png) | ![Dostęp użytkowników](screenshots/pl/editor-access.png) | ![Menu](screenshots/pl/editor-menu.png) |
+
+| Publikowanie | Historia | Ustawienia edytora |
+|---|---|---|
+| ![Publikowanie](screenshots/pl/editor-publish.png) | ![Historia](screenshots/pl/editor-history.png) | ![Ustawienia edytora](screenshots/pl/editor-settings.png) |
 
 [← Powrót do README](../README.pl.md) · [English](gallery.md)

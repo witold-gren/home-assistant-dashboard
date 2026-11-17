@@ -6,13 +6,24 @@ from .test_panels import add_entity
 from .test_shortcuts import HOST, SHEET, mount_admin
 
 EDITOR = "home-dashboard-block-editor"
-MENU = {"groups": [
-    {"title": "Skróty", "items": [{"shortcut": "Host"}, {"shortcut": "Brak"}, {"name": "Kamery", "icon": "mdi:cctv", "path": "/cameras", "hide_for_guests": True}]},
-    {"items": [
-        {"name": "Ustawienia", "icon": "mdi:cog", "path": "/config", "admin": True},
-        {"name": "Powiadomienia", "icon": "mdi:bell", "action": "notifications"},
-    ]},
-]}
+MENU = {
+    "groups": [
+        {
+            "title": "Skróty",
+            "items": [
+                {"shortcut": "Host"},
+                {"shortcut": "Brak"},
+                {"name": "Kamery", "icon": "mdi:cctv", "path": "/cameras", "hide_for_guests": True},
+            ],
+        },
+        {
+            "items": [
+                {"name": "Ustawienia", "icon": "mdi:cog", "path": "/config", "admin": True},
+                {"name": "Powiadomienia", "icon": "mdi:bell", "action": "notifications"},
+            ]
+        },
+    ]
+}
 
 
 def open_menu(page, dashboard: dict, admin: bool = True) -> None:
@@ -46,21 +57,40 @@ def test_a_shortcut_that_is_gone_leaves_no_empty_entry(phone):
 
 
 def test_a_link_naming_a_block_that_is_not_there_still_shows_as_a_link(phone):
-    menu = {"groups": [{"items": [
-        {"name": "Edytor", "icon": "mdi:pencil", "path": "/home-dashboard-editor", "shortcut": "HD Editor", "admin": True, "users": []},
-    ]}]}
+    menu = {
+        "groups": [
+            {
+                "items": [
+                    {
+                        "name": "Edytor",
+                        "icon": "mdi:pencil",
+                        "path": "/home-dashboard-editor",
+                        "shortcut": "HD Editor",
+                        "admin": True,
+                        "users": [],
+                    },
+                ]
+            }
+        ]
+    }
     open_menu(phone, {"shortcuts": [HOST], "menu": menu})
     assert phone.locator("[data-link='/home-dashboard-editor']").inner_text().strip() == "Edytor"
 
 
 def test_a_link_to_a_hidden_block_stays_hidden(phone):
     menu = {"groups": [{"items": [{"name": "Host", "path": "/host", "shortcut": HOST["name"]}]}]}
-    open_menu(phone, {"shortcuts": [HOST], "menu": menu, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}})
+    open_menu(
+        phone,
+        {"shortcuts": [HOST], "menu": menu, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}},
+    )
     assert phone.locator("[data-link='/host']").count() == 0
 
 
 def test_a_block_taken_away_from_someone_leaves_their_menu(phone):
-    open_menu(phone, {"shortcuts": [HOST], "menu": MENU, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}})
+    open_menu(
+        phone,
+        {"shortcuts": [HOST], "menu": MENU, "visibility": {f"block:{HOST['name']}": {"only": ["nobody"]}}},
+    )
     assert phone.locator(f"[data-drawer-shortcut='{HOST['name']}']").count() == 0
 
 
@@ -92,7 +122,10 @@ def test_guest_mode_for_other_accounts_leaves_the_entry(phone):
 
 
 def test_an_entry_for_chosen_people_is_hidden_from_the_others(phone):
-    items = [{"name": "Dla mnie", "path": "/a", "users": ["me"]}, {"name": "Dla kogoś", "path": "/b", "users": ["other"]}]
+    items = [
+        {"name": "Dla mnie", "path": "/a", "users": ["me"]},
+        {"name": "Dla kogoś", "path": "/b", "users": ["other"]},
+    ]
     phone.evaluate(
         """async ({ items }) => {
             const { model, hass } = window.dashboard;
@@ -133,7 +166,9 @@ def test_the_editor_starts_from_what_the_menu_shows(phone):
     menu = saved_menu(phone)
     assert menu["groups"][0]["items"] == [{"shortcut": HOST["name"]}]
     assert "kind" not in menu
-    assert {"name": "Historia", "icon": "mdi:chart-box-outline", "path": "/history"} in menu["groups"][1]["items"]
+    assert {"name": "Historia", "icon": "mdi:chart-box-outline", "path": "/history"} in menu["groups"][1][
+        "items"
+    ]
 
 
 def stub_people(page) -> None:
@@ -174,4 +209,7 @@ def test_a_new_group_with_an_entry_is_saved(phone):
     entry.locator("[data-block-field='path'] input").fill("/config")
     entry.locator("[data-block-field='admin'] input").check()
     menu = saved_menu(phone)
-    assert menu["groups"][1] == {"title": "System", "items": [{"name": "Ustawienia", "path": "/config", "admin": True}]}
+    assert menu["groups"][1] == {
+        "title": "System",
+        "items": [{"name": "Ustawienia", "path": "/config", "admin": True}],
+    }

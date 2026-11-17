@@ -5,6 +5,7 @@
 
 import { overviewItem } from "./overview.js";
 import { personalPrefs } from "./prefs.js";
+import { readStored, writeStored } from "./stored.js";
 
 const DISMISSED_KEY = "home-dashboard-alerts-dismissed";
 export const MUTE_WEEK_MS = 7 * 86_400_000;
@@ -40,7 +41,7 @@ export function homeAlerts(hass, config, now = new Date()) {
 
 function dismissed(now) {
   try {
-    const saved = JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "{}");
+    const saved = JSON.parse(readStored(DISMISSED_KEY) ?? "{}");
     return saved.day === dayOf(now) ? (saved.seen ?? {}) : {};
   } catch {
     return {};
@@ -71,5 +72,5 @@ export function shownAlerts(alerts, now = new Date()) {
 export function dismissAlert(alert, now = new Date()) {
   const seen = dismissed(now);
   seen[alert.key] = alert.rows.map(rowKey);
-  localStorage.setItem(DISMISSED_KEY, JSON.stringify({ day: dayOf(now), seen }));
+  writeStored(DISMISSED_KEY, JSON.stringify({ day: dayOf(now), seen }));
 }

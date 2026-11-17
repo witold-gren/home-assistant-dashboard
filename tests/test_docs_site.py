@@ -63,7 +63,7 @@ def test_every_english_document_has_a_polish_one() -> None:
 
 
 def test_the_drafts_and_the_figma_pictures_stay_off_the_site(config) -> None:
-    assert {"design/", "reference/"} <= set(config["exclude_docs"].split())
+    assert {"/design/", "/reference/"} <= set(config["exclude_docs"].split())
 
 
 def test_the_readme_links_from_the_top_of_the_repository_work_from_docs() -> None:
@@ -103,6 +103,28 @@ def test_html_pictures_climb_to_the_files_from_a_deeper_page() -> None:
         hook.html_pictures(text, "pl/")
         == '<img src="../screenshots/pl/home.png" alt="x"> <img src="https://img.shields.io/a.svg">'
     )
+
+
+def test_html_links_of_the_readme_lead_to_the_pages_of_the_site() -> None:
+    # The gallery badge of the README is an HTML link: MkDocs does not change it, so it led to a missing file.
+    assert hook.rewrite('<a href="docs/gallery.md"><img src="x.svg"></a>', hook.from_top).startswith(
+        '<a href="gallery.md">'
+    )
+    text = '<a href="gallery.md">G</a> <a href="gallery.pl.md#a">P</a> <a href="https://x.org/a.md">X</a>'
+    assert hook.html_links(text) == (
+        '<a href="/home-assistant-dashboard/gallery/">G</a>'
+        ' <a href="/home-assistant-dashboard/pl/gallery/#a">P</a>'
+        ' <a href="https://x.org/a.md">X</a>'
+    )
+
+
+@pytest.mark.parametrize("readme", ["README.md", "README.pl.md"])
+def test_no_link_of_the_real_readmes_keeps_the_path_of_the_repository(readme: str) -> None:
+    # The start pages are made from the READMEs: a link still starting with docs/ leads nowhere on the site.
+    start = hook.rewrite((ROOT / readme).read_text(encoding="utf-8"), hook.from_top)
+    assert 'href="docs/' not in start
+    assert "](docs/" not in start
+    assert 'src="docs/' not in start
 
 
 def test_generated_files_are_kept_out_of_git() -> None:

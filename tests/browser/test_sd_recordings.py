@@ -41,8 +41,16 @@ CARD = """(arg) => {
 
 
 def open_card(page, with_card: bool = True) -> None:
-    page.evaluate(SETUP, {"recording": True, "folder": "media-source://media_source/media/eufy/T86P2ABC", "path": None,
-                          "yesterday": YESTERDAY, "longAgo": OLDER})
+    page.evaluate(
+        SETUP,
+        {
+            "recording": True,
+            "folder": "media-source://media_source/media/eufy/T86P2ABC",
+            "path": None,
+            "yesterday": YESTERDAY,
+            "longAgo": OLDER,
+        },
+    )
     if with_card:
         page.evaluate(CARD, {"yesterday": YESTERDAY, "older": OLDER})
     mount_admin(page, {"cameras": {"tiles": ["image.slup_last_screen"]}})
@@ -68,10 +76,13 @@ def test_only_a_camera_that_keeps_recordings_on_its_card_has_the_button(phone):
 
 def test_the_recordings_stand_by_day_newest_first_and_the_card_is_asked_once(phone):
     open_sd(phone)
-    days = phone.locator(f"{SHEET} [data-sd-day]").evaluate_all("(days) => days.map((day) => day.dataset.sdDay)")
+    days = phone.locator(f"{SHEET} [data-sd-day]").evaluate_all(
+        "(days) => days.map((day) => day.dataset.sdDay)"
+    )
     assert days == [YESTERDAY, OLDER]
     clips = phone.locator(f"{SHEET} [data-sd-day='{YESTERDAY}'] [data-sd-clip]").evaluate_all(
-        "(clips) => clips.map((clip) => clip.dataset.sdClip)")
+        "(clips) => clips.map((clip) => clip.dataset.sdClip)"
+    )
     assert clips == [f"{YESTERDAY}/122559-122609.mp4", f"{YESTERDAY}/080000-080130.mp4"]
     lists = asked(phone, "neolink/sd_recordings")
     assert [message["refresh"] for message in lists[:2]] == [False, True]
@@ -84,7 +95,9 @@ def test_a_tap_brings_a_recording_down_and_it_shows_as_coming(phone):
     file = f"{YESTERDAY}/122559-122609.mp4"
     phone.locator(f"{SHEET} [data-sd-download='{file}']").click()
     phone.wait_for_selector(f"{SHEET} [data-sd-busy='{file}']")
-    assert asked(phone, "neolink/sd_download") == [{"type": "neolink/sd_download", "entity_id": "camera.slup", "files": [file]}]
+    assert asked(phone, "neolink/sd_download") == [
+        {"type": "neolink/sd_download", "entity_id": "camera.slup", "files": [file]}
+    ]
     # The list says what happened next: on the disk, with the green mark.
     phone.evaluate(f"window.cardClips.find((clip) => clip.file === '{file}').local = true")
     phone.wait_for_selector(f"{SHEET} [data-sd-local='{file}']", timeout=8000)
@@ -94,17 +107,26 @@ def test_a_recording_on_the_disk_opens_the_line_of_time_at_it(phone):
     open_sd(phone)
     phone.locator(f"{SHEET} [data-sd-local='{YESTERDAY}/080000-080130.mp4']").click()
     phone.wait_for_selector(f"{SHEET} .panel[data-kind='camera']")
-    phone.wait_for_function("window.asked.some((m) => m.type === 'media_source/resolve_media')", timeout=10000)
+    phone.wait_for_function(
+        "window.asked.some((m) => m.type === 'media_source/resolve_media')", timeout=10000
+    )
     resolved = phone.evaluate(
-        "window.asked.filter((m) => m.type === 'media_source/resolve_media').map((m) => m.media_content_id.split('/').pop())")
+        "window.asked.filter((m) => m.type === 'media_source/resolve_media').map((m) => m.media_content_id.split('/').pop())"
+    )
     assert resolved[-1] == "080000-080130.mp4"
 
 
 def test_pictures_are_asked_for_the_recordings_in_sight(phone):
     open_sd(phone)
     phone.wait_for_function(
-        "window.asked.some((m) => m.type === 'neolink/sd_recordings' && (m.thumbnails ?? []).length)", timeout=8000)
-    wanted = [message.get("thumbnails") for message in asked(phone, "neolink/sd_recordings") if message.get("thumbnails")]
+        "window.asked.some((m) => m.type === 'neolink/sd_recordings' && (m.thumbnails ?? []).length)",
+        timeout=8000,
+    )
+    wanted = [
+        message.get("thumbnails")
+        for message in asked(phone, "neolink/sd_recordings")
+        if message.get("thumbnails")
+    ]
     assert wanted[0] == [f"{YESTERDAY}/122559-122609.mp4"]
 
 
@@ -123,7 +145,9 @@ def test_a_day_comes_down_whole_with_one_tap_oldest_first(phone):
     assert asked(phone, "neolink/sd_download")[-1]["files"] == [f"{YESTERDAY}/122559-122609.mp4"]
     phone.wait_for_selector(f"{day} [data-sd-day-busy]")
     # Once all of it is on the disk, the day says so.
-    phone.evaluate(f"window.cardClips.find((clip) => clip.file === '{YESTERDAY}/122559-122609.mp4').local = true")
+    phone.evaluate(
+        f"window.cardClips.find((clip) => clip.file === '{YESTERDAY}/122559-122609.mp4').local = true"
+    )
     phone.wait_for_selector(f"{day} [data-sd-day-done]", timeout=8000)
 
 
@@ -133,7 +157,11 @@ def test_the_copy_on_the_disk_is_deleted_and_the_card_kept(phone):
     phone.locator(f"{local} [data-remove]").click()
     phone.locator(f"{SHEET} [data-remove-yes]").click()
     phone.wait_for_function("window.asked.some((m) => m.type === 'media_source/local_source/remove')")
-    removed = [m["media_content_id"] for m in phone.evaluate("window.asked") if m.get("type") == "media_source/local_source/remove"]
+    removed = [
+        m["media_content_id"]
+        for m in phone.evaluate("window.asked")
+        if m.get("type") == "media_source/local_source/remove"
+    ]
     assert removed == [f"media-source://media_source/media/eufy/T86P2ABC/{YESTERDAY}/080000-080130.mp4"]
     # Nothing asked of the card itself.
     assert asked(phone, "neolink/sd_download") == []

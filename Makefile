@@ -2,22 +2,28 @@
 #
 #   make help    the steps in order (Polish or English, from $LANG; HELP_LANG=en|pl)
 #
-# Targets that need the Python environment create it first, so any target can be the first one.
+# "1. Start" needs only Docker Desktop. "3. Development" makes its Python environment with uv (uv fetches the
+# Python of PYTHON_VERSION itself), so any target there can be the first one.
 
-PYTHON ?= python3.14
+PYTHON_VERSION ?= 3.14
 HA_CONFIG ?= /Volumes/config
 HA_URL ?= http://homeassistant.local:8123
 TESTED_HA ?= 2026.11.0
+DEMO_IMAGE ?= home-dashboard-demo
+DEMO_PORT ?= 8124
+DOCS_IMAGE ?= home-dashboard-docs
+DOCS_PORT ?= 9124
+DOCKERFILE := dev/docker/Dockerfile
 
 VENV := .venv
 VENV_DEV := .venv-dev
-VENV_DOCS := .venv-docs
 HELP_LANG ?= $(if $(filter pl%,$(LANG)),pl,en)
 
 .DEFAULT_GOAL := help
-.PHONY: screenshots help setup setup-dev doctor ui test test-browser test-all lint deploy docs docs-site docs-build clean
+.PHONY: help demo demo-clean docs docs-serve doctor deploy setup setup-dev demo-local test test-browser test-docker \
+	test-all lint format docs-build screenshots clean docker-check uv-check
 
-##@ Start | Start
+##@ 1. Start | 1. Start
 
 help: ## This list | Ta lista
 	@awk -v lang=$(HELP_LANG) 'BEGIN { FS = ":.*## " } \
@@ -25,85 +31,101 @@ help: ## This list | Ta lista
 	  /^[a-zA-Z0-9_-]+:.*## / { split($$2, d, " \\| "); printf "  \033[36m%-14s\033[0m %s\n", $$1, (lang == "pl" && d[2] != "") ? d[2] : d[1] }' \
 	  $(MAKEFILE_LIST)
 	@echo
-	@if [ "$(HELP_LANG)" = "pl" ]; then \
-	  echo "Środowisko: $(VENV) $$(test -x $(VENV)/bin/pytest && echo '- gotowe' || echo '- powstanie przy pierwszym poleceniu')"; \
-	else \
-	  echo "Environment: $(VENV) $$(test -x $(VENV)/bin/pytest && echo '- ready' || echo '- created by the first command')"; \
-	fi
 
-##@ 1. Setup | 1. Instalacja
+demo: docker-check ## Try it: a test Home Assistant in Docker, user dev/dev (http://127.0.0.1:8124/home-dashboard/home) | Wypróbuj: testowy Home Assistant w Dockerze, dev/dev (http://127.0.0.1:8124/home-dashboard/home)
+	@echo "==> Building the demo image (the first time a few minutes) | Budowa obrazu demo (pierwszy raz kilka minut)"
+	docker build -f $(DOCKERFILE) --target demo --build-arg HA_VERSION=$(TESTED_HA) -t $(DEMO_IMAGE) .
+	docker run --rm --init $$( [ -t 0 ] && echo -it ) -p 127.0.0.1:$(DEMO_PORT):$(DEMO_PORT) $(DEMO_IMAGE)
 
-$(VENV)/bin/pytest: requirements_test.txt
-	@echo "==> Python environment in $(VENV) ($(PYTHON))"
-	@command -v $(PYTHON) >/dev/null || { echo "$(PYTHON) not found - macOS: brew install python@3.14"; exit 1; }
-	@test -d $(VENV) || $(PYTHON) -m venv $(VENV)
-	@$(VENV)/bin/pip install -q --upgrade pip
-	@$(VENV)/bin/pip install -q -r requirements_test.txt
-	@touch $@
+demo-clean: ## Remove the demo and documentation images of Docker | Usuń obrazy demo i dokumentacji z Dockera
+	@docker image rm -f $(DEMO_IMAGE) $(DOCS_IMAGE) >/dev/null 2>&1 || true
+	@echo "==> removed | usunięte: $(DEMO_IMAGE) $(DOCS_IMAGE)"
 
-$(VENV_DEV)/bin/hass: requirements_dev.txt
-	@echo "==> Test Home Assistant in $(VENV_DEV) ($(PYTHON))"
-	@test -d $(VENV_DEV) || $(PYTHON) -m venv $(VENV_DEV)
-	@$(VENV_DEV)/bin/pip install -q --upgrade pip
-	@$(VENV_DEV)/bin/pip install -q -r requirements_dev.txt
-	@touch $@
+docs: docs-build ## Build the documentation in Docker and open it | Zbuduj dokumentację w Dockerze i ją otwórz
+	@open site/$(if $(filter pl,$(HELP_LANG)),pl/,)index.html 2>/dev/null || xdg-open site/index.html
 
-setup: $(VENV)/bin/pytest ## Create the test environment (.venv) | Utwórz środowisko testów (.venv)
+docs-serve: docker-check ## Live preview of the documentation in Docker (http://127.0.0.1:9124/home-assistant-dashboard/) | Podgląd dokumentacji na żywo w Dockerze (http://127.0.0.1:9124/home-assistant-dashboard/)
+	docker build -q -f $(DOCKERFILE) --target docs-tools -t $(DOCS_IMAGE) .
+	docker run --rm --init $$( [ -t 0 ] && echo -it ) -p 127.0.0.1:$(DOCS_PORT):$(DOCS_PORT) -v "$(CURDIR)":/src $(DOCS_IMAGE) \
+	  mkdocs serve --dev-addr 0.0.0.0:$(DOCS_PORT)
 
-setup-dev: $(VENV_DEV)/bin/hass ## Create the test Home Assistant (.venv-dev) | Utwórz testowy Home Assistant (.venv-dev)
-
-doctor: setup ## Check Chrome and the Home Assistant version | Sprawdź Chrome i wersję Home Assistant
+doctor: ## Check Docker, Chrome, uv and the Home Assistant share (installs nothing) | Sprawdź Dockera, Chrome, uv i udział Home Assistant (nic nie instaluje)
+	@if docker info >/dev/null 2>&1; then echo "ok       Docker"; \
+	  else echo "MISSING  Docker Desktop (installed and running) - needed by demo and docs | Docker Desktop - potrzebny do demo i dokumentacji"; fi
 	@if [ -d "/Applications/Google Chrome.app" ] || command -v google-chrome >/dev/null; then echo "ok       Google Chrome"; \
-	  else echo "MISSING  Google Chrome - browser tests are skipped"; fi
+	  else echo "MISSING  Google Chrome - only for test-browser and screenshots | tylko do test-browser i screenshots"; fi
+	@if command -v uv >/dev/null 2>&1; then echo "ok       uv $$(uv --version | cut -d' ' -f2)"; \
+	  else echo "MISSING  uv - only for development: curl -LsSf https://astral.sh/uv/install.sh | sh"; fi
 	@if [ -f "$(HA_CONFIG)/.HA_VERSION" ]; then \
 	  version=$$(cat "$(HA_CONFIG)/.HA_VERSION"); \
-	  if [ "$$version" = "$(TESTED_HA)" ]; then echo "ok       Home Assistant $$version"; \
+	  if [ "$$version" = "$(TESTED_HA)" ]; then echo "ok       Home Assistant $$version ($(HA_CONFIG))"; \
 	  else echo "WARNING  Home Assistant $$version, tested on $(TESTED_HA) - check the header and navigation (chrome.js)"; fi; \
-	else echo "MISSING  $(HA_CONFIG) - config share not mounted"; fi
+	else echo "MISSING  $(HA_CONFIG) - Home Assistant config share not mounted (only for deploy)"; fi
 
-##@ 2. Try it | 2. Wypróbuj
-
-ui: setup setup-dev ## Throwaway Home Assistant with the real frontend (http://127.0.0.1:8124/home-dashboard/home) | Testowy Home Assistant z prawdziwym frontendem (http://127.0.0.1:8124/home-dashboard/home)
-	./dev/start.sh
-
-##@ 3. Home Assistant | 3. Home Assistant
+##@ 2. Home Assistant | 2. Home Assistant
 
 deploy: ## Copy to HA, tells if a restart is needed (never restarts) | Skopiuj do HA, powie czy trzeba restartu (sam nie restartuje)
 	@CONFIG="$(HA_CONFIG)" ./deploy.sh
 
-##@ 4. Development | 4. Rozwój
+##@ 3. Development | 3. Rozwój
 
-test: setup ## Tests of the integration | Testy integracji
-	$(VENV)/bin/python -m pytest tests --ignore=tests/browser -q -p no:cacheprovider
+$(VENV)/bin/pytest: requirements_test.txt | uv-check
+	@echo "==> Python $(PYTHON_VERSION) environment in $(VENV) (uv)"
+	@test -x $(VENV)/bin/python || uv venv -q --python $(PYTHON_VERSION) $(VENV)
+	@uv pip install -q --python $(VENV)/bin/python -r requirements_test.txt
+	@touch $@
+
+$(VENV_DEV)/bin/hass: requirements_dev.txt | uv-check
+	@echo "==> Test Home Assistant in $(VENV_DEV), Python $(PYTHON_VERSION) (uv)"
+	@test -x $(VENV_DEV)/bin/python || uv venv -q --python $(PYTHON_VERSION) $(VENV_DEV)
+	@uv pip install -q --python $(VENV_DEV)/bin/python -r requirements_dev.txt
+	@touch $@
+
+setup: $(VENV)/bin/pytest ## Create the test environment (.venv, uv) | Utwórz środowisko testów (.venv, uv)
+
+setup-dev: $(VENV_DEV)/bin/hass ## Create the test Home Assistant for demo-local (.venv-dev, uv) | Utwórz testowy Home Assistant dla demo-local (.venv-dev, uv)
+
+demo-local: setup setup-dev ## The demo from .venv-dev, without Docker (for tests and screenshots) | Demo z .venv-dev, bez Dockera (do testów i zrzutów)
+	./dev/start.sh
+
+test: setup ## Tests of the integration, no Docker images | Testy integracji, bez obrazów Dockera
+	$(VENV)/bin/python -m pytest tests --ignore=tests/browser -m "not docker" -q -p no:cacheprovider
 
 test-browser: setup ## Frontend tests in Google Chrome | Testy frontendu w Google Chrome
 	$(VENV)/bin/python -m pytest tests/browser -q -p no:homeassistant -p no:cacheprovider
 
-screenshots: setup ## Make the README screenshots | Utwórz zrzuty do README
+test-docker: setup docker-check ## Build and run the demo image: HTTP, login, no container left | Zbuduj i uruchom obraz demo: HTTP, logowanie, żaden kontener nie zostaje
+	$(VENV)/bin/python -m pytest tests --ignore=tests/browser -m docker -q -p no:cacheprovider
+
+test-all: lint test test-browser test-docker ## lint + test + test-browser + test-docker | lint + test + test-browser + test-docker
+
+lint: setup ## Check the Python code and its format | Sprawdź kod Pythona i jego format
+	$(VENV)/bin/ruff check custom_components tests dev scripts
+	$(VENV)/bin/ruff format --check custom_components tests dev scripts
+
+format: setup ## Fix what ruff can and format the Python code | Popraw, co ruff umie, i sformatuj kod Pythona
+	$(VENV)/bin/ruff check --fix custom_components tests dev scripts
+	$(VENV)/bin/ruff format custom_components tests dev scripts
+
+docs-build: docker-check ## Build the documentation site into site/ in Docker (GitHub Pages, docs-hub) | Zbuduj stronę dokumentacji do site/ w Dockerze (GitHub Pages, docs-hub)
+	@rm -rf site
+	docker build -q -f $(DOCKERFILE) --target docs-site --output type=local,dest=site .
+	@# Docker writes the folder for its owner only; the web server of docs-hub must read it.
+	@chmod -R u+rwX,go+rX site
+
+screenshots: setup ## Screenshots for the README and the documentation (PL and EN) | Zrzuty do README i dokumentacji (PL i EN)
 	$(VENV)/bin/python dev/screenshots.py
 	$(VENV)/bin/python dev/gallery.py
 
-test-all: test test-browser lint ## All tests and the linter | Wszystkie testy i linter
-
-lint: setup ## Check the Python code | Sprawdź kod Pythona
-	$(VENV)/bin/ruff check custom_components tests dev scripts
-
-docs: ## Open the README | Otwórz README
-	@open README$(if $(filter pl,$(HELP_LANG)),.pl,).md 2>/dev/null || xdg-open README.md
-
-$(VENV_DOCS)/bin/mkdocs: requirements_docs.txt
-	@echo "==> Documentation site environment in $(VENV_DOCS) ($(PYTHON))"
-	@test -d $(VENV_DOCS) || $(PYTHON) -m venv $(VENV_DOCS)
-	@$(VENV_DOCS)/bin/pip install -q --upgrade pip
-	@$(VENV_DOCS)/bin/pip install -q -r requirements_docs.txt
-	@touch $@
-
-docs-site: $(VENV_DOCS)/bin/mkdocs ## Preview the documentation site (http://127.0.0.1:8000/home-assistant-dashboard/) | Podgląd strony dokumentacji (http://127.0.0.1:8000/home-assistant-dashboard/)
-	NO_MKDOCS_2_WARNING=1 $(VENV_DOCS)/bin/mkdocs serve
-
-docs-build: $(VENV_DOCS)/bin/mkdocs ## Build the documentation site into site/, as GitHub Pages does | Zbuduj stronę dokumentacji do site/, tak jak GitHub Pages
-	NO_MKDOCS_2_WARNING=1 $(VENV_DOCS)/bin/mkdocs build --strict
-
-clean: ## Remove caches and the test instance (keeps the environment) | Usuń pliki tymczasowe i testową instancję (środowisko zostaje)
+clean: ## Remove the environments, site/, caches and the test instance | Usuń środowiska, site/, pamięci podręczne i testową instancję
 	find . -name __pycache__ -type d -prune -not -path "./.venv*" -exec rm -rf {} +
-	rm -rf .pytest_cache .ruff_cache .dev-config tests/browser/output site
+	rm -rf .venv .venv-dev .venv-docs .pytest_cache .ruff_cache .dev-config tests/browser/output site
+
+# Helpers (not in the list) -----------------------------------------------------------------------------------------
+
+docker-check:
+	@command -v docker >/dev/null 2>&1 || { echo "Docker not found - install and start Docker Desktop: https://www.docker.com/products/docker-desktop/ | Brak Dockera - zainstaluj i uruchom Docker Desktop"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "Docker is not running - start Docker Desktop and try again | Docker nie działa - uruchom Docker Desktop i spróbuj ponownie"; exit 1; }
+
+uv-check:
+	@command -v uv >/dev/null 2>&1 || { echo "uv not found - install it: curl -LsSf https://astral.sh/uv/install.sh | sh | Brak uv - zainstaluj: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }

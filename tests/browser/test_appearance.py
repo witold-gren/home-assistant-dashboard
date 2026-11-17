@@ -12,11 +12,16 @@ ROOM = {
     "name": "Pokój",
     "areas": [],
     "home": [],
-    "sections": [{"title": "Światła", "tiles": [
-        {"entity": "light.strip", "name": "Taśma", "icon": "mdi:lightbulb"},
-        {"entity": "switch.fan", "name": "Wiatrak"},
-        {"entity": "scene.evening", "name": "Wieczór"},
-    ]}],
+    "sections": [
+        {
+            "title": "Światła",
+            "tiles": [
+                {"entity": "light.strip", "name": "Taśma", "icon": "mdi:lightbulb"},
+                {"entity": "switch.fan", "name": "Wiatrak"},
+                {"entity": "scene.evening", "name": "Wieczór"},
+            ],
+        }
+    ],
 }
 
 
@@ -44,32 +49,76 @@ def room_tiles(page) -> dict:
 
 # Merging ------------------------------------------------------------------------------------------
 
+
 def test_defaults_keep_the_page_as_it_was(phone):
     look = run(phone, "return a.mergeAppearance();")
     assert look == {
-        "background_strength": 40, "bounce": True, "icons": {},
-        "tiles": {"opacity": 100, "radius": 20, "fill": "tile", "colours": {},
-                  "background": None, "text": None, "icon": None, "icon_background": None},
+        "background_strength": 40,
+        "bounce": True,
+        "icons": {},
+        "tiles": {
+            "opacity": 100,
+            "radius": 20,
+            "fill": "tile",
+            "colours": {},
+            "background": None,
+            "text": None,
+            "icon": None,
+            "icon_background": None,
+        },
         "text": {"title": None, "headings": None},
         "chips": {"background": None, "text": None, "opacity": 100, "radius": 14},
         "buttons": {"background": None, "icon": None, "opacity": 100},
         "badges": {"text": None, "icon": None, "kinds": True, "fill": True},
         "page": {"background_light": None, "background_dark": None},
-        "sheets": {"background": None, "text": None, "controls": None, "cards": None, "accent": None, "opacity": 100, "blur": 0, "scrim": 45},
+        "sheets": {
+            "background": None,
+            "text": None,
+            "controls": None,
+            "cards": None,
+            "accent": None,
+            "opacity": 100,
+            "blur": 0,
+            "scrim": 45,
+        },
         "map": {"theme": "auto", "hours": 24},
-        "player": {"background": None, "text": None, "opacity": 100, "blur": 0, "radius": 16, "paused_minutes": 10},
-        "nav": {"items": None, "style": "docked", "background": None, "icon": None, "active": None,
-                "opacity": 100, "blur": 0},
-        "status": {"shown": False, "widgets": None, "colourful": False, "background": None, "text": None, "opacity": 100,
-                   "blur": 30},
+        "player": {
+            "background": None,
+            "text": None,
+            "opacity": 100,
+            "blur": 0,
+            "radius": 16,
+            "paused_minutes": 10,
+        },
+        "nav": {
+            "items": None,
+            "style": "docked",
+            "background": None,
+            "icon": None,
+            "active": None,
+            "opacity": 100,
+            "blur": 0,
+        },
+        "status": {
+            "shown": False,
+            "widgets": None,
+            "colourful": False,
+            "background": None,
+            "text": None,
+            "opacity": 100,
+            "blur": 30,
+        },
     }
     assert run(phone, "return a.backgroundVeil(a.mergeAppearance());") == 0.6
 
 
 def test_a_person_changes_only_what_they_choose(phone):
-    look = run(phone, """return a.mergeAppearance(
+    look = run(
+        phone,
+        """return a.mergeAppearance(
         { background_strength: 70, tiles: { radius: 30, colours: { light: '#ff0000', cover: '#00ff00' } }, icons: { 'light.a': 'mdi:led-strip' } },
-        { bounce: false, tiles: { colours: { light: '#0000ff' } }, icons: { 'light.b': 'mdi:lamp' } });""")
+        { bounce: false, tiles: { colours: { light: '#0000ff' } }, icons: { 'light.b': 'mdi:lamp' } });""",
+    )
     assert look["background_strength"] == 70
     assert look["bounce"] is False
     assert look["tiles"]["radius"] == 30
@@ -78,23 +127,37 @@ def test_a_person_changes_only_what_they_choose(phone):
 
 
 def test_values_out_of_range_or_malformed_are_corrected_or_dropped(phone):
-    look = run(phone, """return a.mergeAppearance({ background_strength: 140, bounce: 'yes',
+    look = run(
+        phone,
+        """return a.mergeAppearance({ background_strength: 140, bounce: 'yes',
         tiles: { opacity: 5, radius: 99, fill: 'stripes', colours: { light: 'red;}', cover: '#123456' } },
-        icons: { 'light.a': 'bad icon', 'light.b': 'mdi:lamp' } });""")
+        icons: { 'light.a': 'bad icon', 'light.b': 'mdi:lamp' } });""",
+    )
     assert look["background_strength"] == 100
     assert look["bounce"] is True
     tiles = look["tiles"]
-    assert [tiles["opacity"], tiles["radius"], tiles["fill"], tiles["colours"]] == [20, 36, "tile", {"cover": "#123456"}]
+    assert [tiles["opacity"], tiles["radius"], tiles["fill"], tiles["colours"]] == [
+        20,
+        36,
+        "tile",
+        {"cover": "#123456"},
+    ]
     assert look["icons"] == {"light.b": "mdi:lamp"}
 
 
 def test_only_what_differs_from_the_base_is_saved(phone):
-    for_everyone = run(phone, """const draft = a.mergeAppearance({ background_strength: 80, tiles: { fill: 'icon' } });
-        return a.appearanceDiff(draft);""")
+    for_everyone = run(
+        phone,
+        """const draft = a.mergeAppearance({ background_strength: 80, tiles: { fill: 'icon' } });
+        return a.appearanceDiff(draft);""",
+    )
     assert for_everyone == {"background_strength": 80, "tiles": {"fill": "icon"}}
-    own = run(phone, """const shared = a.mergeAppearance({ background_strength: 80, tiles: { colours: { light: '#ff0000' } } });
+    own = run(
+        phone,
+        """const shared = a.mergeAppearance({ background_strength: 80, tiles: { colours: { light: '#ff0000' } } });
         const draft = a.mergeAppearance({ background_strength: 80, bounce: false, tiles: { colours: { light: '#ff0000', fan: '#00ff00' } } });
-        return a.appearanceDiff(draft, shared);""")
+        return a.appearanceDiff(draft, shared);""",
+    )
     assert own == {"bounce": False, "tiles": {"colours": {"fan": "#00ff00"}}}
 
 
@@ -103,13 +166,17 @@ def test_writing_stays_readable_on_the_chosen_colour(phone):
 
 
 def test_icons_are_found_by_name_and_by_keyword(phone):
-    found = run(phone, """const list = [{ name: 'led-strip', keywords: [] }, { name: 'led-strip-variant', keywords: [] },
+    found = run(
+        phone,
+        """const list = [{ name: 'led-strip', keywords: [] }, { name: 'led-strip-variant', keywords: [] },
         { name: 'lightbulb', keywords: ['lamp'] }, { name: 'floor-lamp', keywords: [] }];
-        return [a.searchIcons(list, 'led strip'), a.searchIcons(list, 'lamp'), a.searchIcons(list, ' ')];""")
+        return [a.searchIcons(list, 'led strip'), a.searchIcons(list, 'lamp'), a.searchIcons(list, ' ')];""",
+    )
     assert found == [["mdi:led-strip", "mdi:led-strip-variant"], ["mdi:floor-lamp", "mdi:lightbulb"], []]
 
 
 # The page -----------------------------------------------------------------------------------------
+
 
 def test_a_chosen_colour_paints_tiles_of_its_kind_while_they_are_on(phone):
     add_room_things(phone)
@@ -137,7 +204,9 @@ def test_the_tile_settings_reach_the_page(phone):
 def test_own_settings_win_over_the_shared_ones(phone):
     with_prefs(phone, {"appearance": {"background_strength": 100, "tiles": {"fill": "tile"}}})
     mount_admin(phone, {"appearance": {"background_strength": 20, "tiles": {"fill": "icon"}}})
-    phone.wait_for_function("/--hd-veil: 0$/.test(window.card.shadowRoot.querySelector('.page').getAttribute('style'))")
+    phone.wait_for_function(
+        "/--hd-veil: 0$/.test(window.card.shadowRoot.querySelector('.page').getAttribute('style'))"
+    )
     assert not phone.evaluate("window.card.shadowRoot.querySelector('.page').classList.contains('fill-icon')")
 
 
@@ -177,9 +246,17 @@ def test_a_person_turns_the_bounce_off(phone):
 
 # The sheet ----------------------------------------------------------------------------------------
 
+
 def test_everyone_finds_the_look_in_the_menu(phone):
     open_look(phone, admin=False)
-    assert phone.locator(f"{SHEET} [data-tab]").all_inner_texts() == ["Tło", "Przyciski", "Kolory", "Pasek", "Okna", "Ikony"]
+    assert phone.locator(f"{SHEET} [data-tab]").all_inner_texts() == [
+        "Tło",
+        "Przyciski",
+        "Kolory",
+        "Pasek",
+        "Okna",
+        "Ikony",
+    ]
     # Without administrator rights there is no choice for everyone.
     assert phone.locator(f"{SHEET} [data-look-everyone]").count() == 0
 
@@ -191,7 +268,11 @@ def test_a_person_saves_their_own_look(phone):
     phone.locator(f"{SHEET} [data-tab='tiles']").click()
     phone.locator(f"{SHEET} [data-group='look-fill'] [data-choice='icon']").click()
     phone.locator(f"{SHEET} [data-look-save]").click()
-    assert saved_prefs(phone)["appearance"] == {"background_strength": 90, "bounce": False, "tiles": {"fill": "icon"}}
+    assert saved_prefs(phone)["appearance"] == {
+        "background_strength": 90,
+        "bounce": False,
+        "tiles": {"fill": "icon"},
+    }
 
 
 def test_an_administrator_saves_the_look_for_everyone(phone):
@@ -200,12 +281,15 @@ def test_an_administrator_saves_the_look_for_everyone(phone):
     phone.locator(f"{SHEET} [data-tab='tiles']").click()
     phone.locator(f"{SHEET} [data-look='radius'] input").fill("30")
     phone.locator(f"{SHEET} [data-look-colour='cover'] input[type='color']").evaluate(
-        "(input) => { input.value = '#336699'; input.dispatchEvent(new Event('change')); }")
+        "(input) => { input.value = '#336699'; input.dispatchEvent(new Event('change')); }"
+    )
     preview = phone.locator(f"{SHEET} [data-look-preview]").get_attribute("style")
     assert "--hd-tile-radius: 30px" in preview
     phone.locator(f"{SHEET} [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
+    saved = phone.evaluate(
+        "window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance"
+    )
     assert saved == {"tiles": {"radius": 30, "colours": {"cover": "#336699"}}}
 
 
@@ -252,10 +336,16 @@ def test_colours_nobody_chose_are_left_to_the_light_or_dark_look(phone):
 
 def test_chosen_colours_become_properties_of_the_page(phone):
     variables = run(phone, "return a.tileVariables(arg);", APPLE)
-    for expected in ("--hd-look-title: #ffffff", "--hd-look-tile-bg: #1c2a55", "--hd-look-chip-border: transparent",
-                     "--hd-chip-opacity: 60%", "--hd-chip-radius: 24px", "--hd-button-opacity: 50%",
-                     "--hd-look-badge-ring: color-mix(in srgb, #ffffff 45%, transparent)",
-                     "--hd-look-tile-muted: color-mix(in srgb, #ffffff 72%, transparent)"):
+    for expected in (
+        "--hd-look-title: #ffffff",
+        "--hd-look-tile-bg: #1c2a55",
+        "--hd-look-chip-border: transparent",
+        "--hd-chip-opacity: 60%",
+        "--hd-chip-radius: 24px",
+        "--hd-button-opacity: 50%",
+        "--hd-look-badge-ring: color-mix(in srgb, #ffffff 45%, transparent)",
+        "--hd-look-tile-muted: color-mix(in srgb, #ffffff 72%, transparent)",
+    ):
         assert expected in variables
 
 
@@ -299,8 +389,11 @@ def test_a_status_circle_without_colours_of_kinds_is_open_and_white(phone):
 
 
 def test_the_built_in_apple_home_theme_leaves_the_circles_open_with_their_colours(phone):
-    badges = run(phone, """const t = await import('/custom_components/home_dashboard/www/app/builtin-themes.js');
-        return t.BUILTIN_THEMES.find((theme) => theme.id === 'apple_home').appearance.badges;""")
+    badges = run(
+        phone,
+        """const t = await import('/custom_components/home_dashboard/www/app/builtin-themes.js');
+        return t.BUILTIN_THEMES.find((theme) => theme.id === 'apple_home').appearance.badges;""",
+    )
     assert badges.get("fill") is False
     assert badges.get("kinds", True) is True
 
@@ -317,8 +410,10 @@ def test_the_look_sheet_turns_the_colours_of_kinds_off(phone):
     box = phone.locator("home-dashboard-sheet [data-look-badge-kinds] input")
     assert box.is_checked()
     box.uncheck()
-    look = phone.evaluate("document.querySelector('home-dashboard-chrome').shadowRoot"
-                          ".querySelector('home-dashboard-sheet')._look.badges")
+    look = phone.evaluate(
+        "document.querySelector('home-dashboard-chrome').shadowRoot"
+        ".querySelector('home-dashboard-sheet')._look.badges"
+    )
     assert look["kinds"] is False
 
 
@@ -339,11 +434,14 @@ def test_the_colours_tab_saves_the_chosen_colours(phone):
     open_look(phone)
     phone.locator(f"{SHEET} [data-tab='colours']").click()
     phone.locator(f"{SHEET} [data-look-field='text.headings'] input").evaluate(
-        "(input) => { input.value = '#ffffff'; input.dispatchEvent(new Event('change')); }")
+        "(input) => { input.value = '#ffffff'; input.dispatchEvent(new Event('change')); }"
+    )
     phone.locator(f"{SHEET} [data-look='chip-radius'] input").fill("24")
     phone.locator(f"{SHEET} [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
+    saved = phone.evaluate(
+        "window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance"
+    )
     assert saved == {"text": {"headings": "#ffffff"}, "chips": {"radius": 24}}
 
 
@@ -363,13 +461,19 @@ def test_a_page_with_its_own_background_keeps_it(phone):
 
 
 def test_a_look_never_loads_a_picture_for_its_pages(phone):
-    page = run(phone, """return a.mergeAppearance({ page: { background_light: 'url(https://x.y/a.jpg)',
-        background_dark: 'linear-gradient(#000, url(https://x.y/a.jpg))' } }).page;""")
+    page = run(
+        phone,
+        """return a.mergeAppearance({ page: { background_light: 'url(https://x.y/a.jpg)',
+        background_dark: 'linear-gradient(#000, url(https://x.y/a.jpg))' } }).page;""",
+    )
     assert page == {"background_light": None, "background_dark": None}
 
 
 def test_a_colour_may_be_see_through(phone):
-    look = run(phone, "return a.mergeAppearance({ tiles: { icon_background: '#ffffff26', background: '#ffffff2' } }).tiles;")
+    look = run(
+        phone,
+        "return a.mergeAppearance({ tiles: { icon_background: '#ffffff26', background: '#ffffff2' } }).tiles;",
+    )
     assert look["icon_background"] == "#ffffff26"
     assert look["background"] is None
 
@@ -382,7 +486,9 @@ def test_a_colour_shows_as_a_round_sample_with_its_code(phone):
     assert chosen.locator(".swatch-text").inner_text() == "#FFFFFF · 15%"
     sample = chosen.locator(".swatch-pick")
     assert "--swatch: #ffffff26" in sample.get_attribute("style")
-    assert "repeating-conic-gradient" in sample.evaluate("(element) => getComputedStyle(element).backgroundImage")
+    assert "repeating-conic-gradient" in sample.evaluate(
+        "(element) => getComputedStyle(element).backgroundImage"
+    )
     size = sample.bounding_box()
     assert round(size["width"]) == round(size["height"]) == 34
     # No colour chosen: a dashed ring and "Default", without a cross.
@@ -404,5 +510,7 @@ def test_picking_a_colour_keeps_its_see_through_part(phone):
     open_look(phone, {"appearance": {"buttons": {"background": "#ffffff26"}}})
     phone.locator(f"{SHEET} [data-tab='colours']").click()
     field = phone.locator(f"{SHEET} [data-look-field='buttons.background']")
-    field.locator("input[type='color']").evaluate("(input) => { input.value = '#336699'; input.dispatchEvent(new Event('change')); }")
+    field.locator("input[type='color']").evaluate(
+        "(input) => { input.value = '#336699'; input.dispatchEvent(new Event('change')); }"
+    )
     assert field.locator(".swatch-text").inner_text() == "#336699 · 15%"

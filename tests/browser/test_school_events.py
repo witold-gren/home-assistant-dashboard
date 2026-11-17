@@ -15,8 +15,17 @@ LATER = (date.today() + timedelta(days=2)).isoformat()
 
 
 def event(title: str, day: str = TODAY, important: bool = True, **rest) -> dict:
-    return {"date": day, "title": title, "start": None, "end": None, "place": "", "description": "",
-            "instead_of_lessons": False, "important": important, **rest}
+    return {
+        "date": day,
+        "title": title,
+        "start": None,
+        "end": None,
+        "place": "",
+        "description": "",
+        "instead_of_lessons": False,
+        "important": important,
+        **rest,
+    }
 
 
 def open_with(page, librus: list, plan_day: dict | None = None) -> None:
@@ -25,7 +34,9 @@ def open_with(page, librus: list, plan_day: dict | None = None) -> None:
     if plan_day:
         lesson = {"number": 1, "start": "08:00", "end": "08:45", "subject": "Polski", "type": "lesson"}
         day = {"date": TODAY, "name": "Poniedziałek", "is_today": True, "lessons": [lesson], **plan_day}
-        add_entity(page, "sensor.rodzinnik_plan_lekcji", "x", {"children": [{"child": "Lena", "days": [day]}]})
+        add_entity(
+            page, "sensor.rodzinnik_plan_lekcji", "x", {"children": [{"child": "Lena", "days": [day]}]}
+        )
     mount(page, {"shortcuts": [SCHOOL]})
     page.locator("[data-shortcut='Rok szkolny']").click()
     page.wait_for_selector(f"{SCREEN} [data-tab]")
@@ -36,10 +47,13 @@ def important(page, key: str) -> list:
 
 
 def test_important_events_of_today_and_tomorrow_stand_at_the_top_for_all_children(phone):
-    open_with(phone, [
-        {"child": "Lena", "events": [event("Galowy"), event("Basen", TOMORROW)]},
-        {"child": "Maja", "events": [event("Wycieczka")]},
-    ])
+    open_with(
+        phone,
+        [
+            {"child": "Lena", "events": [event("Galowy"), event("Basen", TOMORROW)]},
+            {"child": "Maja", "events": [event("Wycieczka")]},
+        ],
+    )
     assert important(phone, "school_today") == ["Galowy", "Wycieczka"]
     assert important(phone, "school_tomorrow") == ["Basen"]
     first = phone.locator(f"{SCREEN} .content > *").first
@@ -64,12 +78,18 @@ def test_a_later_event_stays_out_of_the_top(phone):
 
 
 def test_an_event_from_two_accounts_of_a_child_shows_once(phone):
-    open_with(phone, [{"child": "Lena", "events": [event("Galowy")]}, {"child": "Lena", "events": [event("Galowy")]}])
+    open_with(
+        phone,
+        [{"child": "Lena", "events": [event("Galowy")]}, {"child": "Lena", "events": [event("Galowy")]}],
+    )
     assert important(phone, "school_today") == ["Galowy"]
 
 
 def test_two_children_with_the_same_event_both_show(phone):
-    open_with(phone, [{"child": "Lena", "events": [event("Galowy")]}, {"child": "Maja", "events": [event("Galowy")]}])
+    open_with(
+        phone,
+        [{"child": "Lena", "events": [event("Galowy")]}, {"child": "Maja", "events": [event("Galowy")]}],
+    )
     assert important(phone, "school_today") == ["Galowy", "Galowy"]
 
 
@@ -121,7 +141,14 @@ def test_a_day_instead_of_lessons_crosses_out_the_lessons_and_says_so(phone):
 def test_extra_activities_stay_on_a_day_without_lessons(phone):
     add_school(phone)
     extra = {"start": "16:00", "end": "17:00", "subject": "Basen", "type": "extra"}
-    day = {"date": TODAY, "name": "Poniedziałek", "is_today": True, "lessons": [extra], "no_lessons": True, "events": []}
+    day = {
+        "date": TODAY,
+        "name": "Poniedziałek",
+        "is_today": True,
+        "lessons": [extra],
+        "no_lessons": True,
+        "events": [],
+    }
     add_entity(phone, "sensor.rodzinnik_plan_lekcji", "x", {"children": [{"child": "Lena", "days": [day]}]})
     mount(phone, {"shortcuts": [SCHOOL]})
     phone.locator("[data-shortcut='Rok szkolny']").click()
@@ -139,7 +166,10 @@ def calendar(page) -> list:
 
 
 def test_the_calendar_adds_the_events_of_the_child_in_date_order(phone):
-    open_calendar(phone, [{"child": "Lena", "events": [event("Wcześniej", "2026-11-01"), event("Później", "2026-11-20")]}])
+    open_calendar(
+        phone,
+        [{"child": "Lena", "events": [event("Wcześniej", "2026-11-01"), event("Później", "2026-11-20")]}],
+    )
     assert calendar(phone) == ["Wcześniej", "Sprawdzian: Ułamki", "Później"]
 
 

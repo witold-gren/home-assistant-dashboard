@@ -4,7 +4,8 @@ import { html, nothing } from "../vendor/lit-all.min.js";
 import { clipThumbnail } from "./clip-thumbs.js";
 import { batteryBadge, streamDot } from "./connections.js";
 import { translate } from "./i18n.js";
-import {
+import { readStored, writeStored } from "./stored.js";
+import { clipPicker,
   buildCameras,
   CAMERA_COLUMNS,
   CAMERA_LAYOUTS,
@@ -18,6 +19,8 @@ import {
   liveCameraFor,
   pictureAge,
   presetCalls,
+  scaledPicture,
+  TILE_PICTURE,
 } from "./model.js";
 import { localDay, recordingSource } from "./recordings.js";
 import {
@@ -497,23 +500,23 @@ export const RecordingSheets = (Base) =>
 
     // The columns of the window of all cameras: this device's own choice, else the settings'.
     _cameraColumns() {
-      const own = Number(localStorage.getItem(CAMERA_COLUMNS_KEY));
+      const own = Number(readStored(CAMERA_COLUMNS_KEY));
       return CAMERA_COLUMNS.includes(own) ? own : this.config.cameras.columns;
     }
 
     _setCameraColumns(columns) {
-      localStorage.setItem(CAMERA_COLUMNS_KEY, String(columns));
+      writeStored(CAMERA_COLUMNS_KEY, String(columns));
       this.requestUpdate();
     }
 
     // The layout of the window of all cameras: this device's own choice, else the settings'.
     _cameraLayout() {
-      const own = localStorage.getItem(CAMERA_LAYOUT_KEY);
+      const own = readStored(CAMERA_LAYOUT_KEY);
       return CAMERA_LAYOUTS.includes(own) ? own : this.config.cameras.layout;
     }
 
     _setCameraLayout(layout) {
-      localStorage.setItem(CAMERA_LAYOUT_KEY, layout);
+      writeStored(CAMERA_LAYOUT_KEY, layout);
       this.requestUpdate();
     }
 
@@ -593,7 +596,8 @@ export const RecordingSheets = (Base) =>
       clearTimeout(this._cardsTimer);
       this._cardsTimer = setTimeout(() => this.sheet?.kind === "cameras" && this.requestUpdate(), CAMERA_CARDS_REFRESH_MS);
       const url = (camera) => {
-        const full = this.hass.hassUrl(camera.picture);
+        // A tile of the list in its size (the big one plays live); see TILE_PICTURE.
+        const full = scaledPicture(this.hass.hassUrl(camera.picture), TILE_PICTURE.list);
         return camera.updatedAt ? full : `${full}${full.includes("?") ? "&" : "?"}tick=${tick}`;
       };
       const columns = this._cameraColumns();
@@ -692,8 +696,15 @@ export const RecordingSheets = (Base) =>
       const all = buildCameras(this.hass, this.config);
       const cameras = all.filter((camera) => !camera.unavailable);
       // The window stays on a camera that went away, with its last picture, until it comes back.
-      const shown = all.find((camera) => camera.entityId === this.sheet.entityId);
-      if (!shown) return this._renderHeader("", true, false);
+      const found = all.find((camera) => camera.entityId === this.sheet.entityId);
+      if (!found) return this._renderHeader("", true, false);
+      // Opened by an automation: the picture of the event (until the live view starts) and its own title.
+      const eventPicture = this.sheet.picture ? this.hass.states[this.sheet.picture]?.attributes?.entity_picture : null;
+      const shown = {
+        ...found,
+        name: this.sheet.title ?? found.name,
+        picture: eventPicture ?? found.picture,
+      };
       const cameraId = liveCameraFor(this.hass, this.sheet.entityId, this.config);
       // Gone from Home Assistant: no live view to start. A picture that does not load only says so over itself.
       const gone = this._cameraGone(shown, cameraId);
@@ -906,6 +917,8 @@ export const RecordingSheets = (Base) =>
                 .source=${recordings}
                 .day=${day}
                 .time=${this._clip ? this._playhead : null}
+                .clip=${this._clip}
+                .clipMode=${clipPicker(this.config, this.sheet.entityId, cameraId)}
                 .playing=${Boolean(this._clip && !this._clipPaused)}
                 .live=${this._live}
                 .canLive=${Boolean(cameraId) && !gone}
@@ -916,6 +929,8 @@ export const RecordingSheets = (Base) =>
                   if (this._live) this._stopLive();
                 }}
                 @timeline-seek=${(event) => this._playClip(event.detail.clip)}
+                @timeline-clip-scrub=${(event) => this._clipScrub(event.detail.time)}
+                @timeline-clip-seek=${(event) => this._clipSeek(event.detail)}
                 @timeline-play=${(event) => this._timelinePlay(event)}
                 @timeline-live=${() => this._timelineLive(cameraId)}
               ></home-dashboard-timeline>

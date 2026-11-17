@@ -82,10 +82,18 @@ def test_the_week_asks_for_seven_days(phone):
     add_leak(phone)
     open_entity(phone, LEAK)
     phone.locator(f"{SHEET} home-dashboard-state-history [data-state-days='7']").click()
-    phone.wait_for_function("window.asked.filter((message) => message.type === 'history/history_during_period').length >= 2")
-    asked = [message for message in phone.evaluate("window.asked") if message["type"] == "history/history_during_period"][-1]
-    days = phone.evaluate("([end, start]) => Math.round((Date.parse(end) - Date.parse(start)) / 86400000)",
-                          [asked["end_time"], asked["start_time"]])
+    phone.wait_for_function(
+        "window.asked.filter((message) => message.type === 'history/history_during_period').length >= 2"
+    )
+    asked = [
+        message
+        for message in phone.evaluate("window.asked")
+        if message["type"] == "history/history_during_period"
+    ][-1]
+    days = phone.evaluate(
+        "([end, start]) => Math.round((Date.parse(end) - Date.parse(start)) / 86400000)",
+        [asked["end_time"], asked["start_time"]],
+    )
     assert days == 7
 
 
@@ -104,7 +112,11 @@ def test_a_list_shows_every_option_named_and_picks_one(phone):
     assert "on" in phone.locator(f"{SHEET} [data-choice='none']").get_attribute("class")
     phone.locator(f"{SHEET} [data-choice='Cappuccino']").click()
     call = [call for call in phone.evaluate("window.hass.calls") if call["type"] == "service"][-1]
-    assert (call["domain"], call["service"], call["data"]) == ("select", "select_option", {"entity_id": DRINK, "option": "Cappuccino"})
+    assert (call["domain"], call["service"], call["data"]) == (
+        "select",
+        "select_option",
+        {"entity_id": DRINK, "option": "Cappuccino"},
+    )
 
 
 def test_the_tile_of_a_list_says_none_in_words(phone):
@@ -119,7 +131,11 @@ def test_a_number_opens_its_value_and_chart(phone):
     open_entity(phone, "sensor.temp")
     assert phone.locator(f"{SHEET} .panel").get_attribute("data-kind") == "sensor"
     phone.wait_for_selector(f"{SHEET} home-dashboard-history-chart >> svg")
-    asked = [message for message in phone.evaluate("window.asked") if message["type"] == "history/history_during_period"]
+    asked = [
+        message
+        for message in phone.evaluate("window.asked")
+        if message["type"] == "history/history_during_period"
+    ]
     assert asked[-1]["entity_ids"] == ["sensor.temp"]
 
 
@@ -140,7 +156,8 @@ def test_strip_segments_fit_the_range(phone):
 
 def add_plug(page, with_power: bool = True) -> None:
     add_entity(page, "switch.fridge", "on", {"friendly_name": "Lodówka"})
-    page.evaluate("""(withPower) => { const snapshot = window.dashboard.snapshot;
+    page.evaluate(
+        """(withPower) => { const snapshot = window.dashboard.snapshot;
         snapshot.entities['switch.fridge'] = { entity_id: 'switch.fridge', device_id: 'plug', platform: 'zha' };
         if (!withPower) return;
         const add = (id, state, attributes) => {
@@ -148,7 +165,9 @@ def add_plug(page, with_power: bool = True) -> None:
             snapshot.states[id] = { entity_id: id, state, attributes };
         };
         add('sensor.fridge_power', '84.5', { device_class: 'power', unit_of_measurement: 'W' });
-        add('sensor.fridge_energy', '312.456', { device_class: 'energy', unit_of_measurement: 'kWh' }); }""", with_power)
+        add('sensor.fridge_energy', '312.456', { device_class: 'energy', unit_of_measurement: 'kWh' }); }""",
+        with_power,
+    )
 
 
 def test_a_plug_shows_its_power_and_a_line_of_it_under_the_switch(phone):
@@ -159,7 +178,11 @@ def test_a_plug_shows_its_power_and_a_line_of_it_under_the_switch(phone):
     assert power.locator("[data-switch-watts]").inner_text() == "84,5 W"
     assert "312,46 kWh" in power.inner_text()
     phone.wait_for_selector(f"{SHEET} [data-switch-power] home-dashboard-history-chart >> svg")
-    asked = [message for message in phone.evaluate("window.asked") if message["type"] == "history/history_during_period"]
+    asked = [
+        message
+        for message in phone.evaluate("window.asked")
+        if message["type"] == "history/history_during_period"
+    ]
     assert asked[-1]["entity_ids"] == ["sensor.fridge_power"]
     assert phone.locator(f"{SHEET} [data-switch-power] home-dashboard-history-chart >> .now").count() == 0
     assert "short" in phone.locator(f"{SHEET} [data-big-switch]").get_attribute("class")
@@ -176,7 +199,9 @@ def test_a_switch_without_a_power_sensor_stays_as_it_was(phone):
 
 def open_drink_tile(page, **tile) -> None:
     add_entity(page, DRINK, "none", {"options": DRINKS, "friendly_name": "Ekspres Napój"})
-    page.evaluate(MOUNT, {"dashboard": room_with({"entity": DRINK, "name": "Napój", **tile}), "answers": ANSWERS})
+    page.evaluate(
+        MOUNT, {"dashboard": room_with({"entity": DRINK, "name": "Napój", **tile}), "answers": ANSWERS}
+    )
     page.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
     page.locator(f"home-dashboard-page [data-entity='{DRINK}'] .text").first.click()
     page.wait_for_selector(f"{SHEET} [data-choice]")
@@ -210,7 +235,10 @@ def test_without_confirm_there_is_no_run_button(phone):
 def test_own_labels_name_the_options_on_the_tile_and_in_the_window(phone):
     labels = {"none": "Nic", "Espresso Coffee": "Espresso", "Hot Water": "Gorąca woda"}
     add_entity(phone, DRINK, "none", {"options": DRINKS})
-    phone.evaluate(MOUNT, {"dashboard": room_with({"entity": DRINK, "name": "Napój", "labels": labels}), "answers": ANSWERS})
+    phone.evaluate(
+        MOUNT,
+        {"dashboard": room_with({"entity": DRINK, "name": "Napój", "labels": labels}), "answers": ANSWERS},
+    )
     phone.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
     assert "Nic" in phone.locator(f"home-dashboard-page [data-entity='{DRINK}']").first.inner_text()
     phone.locator(f"home-dashboard-page [data-entity='{DRINK}'] .text").first.click()
@@ -229,11 +257,25 @@ def test_marking_is_forgotten_when_the_window_changes(phone):
 
 def test_a_row_of_a_block_hides_options_nobody_uses_but_not_the_one_set(phone):
     add_entity(phone, "select.profile", "Guest", {"options": ["Alex", "Sam", "Guest", "Spare"]})
-    block = {"kind": "panel", "name": "Machine", "groups": [{"title": "A", "rows": [{"entity": "select.profile"}]},
-             {"title": "B", "layout": "controls", "rows": [{"entity": "select.profile", "hide": ["Guest", "Spare"]}]}]}
+    block = {
+        "kind": "panel",
+        "name": "Machine",
+        "groups": [
+            {"title": "A", "rows": [{"entity": "select.profile"}]},
+            {
+                "title": "B",
+                "layout": "controls",
+                "rows": [{"entity": "select.profile", "hide": ["Guest", "Spare"]}],
+            },
+        ],
+    }
     phone.evaluate(MOUNT, {"dashboard": room_with(block), "answers": ANSWERS})
     phone.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
     phone.locator("home-dashboard-page [data-tile='Machine']").first.click()
     choices = phone.locator(f"{SHEET} [data-field='select.profile'] [data-choice]")
     choices.first.wait_for()
-    assert choices.evaluate_all("(items) => items.map((item) => item.dataset.choice)") == ["Alex", "Sam", "Guest"]
+    assert choices.evaluate_all("(items) => items.map((item) => item.dataset.choice)") == [
+        "Alex",
+        "Sam",
+        "Guest",
+    ]

@@ -29,8 +29,15 @@ JAN = {
     "fat_mass_to_lose": 2.5,
     "last_measurement_time": "2026-11-10T07:30:00+00:00",
 }
-ANNA = {**JAN, "friendly_name": "Anna", "weight": 58.0, "ideal": 57.0, "bmi": 31.0, "bmi_label": "moderate_obesity",
-        "last_measurement_time": "2026-11-01T07:30:00+00:00"}
+ANNA = {
+    **JAN,
+    "friendly_name": "Anna",
+    "weight": 58.0,
+    "ideal": 57.0,
+    "bmi": 31.0,
+    "bmi_label": "moderate_obesity",
+    "last_measurement_time": "2026-11-01T07:30:00+00:00",
+}
 
 # Daily means of Jan's weight, as the recorder gives them.
 STATISTICS = """async (message) => {
@@ -80,7 +87,9 @@ def test_the_tile_says_who_weighed_last_and_their_body(phone):
 def test_the_window_opens_on_the_last_person_with_everything_about_them(phone):
     open_scale(phone)
     scale = phone.locator(f"{SHEET} home-dashboard-scale")
-    assert scale.locator("[data-scale-person].selected").get_attribute("data-scale-person") == "bodymiscale.jan"
+    assert (
+        scale.locator("[data-scale-person].selected").get_attribute("data-scale-person") == "bodymiscale.jan"
+    )
     hero = scale.locator("[data-scale-hero]").inner_text()
     assert "80,4" in hero and "74,0 kg" in hero
     assert scale.locator("[data-scale-difference]").inner_text().strip() == "+6,4 kg"
@@ -102,7 +111,9 @@ def test_the_line_of_weight_comes_from_the_person_s_weight_sensor(phone):
     phone.wait_for_function("window.asked.length >= 2")
     asked = phone.evaluate("window.asked")
     span = (asked[-1]["end_time"], asked[-1]["start_time"])
-    days = phone.evaluate("([end, start]) => Math.round((Date.parse(end) - Date.parse(start)) / 86400000)", list(span))
+    days = phone.evaluate(
+        "([end, start]) => Math.round((Date.parse(end) - Date.parse(start)) / 86400000)", list(span)
+    )
     assert days == 90
 
 
@@ -112,7 +123,9 @@ def test_choosing_a_person_shows_them(phone):
     scale = phone.locator(f"{SHEET} home-dashboard-scale")
     assert "58,0" in scale.locator("[data-scale-hero]").inner_text()
     assert "Otyłość umiarkowana" in scale.locator("[data-scale-bmi]").inner_text()
-    phone.wait_for_function("window.asked.some((message) => message.statistic_ids[0] === 'sensor.anna_weight')")
+    phone.wait_for_function(
+        "window.asked.some((message) => message.statistic_ids[0] === 'sensor.anna_weight')"
+    )
 
 
 def test_a_phone_shows_one_column_and_a_tablet_two(phone, tablet):
@@ -130,7 +143,9 @@ def test_a_phone_shows_one_column_and_a_tablet_two(phone, tablet):
     assert wide["metrics"]["left"] > wide["hero"]["right"]
 
 
-@pytest.mark.parametrize(("bmi", "band"), [(17, "under"), (22, "normal"), (27.5, "over"), (32, "obese"), (40, "obese")])
+@pytest.mark.parametrize(
+    ("bmi", "band"), [(17, "under"), (22, "normal"), (27.5, "over"), (32, "obese"), (40, "obese")]
+)
 def test_bmi_stands_in_its_band(phone, bmi, band):
     place = run(phone, "return s.bmiPlace(arg);", bmi)
     assert place["band"] == band
@@ -139,24 +154,33 @@ def test_bmi_stands_in_its_band(phone, bmi, band):
 
 def test_people_can_be_listed_with_their_own_weight_sensor(phone):
     setup(phone)
-    people = run(phone, """const hass = window.hass;
+    people = run(
+        phone,
+        """const hass = window.hass;
         return s.scalePeople(hass, { people: [{ entity: 'bodymiscale.anna', name: 'Ania', weight: 'sensor.other' }] })
-            .map((person) => [person.name, person.weightSensor]);""")
+            .map((person) => [person.name, person.weightSensor]);""",
+    )
     assert people == [["Ania", "sensor.other"]]
     found = run(phone, "return s.scalePeople(window.hass, {}).map((person) => person.weightSensor).sort();")
     assert found == ["sensor.anna_weight", "sensor.jan_weight"]
 
 
 def test_values_are_shown_with_their_units_or_a_dash(phone):
-    texts = run(phone, """return [s.metricText('pl', 1700.4, 'kcal', 0), s.metricText('pl', null, 'kg', 1),
-        s.metricText('en', 35.2, 'age', 0)];""")
+    texts = run(
+        phone,
+        """return [s.metricText('pl', 1700.4, 'kcal', 0), s.metricText('pl', null, 'kg', 1),
+        s.metricText('en', 35.2, 'age', 0)];""",
+    )
     assert texts == ["1700 kcal", "\u2013", "35 years"]
 
 
 def test_a_weight_that_never_changed_says_there_were_no_weighings(phone):
-    changed = run(phone, """const point = (value) => ({ at: 0, value });
+    changed = run(
+        phone,
+        """const point = (value) => ({ at: 0, value });
         return [s.weightChanged([point(38.5), point(38.5), point(38.52)]), s.weightChanged([point(80), point(79.5)]),
-            s.weightChanged([])];""")
+            s.weightChanged([])];""",
+    )
     assert changed == [False, True, False]
 
 

@@ -10,7 +10,12 @@ from .test_editor_app import APP, desktop, open_editor, select  # noqa: F401
 LOOK = {
     "type": "custom:home-dashboard",
     "layout": [{"id": "salon", "name": "Salon", "sections": []}],
-    "backgrounds": {"salon": {"light": "/local/backgrounds/salon.jpg", "dark": "linear-gradient(170deg, #3b4a6e 0%, #252d45 55%, #1b2033 100%)"}},
+    "backgrounds": {
+        "salon": {
+            "light": "/local/backgrounds/salon.jpg",
+            "dark": "linear-gradient(170deg, #3b4a6e 0%, #252d45 55%, #1b2033 100%)",
+        }
+    },
 }
 MODULE = "/custom_components/home_dashboard/www/app/background-field.js"
 
@@ -44,14 +49,24 @@ def run(page, body: str):
 
 
 def test_what_a_background_is(desktop) -> None:  # noqa: F811
-    result = run(desktop, """return [f.readBackground('#ABC'), f.readBackground('/local/a.jpg'), f.readBackground(''),
+    result = run(
+        desktop,
+        """return [f.readBackground('#ABC'), f.readBackground('/local/a.jpg'), f.readBackground(''),
         f.readBackground('linear-gradient(170deg, #3b4a6e 0%, #252d45 55%, #1b2033 100%)'),
         f.readBackground('linear-gradient(#fff, #eee)'), f.readBackground('radial-gradient(red, blue)'),
-        f.gradientValue(90, [{ colour: '#000000', at: 0 }, { colour: '#ffffff', at: 100 }])];""")
+        f.gradientValue(90, [{ colour: '#000000', at: 0 }, { colour: '#ffffff', at: 100 }])];""",
+    )
     assert result[0] == {"kind": "solid", "colour": "#aabbcc"}
     assert [result[1]["kind"], result[2]["kind"], result[5]["kind"]] == ["picture", "empty", "other"]
-    assert result[3] == {"kind": "gradient", "angle": 170, "stops": [
-        {"colour": "#3b4a6e", "at": 0}, {"colour": "#252d45", "at": 55}, {"colour": "#1b2033", "at": 100}]}
+    assert result[3] == {
+        "kind": "gradient",
+        "angle": 170,
+        "stops": [
+            {"colour": "#3b4a6e", "at": 0},
+            {"colour": "#252d45", "at": 55},
+            {"colour": "#1b2033", "at": 100},
+        ],
+    }
     assert result[4]["stops"] == [{"colour": "#ffffff", "at": 0}, {"colour": "#eeeeee", "at": 100}]
     assert result[6] == "linear-gradient(90deg, #000000 0%, #ffffff 100%)"
 
@@ -73,8 +88,10 @@ def test_a_picture_in_home_assistant_is_chosen_in_the_window(look) -> None:
     dialog = field.locator("[data-bg-dialog]")
     dialog.locator("[data-bg-uploads] [data-bg-file]").first.wait_for()
     # newest sent first, then the folder
-    assert [tile.get_attribute("data-bg-file") for tile in dialog.locator("[data-bg-uploads] [data-bg-file]").all()] == [
-        "/api/image/serve/new/original", "/api/image/serve/old/original"]
+    assert [
+        tile.get_attribute("data-bg-file")
+        for tile in dialog.locator("[data-bg-uploads] [data-bg-file]").all()
+    ] == ["/api/image/serve/new/original", "/api/image/serve/old/original"]
     assert dialog.locator("[data-bg-www] [data-bg-file]").count() == 2
     dialog.locator("[data-bg-file='/local/kuchnia.png'] .pick").click()
     assert draft(look)["backgrounds"]["salon"]["light_wide"] == "/local/kuchnia.png"
@@ -99,9 +116,13 @@ def test_the_folder_waits_for_a_restart(look) -> None:
 def test_a_picture_from_the_computer_is_sent_and_used(look) -> None:
     field = slot(look, "dark_wide")
     field.locator("[data-bg-open]").click()
-    field.locator("[data-bg-upload]").set_input_files({"name": "tlo.png", "mimeType": "image/png", "buffer": b"\x89PNG"})
+    field.locator("[data-bg-upload]").set_input_files(
+        {"name": "tlo.png", "mimeType": "image/png", "buffer": b"\x89PNG"}
+    )
     look.wait_for_function("() => window.uploads.length === 1")
-    look.wait_for_function("() => window.editor.app._strategy.backgrounds.salon.dark_wide === '/api/image/serve/sent/original'")
+    look.wait_for_function(
+        "() => window.editor.app._strategy.backgrounds.salon.dark_wide === '/api/image/serve/sent/original'"
+    )
 
 
 def test_a_gradient_opens_on_its_colours_and_changes_on_the_palette(look) -> None:

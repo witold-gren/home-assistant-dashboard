@@ -7,10 +7,18 @@ ENERGY = "/custom_components/home_dashboard/www/app/energy.js"
 NEW_PREFS = {
     "energy_sources": [
         {"type": "grid", "stat_energy_from": "sensor.phase_1", "stat_cost": None, "stat_energy_to": None},
-        {"type": "grid", "stat_energy_from": "sensor.phase_2", "stat_cost": None, "stat_energy_to": "sensor.export"},
+        {
+            "type": "grid",
+            "stat_energy_from": "sensor.phase_2",
+            "stat_cost": None,
+            "stat_energy_to": "sensor.export",
+        },
         {"type": "solar", "stat_energy_from": "sensor.solar"},
     ],
-    "device_consumption": [{"stat_consumption": "sensor.fridge", "name": "Lodówka"}, {"stat_consumption": "sensor.tv"}],
+    "device_consumption": [
+        {"stat_consumption": "sensor.fridge", "name": "Lodówka"},
+        {"stat_consumption": "sensor.tv"},
+    ],
 }
 INFO = {"cost_sensors": {"sensor.phase_1": "sensor.phase_1_cost", "sensor.phase_2": "sensor.phase_2_cost"}}
 
@@ -21,32 +29,45 @@ def run(page, body: str, arg=None):
 
 def test_both_shapes_of_the_settings_are_read(phone):
     new = run(phone, "return e.energyPlan(arg.prefs, arg.info);", {"prefs": NEW_PREFS, "info": INFO})
-    assert new["grid"] == [{"from": "sensor.phase_1", "cost": "sensor.phase_1_cost"},
-                           {"from": "sensor.phase_2", "cost": "sensor.phase_2_cost"}, {"to": "sensor.export"}]
+    assert new["grid"] == [
+        {"from": "sensor.phase_1", "cost": "sensor.phase_1_cost"},
+        {"from": "sensor.phase_2", "cost": "sensor.phase_2_cost"},
+        {"to": "sensor.export"},
+    ]
     assert new["solar"] == ["sensor.solar"]
     assert new["devices"] == [{"id": "sensor.fridge", "name": "Lodówka"}, {"id": "sensor.tv", "name": None}]
-    old = run(phone, """return e.energyPlan({ energy_sources: [{ type: 'grid',
-        flow_from: [{ stat_energy_from: 'sensor.a', stat_cost: 'sensor.a_cost' }], flow_to: [{ stat_energy_to: 'sensor.b' }] }] });""")
+    old = run(
+        phone,
+        """return e.energyPlan({ energy_sources: [{ type: 'grid',
+        flow_from: [{ stat_energy_from: 'sensor.a', stat_cost: 'sensor.a_cost' }], flow_to: [{ stat_energy_to: 'sensor.b' }] }] });""",
+    )
     assert old["grid"] == [{"from": "sensor.a", "cost": "sensor.a_cost"}, {"to": "sensor.b"}]
 
 
 def test_a_period_has_hours_or_days(phone):
-    ranges = run(phone, """const now = new Date(2026, 10, 8, 15, 30);
+    ranges = run(
+        phone,
+        """const now = new Date(2026, 10, 8, 15, 30);
         return ['day', 'week', 'month'].map((kind) => { const r = e.periodRange(kind, 0, now);
             return [r.start.getDate(), r.period, r.slots.length]; })
-            .concat([[e.periodRange('day', -1, now).start.getDate()], [e.periodRange('month', -1, now).start.getMonth()]]);""")
+            .concat([[e.periodRange('day', -1, now).start.getDate()], [e.periodRange('month', -1, now).start.getMonth()]]);""",
+    )
     # 8 November 2026 is a Sunday, so its week starts on Monday the 2nd.
     assert ranges == [[8, "hour", 24], [2, "day", 7], [1, "day", 30], [7], [9]]
 
 
 def test_the_summary_adds_up_what_the_house_used(phone):
-    summary = run(phone, """const plan = e.energyPlan(arg.prefs, arg.info);
+    summary = run(
+        phone,
+        """const plan = e.energyPlan(arg.prefs, arg.info);
         const slots = [0, 3600000];
         const row = (start, change) => ({ start, change });
         const stats = { 'sensor.phase_1': [row(0, 1), row(3600000, 2)], 'sensor.phase_2': [row(0, 0.5)],
             'sensor.export': [row(3600000, 0.5)], 'sensor.solar': [row(3600000, 1.5)],
             'sensor.phase_1_cost': [row(0, 0.76)], 'sensor.fridge': [row(0, 0.2)], 'sensor.tv': [row(0, 0.4)] };
-        return e.energySummary(plan, stats, slots);""", {"prefs": NEW_PREFS, "info": INFO})
+        return e.energySummary(plan, stats, slots);""",
+        {"prefs": NEW_PREFS, "info": INFO},
+    )
     assert summary["grid"] == 3.5
     assert summary["exported"] == 0.5
     assert summary["used"] == 4.5
@@ -56,7 +77,8 @@ def test_the_summary_adds_up_what_the_house_used(phone):
 
 
 def mount_energy(page, dashboard: dict | None = None) -> None:
-    page.evaluate("""(arg) => {
+    page.evaluate(
+        """(arg) => {
         const original = window.dashboard.hass;
         window.asked = [];
         window.dashboard.hass = (overrides) => original({ ...overrides, callWS: async (message) => {
@@ -70,16 +92,24 @@ def mount_energy(page, dashboard: dict | None = None) -> None:
             }
             return null;
         } });
-    }""", {"prefs": NEW_PREFS, "info": INFO})
-    page.evaluate("async (dashboard) => { window.card = await window.dashboard.mount(window.dashboard.hass(), dashboard, 'energy'); }",
-                  dashboard or {})
+    }""",
+        {"prefs": NEW_PREFS, "info": INFO},
+    )
+    page.evaluate(
+        "async (dashboard) => { window.card = await window.dashboard.mount(window.dashboard.hass(), dashboard, 'energy'); }",
+        dashboard or {},
+    )
     page.wait_for_selector("home-dashboard-energy [data-energy-tile='energy_used']")
 
 
 def test_the_page_shows_the_day_with_its_cost_and_devices(phone):
     mount_energy(phone)
-    phone.wait_for_function("document.querySelector('home-dashboard-page').shadowRoot.querySelector('home-dashboard-energy').shadowRoot.textContent.includes('1,25')")
-    text = phone.evaluate("document.querySelector('home-dashboard-page').shadowRoot.querySelector('home-dashboard-energy').shadowRoot.textContent")
+    phone.wait_for_function(
+        "document.querySelector('home-dashboard-page').shadowRoot.querySelector('home-dashboard-energy').shadowRoot.textContent.includes('1,25')"
+    )
+    text = phone.evaluate(
+        "document.querySelector('home-dashboard-page').shadowRoot.querySelector('home-dashboard-energy').shadowRoot.textContent"
+    )
     assert "Zużycie" in text and "1,25 kWh" in text
     assert "Koszt" in text
     assert phone.locator("home-dashboard-energy [data-energy-device='sensor.fridge']").count() == 1
@@ -91,10 +121,14 @@ def test_the_page_shows_the_day_with_its_cost_and_devices(phone):
 def test_another_period_and_an_earlier_one_are_loaded(phone):
     mount_energy(phone)
     phone.locator("home-dashboard-energy [data-energy-period='month']").click()
-    phone.wait_for_function("window.asked.filter((m) => m.type === 'recorder/statistics_during_period').at(-1).period === 'day'")
+    phone.wait_for_function(
+        "window.asked.filter((m) => m.type === 'recorder/statistics_during_period').at(-1).period === 'day'"
+    )
     assert phone.locator("home-dashboard-energy [data-energy-later]").is_disabled()
     phone.locator("home-dashboard-energy [data-energy-earlier]").click()
-    phone.wait_for_function("window.asked.filter((m) => m.type === 'recorder/statistics_during_period').length >= 3")
+    phone.wait_for_function(
+        "window.asked.filter((m) => m.type === 'recorder/statistics_during_period').length >= 3"
+    )
     assert not phone.locator("home-dashboard-energy [data-energy-later]").is_disabled()
 
 
@@ -134,12 +168,22 @@ def test_the_phases_are_found_on_the_device_of_the_meter(phone):
     phone.evaluate(METER, {"volts2": 239})
     found = run(phone, "return e.meterPhases(window.dashboard.hass(), 'sensor.phase_1');")
     assert [phase["phase"] for phase in found["phases"]] == [1, 2, 3]
-    assert found["phases"][0] == {"phase": 1, "power": "sensor.meter_faza_1_moc_czynna", "voltage": "sensor.meter_faza_1_napiecie",
-                                  "current": "sensor.meter_faza_1_natezenie_pradu", "factor": "sensor.meter_faza_1_wspolczynnik_mocy"}
+    assert found["phases"][0] == {
+        "phase": 1,
+        "power": "sensor.meter_faza_1_moc_czynna",
+        "voltage": "sensor.meter_faza_1_napiecie",
+        "current": "sensor.meter_faza_1_natezenie_pradu",
+        "factor": "sensor.meter_faza_1_wspolczynnik_mocy",
+    }
     assert found["frequency"].endswith("_czestotliwosc_pradu")
-    chosen = run(phone, "return e.meterPhases(window.dashboard.hass(), 'sensor.phase_1', [{ power: 'sensor.a' }]);")
+    chosen = run(
+        phone, "return e.meterPhases(window.dashboard.hass(), 'sensor.phase_1', [{ power: 'sensor.a' }]);"
+    )
     assert chosen == {"phases": [{"phase": 1, "power": "sensor.a"}], "frequency": None}
-    assert run(phone, "return e.meterPhases(window.dashboard.hass(), 'sensor.nothing');") == {"phases": [], "frequency": None}
+    assert run(phone, "return e.meterPhases(window.dashboard.hass(), 'sensor.nothing');") == {
+        "phases": [],
+        "frequency": None,
+    }
 
 
 def test_a_voltage_is_within_near_an_end_or_out(phone):
@@ -148,7 +192,10 @@ def test_a_voltage_is_within_near_an_end_or_out(phone):
 
 
 def test_a_period_is_weighed_against_the_one_before_up_to_the_same_slot(phone):
-    result = run(phone, "return [e.comparedWith([1, 2, 0], [1, 1, 5], 1), e.comparedWith([1, 2, 0], [1, 1, 5]), e.comparedWith([1], [0])];")
+    result = run(
+        phone,
+        "return [e.comparedWith([1, 2, 0], [1, 1, 5], 1), e.comparedWith([1, 2, 0], [1, 1, 5]), e.comparedWith([1], [0])];",
+    )
     assert result == [0.5, -0.5714285714285714, None]
 
 
@@ -165,7 +212,9 @@ def test_a_tablet_on_its_side_has_the_numbers_in_a_row_and_the_chart_beside_the_
     mount_wide(tablet)
     tablet.wait_for_selector("home-dashboard-energy [data-energy-phase='3']")
     assert energy(tablet, "[data-energy-layout]").get_attribute("data-energy-layout") == "wide"
-    tiles = energy(tablet, ".tiles .tile").evaluate_all("(tiles) => tiles.map((tile) => tile.dataset.energyTile)")
+    tiles = energy(tablet, ".tiles .tile").evaluate_all(
+        "(tiles) => tiles.map((tile) => tile.dataset.energyTile)"
+    )
     assert tiles[:4] == ["energy_now", "energy_used", "energy_cost", "energy_measured"]
     top = {round(energy(tablet, f".tiles .tile >> nth={index}").bounding_box()["y"]) for index in range(4)}
     assert len(top) == 1
@@ -182,19 +231,30 @@ def test_a_tablet_on_its_side_has_the_numbers_in_a_row_and_the_chart_beside_the_
 def test_each_phase_shows_its_voltage_on_the_range_of_the_grid(tablet):
     mount_wide(tablet, volts2=209)
     tablet.wait_for_selector("home-dashboard-energy [data-energy-phase='2']")
-    assert energy(tablet, "[data-energy-phase='1'] [data-energy-voltage]").get_attribute("data-energy-voltage") == "ok"
-    assert energy(tablet, "[data-energy-phase='2'] [data-energy-voltage]").get_attribute("data-energy-voltage") == "edge"
+    assert (
+        energy(tablet, "[data-energy-phase='1'] [data-energy-voltage]").get_attribute("data-energy-voltage")
+        == "ok"
+    )
+    assert (
+        energy(tablet, "[data-energy-phase='2'] [data-energy-voltage]").get_attribute("data-energy-voltage")
+        == "edge"
+    )
     assert "209 V" in energy(tablet, "[data-energy-phase='2']").inner_text()
     energy(tablet, "[data-energy-phase='3']").click()
     chart = tablet.evaluate("document.querySelector('home-dashboard-chrome')._overlay.sheet")
     assert chart["kind"] == "chart"
     assert chart["chart"]["mode"] == "phase" and chart["chart"]["power"] == "sensor.meter_faza_3_moc_czynna"
-    assert chart["chart"]["voltage"] == "sensor.meter_faza_3_napiecie" and chart["chart"]["band"] == [207, 253]
+    assert chart["chart"]["voltage"] == "sensor.meter_faza_3_napiecie" and chart["chart"]["band"] == [
+        207,
+        253,
+    ]
 
 
 def test_the_period_before_is_asked_for_the_meters_and_shown_behind(phone):
     mount_energy(phone)
-    phone.wait_for_function("window.asked.filter((m) => m.type === 'recorder/statistics_during_period').length >= 2")
+    phone.wait_for_function(
+        "window.asked.filter((m) => m.type === 'recorder/statistics_during_period').length >= 2"
+    )
     asks = phone.evaluate("window.asked.filter((m) => m.type === 'recorder/statistics_during_period')")
     earlier = min(asks, key=lambda ask: ask["start_time"])
     assert earlier["statistic_ids"] == ["sensor.phase_1", "sensor.phase_2"]
@@ -212,7 +272,6 @@ def test_on_a_tablet_the_chart_is_as_tall_as_the_phases(tablet):
     assert abs(chart["height"] - phases["height"]) <= 1
 
 
-
 # The chart window -------------------------------------------------------------------------------------
 CHART = "/custom_components/home_dashboard/www/app/history-chart.js"
 SHEET = "home-dashboard-sheet"
@@ -223,8 +282,11 @@ def chart_fn(page, body: str):
 
 
 def test_the_chart_reads_its_numbers(phone):
-    result = chart_fn(phone, """return [c.spread([1, 2, NaN, 3]), c.spread([]), c.axisBounds([200, 210]),
-        c.axisBounds([239, 240], [207, 253]), c.slotAt(50, 100, 4), c.slotAt(-5, 100, 4), c.slotAt(500, 100, 4)];""")
+    result = chart_fn(
+        phone,
+        """return [c.spread([1, 2, NaN, 3]), c.spread([]), c.axisBounds([200, 210]),
+        c.axisBounds([239, 240], [207, 253]), c.slotAt(50, 100, 4), c.slotAt(-5, 100, 4), c.slotAt(500, 100, 4)];""",
+    )
     assert result[0] == {"min": 1, "mean": 2, "max": 3}
     assert result[1] is None
     assert [round(value, 1) for value in result[2]] == [199.2, 210.8]
@@ -233,7 +295,8 @@ def test_the_chart_reads_its_numbers(phone):
 
 
 def open_chart(page, chart: dict) -> None:
-    page.evaluate("""(chart) => {
+    page.evaluate(
+        """(chart) => {
         const original = window.dashboard.hass;
         window.asked = [];
         window.dashboard.hass = (overrides) => original({ ...overrides, callWS: async (message) => {
@@ -248,20 +311,40 @@ def open_chart(page, chart: dict) -> None:
         } });
         window.dashboard.snapshot.states['sensor.l1_power'] = { entity_id: 'sensor.l1_power', state: '150', attributes: { unit_of_measurement: 'W' } };
         window.dashboard.snapshot.states['sensor.l1_volt'] = { entity_id: 'sensor.l1_volt', state: '239', attributes: { unit_of_measurement: 'V' } };
-    }""", chart)
-    page.evaluate("async () => { window.card = await window.dashboard.mount(window.dashboard.hass(), {}, 'home'); }")
+    }""",
+        chart,
+    )
+    page.evaluate(
+        "async () => { window.card = await window.dashboard.mount(window.dashboard.hass(), {}, 'home'); }"
+    )
     page.wait_for_function("document.querySelector('home-dashboard-chrome') !== null")
-    page.evaluate("(chart) => document.querySelector('home-dashboard-chrome').open({ type: 'sheet', sheet: { kind: 'chart', chart } })", chart)
+    page.evaluate(
+        "(chart) => document.querySelector('home-dashboard-chrome').open({ type: 'sheet', sheet: { kind: 'chart', chart } })",
+        chart,
+    )
     page.wait_for_selector(f"{SHEET} home-dashboard-history-chart [data-chart-plot]")
 
 
 def test_a_phase_shows_its_power_and_its_voltage_in_its_range(tablet):
-    open_chart(tablet, {"title": "Faza L1", "mode": "phase", "power": "sensor.l1_power", "voltage": "sensor.l1_volt", "band": [207, 253]})
-    plots = tablet.locator(f"{SHEET} [data-chart-plot]").evaluate_all("(plots) => plots.map((plot) => plot.dataset.chartPlot)")
+    open_chart(
+        tablet,
+        {
+            "title": "Faza L1",
+            "mode": "phase",
+            "power": "sensor.l1_power",
+            "voltage": "sensor.l1_volt",
+            "band": [207, 253],
+        },
+    )
+    plots = tablet.locator(f"{SHEET} [data-chart-plot]").evaluate_all(
+        "(plots) => plots.map((plot) => plot.dataset.chartPlot)"
+    )
     assert plots == ["W", "V"]
     assert tablet.locator(f"{SHEET} [data-chart-plot='V'] .band").count() == 1
     # The voltage keeps the colour it has above, in the numbers now.
-    assert "126, 226, 168" in tablet.locator(f"{SHEET} [data-chart-plot='V'] .line").evaluate("(line) => getComputedStyle(line).stroke")
+    assert "126, 226, 168" in tablet.locator(f"{SHEET} [data-chart-plot='V'] .line").evaluate(
+        "(line) => getComputedStyle(line).stroke"
+    )
     now = tablet.locator(f"{SHEET} [data-chart-now]").inner_text()
     assert "150 W" in now and "239 V" in now
     assert tablet.locator(f"{SHEET} [data-chart-facts]").count() == 2
@@ -270,35 +353,54 @@ def test_a_phase_shows_its_power_and_its_voltage_in_its_range(tablet):
 
 
 def test_a_finger_on_the_chart_shows_the_value_there_and_the_range_changes(tablet):
-    open_chart(tablet, {"title": "Teraz", "mode": "lines", "lines": [{"id": "sensor.l1_power", "name": "L1", "unit": "W"}]})
+    open_chart(
+        tablet,
+        {"title": "Teraz", "mode": "lines", "lines": [{"id": "sensor.l1_power", "name": "L1", "unit": "W"}]},
+    )
     plot = tablet.locator(f"{SHEET} [data-chart-plot] svg").bounding_box()
     tablet.mouse.move(plot["x"] + plot["width"] * 0.98, plot["y"] + plot["height"] / 2)
     tip = tablet.locator(f"{SHEET} [data-chart-tip]")
     assert tip.count() == 1 and " W" in tip.inner_text()
     asked = len(tablet.evaluate("window.asked.filter((m) => m.type === 'history/history_during_period')"))
     tablet.locator(f"{SHEET} [data-chart-range='7d']").click()
-    tablet.wait_for_function(f"window.asked.filter((m) => m.type === 'history/history_during_period').length > {asked}")
+    tablet.wait_for_function(
+        f"window.asked.filter((m) => m.type === 'history/history_during_period').length > {asked}"
+    )
     last = tablet.evaluate("window.asked.filter((m) => m.type === 'history/history_during_period').at(-1)")
-    span = (__import__("datetime").datetime.fromisoformat(last["end_time"].replace("Z", "+00:00"))
-            - __import__("datetime").datetime.fromisoformat(last["start_time"].replace("Z", "+00:00")))
+    span = __import__("datetime").datetime.fromisoformat(
+        last["end_time"].replace("Z", "+00:00")
+    ) - __import__("datetime").datetime.fromisoformat(last["start_time"].replace("Z", "+00:00"))
     assert round(span.total_seconds() / 3600) == 168
 
 
 def test_a_device_shows_its_energy_as_bars_with_its_total(tablet):
     open_chart(tablet, {"title": "Zmywarka", "mode": "bars", "energy": "sensor.dishwasher"})
     assert tablet.locator(f"{SHEET} [data-chart-bar]").count() == 24
-    asked = tablet.evaluate("window.asked.filter((m) => m.type === 'recorder/statistics_during_period').at(-1)")
+    asked = tablet.evaluate(
+        "window.asked.filter((m) => m.type === 'recorder/statistics_during_period').at(-1)"
+    )
     assert asked["statistic_ids"] == ["sensor.dishwasher"] and asked["period"] == "hour"
     facts = tablet.locator(f"{SHEET} [data-chart-facts]").inner_text()
     assert "6,1 kWh" in facts and "1,5 kWh" in facts
 
 
 # An energy store ---------------------------------------------------------------------------------
-STORE = {"block": "EcoFlow", "name": "Delta", "battery": "sensor.store_battery", "state": "sensor.store_state",
-         "labels": {"charging": "Ładuje się"}, "input": "sensor.store_in", "output": "sensor.store_out",
-         "remaining": "sensor.store_left"}
-STORE_BLOCK = {"kind": "panel", "name": "EcoFlow", "entity": "sensor.store_state",
-               "groups": [{"title": "A", "rows": [{"entity": "sensor.store_in"}]}, {"title": "B", "rows": []}]}
+STORE = {
+    "block": "EcoFlow",
+    "name": "Delta",
+    "battery": "sensor.store_battery",
+    "state": "sensor.store_state",
+    "labels": {"charging": "Ładuje się"},
+    "input": "sensor.store_in",
+    "output": "sensor.store_out",
+    "remaining": "sensor.store_left",
+}
+STORE_BLOCK = {
+    "kind": "panel",
+    "name": "EcoFlow",
+    "entity": "sensor.store_state",
+    "groups": [{"title": "A", "rows": [{"entity": "sensor.store_in"}]}, {"title": "B", "rows": []}],
+}
 
 
 def add_store(page) -> None:
@@ -309,8 +411,18 @@ def add_store(page) -> None:
 
 
 def store_dashboard() -> dict:
-    return {"energy": {"storage": [STORE]},
-            "layout": [{"id": "g", "name": "Garaż", "areas": [], "home": [], "sections": [{"title": "X", "tiles": [STORE_BLOCK]}]}]}
+    return {
+        "energy": {"storage": [STORE]},
+        "layout": [
+            {
+                "id": "g",
+                "name": "Garaż",
+                "areas": [],
+                "home": [],
+                "sections": [{"title": "X", "tiles": [STORE_BLOCK]}],
+            }
+        ],
+    }
 
 
 def test_an_energy_store_shows_its_charge_power_and_time(phone):

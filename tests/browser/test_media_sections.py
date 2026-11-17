@@ -13,7 +13,13 @@ SECTIONS = [
     {"title": "Inne", "tiles": [SYNC, {"entity": "media_player.apple", "name": "Apple TV (Salon)"}]},
     {"title": "Puste", "tiles": [{"entity": "media_player.gone"}]},
 ]
-ROOM = {"id": "salon", "name": "Salon", "areas": ["salon"], "home": [], "sections": [{"tiles": [TV, SYNC, PLAYER]}]}
+ROOM = {
+    "id": "salon",
+    "name": "Salon",
+    "areas": ["salon"],
+    "home": [],
+    "sections": [{"tiles": [TV, SYNC, PLAYER]}],
+}
 
 
 def add_devices(page) -> None:

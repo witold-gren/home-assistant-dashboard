@@ -32,9 +32,17 @@ def test_without_a_choice_the_bar_keeps_its_pages(phone):
 
 
 def test_the_bar_holds_pages_scenes_the_menu_and_rooms(phone):
-    result = entries(phone, ["scenes", "room:laundry", "energy", "menu", "room:gone"], [{"id": "laundry", "name": "Pralnia"}])
-    assert result == [["scenes", "personal_scenes", "__scenes"], ["room:laundry", "Pralnia", "laundry"],
-                      ["energy", "nav_energy", "energy"], ["menu", "menu", "menu"]]
+    result = entries(
+        phone,
+        ["scenes", "room:laundry", "energy", "menu", "room:gone"],
+        [{"id": "laundry", "name": "Pralnia"}],
+    )
+    assert result == [
+        ["scenes", "personal_scenes", "__scenes"],
+        ["room:laundry", "Pralnia", "laundry"],
+        ["energy", "nav_energy", "energy"],
+        ["menu", "menu", "menu"],
+    ]
 
 
 def test_a_list_of_entries_must_fit_the_bar(phone):
@@ -47,8 +55,16 @@ def test_a_list_of_entries_must_fit_the_bar(phone):
 
 
 def test_the_chosen_entries_and_style_reach_the_bar(phone):
-    look = {"nav": {"items": ["home", "scenes", "room:laundry", "menu"], "style": "floating",
-                    "background": "#1c2a55", "icon": "#ffffff", "opacity": 60, "blur": 20}}
+    look = {
+        "nav": {
+            "items": ["home", "scenes", "room:laundry", "menu"],
+            "style": "floating",
+            "background": "#1c2a55",
+            "icon": "#ffffff",
+            "opacity": 60,
+            "blur": 20,
+        }
+    }
     phone.evaluate("window.history.replaceState(null, '', '?room=laundry')")
     mount_admin(phone, {"layout": ROOMS, "appearance": look}, "room")
     phone.wait_for_function(f"{CHROME}.shadowRoot.querySelectorAll('nav [data-page]').length === 4")
@@ -56,7 +72,12 @@ def test_the_chosen_entries_and_style_reach_the_bar(phone):
     assert result["items"] == ["home", "scenes", "room:laundry", "menu"]
     assert result["active"] == ["room:laundry"]
     assert result["floating"] is True
-    for expected in ("--hd-nav-bg: #1c2a55", "--hd-nav-icon: #ffffff", "--hd-nav-opacity: 60%", "--hd-nav-blur: 20px"):
+    for expected in (
+        "--hd-nav-bg: #1c2a55",
+        "--hd-nav-icon: #ffffff",
+        "--hd-nav-opacity: 60%",
+        "--hd-nav-blur: 20px",
+    ):
         assert expected in result["style"]
 
 
@@ -92,5 +113,9 @@ def test_the_bar_tab_saves_entries_and_style(phone):
     phone.locator(f"{SHEET} [data-look='nav-blur'] input").fill("18")
     phone.locator(f"{SHEET} [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
-    assert saved == {"nav": {"items": ["home", "media", "room:laundry", "energy"], "style": "floating", "blur": 18}}
+    saved = phone.evaluate(
+        "window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance"
+    )
+    assert saved == {
+        "nav": {"items": ["home", "media", "room:laundry", "energy"], "style": "floating", "blur": 18}
+    }

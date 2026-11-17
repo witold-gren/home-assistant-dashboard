@@ -80,7 +80,7 @@ def test_the_rooms_come_right_after_the_pages(phone):
     rooms = order.count("room")
     assert rooms
     assert order[:pages] == ["page"] * pages
-    assert order[pages:pages + rooms] == ["room"] * rooms
+    assert order[pages : pages + rooms] == ["room"] * rooms
 
 
 # The menu drawn out by a finger from the left edge, with the animations on.
@@ -158,7 +158,10 @@ def test_the_menu_slides_in_and_out(moving_phone):
     mount_with_app(moving_phone)
     moving_phone.evaluate(SWIPE)
     moving_phone.wait_for_selector("[data-drawer]")
-    assert moving_phone.locator("[data-drawer]").evaluate("(d) => getComputedStyle(d).animationName") == "drawer-in"
+    assert (
+        moving_phone.locator("[data-drawer]").evaluate("(d) => getComputedStyle(d).animationName")
+        == "drawer-in"
+    )
     moving_phone.evaluate(f"() => {{ {CHROME}.close(); }}")
     moving_phone.wait_for_timeout(100)
     # Still there, sliding away, then gone

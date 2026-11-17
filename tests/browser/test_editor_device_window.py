@@ -12,10 +12,20 @@ STRATEGY = {
         {
             "id": "kitchen",
             "name": "Kuchnia",
-            "sections": [{"title": "Urządzenia", "tiles": [
-                {"entity": "switch.entity_0235", "name": "Ekspres", "icon": "mdi:coffee-maker", "size": "tall"},
-                {"entity": "light.entity_0096", "shortcut": "Blok"},
-            ]}],
+            "sections": [
+                {
+                    "title": "Urządzenia",
+                    "tiles": [
+                        {
+                            "entity": "switch.entity_0235",
+                            "name": "Ekspres",
+                            "icon": "mdi:coffee-maker",
+                            "size": "tall",
+                        },
+                        {"entity": "light.entity_0096", "shortcut": "Blok"},
+                    ],
+                }
+            ],
         },
     ],
     "entities": {"overrides": {"switch.entity_0235": {"name": "Kawa"}}},
@@ -31,7 +41,9 @@ def draft(page) -> dict:
 def test_the_plus_of_the_blocks_offers_every_kind_and_adds_one(desktop) -> None:  # noqa: F811
     open_editor(desktop, STRATEGY)
     desktop.locator(f"{APP} [data-add-block]").click()
-    kinds = desktop.locator(f"{APP} [data-block-new]").evaluate_all("(items) => items.map((item) => item.dataset.blockNew)")
+    kinds = desktop.locator(f"{APP} [data-block-new]").evaluate_all(
+        "(items) => items.map((item) => item.dataset.blockNew)"
+    )
     assert {"panel", "overview", "departures", "host", "page", "app", "news"} <= set(kinds)
     desktop.locator(f"{APP} [data-block-new='panel']").click()
     blocks = draft(desktop)["shortcuts"]
@@ -56,7 +68,9 @@ def test_a_card_for_the_entity_goes_to_its_own_settings_and_away_again(desktop) 
     card.fill("type: entities\nentities: [switch.entity_0235]")
     card.dispatch_event("change")
     assert draft(desktop)["entities"]["overrides"]["switch.entity_0235"] == {
-        "name": "Kawa", "card": {"type": "entities", "entities": ["switch.entity_0235"]}}
+        "name": "Kawa",
+        "card": {"type": "entities", "entities": ["switch.entity_0235"]},
+    }
     card.fill("")
     card.dispatch_event("change")
     assert draft(desktop)["entities"]["overrides"]["switch.entity_0235"] == {"name": "Kawa"}
@@ -77,7 +91,13 @@ def test_a_tile_becomes_a_block_in_its_place(desktop) -> None:  # noqa: F811
     select(desktop, TILE)
     desktop.locator(f"{APP} [data-tile-to-block]").click()
     tile = draft(desktop)["layout"][0]["sections"][0]["tiles"][0]
-    assert tile == {"kind": "panel", "name": "Ekspres", "icon": "mdi:coffee-maker", "entity": "switch.entity_0235", "size": "tall"}
+    assert tile == {
+        "kind": "panel",
+        "name": "Ekspres",
+        "icon": "mdi:coffee-maker",
+        "entity": "switch.entity_0235",
+        "size": "tall",
+    }
     # still chosen, now with the forms of a block
     assert desktop.evaluate("window.editor.app._selected.key") == TILE
     assert desktop.locator(f"{APP} [data-device-window]").count() == 0
@@ -93,5 +113,9 @@ def test_the_helpers_keep_names_free_and_overrides_tidy(desktop) -> None:  # noq
                 b.tileAsBlock(hass, { entity: 'fan.air' }),
                 b.withEntityCard({ entities: { overrides: { 'a.b': { card: { type: 'x' } } } } }, 'a.b', null).entities];
     }""")
-    assert result == ["Status 3", "Odjazdy",
-                      {"kind": "panel", "name": "Oczyszczacz", "icon": "mdi:air-purifier", "entity": "fan.air"}, {}]
+    assert result == [
+        "Status 3",
+        "Odjazdy",
+        {"kind": "panel", "name": "Oczyszczacz", "icon": "mdi:air-purifier", "entity": "fan.air"},
+        {},
+    ]

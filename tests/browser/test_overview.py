@@ -23,7 +23,10 @@ def item_says(page, item: dict, now: str = MONDAY):
 
 
 def open_status(page, sections: list) -> None:
-    mount(page, {"shortcuts": [{"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": sections}]})
+    mount(
+        page,
+        {"shortcuts": [{"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": sections}]},
+    )
     page.locator("home-dashboard-page [data-shortcut='Status']").click()
     page.wait_for_selector(f"{SHEET} {SCREEN} [data-status-now]")
 
@@ -33,8 +36,14 @@ def cold_section() -> list:
 
 
 def cold_item() -> dict:
-    return {"name": "Zimno", "icon": "mdi:snowflake", "attribute": "current_temperature", "unit": "°", "below": 19,
-            "entities": [{"entity": "climate.bed", "name": "Sypialnia"}, "climate.salon"]}
+    return {
+        "name": "Zimno",
+        "icon": "mdi:snowflake",
+        "attribute": "current_temperature",
+        "unit": "°",
+        "below": 19,
+        "entities": [{"entity": "climate.bed", "name": "Sypialnia"}, "climate.salon"],
+    }
 
 
 def add_rooms(page) -> None:
@@ -63,7 +72,9 @@ def test_a_room_below_the_limit_shows_with_its_own_name_and_value(phone):
 
 def test_a_limit_is_not_reached_at_the_exact_value(phone):
     add_entity(phone, "sensor.range", "100", {"unit_of_measurement": "km"})
-    assert item_says(phone, {"name": "Paliwo", "icon": "x", "entities": ["sensor.range"], "below": 100}) is None
+    assert (
+        item_says(phone, {"name": "Paliwo", "icon": "x", "entities": ["sensor.range"], "below": 100}) is None
+    )
 
 
 def test_the_unit_of_the_sensor_is_used(phone):
@@ -75,7 +86,12 @@ def test_the_unit_of_the_sensor_is_used(phone):
 def test_a_sensor_without_a_number_never_counts_as_low(phone):
     add_entity(phone, "sensor.range", "unavailable", {"unit_of_measurement": "km"})
     add_entity(phone, "sensor.empty", "", {"unit_of_measurement": "km"})
-    item = {"name": "Paliwo", "icon": "x", "entities": ["sensor.range", "sensor.empty", "sensor.gone"], "below": 100}
+    item = {
+        "name": "Paliwo",
+        "icon": "x",
+        "entities": ["sensor.range", "sensor.empty", "sensor.gone"],
+        "below": 100,
+    }
     assert item_says(phone, item) is None
 
 
@@ -91,8 +107,17 @@ def test_batteries_are_found_by_themselves_and_only_percentages_count(phone):
 def test_a_list_from_an_attribute_uses_the_chosen_fields(phone):
     devices = [{"nazwa": "Krzesło", "obszar": "Jadalnia", "od": "2026-11-06T20:24:44+00:00"}]
     add_entity(phone, "sensor.gone", "1", {"urzadzenia": devices})
-    item = {"name": "Niedostępne", "icon": "x",
-            "list": {"entity": "sensor.gone", "attribute": "urzadzenia", "name": "nazwa", "detail": "obszar", "since": "od"}}
+    item = {
+        "name": "Niedostępne",
+        "icon": "x",
+        "list": {
+            "entity": "sensor.gone",
+            "attribute": "urzadzenia",
+            "name": "nazwa",
+            "detail": "obszar",
+            "since": "od",
+        },
+    }
     said = item_says(phone, item)
     assert said["count"] == 1
     assert said["rows"][0]["name"] == "Krzesło"
@@ -102,7 +127,11 @@ def test_a_list_from_an_attribute_uses_the_chosen_fields(phone):
 
 def test_an_empty_list_is_gone(phone):
     add_entity(phone, "sensor.gone", "0", {"urzadzenia": []})
-    item = {"name": "N", "icon": "x", "list": {"entity": "sensor.gone", "attribute": "urzadzenia", "name": "nazwa"}}
+    item = {
+        "name": "N",
+        "icon": "x",
+        "list": {"entity": "sensor.gone", "attribute": "urzadzenia", "name": "nazwa"},
+    }
     assert item_says(phone, item) is None
 
 
@@ -111,9 +140,18 @@ def test_a_working_device_shows_its_label_and_only_facts_with_a_value(phone):
     add_entity(phone, "sensor.program", "Bawełna", {})
     add_entity(phone, "sensor.left", "—", {})
     add_entity(phone, "sensor.start", "0", {})
-    item = {"name": "Pralka", "icon": "x", "entity": "sensor.washer", "state": ["Running"], "labels": {"Running": "Pierze"},
-            "facts": [{"name": "Program", "entity": "sensor.program"}, {"name": "Zostało", "entity": "sensor.left"},
-                      {"name": "Start za", "entity": "sensor.start", "unit": "min"}]}
+    item = {
+        "name": "Pralka",
+        "icon": "x",
+        "entity": "sensor.washer",
+        "state": ["Running"],
+        "labels": {"Running": "Pierze"},
+        "facts": [
+            {"name": "Program", "entity": "sensor.program"},
+            {"name": "Zostało", "entity": "sensor.left"},
+            {"name": "Start za", "entity": "sensor.start", "unit": "min"},
+        ],
+    }
     said = item_says(phone, item)
     assert said["text"] == "Pierze"
     assert said["facts"] == [{"name": "Program", "value": "Bawełna"}]
@@ -121,7 +159,9 @@ def test_a_working_device_shows_its_label_and_only_facts_with_a_value(phone):
 
 def test_a_resting_device_is_gone(phone):
     add_entity(phone, "sensor.washer", "Off", {})
-    assert item_says(phone, {"name": "P", "icon": "x", "entity": "sensor.washer", "state": ["Running"]}) is None
+    assert (
+        item_says(phone, {"name": "P", "icon": "x", "entity": "sensor.washer", "state": ["Running"]}) is None
+    )
 
 
 def test_a_text_can_belong_to_one_day_of_the_week(phone):
@@ -183,12 +223,17 @@ def test_an_alert_tile_is_red_and_a_calm_one_is_not(phone):
     calm = {"title": "W domu", "items": [{"name": "Okna", "icon": "x", "entities": ["binary_sensor.a"]}]}
     open_status(phone, [*cold_section(), calm])
     assert "alert" in phone.locator(f"{SCREEN} [data-status-row='climate.bed']").get_attribute("class")
-    assert "alert" not in phone.locator(f"{SCREEN} [data-status-row='binary_sensor.a']").get_attribute("class")
+    assert "alert" not in phone.locator(f"{SCREEN} [data-status-row='binary_sensor.a']").get_attribute(
+        "class"
+    )
 
 
 def test_a_group_opens_by_itself_and_can_be_folded(phone):
     add_window(phone)
-    open_status(phone, [{"title": "W domu", "items": [{"name": "Okna", "icon": "x", "entities": ["binary_sensor.a"]}]}])
+    open_status(
+        phone,
+        [{"title": "W domu", "items": [{"name": "Okna", "icon": "x", "entities": ["binary_sensor.a"]}]}],
+    )
     group = phone.locator(f"{SCREEN} details[data-status-item='Okna']")
     assert group.get_attribute("open") is not None
     group.locator("summary").click()
@@ -202,7 +247,11 @@ def test_a_tablet_shows_the_status_on_the_whole_screen(tablet):
 
 
 def bottom_section() -> dict:
-    return {"alert": True, "bottom": True, "items": [{"name": "Niedostępne", "icon": "x", "entities": ["binary_sensor.a"]}]}
+    return {
+        "alert": True,
+        "bottom": True,
+        "items": [{"name": "Niedostępne", "icon": "x", "entities": ["binary_sensor.a"]}],
+    }
 
 
 def add_window(page) -> None:
@@ -237,16 +286,30 @@ def test_nothing_runs_past_the_edge_of_a_phone(phone):
     assert phone.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
-UPS = {"name": "Zasilanie z baterii UPS", "icon": "mdi:power-plug-off", "entity": "sensor.ups_status", "state_words": ["OB"],
-       "alarm": True, "facts": [{"name": "Bateria", "entity": "sensor.ups_charge", "unit": "%"},
-                                {"name": "Zostało", "entity": "sensor.ups_runtime", "format": "hours"}]}
+UPS = {
+    "name": "Zasilanie z baterii UPS",
+    "icon": "mdi:power-plug-off",
+    "entity": "sensor.ups_status",
+    "state_words": ["OB"],
+    "alarm": True,
+    "facts": [
+        {"name": "Bateria", "entity": "sensor.ups_charge", "unit": "%"},
+        {"name": "Zostało", "entity": "sensor.ups_runtime", "format": "hours"},
+    ],
+}
 
 
 def test_a_ups_on_its_battery_is_an_alarm_by_a_word_of_its_state(phone):
     """NUT tells its state as flags: OL on the mains, OB (with DISCHRG, LB…) on the battery."""
     add_entity(phone, "sensor.ups_charge", "87", {})
     add_entity(phone, "sensor.ups_runtime", "4440", {})
-    for state, shown in [("OL", False), ("OL CHRG", False), ("OB DISCHRG", True), ("OB LB", True), ("OBX", False)]:
+    for state, shown in [
+        ("OL", False),
+        ("OL CHRG", False),
+        ("OB DISCHRG", True),
+        ("OB LB", True),
+        ("OBX", False),
+    ]:
         add_entity(phone, "sensor.ups_status", state, {})
         said = item_says(phone, UPS)
         assert (said is not None) == shown, state

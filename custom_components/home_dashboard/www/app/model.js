@@ -141,7 +141,7 @@ export function normalizeConfig(config = {}) {
     appearance: config.appearance ?? {},
     access: config.access ?? {},
     visibility: config.visibility ?? {},
-    cameras: { hero: null, tiles: [], hide: [], columns: 3, layout: "grid", order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, quick: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
+    cameras: { hero: null, tiles: [], hide: [], columns: 3, layout: "grid", order: [], private: [], live: {}, controls: {}, ptz: {}, talk_with: {}, clip_picker: "bar", clip_picker_with: {}, quick: {}, settings: {}, talk: "intercom", battery_platforms: [], snapshot_platforms: ["frigate"], guest: null, ...config.cameras },
     intercom: {
       script: null,
       areas: [],
@@ -440,6 +440,16 @@ export const TILE_SIZES = ["tall"];
 export const CAMERA_COLUMNS = [2, 3, 4, 5];
 // How the window of all cameras lays them out on a tablet: all the same size, or one big and live with the rest small.
 export const CAMERA_LAYOUTS = ["grid", "featured"];
+
+// How a moment inside a recording is picked in the camera window: a bar of the clip over the line, or the line zoomed
+// to the clip. `cameras.clip_picker` for all, `cameras.clip_picker_with` for one camera (its picture or live camera).
+export const CLIP_PICKERS = ["bar", "zoom"];
+export function clipPicker(config, entityId, cameraId) {
+  const cameras = config?.cameras ?? {};
+  const own = cameras.clip_picker_with?.[entityId] ?? (cameraId ? cameras.clip_picker_with?.[cameraId] : undefined);
+  if (CLIP_PICKERS.includes(own)) return own;
+  return CLIP_PICKERS.includes(cameras.clip_picker) ? cameras.clip_picker : "bar";
+}
 
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
@@ -1967,4 +1977,17 @@ export function watchedEntityIds(hass, config, selection, areas = []) {
     ...fixed,
     ...(config.energy?.storage ?? []).flatMap((store) => [store.battery, store.state, store.input, store.output, store.remaining]),
   ]);
+}
+
+// The pictures of camera tiles are asked for in the size of the tile (twice it, for a sharp screen), not as the camera
+// takes them: a picture of 1920 x 1080 holds about 8 MB in the memory of the browser, and the tiles of Home take a new
+// one every 30 s. Safari reloaded a dashboard open for hours "because it used significant memory". Width and height
+// together (Home Assistant's camera proxy scales only with both; Frigate's 1920 x 1080 becomes 960 x 540, 2 MB).
+export const TILE_PICTURE = { big: [1280, 720], small: [640, 360], list: [960, 540], thumb: [320, 180] };
+
+/** The address of a camera's picture in a size: only pictures of the camera proxy can be scaled. */
+export function scaledPicture(url, [width, height]) {
+  if (!url?.includes("/api/camera_proxy/")) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}width=${width}&height=${height}`;
 }

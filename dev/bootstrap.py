@@ -112,6 +112,9 @@ async def configure(session: aiohttp.ClientSession, access_token: str) -> None:
             mode="storage",
             show_in_sidebar=True,
         )
+        # Home Assistant 2026.11 takes the port of configuration.yaml as a trial of new HTTP settings: it asks
+        # to confirm them on every page and goes back to port 8123 after five minutes. A demo confirms them.
+        await call("http/config/promote")
         await call(
             "lovelace/config/save",
             url_path=DASHBOARD_URL,

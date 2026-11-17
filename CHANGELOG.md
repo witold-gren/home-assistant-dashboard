@@ -1,5 +1,106 @@
 # Changelog
 
+## [Unreleased]
+
+## 1.1.0 (2026-11-17)
+
+Picking a moment of a recording to the second, the household's activity for the owner, the dashboard's own camera
+window for automations and a doorbell, and a lighter dashboard in Safari.
+
+- Gallery: the pictures of a recording that plays (the clip bar, held still, the line zoomed to the clip, on a tablet),
+  and the editor on a computer (all 18 pictures) is made by `dev/gallery.py` too, so `make screenshots` no longer drops
+  it.
+- **Clip bar** in the camera window: while a recording plays, a bar above the line of the day runs from its start to
+  its end, so a second inside it can be picked (on the line a clip of 50 s is about 5 px). Tap or drag shows a bubble
+  (`0:36 / 0:50 · 18:02:46`) and the picture follows the finger, letting go plays from there; held still for 0.4 s
+  the bar shows 30 s with a tick per second; a mouse shows the moment under it; arrow keys ±1 s, with Shift ±10 s.
+  It lives in the line's own panel, so the buttons of a camera on a battery (night vision, light, siren, talk,
+  recordings, the line button) do not move. Tests: `tests/browser/test_clip_bar.py`.
+- **Line zoomed to the clip**, the other way of picking a moment: a tap on a recording on the line of the day plays it
+  and zooms the line to it (5 s on either side; the orange badge under the time zooms and brings the day back). The
+  scale stays while zoomed and the recordings around are on the line: moving onto one plays it, a gap plays nothing,
+  a recording that ends stops there (only the next part of the same continuous recording plays on). Held still, the
+  zoomed line shows 30 s with a tick per second and the mark follows the finger. Chosen for all cameras with `cameras.clip_picker` (`bar`, the
+  default, or `zoom`) and for one camera with `cameras.clip_picker_with`, both in Dashboard settings and the YAML
+  editor's form. Tests: `tests/browser/test_clip_zoom.py`.
+- Notifications read their Markdown as Home Assistant does: headings, pictures (from Home Assistant or https only;
+  the QR code of a HomeKit pairing on a white card), lists, italic and code, besides bold text and links. A message
+  still cannot bring its own HTML or a script link.
+- Safari reloaded a dashboard open for hours "because it used significant memory": the camera tiles took a picture
+  in the camera's own size every 30 s (Frigate's 1920 x 1080, about 8 MB each in the browser). Tiles now ask the
+  camera proxy for their size (width and height; 1280 x 720 big, 640 x 360 small, 960 x 540 in the list of all cameras,
+  320 x 180 in the strip of a camera window). Pictures of image entities cannot be scaled and stay as they are.
+  Measured: the JavaScript of the dashboard keeps about 8 MB over 1200 changes of states and 30 windows.
+- **Household activity**, a panel in the menu of Home Assistant whose data only the owner sees, laid out as the
+  History of Home Assistant (people with their colours and kinds as filters on the left, a range of time with ready
+  ranges on top, one timeline day by day; changes read as Home Assistant says them, a button "pressed"; filters by kind
+  of device and by room, a search; live, as the Logbook, for a range that reaches now, through the new command
+  `home_dashboard/activity/subscribe`; the same view in a window of the dashboard from its side menu, only for the
+  person who sees it): for a range,
+  each person's pages and windows of the dashboard (now written down for 30 days, with the device; the editor's
+  preview writes nothing), the devices they switched (from the history of Home Assistant, a change carries its
+  person) and the phones and computers they use. New commands `home_dashboard/activity/seen` and
+  `home_dashboard/activity/get`; `recorder` is an after-dependency. Two options of the integration, both on at
+  first: *Show Household activity in the sidebar* (hidden, it still opens at `/home-dashboard-activity`) and *Write
+  down the household activity* (off: the open dashboards hear it at once and tell nothing more; the integration
+  keeps nothing either). Saving the options keeps options that are not in the window.
+- Docs: two summary pages, **What changed most** (the most important work on the dashboard: speed, one look, the
+  tablet, editing, docs, tests) and **One standard** (what the editor changed to follow the common standard of the
+  house), in English and Polish.
+- One way to run the house's apps (standards/gpu-studio.md §2, §8a): `make help` has three groups, "1. Start"
+  (help, demo, demo-clean, docs, docs-serve, doctor; Docker Desktop only), "2. Home Assistant" (deploy) and
+  "3. Development". The documentation is built in Docker (`docs`, `docs-build`; `docs-serve` on port 9124), so
+  `.venv-docs` is gone. The developer's Python comes from uv (`PYTHON_VERSION ?= 3.14`, `uv venv`), no brew.
+  `make test` never builds images (`-m "not docker"`), `make test-docker` does; `make test-all` = lint + test +
+  test-browser + test-docker; `make format` (ruff check --fix + ruff format); `make lint` also checks the format;
+  `make doctor` checks Docker, Chrome, uv and the Home Assistant share and installs nothing. **`make ui` is gone**:
+  use `make demo`.
+  The Python code is formatted with `ruff format` once (no change of behaviour).
+- `make demo` needs only Docker Desktop: it builds an image of the tested Home Assistant (2026.11.0) with this
+  integration, the demo devices and a ready dashboard (user `dev`/`dev`, made while the image is built, so a start
+  takes seconds) and runs it on 127.0.0.1:8124; Ctrl+C removes the container, `make demo-clean` the image. The
+  former demo from `.venv-dev` is `make demo-local`. Both READMEs start with "Try it on a Mac". The demo also
+  confirms the HTTP settings of Home Assistant 2026.11, which otherwise asked on every page and went back to port
+  8123 after five minutes. A test (marked `docker`, skipped without Docker) builds the image, logs in and checks
+  that no container is left.
+- An automation can open the dashboard's own camera window: the service `home_dashboard.show_camera` (a camera, the
+  picture of the event, a title, close after, live at once, first before other cameras (the doorbell), devices by their Browser Mod id, people). The window
+  closes by itself unless somebody touches it or starts the live view, never takes away another camera or the
+  settings, and the event `home_dashboard_camera_closed` says when and why it is gone. A notification can open it
+  too: `?camera=camera.x&live=1` in the address of the dashboard. It replaces popups of Browser Mod that looked
+  like the old dashboard. A camera shown through another one (`cameras.controls`, the eufy camera of a room behind
+  its Frigate camera) opens the window of that one.
+- The window of a switch (a plug, a switch of a lamp, a helper, an automation) has the round power button of a light's
+  window under its big switch: one tap turns it off, nothing to slide down. A test opens the windows of lights and
+  switches on a phone, a small phone, a phone on its side and a tablet both ways, and checks that the button is seen
+  without scrolling.
+- Esc on a computer closes the open window, as its ✕ (or arrow back) does; a small window inside it goes first (a
+  question, a menu, a list slid in, a picture shown big, the YAML of the settings), one press one thing. A window of
+  Home Assistant over the dashboard is left to close itself. In the editor Esc closes its dialogs, the list of tiles
+  to add and the windows of pictures the same way.
+- Editor: the menu of Home Assistant is hidden when the editor opens, as on the dashboard; the menu button at the
+  top left shows and hides it, and it comes back on any other page (kiosk mode, never the user's saved choice).
+- Docs site: the **Gallery** badge at the top of the start page leads to the gallery (it led to a missing file):
+  links written as HTML in the README now get the address of their page too.
+- Editor, as the other apps of the house (one standard for their look, docs and tests):
+  - the icon of the editor stands next to its name in the top bar;
+  - the tree, the preview and the settings of what is chosen each have a **?** that opens a small window saying
+    what the part does, with a link to its chapter of the guide (following what is chosen: a room, a tile, the
+    look…); only the **?** of the top bar opens the guide at once;
+  - the chosen part is in the address (`#/layout/0/sections/1`): a link or a reload opens the editor on it, once the
+    dashboard has loaded;
+  - a browser that keeps nothing (private window, blocked site data) no longer stops the editor from opening;
+  - the publish, history and editor settings windows have their own **?** too;
+  - it never hangs on a slow or silent Home Assistant: every question has a time limit (60 s) and ends in a clear
+    message; the draft is saved one save at a time (changes made meanwhile go with the next one), and a save that
+    fails says so instead of leaving "Saving…" for ever;
+  - a test goes through every part of a big dashboard (30 rooms, 1200 tiles) and allows no task of the page over
+    500 ms.
+- Docs: the chapters of the editor's guide have the same anchors in English and Polish, names of buttons in the
+  text are checked against the texts of the screen, `make demo`, `make docs` (build and open), `make docs-build`
+  and `make docs-serve` are the common names (`make ui` still works).
+- Tests never connect anywhere but 127.0.0.1.
+
 ## 1.0.4 (2026-11-16)
 
 - A tab with the dashboard or the editor stays light when it is open all day (the browser warned that it uses a
@@ -16,8 +117,6 @@
     tab.
   - A hidden tab streams no camera: the live view stops, and the big camera of the wall plays again when the tab is
     shown. A closed window closes its sound.
-- Docs site: the **Gallery** badge at the top of the start page leads to the gallery (it led to a missing file):
-  links written as HTML in the README now get the address of their page too.
 
 ## 1.0.3 (2026-11-16)
 

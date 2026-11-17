@@ -6,7 +6,13 @@ from .test_panels import add_entity
 
 SHEET = "home-dashboard-sheet"
 WEATHER = "home-dashboard-weather"
-STATION = {"temperature": 5.3, "humidity": 80, "pressure": 1031.4, "pressure_unit": "hPa", "supported_features": 0}
+STATION = {
+    "temperature": 5.3,
+    "humidity": 80,
+    "pressure": 1031.4,
+    "pressure_unit": "hPa",
+    "supported_features": 0,
+}
 SERVICE = {"temperature": 3.0, "wind_speed": 4.7, "wind_speed_unit": "km/h", "supported_features": 3}
 MOUNT = """async ({ dashboard, language, forecasts }) => {
     window.subscribed = [];
@@ -29,8 +35,18 @@ MOUNT = """async ({ dashboard, language, forecasts }) => {
 }"""
 FORECASTS = {
     "hourly": [
-        {"datetime": "2026-11-06T20:00:00+00:00", "condition": "rainy", "temperature": 2.2, "precipitation": 1.5},
-        {"datetime": "2026-11-06T21:00:00+00:00", "condition": "cloudy", "temperature": 1.8, "precipitation": 0},
+        {
+            "datetime": "2026-11-06T20:00:00+00:00",
+            "condition": "rainy",
+            "temperature": 2.2,
+            "precipitation": 1.5,
+        },
+        {
+            "datetime": "2026-11-06T21:00:00+00:00",
+            "condition": "cloudy",
+            "temperature": 1.8,
+            "precipitation": 0,
+        },
     ],
     "daily": [
         {"datetime": "2026-11-07T11:00:00+00:00", "condition": "sunny", "temperature": 9, "templow": 1},
@@ -168,11 +184,14 @@ def test_a_tablet_on_its_side_shows_the_weather_on_the_whole_screen(tablet):
     assert "whole" in tablet.locator("home-dashboard-sheet section.panel").get_attribute("class")
     # The next day as a chart: the rain of the first hour as a rain bar, and the total under it.
     tablet.wait_for_selector(f"{WEATHER} [data-weather-chart]")
-    assert tablet.locator(f"{WEATHER} [data-weather-rain]").evaluate_all("(bars) => bars.map((b) => b.dataset.weatherRain)") == ["rain"]
+    assert tablet.locator(f"{WEATHER} [data-weather-rain]").evaluate_all(
+        "(bars) => bars.map((b) => b.dataset.weatherRain)"
+    ) == ["rain"]
     assert "1.5 mm" in tablet.locator(f"{WEATHER} [data-weather-total]").inner_text()
     # The next days as columns side by side.
     tops = tablet.locator(f"{WEATHER} [data-weather-column]").evaluate_all(
-        "(columns) => columns.map((c) => Math.round(c.getBoundingClientRect().top))")
+        "(columns) => columns.map((c) => Math.round(c.getBoundingClientRect().top))"
+    )
     assert len(tops) == 2 and tops[0] == tops[1]
     # The chart reaches down at least to the end of the readings beside it.
     chart = tablet.locator(f"{WEATHER} [data-weather-chart]").bounding_box()
@@ -187,4 +206,3 @@ def test_snow_and_rain_with_snow_are_told_apart(phone):
     kinds = phone.evaluate("""async () => { const w = await import('/custom_components/home_dashboard/www/app/weather.js');
         return ['rainy', 'pouring', 'snowy', 'snowy-rainy'].map(w.precipitationKind); }""")
     assert kinds == ["rain", "rain", "snow", "mix"]
-

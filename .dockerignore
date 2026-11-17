@@ -1,0 +1,18 @@
+# Only what the images of dev/docker/Dockerfile copy: the integration, the demo files and the documentation.
+*
+!custom_components/home_dashboard
+!dev/configuration.yaml
+!dev/bootstrap.py
+!dev/docker
+!dev/docs_site.py
+!docs
+!mkdocs.yml
+!README.md
+!README.pl.md
+!CHANGELOG.md
+!requirements_docs.txt
+**/__pycache__
+docs/index.md
+docs/index.pl.md
+docs/changelog.md
+docs/assets/icon.png

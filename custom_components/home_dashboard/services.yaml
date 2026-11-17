@@ -1,0 +1,48 @@
+show_camera:
+  fields:
+    entity_id:
+      required: true
+      example: camera.iwiny_slup
+      selector:
+        entity:
+          domain: [camera, image]
+    picture:
+      example: image.iwiny_slup_last_event
+      selector:
+        entity:
+          domain: image
+    title:
+      example: Iwiny Słup
+      selector:
+        text:
+    close_after:
+      default: 15
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: s
+    live_limit:
+      default: 600
+      selector:
+        number:
+          min: 10
+          max: 3600
+          unit_of_measurement: s
+    live:
+      default: false
+      selector:
+        boolean:
+    interrupt:
+      default: false
+      selector:
+        boolean:
+    browser_id:
+      example: hall_ipad
+      selector:
+        text:
+          multiple: true
+    user_id:
+      selector:
+        text:
+          multiple: true

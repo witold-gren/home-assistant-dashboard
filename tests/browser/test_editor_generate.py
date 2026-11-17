@@ -32,7 +32,10 @@ HOME = """() => {
     add('light.g_attic', 'g_attic');
 }"""
 
-STRATEGY = {"type": "custom:home-dashboard", "layout": [{"id": "attic", "name": "Antresola", "areas": ["g_attic"], "sections": []}]}
+STRATEGY = {
+    "type": "custom:home-dashboard",
+    "layout": [{"id": "attic", "name": "Antresola", "areas": ["g_attic"], "sections": []}],
+}
 
 
 @pytest.fixture(autouse=True)
@@ -59,8 +62,15 @@ def draft(page) -> dict:
 
 def test_a_room_of_an_area_has_sections_by_kind_and_a_few_tiles_on_home(desktop):  # noqa: F811
     room = run(desktop, "return g.roomForArea(hass, 'g_living');")
-    assert room["id"] == "g_living" and room["name"] == "Salon" and room["areas"] == ["g_living"] and room["icon"] == "mdi:sofa"
-    sections = {section["title"]: [tile["entity"] for tile in section["tiles"]] for section in room["sections"]}
+    assert (
+        room["id"] == "g_living"
+        and room["name"] == "Salon"
+        and room["areas"] == ["g_living"]
+        and room["icon"] == "mdi:sofa"
+    )
+    sections = {
+        section["title"]: [tile["entity"] for tile in section["tiles"]] for section in room["sections"]
+    }
     assert sections == {
         "Oświetlenie": ["light.g_ceiling", "light.g_sofa"],
         "Klimat i rolety": ["cover.g_blind_homekit", "climate.g_thermostat"],
@@ -68,25 +78,49 @@ def test_a_room_of_an_area_has_sections_by_kind_and_a_few_tiles_on_home(desktop)
         "Urządzenia": ["switch.g_aquarium"],
         "Automatyzacje": ["automation.g_blinds"],
     }
-    assert room["sections"][-1]["tiles"][0] == {"entity": "automation.g_blinds", "calm": True, "tap_toggle": True}
-    assert [tile["entity"] for tile in room["home"]] == ["climate.g_thermostat", "light.g_ceiling", "light.g_sofa", "cover.g_blind_homekit"]
+    assert room["sections"][-1]["tiles"][0] == {
+        "entity": "automation.g_blinds",
+        "calm": True,
+        "tap_toggle": True,
+    }
+    assert [tile["entity"] for tile in room["home"]] == [
+        "climate.g_thermostat",
+        "light.g_ceiling",
+        "light.g_sofa",
+        "cover.g_blind_homekit",
+    ]
 
 
 def test_hidden_technical_and_quiet_sensors_stay_out_but_a_leak_comes_in(desktop):  # noqa: F811
-    room = run(desktop, "return g.roomForArea(hass, 'g_bath', { kinds: ['lights', 'security'], home: false });")
+    room = run(
+        desktop, "return g.roomForArea(hass, 'g_bath', { kinds: ['lights', 'security'], home: false });"
+    )
     assert "home" not in room
-    sections = {section["title"]: [tile["entity"] for tile in section["tiles"]] for section in room["sections"]}
+    sections = {
+        section["title"]: [tile["entity"] for tile in section["tiles"]] for section in room["sections"]
+    }
     assert sections == {"Oświetlenie": ["light.g_mirror"], "Bezpieczeństwo": ["binary_sensor.g_leak"]}
 
 
 def test_areas_by_floor_and_name_with_the_room_that_holds_them(desktop):  # noqa: F811
-    areas = run(desktop, "return g.generatableAreas(hass, arg).map((a) => [a.area, a.tiles, a.covered]);", STRATEGY)
+    areas = run(
+        desktop, "return g.generatableAreas(hass, arg).map((a) => [a.area, a.tiles, a.covered]);", STRATEGY
+    )
     # The two blinds of the living room are one device: seven tiles, not eight.
-    assert areas == [["g_attic", 1, "Antresola"], ["g_living", 7, None], ["g_bath", 2, None], ["g_empty", 0, None]]
+    assert areas == [
+        ["g_attic", 1, "Antresola"],
+        ["g_living", 7, None],
+        ["g_bath", 2, None],
+        ["g_empty", 0, None],
+    ]
 
 
 def test_rooms_are_added_after_those_there_and_a_held_area_is_left_alone(desktop):  # noqa: F811
-    ids = run(desktop, "return g.withGeneratedRooms(hass, arg, ['g_attic', 'g_bath', 'g_living']).layout.map((room) => room.id);", STRATEGY)
+    ids = run(
+        desktop,
+        "return g.withGeneratedRooms(hass, arg, ['g_attic', 'g_bath', 'g_living']).layout.map((room) => room.id);",
+        STRATEGY,
+    )
     assert ids == ["attic", "g_bath", "g_living"]
 
 
@@ -100,14 +134,18 @@ def open_dialog(page, strategy=STRATEGY) -> None:
 
 
 def ticked(page) -> list[str]:
-    return page.locator(f"{APP} {DIALOG} [data-generate-area].on").evaluate_all("(items) => items.map((i) => i.dataset.generateArea)")
+    return page.locator(f"{APP} {DIALOG} [data-generate-area].on").evaluate_all(
+        "(items) => items.map((i) => i.dataset.generateArea)"
+    )
 
 
 def test_areas_without_a_room_and_with_something_to_show_are_ticked(desktop):  # noqa: F811
     open_dialog(desktop)
     assert ticked(desktop) == ["g_living", "g_bath"]
     assert desktop.locator(f"{APP} {DIALOG} [data-generate-area='g_attic']").is_disabled()
-    assert "już w „Antresola”" in desktop.locator(f"{APP} {DIALOG} [data-generate-area='g_attic']").inner_text()
+    assert (
+        "już w „Antresola”" in desktop.locator(f"{APP} {DIALOG} [data-generate-area='g_attic']").inner_text()
+    )
 
 
 def test_what_is_ticked_shows_in_the_preview_and_adding_is_one_step(desktop):  # noqa: F811
@@ -159,8 +197,16 @@ def test_without_a_dashboard_one_is_made_and_its_rooms_come_from_the_areas(deskt
     desktop.wait_for_selector(f"{APP} {DIALOG}")
     sent = desktop.evaluate("window.editor.server.state.sent.map((message) => message.type)")
     assert "lovelace/dashboards/create" in sent
-    create = desktop.evaluate("window.editor.server.state.sent.find((message) => message.type === 'lovelace/dashboards/create')")
-    assert create["url_path"] == "home-dashboard" and create["mode"] == "storage" and create["require_admin"] is False
-    assert desktop.evaluate("window.editor.server.state.live") == {"strategy": {"type": "custom:home-dashboard"}}
+    create = desktop.evaluate(
+        "window.editor.server.state.sent.find((message) => message.type === 'lovelace/dashboards/create')"
+    )
+    assert (
+        create["url_path"] == "home-dashboard"
+        and create["mode"] == "storage"
+        and create["require_admin"] is False
+    )
+    assert desktop.evaluate("window.editor.server.state.live") == {
+        "strategy": {"type": "custom:home-dashboard"}
+    }
     desktop.locator(f"{APP} {DIALOG} [data-generate-add]").click()
     assert len(draft(desktop)["layout"]) == 3

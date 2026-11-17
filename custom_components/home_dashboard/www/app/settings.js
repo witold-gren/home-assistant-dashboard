@@ -3,7 +3,7 @@
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
-import {
+import { CLIP_PICKERS, clipPicker,
   buildCameras,
   CAMERA_COLUMNS,
   CAMERA_LAYOUTS,
@@ -191,6 +191,18 @@ export class HomeDashboardSettings extends LitElement {
     this._editor = { ...this._editor, text: previousConfig(), problem: null };
   }
 
+  /** Esc closes the YAML editor first, back to the settings. */
+  hdEscape() {
+    if (!this._editor) return false;
+    this._editor = null;
+    return true;
+  }
+
+  /** Esc on the settings: closed without saving, as with the ✕. */
+  hdLeave() {
+    this.dispatchEvent(new CustomEvent("settings-close"));
+  }
+
   _renderEditor() {
     const { text, problem } = this._editor;
     return html`
@@ -290,7 +302,8 @@ export class HomeDashboardSettings extends LitElement {
     `;
   }
 
-  // A camera's own way of turning and talking, kept in `cameras.ptz` and `cameras.talk_with`.
+  // A camera's own way of turning, talking and picking a moment of a recording, kept in `cameras.ptz`,
+  // `cameras.talk_with` and `cameras.clip_picker_with`.
   _setCamera(key, entityId, value) {
     const cameras = this._draft.cameras ?? {};
     const map = { ...(cameras[key] ?? {}) };
@@ -387,6 +400,18 @@ export class HomeDashboardSettings extends LitElement {
                   </label>`
                 : nothing}
               ${this._renderQuickChoices(entityId, config)}
+              <label class="field-row">
+                <span>${this._t("clip_picker_title")}</span>
+                <select data-clip-picker-with @change=${(event) => this._setCamera("clip_picker_with", entityId, event.target.value)}>
+                  ${["auto", ...CLIP_PICKERS].map(
+                    (value) => html`<option value=${value} ?selected=${value === (config.cameras.clip_picker_with?.[entityId] ?? "auto")}>
+                      ${value === "auto"
+                        ? translate(this.hass.language, "clip_picker_auto", { mode: this._t(`clip_picker_${clipPicker(config)}`) })
+                        : this._t(`clip_picker_${value}`)}
+                    </option>`,
+                  )}
+                </select>
+              </label>
               <label class="field-row">
                 <span>${this._t("talk_with")}</span>
                 <select data-talk-with @change=${(event) => this._setCamera("talk_with", entityId, event.target.value)}>
@@ -535,6 +560,17 @@ export class HomeDashboardSettings extends LitElement {
             ${["intercom", "camera"].map(
               (mode) => html`<option value=${mode} ?selected=${normalizeConfig(this._draft).cameras.talk === mode}>
                 ${this._t(`talk_mode_${mode}`)}
+              </option>`,
+            )}
+          </select>
+          <h3>${this._t("clip_picker_title")}</h3>
+          <select
+            data-clip-picker
+            @change=${(event) => this._update({ cameras: { ...(this._draft.cameras ?? {}), clip_picker: event.target.value } })}
+          >
+            ${CLIP_PICKERS.map(
+              (mode) => html`<option value=${mode} ?selected=${clipPicker(normalizeConfig(this._draft)) === mode}>
+                ${this._t(`clip_picker_${mode}`)}
               </option>`,
             )}
           </select>

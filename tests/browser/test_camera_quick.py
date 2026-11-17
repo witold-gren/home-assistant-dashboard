@@ -33,11 +33,15 @@ def open_camera(page, things=("siren", "light", "night"), viewport=None) -> None
 
 
 def quick_keys(page) -> list:
-    return page.locator(f"{SHEET} [data-quick-bar] [data-quick]").evaluate_all("(buttons) => buttons.map((b) => b.dataset.quick)")
+    return page.locator(f"{SHEET} [data-quick-bar] [data-quick]").evaluate_all(
+        "(buttons) => buttons.map((b) => b.dataset.quick)"
+    )
 
 
 def services(page) -> list:
-    return page.evaluate("window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])")
+    return page.evaluate(
+        "window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])"
+    )
 
 
 def test_the_buttons_are_found_on_the_device_and_a_setting_switch_is_not_a_light(phone):
@@ -104,13 +108,18 @@ def test_neolink_infrared_auto_on_off_is_night_vision(phone):
     options = phone.locator(f"{SHEET} [data-quick-menu='night'] [data-quick-option]")
     assert options.all_inner_texts() == ["Automatycznie", "Podczerwień", "Wyłączona (dzień)"]
     phone.locator(f"{SHEET} [data-quick-option='on']").click()
-    assert services(phone) == [["select", "select_option", {"entity_id": "select.slup_infrared", "option": "on"}]]
+    assert services(phone) == [
+        ["select", "select_option", {"entity_id": "select.slup_infrared", "option": "on"}]
+    ]
 
 
 def test_upright_they_stand_over_the_line_of_time_from_the_right(phone):
     open_camera(phone)
     line = phone.locator(f"{SHEET} home-dashboard-timeline").bounding_box()
-    boxes = {key: phone.locator(f"{SHEET} [data-quick='{key}']").bounding_box() for key in ("siren", "light", "night")}
+    boxes = {
+        key: phone.locator(f"{SHEET} [data-quick='{key}']").bounding_box()
+        for key in ("siren", "light", "night")
+    }
     assert all(box["y"] + box["height"] <= line["y"] for box in boxes.values())
     # The siren is the rightmost, the others go left from it.
     assert boxes["siren"]["x"] > boxes["light"]["x"] > boxes["night"]["x"]
@@ -119,7 +128,10 @@ def test_upright_they_stand_over_the_line_of_time_from_the_right(phone):
 
 def test_on_its_side_they_stand_in_the_bottom_left_corner_from_the_bottom(phone):
     open_camera(phone, viewport={"width": 874, "height": 402})
-    boxes = {key: phone.locator(f"{SHEET} [data-quick='{key}']").bounding_box() for key in ("siren", "light", "night")}
+    boxes = {
+        key: phone.locator(f"{SHEET} [data-quick='{key}']").bounding_box()
+        for key in ("siren", "light", "night")
+    }
     assert all(box["x"] < 70 for box in boxes.values())
     # The siren at the bottom, the light over it, night vision over the light.
     assert boxes["siren"]["y"] > boxes["light"]["y"] > boxes["night"]["y"]
@@ -183,22 +195,38 @@ GARDEN = """() => {
 
 
 def chosen(page, quick: dict) -> dict:
-    return page.evaluate("""(quick) => { const { model, hass } = window.dashboard;
+    return page.evaluate(
+        """(quick) => { const { model, hass } = window.dashboard;
         const config = model.normalizeConfig({ cameras: { quick: { 'camera.slup': quick } } });
         const found = model.cameraQuickControls(hass(), 'camera.slup', config);
-        return { siren: found.siren, light: found.light, night: found.night?.entity ?? null }; }""", quick)
+        return { siren: found.siren, light: found.light, night: found.night?.entity ?? null }; }""",
+        quick,
+    )
 
 
 def test_buttons_are_chosen_by_hand_from_any_entity_or_left_out(phone):
     phone.evaluate(ADD_DEVICE)
     phone.evaluate(ADD_QUICK, ["siren", "light", "night"])
     phone.evaluate(GARDEN)
-    assert chosen(phone, {}) == {"siren": "siren.slup_siren", "light": "switch.slup_light", "night": "select.slup_night_vision"}
-    assert chosen(phone, {"siren": "switch.garden_alarm", "light": "light.garden_flood", "night": "input_select.garden_mode"}) == {
-        "siren": "switch.garden_alarm", "light": "light.garden_flood", "night": "input_select.garden_mode"}
-    assert chosen(phone, {"siren": "none", "light": "none", "night": "none"}) == {"siren": None, "light": None, "night": None}
+    assert chosen(phone, {}) == {
+        "siren": "siren.slup_siren",
+        "light": "switch.slup_light",
+        "night": "select.slup_night_vision",
+    }
+    assert chosen(
+        phone,
+        {"siren": "switch.garden_alarm", "light": "light.garden_flood", "night": "input_select.garden_mode"},
+    ) == {"siren": "switch.garden_alarm", "light": "light.garden_flood", "night": "input_select.garden_mode"}
+    assert chosen(phone, {"siren": "none", "light": "none", "night": "none"}) == {
+        "siren": None,
+        "light": None,
+        "night": None,
+    }
     # An entity of the wrong kind, or one that is gone, leaves the button to be found as usual.
-    assert chosen(phone, {"night": "light.garden_flood", "siren": "switch.gone"})["night"] == "select.slup_night_vision"
+    assert (
+        chosen(phone, {"night": "light.garden_flood", "siren": "switch.gone"})["night"]
+        == "select.slup_night_vision"
+    )
 
 
 def test_a_switch_chosen_as_siren_is_turned_on_after_asking(phone):
@@ -233,5 +261,7 @@ def test_the_settings_offer_the_buttons_of_each_camera(phone):
     phone.locator(f"{row} [data-quick-choice='night']").select_option("none")
     phone.locator("home-dashboard-settings [data-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy.cameras.quick")
+    saved = phone.evaluate(
+        "window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy.cameras.quick"
+    )
     assert saved == {"image.slup_last_screen": {"siren": "switch.garden_alarm", "night": "none"}}

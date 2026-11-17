@@ -60,7 +60,9 @@ def test_dial_angle_matches_the_value(phone):
 
 
 def test_time_format(phone):
-    assert controls(phone, "[c.formatTime(80), c.formatTime(0), c.formatTime(undefined), c.formatTime(3599)]") == [
+    assert controls(
+        phone, "[c.formatTime(80), c.formatTime(0), c.formatTime(undefined), c.formatTime(3599)]"
+    ) == [
         "1:20",
         "0:00",
         "0:00",

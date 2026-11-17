@@ -14,7 +14,7 @@ import {
   startCoverMotion,
   stepTemperature,
 } from "./controls.js";
-import { ALERT_CLASSES, buildTile, canUnlock, domainOf, optionLabel } from "./model.js";
+import { ALERT_CLASSES, buildTile, canUnlock, domainOf, isLight, optionLabel } from "./model.js";
 import {
   ALARM_MODES,
   COLOUR_MODES,
@@ -378,6 +378,8 @@ export const EntitySheets = (Base) =>
       const on = state === "on";
       const label = this.hass.formatEntityState?.(this._stateObj) ?? state;
       const power = automation ? null : this._deviceSensor(this.sheet.entityId, "power");
+      const lamp = isLight(this.hass, this.sheet.entityId, this.config);
+      const toggle = () => this.hass.callService("homeassistant", "toggle", { entity_id: this.sheet.entityId });
       return html`
         ${this._renderHeader(this.sheet.name ?? attributes.friendly_name)}
         <div class="body center">
@@ -388,10 +390,22 @@ export const EntitySheets = (Base) =>
             aria-label=${this.sheet.name ?? attributes.friendly_name}
             data-big-switch
             ?disabled=${state === "unavailable"}
-            @click=${() => this.hass.callService("homeassistant", "toggle", { entity_id: this.sheet.entityId })}
+            @click=${toggle}
           >
             <span class="big-thumb"><ha-icon icon="mdi:power"></ha-icon></span>
           </button>
+          <!-- One tap turns it off or on, as the power button of a light: nothing to slide. -->
+          <div class="actions">
+            <button
+              class=${on ? (lamp ? "lit" : "on") : ""}
+              aria-label=${this._t("tv_power")}
+              data-switch-toggle
+              ?disabled=${state === "unavailable"}
+              @click=${toggle}
+            >
+              <ha-icon icon="mdi:power"></ha-icon>
+            </button>
+          </div>
         </div>
         ${this._renderInfo([
           { icon: "mdi:toggle-switch-outline", text: label },

@@ -9,10 +9,20 @@ PANEL = "home-dashboard-page [data-map-panel]"
 
 
 def add_places(page) -> None:
-    add_entity(page, "device_tracker.phone", "home", {"friendly_name": "Telefon", "latitude": 52.0, "longitude": 21.0})
+    add_entity(
+        page,
+        "device_tracker.phone",
+        "home",
+        {"friendly_name": "Telefon", "latitude": 52.0, "longitude": 21.0},
+    )
     add_entity(page, "device_tracker.silent", "home", {"friendly_name": "Bez pozycji"})
     add_entity(page, "person.a", "home", {"friendly_name": "Alex"})
-    add_entity(page, "zone.school", "2", {"friendly_name": "Szkoła", "latitude": 52.1, "longitude": 21.1, "icon": "mdi:school"})
+    add_entity(
+        page,
+        "zone.school",
+        "2",
+        {"friendly_name": "Szkoła", "latitude": 52.1, "longitude": 21.1, "icon": "mdi:school"},
+    )
 
 
 def open_map(page, dashboard: dict | None = None) -> None:

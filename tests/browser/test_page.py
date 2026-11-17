@@ -42,13 +42,16 @@ def test_opening_the_page_starts_no_stream_and_calls_nothing(phone):
     }""")
     assert media["streams"] == 0
     assert media["pictures"]
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const { hass } = window;
         const shown = [...window.card.shadowRoot.querySelectorAll(".camera")].map((tile) => tile.ariaLabel);
         const battery = Object.keys(hass.entities).filter(
             (id) => id.startsWith("camera.") && hass.entities[id].platform !== "frigate");
         return battery.filter((id) => shown.includes(hass.states[id].attributes.friendly_name ?? id));
-    }""") == []
+    }""")
+        == []
+    )
 
 
 def test_icon_toggles_a_light_and_the_tile_opens_its_sheet(phone):
@@ -258,8 +261,11 @@ def test_last_camera_can_be_reached_and_opened(phone):
     }""")
     phone.locator("home-dashboard-page .camera:not(.offline)").last.click()
     phone.wait_for_timeout(100)
-    assert phone.evaluate("""() => document.querySelector("home-dashboard-chrome").shadowRoot
-        .querySelector("home-dashboard-sheet").sheet.kind""") == "camera"
+    assert (
+        phone.evaluate("""() => document.querySelector("home-dashboard-chrome").shadowRoot
+        .querySelector("home-dashboard-sheet").sheet.kind""")
+        == "camera"
+    )
 
 
 def test_every_camera_shows_how_old_its_picture_is(phone):

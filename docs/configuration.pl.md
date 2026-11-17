@@ -23,7 +23,7 @@ Cała reszta jest opcjonalna i ma wartość domyślną. Zmienisz ją w trzech mi
 
 | Gdzie | Kto | Co |
 |---|---|---|
-| Menu → **Ustawienia dashboardu** → **Edytuj konfigurację** | administratorzy | cały blok jako YAML, bez `type` |
+| Menu → <b class="ui">Ustawienia dashboardu</b> → <b class="ui">Edytuj konfigurację</b> | administratorzy | cały blok jako YAML, bez `type` |
 | **Edytor surowej konfiguracji** dashboardu w Home Assistant | administratorzy | to samo, razem z `type` |
 | okna edycji dashboardu | patrz [rozdział 13](#13-okna-edycji) | jego części, bez YAML |
 
@@ -37,8 +37,8 @@ Ustawienia leżą w trzech miejscach:
 | Rodzaj | Gdzie | Przykłady |
 |---|---|---|
 | **Wspólne** | blok `strategy:` | `layout`, `shortcuts`, `appearance`, `access` |
-| **Osoby** | dane użytkownika konta (`home_dashboard`), na wszystkich urządzeniach | Mój układ, własny wygląd |
-| **Urządzenia** | przeglądarka urządzenia | otwieranie przy starcie, kolumny ściany kamer |
+| <b class="ui">Osoby</b> | dane użytkownika konta (`home_dashboard`), na wszystkich urządzeniach | Mój układ, własny wygląd |
+| <b class="ui">Urządzenia</b> | przeglądarka urządzenia | otwieranie przy starcie, kolumny ściany kamer |
 
 Ustawienia osoby i urządzenia nie są częścią YAML. Wymienia je
 [rozdział 15](#15-ustawienia-osoby-i-urządzenia).
@@ -171,7 +171,7 @@ tiles:
 encji):
 
 - `labels` zmienia nazwy opcji na kafelku i w jego oknie. Opcja bez własnej nazwy zostaje przy nazwie z Home Assistant.
-- `confirm: true` zmienia okno: nad opcjami jest napis **Zaznacz, a potem uruchom**, dotknięcie tylko zaznacza opcję,
+- `confirm: true` zmienia okno: nad opcjami jest napis <b class="ui">Zaznacz, a potem uruchom</b>, dotknięcie tylko zaznacza opcję,
   a wybiera ją dopiero przycisk **Uruchom: …** pod opcjami. Przycisk jest szary, dopóki nic nie jest zaznaczone, i
   gdy encja jest niedostępna. Pasuje to do ekspresu, który nie powinien robić kawy od przypadkowego muśnięcia ekranu.
 
@@ -340,6 +340,8 @@ Więcej w przewodniku: [Kamery](guide.pl.md#5-kamery).
 | `ptz` | mapa kamera → ustawienie | `{}` | jak obraca się kamera, patrz niżej |
 | `quick` | mapa kamera → `{siren, light, night}` | `{}` | własne encje okrągłych przycisków albo `none` |
 | `talk_with` | mapa kamera → tryb | `{}` | `auto`, `go2rtc`, `intercom` albo `none` |
+| `clip_picker` | `bar` albo `zoom` | `bar` | wybór chwili w nagraniu: pasek klipu nad linią albo linia przybliżona do klipu |
+| `clip_picker_with` | mapa kamera → `bar` albo `zoom` | `{}` | inny sposób dla jednej kamery (jej obrazka albo kamery na żywo) |
 | `talk` | `intercom` albo `camera` | `intercom` | mówienie w oknie kamery: intercom pokoju albo głośnik kamery |
 | `settings` | mapa kamera → lista encji | `{}` | własny wybór encji pod trybikiem okna kamery |
 | `columns` | od 2 do 5 | `3` | kamery w rzędzie wszystkich kamer na tablecie |
@@ -379,6 +381,8 @@ cameras:
   quick:
     camera.garden: {siren: switch.garden_alarm, light: light.garden_floodlight, night: none}
   talk_with: {camera.garden: go2rtc}
+  clip_picker: bar
+  clip_picker_with: {camera.driveway: zoom}
   settings:
     camera.garden: [switch.garden_microphone, select.garden_night_vision]
   columns: 4
@@ -844,7 +848,7 @@ appearance:
 
 ### `themes` i `theme`
 
-`themes` to biblioteka zakładki **Motywy**: każdy wpis to `{id, name, appearance, backgrounds}`. `theme` to id motywu,
+`themes` to biblioteka zakładki <b class="ui">Motywy</b>: każdy wpis to `{id, name, appearance, backgrounds}`. `theme` to id motywu,
 od którego zaczął się obecny wygląd. Motywy dołączone do dashboardu mają id `home_dashboard` i `apple_home`; wpis o tym
 samym id to wersja tego motywu w Twoim domu. Oba klucze zapisuje zakładka Motywy; ręczna edycja rzadko ma sens.
 
@@ -918,13 +922,13 @@ visibility:
 
 | Klucz | Typ | Domyślnie | Znaczenie |
 |---|---|---|---|
-| `doors` | lista encji albo `{entity, name}` | `[]` | drzwi w **W domu**; otwarte przy `on` lub `open` (zamek: niezamknięty); dotknięcie pokazuje listę otwartych |
-| `windows` | lista encji albo `{entity, name}` | `[]` | okna w **W domu**, osobna plakietka; dotknięcie pokazuje listę otwartych |
+| `doors` | lista encji albo `{entity, name}` | `[]` | drzwi w <b class="ui">W domu</b>; otwarte przy `on` lub `open` (zamek: niezamknięty); dotknięcie pokazuje listę otwartych |
+| `windows` | lista encji albo `{entity, name}` | `[]` | okna w <b class="ui">W domu</b>, osobna plakietka; dotknięcie pokazuje listę otwartych |
 | `flags` | lista encji albo `{entity, name, icon}` | `[]` | plakietka, gdy pomocnik jest `on`, np. poczta w skrzynce; dotknięcie otwiera pomocnika, żeby go wyłączyć |
-| `now` | lista | `[]` | pozycje **Teraz**, patrz niżej |
+| `now` | lista | `[]` | pozycje <b class="ui">Teraz</b>, patrz niżej |
 | `power` | lista encji albo `{entity, name, color, switch}` | `[]` | moc teraz z linią z 6 godzin; ze `switch` tylko, gdy ten przełącznik jest włączony (ładowarka) |
 | `departures` | lista encji albo `null` | `null` | tramwaje; `null` bierze pierwszy blok odjazdów |
-| `ignore` | lista encji | `[]` | światła i urządzenia, których **W domu** nie liczy (np. lampa z własnym harmonogramem) |
+| `ignore` | lista encji | `[]` | światła i urządzenia, których <b class="ui">W domu</b> nie liczy (np. lampa z własnym harmonogramem) |
 | `calendars` | lista encji kalendarzy | `[]` | kalendarze domu: dzisiejsze wydarzenia pod pogodą, okno kalendarza i lista każdej osoby |
 | `calendar_limit` | liczba | `3` | ile wydarzeń najwyżej w pasku, reszta jako „+N więcej” |
 | `calendar_hide` | `end` albo `start` | `end` | wydarzenie z godziną znika po końcu (w trakcie ma „teraz”) albo po początku |
@@ -974,26 +978,28 @@ konfigurację, zapisuje od razu cały blok `strategy:`.
 
 ### Ustawienia dashboardu
 
-**Otwierasz:** Menu → **Ustawienia dashboardu**. **Kto:** administratorzy. **Zapis:** przyciskiem **Zapisz** u góry.
+**Otwierasz:** Menu → <b class="ui">Ustawienia dashboardu</b>. **Kto:** administratorzy. **Zapis:** przyciskiem <b class="ui">Zapisz</b> u góry.
 
 | Pole | Zapisuje |
 |---|---|
-| **Powrót na tablecie do strony głównej po** | `idle.return_after` |
-| **Otwieraj ten dashboard przy starcie na tym urządzeniu** | tylko to urządzenie |
-| **Ostrzeżenia na stronie głównej** → Wycisz na tydzień / Pokaż znowu | Twoje dane użytkownika |
-| **Mówienie w oknie kamery** | `cameras.talk` |
-| **Kolumny wszystkich kamer na tablecie** | `cameras.columns` |
-| **Układ wszystkich kamer na tablecie** | `cameras.layout` |
-| **Ta sama kamera w innej integracji** | `cameras.controls` |
-| **Sterowanie i mówienie każdej kamery** → Sterowanie | `cameras.ptz` |
+| <b class="ui">Powrót na tablecie do strony głównej po</b> | `idle.return_after` |
+| <b class="ui">Otwieraj ten dashboard przy starcie na tym urządzeniu</b> | tylko to urządzenie |
+| <b class="ui">Ostrzeżenia na stronie głównej</b> → Wycisz na tydzień / Pokaż znowu | Twoje dane użytkownika |
+| <b class="ui">Mówienie w oknie kamery</b> | `cameras.talk` |
+| <b class="ui">Wybór chwili w nagraniu</b> | `cameras.clip_picker` |
+| <b class="ui">Kolumny wszystkich kamer na tablecie</b> | `cameras.columns` |
+| <b class="ui">Układ wszystkich kamer na tablecie</b> | `cameras.layout` |
+| <b class="ui">Ta sama kamera w innej integracji</b> | `cameras.controls` |
+| <b class="ui">Sterowanie i mówienie każdej kamery</b> → Sterowanie | `cameras.ptz` |
 | → Przycisk syreny, Przycisk światła, Przycisk noktowizji | `cameras.quick` |
 | → Mówienie | `cameras.talk_with` |
-| **Edytuj konfigurację** | otwiera edytor YAML |
-| **Wczytaj aplikację od nowa** | nic; wczytuje na nowo pliki dashboardu |
+| → Wybór chwili w nagraniu | `cameras.clip_picker_with` |
+| <b class="ui">Edytuj konfigurację</b> | otwiera edytor YAML |
+| <b class="ui">Wczytaj aplikację od nowa</b> | nic; wczytuje na nowo pliki dashboardu |
 
 ### Edytuj konfigurację (YAML)
 
-**Otwierasz:** Ustawienia dashboardu → **Edytuj konfigurację**. **Kto:** administratorzy. **Zapisuje:** wszystko.
+**Otwierasz:** Ustawienia dashboardu → <b class="ui">Edytuj konfigurację</b>. **Kto:** administratorzy. **Zapisuje:** wszystko.
 
 Zapis sprawdza składnię i odrzuca konfigurację, przez którą dashboard by się nie narysował, podając ścieżkę problemu:
 
@@ -1004,29 +1010,29 @@ Zapis sprawdza składnię i odrzuca konfigurację, przez którą dashboard by si
 - kafelek potrzebuje `entity`, chyba że ma `shortcut` albo jest `kind: panel` lub `kind: scale` z `name`;
 - skrót potrzebuje `name` i `kind`.
 
-**Wczytaj wersję sprzed ostatniego zapisu** przywraca konfigurację sprzed ostatniego zapisu, trzymaną na tym urządzeniu.
+<b class="ui">Wczytaj wersję sprzed ostatniego zapisu</b> przywraca konfigurację sprzed ostatniego zapisu, trzymaną na tym urządzeniu.
 
 ### Edytuj ten ekran (edycja pokoju)
 
-**Otwierasz:** w pokoju trzy kropki → **Edytuj ten ekran**; dla Scen ze strony głównej najpierw otwórz stronę
-**Sceny**. **Kto:** administratorzy. **Zapis:** przyciskiem **Zapisz**; krzyżyk porzuca zmiany.
+**Otwierasz:** w pokoju trzy kropki → <b class="ui">Edytuj ten ekran</b>; dla Scen ze strony głównej najpierw otwórz stronę
+<b class="ui">Sceny</b>. **Kto:** administratorzy. **Zapis:** przyciskiem <b class="ui">Zapisz</b>; krzyżyk porzuca zmiany.
 
 | Zakładka | Zmienia | Zapisuje |
 |---|---|---|
-| **Karta pokoju** | sekcje: nazwa, strzałki, jeden rząd (`layout: row`), usuń, **Dodaj sekcję** | `layout[].sections` |
-| **Sceny** | rząd Sceny pokoju | `layout[].scenes` |
-| **Strona główna** | kafelki pokoju na stronie głównej | `layout[].home` |
+| <b class="ui">Karta pokoju</b> | sekcje: nazwa, strzałki, jeden rząd (`layout: row`), usuń, <b class="ui">Dodaj sekcję</b> | `layout[].sections` |
+| <b class="ui">Sceny</b> | rząd Sceny pokoju | `layout[].scenes` |
+| <b class="ui">Strona główna</b> | kafelki pokoju na stronie głównej | `layout[].home` |
 
-Kafelki przeciągasz za uchwyt, także między sekcjami. **Dodaj kafelek** otwiera wyszukiwanie, a dotknięcie kafelka
+Kafelki przeciągasz za uchwyt, także między sekcjami. <b class="ui">Dodaj kafelek</b> otwiera wyszukiwanie, a dotknięcie kafelka
 otwiera okno kafelka. Pierwszy zapis pokoju zbudowanego z obszaru zapisuje cały pokój w `layout`. Na stronie Sceny
-edycja ma jedną listę (`scenes`), a przycisk ze strzałkami ustawia `scenes_layout: row`. Reguły **Kto to widzi**
+edycja ma jedną listę (`scenes`), a przycisk ze strzałkami ustawia `scenes_layout: row`. Reguły <b class="ui">Kto to widzi</b>
 zapisują się razem z resztą, do `visibility` i `access`.
 
 Zielony kafelek widzą tylko wybrane osoby; czerwony jest przed kimś ukryty.
 
 ### Dodaj kafelek
 
-**Otwierasz:** **Dodaj kafelek** w edycji pokoju. Bez wpisanego tekstu pokazuje to, co należy do obszarów pokoju i nie
+**Otwierasz:** <b class="ui">Dodaj kafelek</b> w edycji pokoju. Bez wpisanego tekstu pokazuje to, co należy do obszarów pokoju i nie
 ma jeszcze kafelka; wpisany tekst przeszukuje cały Home Assistant. W Scenach podpowiada tylko sceny i skrypty. Wybór
 dodaje `{entity: …}` do listy.
 
@@ -1036,26 +1042,26 @@ dodaje `{entity: …}` do listy.
 
 | Pole | Zapisuje |
 |---|---|
-| **Nazwa na kafelku** | `name` kafelka; puste pole go usuwa |
-| **Rozmiar**: Płaski, Wysoki (dwa wiersze) | `size: tall`; nie dla bloków |
-| **Kto to widzi**: Wszyscy, Tylko wybrani, Wszyscy oprócz | `visibility.<klucz>`; klucz znika z `access.*.hide` |
-| **Edytuj blok** (kafelek `kind: panel`) | otwiera [formularz bloku](#formularz-bloku); wynik zastępuje kafelek |
-| **Usuń kafelek** | usuwa pozycję |
+| <b class="ui">Nazwa na kafelku</b> | `name` kafelka; puste pole go usuwa |
+| <b class="ui">Rozmiar</b>: Płaski, Wysoki (dwa wiersze) | `size: tall`; nie dla bloków |
+| <b class="ui">Kto to widzi</b>: Wszyscy, Tylko wybrani, Wszyscy oprócz | `visibility.<klucz>`; klucz znika z `access.*.hide` |
+| <b class="ui">Edytuj blok</b> (kafelek `kind: panel`) | otwiera [formularz bloku](#formularz-bloku); wynik zastępuje kafelek |
+| <b class="ui">Usuń kafelek</b> | usuwa pozycję |
 
 Pozostałe klucze kafelka (`calm`, `confirm`, `labels`…) ustawiasz w YAML, a okno je zachowuje.
 
 ### Odznaki podsumowania
 
-**Otwierasz:** na stronie głównej trzy kropki → **Odznaki podsumowania**. **Kto:** administratorzy. **Zapisuje:**
+**Otwierasz:** na stronie głównej trzy kropki → <b class="ui">Odznaki podsumowania</b>. **Kto:** administratorzy. **Zapisuje:**
 `shortcuts`, od razu.
 
-Pokazuje skróty z ołówkiem i strzałkami do kolejności, **Kategorie mediów** oraz **Nowy blok**: Status, Odjazdy,
+Pokazuje skróty z ołówkiem i strzałkami do kolejności, <b class="ui">Kategorie mediów</b> oraz <b class="ui">Nowy blok</b>: Status, Odjazdy,
 Aplikacja, Wiadomości, Maszyny, Blok i Strona. Blok Szkoła dodajesz w YAML, a potem edytujesz tutaj. Skrót po zmianie
 nazwy zachowuje swoje reguły w `access` i `visibility`; czyjąś własną kolejność i ukrycie chipów trzeba ustawić od nowa.
 
 ### Formularz bloku
 
-**Otwierasz:** ołówkiem w Odznakach podsumowania, nowym blokiem tamże albo **Edytuj blok** w oknie kafelka.
+**Otwierasz:** ołówkiem w Odznakach podsumowania, nowym blokiem tamże albo <b class="ui">Edytuj blok</b> w oknie kafelka.
 **Kto:** administratorzy.
 
 | Rodzaj | Pola |
@@ -1071,43 +1077,43 @@ nazwy zachowuje swoje reguły w `access` i `visibility`; czyjąś własną kolej
 | Strona | Strona |
 | Szkoła | Dzieci, Sensory (`sources`, YAML) |
 
-Pozycja Statusu ma **Pokazuj, gdy**: encja ma stan, wartość jest poniżej progu, bateria jest słaba, lista nie jest
+Pozycja Statusu ma <b class="ui">Pokazuj, gdy</b>: encja ma stan, wartość jest poniżej progu, bateria jest słaba, lista nie jest
 pusta, urządzenie pracuje albo zawsze (tekst). Każdy wybór ma swoje pola, a każda pozycja ma **Pokazuj też jako
 ostrzeżenie na stronie głównej** (`notify`), dni tygodnia i miesiące. Opcje, których formularz nie zna, zostają w
-bloku bez zmian, a puste pole jest pomijane. **Usuń blok** wymaga drugiego dotknięcia.
+bloku bez zmian, a puste pole jest pomijane. <b class="ui">Usuń blok</b> wymaga drugiego dotknięcia.
 
 ### Kategorie mediów
 
-**Otwierasz:** Odznaki podsumowania → **Kategorie mediów**. **Kto:** administratorzy. **Zapisuje:** `media.sections`:
+**Otwierasz:** Odznaki podsumowania → <b class="ui">Kategorie mediów</b>. **Kto:** administratorzy. **Zapisuje:** `media.sections`:
 sekcje z tytułem i kafelkami (Nazwa, Encja, Ikona, Rodzaj `tv` albo `panel`, Włączanie i Wyłączanie w YAML).
 
 ### Edytuj menu
 
-**Otwierasz:** na dole lewego menu, **Edytuj menu**. **Kto:** administratorzy. **Zapisuje:** `menu.groups`: grupy z
+**Otwierasz:** na dole lewego menu, <b class="ui">Edytuj menu</b>. **Kto:** administratorzy. **Zapisuje:** `menu.groups`: grupy z
 tytułem i pozycjami (Nazwa, Ikona, Aplikacja, Adres, Skrót, Akcja, Tylko administratorzy, Kto to widzi, Ukryj w
 trybie gościa). Do pierwszego zapisu formularz zaczyna od menu, które widać teraz.
 
 ### Mój układ
 
-**Otwierasz:** na stronie głównej trzy kropki → **Mój układ**. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika,
+**Otwierasz:** na stronie głównej trzy kropki → <b class="ui">Mój układ</b>. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika,
 od razu.
 
 Zakładki: Kamery, Obszary, Plakietki (chipy), Sceny, Ulubione (kolejność, ukrywanie, dodawanie przez wyszukiwanie) i
-Menu (ukrywanie). Na dole: **Otwieraj ten dashboard przy starcie na moich urządzeniach** i **Przywróć wspólny układ**.
-Na Obszarach i Ulubionych administrator może zaznaczyć **Dla wszystkich**; **Zapisz dla wszystkich** zapisuje wtedy
+Menu (ukrywanie). Na dole: <b class="ui">Otwieraj ten dashboard przy starcie na moich urządzeniach</b> i <b class="ui">Przywróć wspólny układ</b>.
+Na Obszarach i Ulubionych administrator może zaznaczyć <b class="ui">Dla wszystkich</b>; <b class="ui">Zapisz dla wszystkich</b> zapisuje wtedy
 `rooms.order`, `rooms.hidden` i `favorites`.
 
 ### Mój widok
 
-**Otwierasz:** w pokoju trzy kropki → **Mój widok**. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika: ukryte
-sekcje i kafelki tego pokoju, razem z rzędem Sceny. **Pokaż wszystko w tym pokoju** przywraca je.
+**Otwierasz:** w pokoju trzy kropki → <b class="ui">Mój widok</b>. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika: ukryte
+sekcje i kafelki tego pokoju, razem z rzędem Sceny. <b class="ui">Pokaż wszystko w tym pokoju</b> przywraca je.
 
 ### Dostęp użytkowników
 
-**Otwierasz:** trzy kropki → **Dostęp użytkowników**. **Kto:** administratorzy. **Zapisuje:** `access`, przyciskiem
-**Zapisz**.
+**Otwierasz:** trzy kropki → <b class="ui">Dostęp użytkowników</b>. **Kto:** administratorzy. **Zapisuje:** `access`, przyciskiem
+<b class="ui">Zapisz</b>.
 
-Wybierz osobę albo **Wszyscy oprócz mnie** (każde inne istniejące teraz konto). Zakładki: Kamery, Obszary (`rooms`),
+Wybierz osobę albo <b class="ui">Wszyscy oprócz mnie</b> (każde inne istniejące teraz konto). Zakładki: Kamery, Obszary (`rooms`),
 Sekcje (`sections`), Plakietki (pogoda, chipy i skróty), Światła, Media, Ochrona, Sceny i skrypty, Inne (pozostałe
 encje i bloki). Wszystko poza Obszarami i Sekcjami trafia do `hide`.
 
@@ -1121,32 +1127,32 @@ Gradient, kolor albo zdjęcie dla jasnego i ciemnego wyglądu, **Pionowy / Pozio
 która zostaje po przycięciu (`position`). Na górze Twój wygląd: Systemowy, Jasny albo Ciemny, zapisany w Twoich
 danych użytkownika.
 
-**Utwórz tło** otwiera kreator tła: 16 gotowych teł, 16 wzorów rysowanych przez kod (wzgórza, góry, wydmy, fale,
+<b class="ui">Utwórz tło</b> otwiera kreator tła: 16 gotowych teł, 16 wzorów rysowanych przez kod (wzgórza, góry, wydmy, fale,
 zorza, światełka, plamy koloru, zachód, kręgi, poziomice, pasy, szkło, płatki, gwiazdy, łuki, papier) z przyciskiem
-**Inna wersja wzoru**, 48 gradientów w sześciu grupach (spokojne, chłodne, ciepłe, natura, pastele, noc) albo dwa
+<b class="ui">Inna wersja wzoru</b>, 48 gradientów w sześciu grupach (spokojne, chłodne, ciepłe, natura, pastele, noc) albo dwa
 własne kolory i kierunek, a do tego opcjonalnie zdjęcie: widoczność, odbarwienie, rozmycie, sposób mieszania z
 gradientem (domyślnie *Zabarwione tłem*: zdjęcie w kolorach gradientu pod nim), rozmiar (20–100 %), położenie (róg, bok albo środek) i przesunięcie, obrót o 90°, odbicie w poziomie i
-pionie oraz wygaszanie od najwyżej trzech krawędzi z jego szerokością. **Dla wyglądu** wybiera jasny, ciemny albo oba. **Użyj jako tło**
+pionie oraz wygaszanie od najwyżej trzech krawędzi z jego szerokością. <b class="ui">Dla wyglądu</b> wybiera jasny, ciemny albo oba. <b class="ui">Użyj jako tło</b>
 wysyła do Home Assistant dwa obrazy JPEG (pionowy 1290 × 2796 i szeroki 2732 × 2048, przez `/api/image/upload`)
 i wpisuje je w miejsca tego wyglądu (`light` i `light_wide` albo ciemne); okno zapisuje je potem jak każde zdjęcie.
-**Pobierz** zapisuje obraz pokazanego kształtu jako plik. Ostatnie ustawienia kreatora zostają na urządzeniu.
+<b class="ui">Pobierz</b> zapisuje obraz pokazanego kształtu jako plik. Ostatnie ustawienia kreatora zostają na urządzeniu.
 
 ### Wygląd
 
-**Otwierasz:** lewe menu → **Wygląd**. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika; administrator z
-zaznaczonym **Dla wszystkich** zapisuje `appearance` przyciskiem **Zapisz dla wszystkich**.
+**Otwierasz:** lewe menu → <b class="ui">Wygląd</b>. **Kto:** wszyscy. **Zapisuje:** Twoje dane użytkownika; administrator z
+zaznaczonym <b class="ui">Dla wszystkich</b> zapisuje `appearance` przyciskiem <b class="ui">Zapisz dla wszystkich</b>.
 
 | Zakładka | Klucze `appearance` |
 |---|---|
-| **Tło** | `background_strength`, `bounce`, `page.*`, `map.*` |
-| **Przyciski** | `tiles.opacity`, `tiles.radius`, `tiles.fill`, `tiles.colours` |
-| **Kolory** | `text.*`, `tiles.background`, `text`, `icon`, `icon_background`, `chips.*`, `buttons.*`, `badges.*` |
-| **Pasek** | `nav.*`, `status.*`, `player.*` |
-| **Okna** | `sheets.*` |
-| **Ikony** | `icons` |
-| **Motywy** (z Dla wszystkich) | `themes`, `theme` oraz `appearance` i `backgrounds` przy użyciu motywu |
+| <b class="ui">Tło</b> | `background_strength`, `bounce`, `page.*`, `map.*` |
+| <b class="ui">Przyciski</b> | `tiles.opacity`, `tiles.radius`, `tiles.fill`, `tiles.colours` |
+| <b class="ui">Kolory</b> | `text.*`, `tiles.background`, `text`, `icon`, `icon_background`, `chips.*`, `buttons.*`, `badges.*` |
+| <b class="ui">Pasek</b> | `nav.*`, `status.*`, `player.*` |
+| <b class="ui">Okna</b> | `sheets.*` |
+| <b class="ui">Ikony</b> | `icons` |
+| <b class="ui">Motywy</b> (z Dla wszystkich) | `themes`, `theme` oraz `appearance` i `backgrounds` przy użyciu motywu |
 
-**Wróć do wyglądu dla wszystkich** usuwa Twoje własne zmiany.
+<b class="ui">Wróć do wyglądu dla wszystkich</b> usuwa Twoje własne zmiany.
 
 ### Ustawienia urządzenia i ołówek
 

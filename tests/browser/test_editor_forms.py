@@ -16,7 +16,13 @@ STRATEGY = {
             "id": "living",
             "name": "Salon",
             "sections": [
-                {"title": "Oświetlenie", "tiles": [{"entity": "light.entity_0096", "name": "Sofa", "foo": 1}, {"entity": "light.entity_0097"}]},
+                {
+                    "title": "Oświetlenie",
+                    "tiles": [
+                        {"entity": "light.entity_0096", "name": "Sofa", "foo": 1},
+                        {"entity": "light.entity_0097"},
+                    ],
+                },
                 {"title": "Inne", "tiles": [{"entity": "switch.entity_0235"}]},
             ],
         },
@@ -70,8 +76,21 @@ def add_entity(page, entity_id: str, attributes: dict) -> None:
 def test_a_tile_has_a_form_with_the_keys_that_apply(desktop):  # noqa: F811
     open_forms(desktop)
     select(desktop, "layout/0/sections/0/tiles/0")
-    keys = desktop.locator(f"{APP} {FORM} [data-field]").evaluate_all("(fields) => fields.map((f) => f.dataset.field)")
-    assert keys == ["entity", "shortcut", "name", "icon", "size", "calm", "tap_toggle", "active_only", "turn_on_only", "action"]
+    keys = desktop.locator(f"{APP} {FORM} [data-field]").evaluate_all(
+        "(fields) => fields.map((f) => f.dataset.field)"
+    )
+    assert keys == [
+        "entity",
+        "shortcut",
+        "name",
+        "icon",
+        "size",
+        "calm",
+        "tap_toggle",
+        "active_only",
+        "turn_on_only",
+        "action",
+    ]
 
 
 def test_a_name_typed_in_the_form_names_the_tile_and_an_empty_one_removes_the_key(desktop):  # noqa: F811
@@ -116,17 +135,32 @@ def test_a_missing_entity_is_said_under_its_field(desktop):  # noqa: F811
     select(desktop, "layout/0/sections/0/tiles/1")
     fill(desktop, "entity", "light.nowhere")
     assert field(desktop, "entity").locator("[data-entity-missing]").count() == 1
-    assert "warn" in desktop.locator(f"{APP} [data-node='layout/0/sections/0/tiles/1']").get_attribute("class")
+    assert "warn" in desktop.locator(f"{APP} [data-node='layout/0/sections/0/tiles/1']").get_attribute(
+        "class"
+    )
 
 
 def test_a_list_tile_offers_the_run_button_and_names_of_its_options(desktop):  # noqa: F811
     add_entity(desktop, "select.drink", {"options": ["none", "Espresso", "Tea"], "friendly_name": "Napój"})
-    strategy = {**STRATEGY, "layout": [{"id": "kitchen", "name": "Kuchnia", "sections": [{"title": "Kawa", "tiles": [{"entity": "select.drink"}]}]}]}
+    strategy = {
+        **STRATEGY,
+        "layout": [
+            {
+                "id": "kitchen",
+                "name": "Kuchnia",
+                "sections": [{"title": "Kawa", "tiles": [{"entity": "select.drink"}]}],
+            }
+        ],
+    }
     open_forms(desktop, strategy)
     select(desktop, "layout/0/sections/0/tiles/0")
     field(desktop, "confirm").locator("button").click()
     labels = field(desktop, "labels")
-    assert labels.locator("[data-label]").evaluate_all("(inputs) => inputs.map((i) => i.dataset.label)") == ["none", "Espresso", "Tea"]
+    assert labels.locator("[data-label]").evaluate_all("(inputs) => inputs.map((i) => i.dataset.label)") == [
+        "none",
+        "Espresso",
+        "Tea",
+    ]
     box = labels.locator("[data-label='none']")
     box.fill("Brak")
     box.dispatch_event("change")
@@ -158,7 +192,11 @@ def test_a_tile_of_a_machine_block_chooses_its_machine(desktop):  # noqa: F811
     machines = field(desktop, "column").locator("option").all_inner_texts()
     assert machines == ["Wszystkie maszyny", "NUC", "Jetson"]
     field(desktop, "column").locator("select").select_option("Jetson")
-    assert tile(desktop, section=1) == {"entity": "switch.entity_0235", "shortcut": "Maszyny", "column": "Jetson"}
+    assert tile(desktop, section=1) == {
+        "entity": "switch.entity_0235",
+        "shortcut": "Maszyny",
+        "column": "Jetson",
+    }
 
 
 def test_a_room_has_its_name_id_and_areas(desktop):  # noqa: F811
@@ -179,7 +217,11 @@ def test_a_section_has_its_title_and_layout(desktop):  # noqa: F811
     select(desktop, "layout/0/sections/1")
     fill(desktop, "title", "Gniazdka")
     field(desktop, "layout").locator("[data-option='row']").click()
-    assert draft(desktop)["layout"][0]["sections"][1] == {"title": "Gniazdka", "tiles": [{"entity": "switch.entity_0235"}], "layout": "row"}
+    assert draft(desktop)["layout"][0]["sections"][1] == {
+        "title": "Gniazdka",
+        "tiles": [{"entity": "switch.entity_0235"}],
+        "layout": "row",
+    }
 
 
 def test_the_yaml_tab_shows_what_the_form_changed(desktop):  # noqa: F811
@@ -255,7 +297,10 @@ def test_up_and_down_move_within_the_list_and_stop_at_its_ends(desktop):  # noqa
     select(desktop, "layout/0/sections/0/tiles/0")
     assert desktop.locator(f"{APP} [data-action='up']").is_disabled()
     desktop.locator(f"{APP} [data-action='down']").click()
-    assert [item["entity"] for item in draft(desktop)["layout"][0]["sections"][0]["tiles"]] == ["light.entity_0097", "light.entity_0096"]
+    assert [item["entity"] for item in draft(desktop)["layout"][0]["sections"][0]["tiles"]] == [
+        "light.entity_0097",
+        "light.entity_0096",
+    ]
     assert desktop.locator(f"{APP} [data-action='down']").is_disabled()
     select(desktop, "layout/1")
     desktop.locator(f"{APP} [data-action='up']").click()
@@ -387,33 +432,74 @@ def run(page, body: str, arg=None):
 @pytest.mark.parametrize(
     ("dragged", "target", "plan"),
     [
-        ({"kind": "tile", "key": "a", "path": ["layout", 0, "sections", 0, "tiles", 0]},
-         {"kind": "tile", "key": "b", "path": ["layout", 1, "home", 2]}, {"list": ["layout", 1, "home"], "index": 2}),
-        ({"kind": "tile", "key": "a", "path": ["scenes", 0]},
-         {"kind": "section", "key": "s", "path": ["layout", 0, "sections", 1], "tilesPath": ["layout", 0, "sections", 1, "tiles"]},
-         {"list": ["layout", 0, "sections", 1, "tiles"], "index": 1}),
-        ({"kind": "favorite", "key": "f", "path": ["favorites", 1]}, {"kind": "favorite", "key": "g", "path": ["favorites", 0]},
-         {"list": ["favorites"], "index": 0}),
-        ({"kind": "favorite", "key": "f", "path": ["favorites", 1]}, {"kind": "tile", "key": "b", "path": ["scenes", 0]}, None),
-        ({"kind": "section", "key": "s", "path": ["layout", 0, "sections", 0]}, {"kind": "room", "key": "r", "path": ["layout", 1]},
-         {"list": ["layout", 1, "sections"], "index": 1}),
-        ({"kind": "section", "key": "h", "path": ["layout", 0, "home"]}, {"kind": "room", "key": "r", "path": ["layout", 1]}, None),
-        ({"kind": "room", "key": "r", "path": ["layout", 1]}, {"kind": "room", "key": "q", "path": ["layout", 0]},
-         {"list": ["layout"], "index": 0}),
-        ({"kind": "room", "key": "r", "path": ["layout", 1]}, {"kind": "room", "key": "r", "path": ["layout", 1]}, None),
+        (
+            {"kind": "tile", "key": "a", "path": ["layout", 0, "sections", 0, "tiles", 0]},
+            {"kind": "tile", "key": "b", "path": ["layout", 1, "home", 2]},
+            {"list": ["layout", 1, "home"], "index": 2},
+        ),
+        (
+            {"kind": "tile", "key": "a", "path": ["scenes", 0]},
+            {
+                "kind": "section",
+                "key": "s",
+                "path": ["layout", 0, "sections", 1],
+                "tilesPath": ["layout", 0, "sections", 1, "tiles"],
+            },
+            {"list": ["layout", 0, "sections", 1, "tiles"], "index": 1},
+        ),
+        (
+            {"kind": "favorite", "key": "f", "path": ["favorites", 1]},
+            {"kind": "favorite", "key": "g", "path": ["favorites", 0]},
+            {"list": ["favorites"], "index": 0},
+        ),
+        (
+            {"kind": "favorite", "key": "f", "path": ["favorites", 1]},
+            {"kind": "tile", "key": "b", "path": ["scenes", 0]},
+            None,
+        ),
+        (
+            {"kind": "section", "key": "s", "path": ["layout", 0, "sections", 0]},
+            {"kind": "room", "key": "r", "path": ["layout", 1]},
+            {"list": ["layout", 1, "sections"], "index": 1},
+        ),
+        (
+            {"kind": "section", "key": "h", "path": ["layout", 0, "home"]},
+            {"kind": "room", "key": "r", "path": ["layout", 1]},
+            None,
+        ),
+        (
+            {"kind": "room", "key": "r", "path": ["layout", 1]},
+            {"kind": "room", "key": "q", "path": ["layout", 0]},
+            {"list": ["layout"], "index": 0},
+        ),
+        (
+            {"kind": "room", "key": "r", "path": ["layout", 1]},
+            {"kind": "room", "key": "r", "path": ["layout", 1]},
+            None,
+        ),
     ],
 )
 def test_where_a_drop_lands(desktop, dragged, target, plan):  # noqa: F811
-    strategy = {"favorites": ["a", "b"], "scenes": [{}], "layout": [{"sections": [{"tiles": []}, {"tiles": [{}]}]}, {"sections": [{"tiles": []}]}]}
+    strategy = {
+        "favorites": ["a", "b"],
+        "scenes": [{}],
+        "layout": [{"sections": [{"tiles": []}, {"tiles": [{}]}]}, {"sections": [{"tiles": []}]}],
+    }
     assert run(desktop, "return t.dropPlan(arg[0], arg[1], arg[2]);", [strategy, dragged, target]) == plan
 
 
 def test_the_path_after_a_move(desktop):  # noqa: F811
-    paths = run(desktop, """return [t.movedPath(['x', 0], ['x'], 3), t.movedPath(['x', 3], ['x'], 0), t.movedPath(['x', 0], ['y'], 3)];""")
+    paths = run(
+        desktop,
+        """return [t.movedPath(['x', 0], ['x'], 3), t.movedPath(['x', 3], ['x'], 0), t.movedPath(['x', 0], ['y'], 3)];""",
+    )
     assert paths == [["x", 2], ["x", 0], ["y", 3]]
 
 
 def test_with_field_and_slugify(desktop):  # noqa: F811
-    result = run(desktop, """return [p.withField({ a: 1, b: 2 }, 'a', ''), p.withField({ a: 1 }, 'b', false), p.withField({}, 'c', []),
-        p.withField({}, 'd', {}), p.withField({}, 'e', 'x'), p.slugify('Łazienka Główna'), p.slugify('  Pokój dzieci! '), p.slugify('')];""")
+    result = run(
+        desktop,
+        """return [p.withField({ a: 1, b: 2 }, 'a', ''), p.withField({ a: 1 }, 'b', false), p.withField({}, 'c', []),
+        p.withField({}, 'd', {}), p.withField({}, 'e', 'x'), p.slugify('Łazienka Główna'), p.slugify('  Pokój dzieci! '), p.slugify('')];""",
+    )
     assert result == [{"b": 2}, {"a": 1}, {}, {}, {"e": "x"}, "lazienka_glowna", "pokoj_dzieci", "room"]

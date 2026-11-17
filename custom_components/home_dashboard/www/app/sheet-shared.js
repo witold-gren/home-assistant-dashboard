@@ -162,6 +162,7 @@ export const ENTITY_FREE_KINDS = new Set([
   "group",
   "history",
   "host",
+  "household",
   "intercom",
   "logbook",
   "news",

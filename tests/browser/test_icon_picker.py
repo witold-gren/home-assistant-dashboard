@@ -25,7 +25,10 @@ STRATEGY = {
 
 @pytest.fixture
 def editor(desktop):  # noqa: F811
-    desktop.route("**/static/mdi/iconList.json", lambda route: route.fulfill(content_type="application/json", body=json.dumps(ICONS)))
+    desktop.route(
+        "**/static/mdi/iconList.json",
+        lambda route: route.fulfill(content_type="application/json", body=json.dumps(ICONS)),
+    )
     desktop.evaluate("() => localStorage.clear()")
     open_editor(desktop, STRATEGY)
     select(desktop, "shortcuts/0")
@@ -46,7 +49,9 @@ def test_typing_lists_icons_by_name_and_keyword(editor) -> None:
     options = picker(editor).locator("[data-icon-option]")
     options.first.wait_for()
     assert options.evaluate_all("(items) => items.map((item) => item.dataset.iconOption)") == [
-        "mdi:view-dashboard", "mdi:view-dashboard-outline"]
+        "mdi:view-dashboard",
+        "mdi:view-dashboard-outline",
+    ]
     picker(editor).locator("[data-icon-input]").fill("house")
     picker(editor).locator("[data-icon-option='mdi:home']").wait_for()
     assert options.count() == 1
@@ -104,7 +109,10 @@ def test_the_menu_offers_blocks_and_keeps_one_written_by_hand(editor) -> None:
 def test_the_tablet_block_form_has_the_same_icon_field(phone):
     from .test_block_editor import EDITOR, TRAMS, open_block, saved
 
-    phone.route("**/static/mdi/iconList.json", lambda route: route.fulfill(content_type="application/json", body=json.dumps(ICONS)))
+    phone.route(
+        "**/static/mdi/iconList.json",
+        lambda route: route.fulfill(content_type="application/json", body=json.dumps(ICONS)),
+    )
     open_block(phone, [TRAMS], "Tramwaje")
     field = phone.locator(f"{EDITOR} [data-block-field='icon'] home-dashboard-icon-picker").first
     field.locator("[data-icon-input]").fill("lamp")

@@ -25,26 +25,35 @@ def run(page, body: str):
 
 
 def test_a_switch_with_a_lamp_icon_is_a_light_and_others_are_not(phone):
-    found = run(phone, """
+    found = run(
+        phone,
+        """
         const ids = ['switch.sconce', 'switch.coach', 'switch.tv', 'switch.clamp', 'switch.plain', 'light.ceiling', 'sensor.lamp'];
-        return ids.map((id) => m.isLight(hass, id, {}));""")
+        return ids.map((id) => m.isLight(hass, id, {}));""",
+    )
     assert found == [True, True, False, False, False, True, False]
 
 
 def test_an_override_says_it_either_way_and_an_own_icon_counts(phone):
-    found = run(phone, """
+    found = run(
+        phone,
+        """
         const config = { entities: { overrides: { 'switch.plain': { light: true }, 'switch.sconce': { light: false },
                                                   'switch.tv': { icon: 'mdi:wall-sconce-round' } } } };
         const look = { appearance: { icons: { 'switch.clamp': 'mdi:floor-lamp' } } };
         return [m.isLight(hass, 'switch.plain', config), m.isLight(hass, 'switch.sconce', config),
-                m.isLight(hass, 'switch.tv', config), m.isLight(hass, 'switch.clamp', look)];""")
+                m.isLight(hass, 'switch.tv', config), m.isLight(hass, 'switch.clamp', look)];""",
+    )
     assert found == [True, False, True, True]
 
 
 def test_the_status_bar_counts_a_lamp_switch_with_the_lights(phone):
-    facts = run(phone, """
+    facts = run(
+        phone,
+        """
         const selection = { entityIds: ['light.ceiling', 'switch.sconce', 'switch.tv'] };
-        return st.statusHome(hass, selection, {}).map((f) => [f.key, f.count, f.ids]);""")
+        return st.statusHome(hass, selection, {}).map((f) => [f.key, f.count, f.ids]);""",
+    )
     assert facts == [["lights", 2, ["light.ceiling", "switch.sconce"]], ["devices", 1, ["switch.tv"]]]
 
 

@@ -141,10 +141,13 @@ def test_a_camera_away_keeps_the_place_of_its_picture(touch_tablet):
     mount_admin(touch_tablet, {})
     camera = touch_tablet.evaluate("""() => { const { model, hass } = window.dashboard;
         return model.buildCameras(hass(), model.normalizeConfig({}))[0].entityId; }""")
-    touch_tablet.evaluate("""(id) => { const chrome = document.querySelector('home-dashboard-chrome');
+    touch_tablet.evaluate(
+        """(id) => { const chrome = document.querySelector('home-dashboard-chrome');
         const hass = { ...chrome.hass, states: { ...chrome.hass.states,
             [id]: { ...chrome.hass.states[id], state: 'unavailable', attributes: {} } } };
-        chrome.hass = hass; chrome.open({ type: 'sheet', sheet: { kind: 'camera', entityId: id } }); }""", camera)
+        chrome.hass = hass; chrome.open({ type: 'sheet', sheet: { kind: 'camera', entityId: id } }); }""",
+        camera,
+    )
     touch_tablet.wait_for_selector(f"{SHEET} [data-camera-down]")
     touch_tablet.wait_for_timeout(200)
     empty = box(touch_tablet, ".no-picture")
@@ -187,6 +190,9 @@ def test_a_finger_on_the_play_button_starts_the_live_view_and_the_button_stays_u
     touch_tablet.wait_for_timeout(200)
     # Pressed, it shrinks where it is: its middle stays under the finger.
     pressed = box(touch_tablet, "[data-play-live]")
-    assert abs((pressed["x"] + pressed["width"] / 2) - x) <= 1 and abs((pressed["y"] + pressed["height"] / 2) - y) <= 1
+    assert (
+        abs((pressed["x"] + pressed["width"] / 2) - x) <= 1
+        and abs((pressed["y"] + pressed["height"] / 2) - y) <= 1
+    )
     session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
     touch_tablet.wait_for_selector(f"{SHEET} [data-live-pill]", state="attached")

@@ -13,13 +13,13 @@ OPEN_STOP_AND_POSITION = 15
 NO_STOP = 7
 
 
-
 def as_rgb(value: str) -> str:
     """A colour mixed for the opacity of the look is written as srgb; the same colour as rgb."""
     if not value.startswith("color(srgb "):
         return value
-    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb "):-1].split()[:3])
+    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb ") : -1].split()[:3])
     return f"rgb({red}, {green}, {blue})"
+
 
 def touch(page, points: list[tuple[float, float]]) -> None:
     """A real finger: the browser decides about scrolling and clicks as it would on a phone."""
@@ -81,14 +81,17 @@ def test_a_blind_seen_moving_is_estimated_from_when_it_started(phone):
 
 
 def test_the_estimate_ends_when_the_entity_reports_the_stop(phone):
-    assert controls(
-        phone,
-        """(() => {
+    assert (
+        controls(
+            phone,
+            """(() => {
             const moving = { state: "opening", attributes: { current_position: 0 } };
             const seen = c.followCover(c.startCoverMotion(0, 100, 0), moving, 10);
             return c.followCover(seen, { state: "open", attributes: { current_position: 0 } }, 20);
         })()""",
-    ) is None
+        )
+        is None
+    )
 
 
 def test_a_blind_that_never_reports_moving_is_estimated_until_its_position_changes(phone):
@@ -348,19 +351,25 @@ def test_the_scroller_is_the_view_when_there_is_one(phone):
 
 def test_the_page_ends_soon_after_the_bar_when_nothing_plays(phone):
     mount(phone)
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const page = window.card.shadowRoot.querySelector(".page");
         return parseFloat(getComputedStyle(page).paddingBottom);
-    }""") < 100
+    }""")
+        < 100
+    )
 
 
 def test_the_page_leaves_room_for_the_mini_player(phone):
     playing_speaker(phone)
     mount(phone)
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const page = window.card.shadowRoot.querySelector(".page");
         return parseFloat(getComputedStyle(page).paddingBottom);
-    }""") > 150
+    }""")
+        > 150
+    )
 
 
 def test_the_veil_of_the_theme_is_mixed_into_a_background(phone):

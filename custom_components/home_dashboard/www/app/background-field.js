@@ -127,6 +127,14 @@ export class HomeDashboardBackgroundField extends LitElement {
     this._emit(value);
   }
 
+  /** Esc closes the picture shown big first, then the window of pictures and colours (nothing chosen). */
+  hdEscape() {
+    if (this._peek) this._peek = null;
+    else if (this._open) this._open = false;
+    else return false;
+    return true;
+  }
+
   render() {
     const value = this.value ?? "";
     const picture = isPicture(value);
@@ -149,8 +157,7 @@ export class HomeDashboardBackgroundField extends LitElement {
   }
 
   _renderPeek() {
-    return html`<div class="veil top" data-bg-viewer @click=${() => (this._peek = null)}
-        @keydown=${(event) => event.key === "Escape" && (this._peek = null)}>
+    return html`<div class="veil top" data-bg-viewer @click=${() => (this._peek = null)}>
       <figure @click=${(event) => event.stopPropagation()}>
         <img src=${this._url(this._peek)} alt="" />
         <figcaption><code>${this._peek}</code>
@@ -618,6 +625,13 @@ if (!customElements.get("home-dashboard-background-field")) customElements.defin
 /** A magnifier that opens a picture big, for a text field holding one. */
 export class HomeDashboardPicturePeek extends LitElement {
   static properties = { src: { type: String }, hass: { attribute: false }, _open: { state: true } };
+
+  /** Esc closes the picture shown big. */
+  hdEscape() {
+    if (!this._open) return false;
+    this._open = false;
+    return true;
+  }
 
   render() {
     if (!isPicture(this.src)) return nothing;

@@ -34,6 +34,18 @@ author of the dashboard. Music and Map use stand-ins for your music app and the 
 The dashboard speaks the language of the Home Assistant user. English and Polish are included; a new
 language is one more block in `www/app/i18n.js`, and a test checks that it has every text.
 
+## Try it on a Mac
+
+- **Needs:** only [Docker Desktop](https://www.docker.com/products/docker-desktop/), running. No Python, no Home
+  Assistant of your own, no GPU.
+- **Run:** `make demo` (the first build of the image takes a few minutes, then seconds).
+- **Open:** <http://127.0.0.1:8124/home-dashboard/home>, user `dev`, password `dev`; the editor is in the sidebar.
+- **Made up:** a test Home Assistant with demo devices in a container; nothing reaches your real Home Assistant.
+  Ctrl+C stops and removes the container, `make demo-clean` removes the image.
+- **Docs and developers:** `make docs` builds this documentation in Docker and opens it. `make test` and
+  `make test-browser` need `make setup` (uv, which fetches Python 3.14 itself; Chrome for the browser tests);
+  `make demo-local` runs the same demo without Docker.
+
 ## Installation
 
 1. In HACS (Marketplace from Home Assistant 2026.11) open the three dots → **Custom repositories**, add
@@ -478,7 +490,7 @@ phone and cannot be opened from a tablet.
 
 ## Development
 
-`make help` lists the steps. `make ui` starts a throwaway Home Assistant with the real frontend and
+`make help` lists the steps. `make demo` starts a throwaway Home Assistant with the real frontend and
 demo entities at <http://127.0.0.1:8124/home-dashboard/home> (user `dev`, password `dev`). `make test-all`
 runs everything. Add `?dashboard_debug=1` to the address to see the screen measurements.
 
@@ -488,6 +500,30 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 `scripts/make_fixture.py`.
 
 ## FAQ
+
+**A notification shows `###` and a lone `!here`, without the QR code** (e.g. HomeKit Pairing) — the message is
+Markdown, and the window of notifications knew only bold text and links. From this version it reads headings, pictures
+(from Home Assistant itself or https only, the QR code on a white card), lists, italic and code; a message still cannot
+bring its own HTML.
+
+**Safari: "This webpage was reloaded because it was using significant memory"** (on a dashboard open for hours) — the
+camera tiles of Home take a new picture every 30 s, and a camera of Home Assistant gave it in its own size: a picture
+of Frigate's 1920 x 1080 holds about 8 MB in the browser, and Safari frees replaced pictures slowly. From this version
+a tile asks for its picture in its own size (1280 x 720 for the big camera, 640 x 360 for the small ones, 320 x 180 in
+the strip of a camera window), about 4 to 25 times less memory each. The code of the dashboard itself keeps the same
+memory for hours (measured: 8 MB after 1200 changes of states and 30 windows). The window of a camera still shows
+its full picture.
+
+**"Docker is not running - start Docker Desktop and try again"** (or "Docker not found") after `make demo`,
+`make docs` or `make docs-serve` — these commands run in Docker only. Install Docker Desktop, start it and wait
+until it says it is running, then run the command again. `make doctor` shows what is missing.
+
+**"uv not found - install it: …"** after `make setup`, `make test` or `make lint` — the developer's environment is
+made by uv, which fetches the right Python itself. Install uv with the command in the message
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`) and open a new terminal. Trying the dashboard needs no uv.
+
+**"make: *** No rule to make target 'ui'"** — `make ui` was the old name of the demo and is gone (one name for one
+thing). Use `make demo`.
 
 **In the editor the window of a block stays over the preview after choosing another room** — the window closed
 by a step back in the history of the frame, which undid the frame's move to the other room. From this version the

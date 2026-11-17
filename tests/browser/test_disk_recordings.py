@@ -14,8 +14,16 @@ SHEET = "home-dashboard-sheet"
 def open_camera(page, viewport=None, admin: bool = True) -> None:
     if viewport:
         page.set_viewport_size(viewport)
-    page.evaluate(SETUP, {"recording": True, "folder": "media-source://media_source/media/eufy/T86P2ABC", "path": None,
-                          "yesterday": YESTERDAY, "longAgo": LONG_AGO})
+    page.evaluate(
+        SETUP,
+        {
+            "recording": True,
+            "folder": "media-source://media_source/media/eufy/T86P2ABC",
+            "path": None,
+            "yesterday": YESTERDAY,
+            "longAgo": LONG_AGO,
+        },
+    )
     mount_admin(page, {"cameras": {"tiles": ["image.slup_last_screen"]}}, admin=admin)
     page.evaluate("""() => document.querySelector('home-dashboard-chrome')
         .open({ type: 'sheet', sheet: { kind: 'camera', entityId: 'image.slup_last_screen' } })""")
@@ -62,7 +70,9 @@ def test_on_its_side_the_button_stands_beside_the_button_of_the_line_of_time(pho
 
 def test_the_recordings_stand_by_day_newest_first(phone):
     open_disk(phone)
-    days = phone.locator(f"{SHEET} [data-disk-day]").evaluate_all("(days) => days.map((day) => day.dataset.diskDay)")
+    days = phone.locator(f"{SHEET} [data-disk-day]").evaluate_all(
+        "(days) => days.map((day) => day.dataset.diskDay)"
+    )
     assert days == [YESTERDAY]
     times = phone.locator(f"{SHEET} [data-disk-day='{YESTERDAY}'] strong").all_text_contents()
     assert times == ["09:30", "08:00"]
@@ -73,9 +83,12 @@ def test_a_tap_goes_back_to_the_camera_at_that_recording(phone):
     open_disk(phone)
     phone.locator(f"{SHEET} [data-disk-clip]").last.click()
     phone.wait_for_selector(f"{SHEET} .panel[data-kind='camera']")
-    phone.wait_for_function("window.asked.some((m) => m.type === 'media_source/resolve_media')", timeout=10000)
+    phone.wait_for_function(
+        "window.asked.some((m) => m.type === 'media_source/resolve_media')", timeout=10000
+    )
     resolved = phone.evaluate(
-        "window.asked.filter((m) => m.type === 'media_source/resolve_media').map((m) => m.media_content_id.split('/').pop())")
+        "window.asked.filter((m) => m.type === 'media_source/resolve_media').map((m) => m.media_content_id.split('/').pop())"
+    )
     assert resolved[-1] == "080000-080130.mp4"
 
 
@@ -114,7 +127,9 @@ def test_a_recording_is_deleted_after_asking(phone):
     assert "Nie da się tego cofnąć" in phone.locator(f"{SHEET} [data-remove-ask]").text_content()
     phone.locator(f"{SHEET} [data-remove-yes]").click()
     phone.wait_for_function("window.asked.some((m) => m.type === 'media_source/local_source/remove')")
-    removed = phone.evaluate("window.asked.filter((m) => m.type === 'media_source/local_source/remove').map((m) => m.media_content_id)")
+    removed = phone.evaluate(
+        "window.asked.filter((m) => m.type === 'media_source/local_source/remove').map((m) => m.media_content_id)"
+    )
     assert removed == [f"media-source://media_source/media/eufy/T86P2ABC/{YESTERDAY}/080000-080130.mp4"]
     assert phone.locator(f"{SHEET} [data-disk-clip]").count() == 1
     # The window stayed: the tap on the bin was not a tap on the recording.
@@ -137,9 +152,14 @@ def test_a_file_without_a_picture_gets_a_frame_of_its_start(phone):
     phone.route("**/media/*.mp4*", lambda route: route.fulfill(path=str(CLIP), content_type="video/mp4"))
     phone.evaluate("caches.delete('home-dashboard-clip-thumbs')")
     open_disk(phone)
-    phone.wait_for_function(f"""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}')
-        .shadowRoot.querySelectorAll('[data-disk-thumb]').length === 2""", timeout=20000)
-    sources = phone.locator(f"{SHEET} [data-disk-thumb]").evaluate_all("(images) => images.map((image) => image.src)")
+    phone.wait_for_function(
+        f"""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{SHEET}')
+        .shadowRoot.querySelectorAll('[data-disk-thumb]').length === 2""",
+        timeout=20000,
+    )
+    sources = phone.locator(f"{SHEET} [data-disk-thumb]").evaluate_all(
+        "(images) => images.map((image) => image.src)"
+    )
     assert all(source.startswith("data:image/jpeg") for source in sources)
 
 

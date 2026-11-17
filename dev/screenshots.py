@@ -35,6 +35,7 @@ class Quiet(SimpleHTTPRequestHandler):
 
 BLANK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>'
 
+
 def serve_icon(route: Route) -> None:
     name = re.sub(r"[^a-z0-9-]", "", route.request.url.rsplit("/", 1)[1].removesuffix(".svg"))
     path = ICONS / f"{name}.svg"
@@ -302,6 +303,7 @@ def make(browser, base: str, language: str) -> None:
     make_apple(browser, base, language, folder)
     make_tablet(browser, base, language, folder)
     make_devices(browser, base, language, folder)
+    make_playback(browser, base, language, folder)
 
     rows = (("rooms", None), ("background", "background"), ("access", "access"), ("layout", "personal"))
     for name, row in rows:
@@ -342,14 +344,20 @@ def make_look(browser, base: str, language: str, folder: Path) -> None:
     take(page, folder, "look-background")
 
     page = open_look(browser, base, language, "tiles")
-    on_sheet(page, """sheet._setLookTiles({ radius: 28, opacity: 90 });
-        sheet._setKindColour('light', '#ff8a3d'); sheet._setKindColour('scene', '#26a69a')""")
+    on_sheet(
+        page,
+        """sheet._setLookTiles({ radius: 28, opacity: 90 });
+        sheet._setKindColour('light', '#ff8a3d'); sheet._setKindColour('scene', '#26a69a')""",
+    )
     take(page, folder, "look-buttons")
 
     page = open_look(browser, base, language, "colours")
-    on_sheet(page, """sheet._setLookGroup('tiles', { background: '#1c2a55', text: '#ffffff' });
+    on_sheet(
+        page,
+        """sheet._setLookGroup('tiles', { background: '#1c2a55', text: '#ffffff' });
         sheet._setLookGroup('tiles', { icon: '#ffffff' });
-        sheet._setLookGroup('text', { headings: '#ffffff' })""")
+        sheet._setLookGroup('text', { headings: '#ffffff' })""",
+    )
     take(page, folder, "look-colours")
 
     page = open_look(browser, base, language, "nav")
@@ -357,26 +365,38 @@ def make_look(browser, base: str, language: str, folder: Path) -> None:
     take(page, folder, "look-nav")
 
     page = open_look(browser, base, language, "sheets")
-    on_sheet(page, """sheet._setLookGroup('sheets', { background: '#1d2c5c', text: '#ffffff' });
-        sheet._setLookGroup('sheets', { controls: '#2c3d72', opacity: 85, blur: 30 })""")
+    on_sheet(
+        page,
+        """sheet._setLookGroup('sheets', { background: '#1d2c5c', text: '#ffffff' });
+        sheet._setLookGroup('sheets', { controls: '#2c3d72', opacity: 85, blur: 30 })""",
+    )
     take(page, folder, "look-sheets")
 
     page = open_look(browser, base, language, "icons")
-    on_sheet(page, "sheet._setIcon('light.sofa', 'mdi:led-strip-variant');"
-                   "sheet._setIcon('cover.living', 'mdi:roller-shade')")
+    on_sheet(
+        page,
+        "sheet._setIcon('light.sofa', 'mdi:led-strip-variant');"
+        "sheet._setIcon('cover.living', 'mdi:roller-shade')",
+    )
     take(page, folder, "look-icons")
 
     look = {"tiles": {"radius": 28}}
     names = SAMPLE_THEMES[language]
     themes = [{"id": key, "name": name, "appearance": look, "backgrounds": {}} for key, name in names]
     page = open_look(browser, base, language, "themes")
-    on_sheet(page, """sheet.raw = { ...sheet.raw, themes: arg, theme: arg[0].id,
+    on_sheet(
+        page,
+        """sheet.raw = { ...sheet.raw, themes: arg, theme: arg[0].id,
         appearance: { tiles: { radius: 12 } } };
-        sheet._themeName = arg[1].name""", themes)
+        sheet._themeName = arg[1].name""",
+        themes,
+    )
     take(page, folder, "look-themes")
 
     page = open_look(browser, base, language, "themes")
-    on_sheet(page, """sheet._theme = { name: arg.name,
+    on_sheet(
+        page,
+        """sheet._theme = { name: arg.name,
         appearance: { icons: { 'light.sofa': 'mdi:led-strip', 'light.attic': 'mdi:lamp' } },
         backgrounds: {
           home: { name: arg.home, light: 'linear-gradient(160deg, #6a8fd0, #3b2f7a)' },
@@ -475,6 +495,97 @@ def make_tablet(browser, base: str, language: str, folder: Path) -> None:
     tap(page, f"{SHEET} [data-tab='connections']")
     page.wait_for_selector(f"{SHEET} [data-conn-totals]")
     take(page, folder, "connections")
+
+
+# A recording of the made-up home plays: the camera's picture as its video, a part of 50 s at the end of a
+# stretch of the line, so the line zoomed to it shows the gap after it.
+PLAY_CLIP = """async ({ seconds, mode }) => {
+    const sheet = document.querySelector('home-dashboard-chrome').shadowRoot
+        .querySelector('home-dashboard-sheet');
+    if (mode) sheet.config = { ...sheet.config, cameras: { ...sheet.config.cameras, clip_picker: mode } };
+    const line = sheet.shadowRoot.querySelector('home-dashboard-timeline');
+    const range = line._ranges.find((r) => r.end - r.start >= seconds * 2) ?? line._ranges[0];
+    const start = Math.floor(range.end - seconds);
+    sheet._clip = { start, end: start + seconds, url: '' };
+    sheet._playhead = start + Math.round(seconds * 0.3);
+    await sheet.updateComplete;
+    const picture = new Image();
+    picture.src = sheet.hass.states[sheet.sheet.entityId].attributes.entity_picture;
+    await picture.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = picture.naturalWidth;
+    canvas.height = picture.naturalHeight;
+    const draw = () => { canvas.getContext('2d').drawImage(picture, 0, 0); requestAnimationFrame(draw); };
+    draw();
+    const video = sheet.shadowRoot.querySelector('[data-clip]');
+    video.removeAttribute('src');
+    video.srcObject = canvas.captureStream(15);
+    await video.play().catch(() => {});
+    video.pause();
+}"""
+
+
+# The zoomed line moved a few seconds into the clip, as a finger would.
+MOVE_INTO_CLIP = """(line, seconds) => {
+    const track = line.shadowRoot.querySelector('[data-timeline-track]');
+    const { origin, perSecond } = line._scale();
+    track.scrollLeft = (line.clip.start + seconds - origin) * perSecond;
+}"""
+
+
+def open_clip(browser, base: str, language: str, viewport: dict, mode: str | None = None) -> Page:
+    page = open_page(browser, base, language, viewport)
+    tap(page, "home-dashboard-page .camera")
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .range")
+    page.evaluate(PLAY_CLIP, {"seconds": 50, "mode": mode})
+    page.wait_for_timeout(400)
+    return page
+
+
+def clip_point(page: Page, selector: str, share: float) -> tuple[float, float]:
+    box = page.locator(selector).bounding_box()
+    return box["x"] + box["width"] * share, box["y"] + box["height"] / 2
+
+
+# Picking a moment inside a recording: the clip bar while a finger drags it, the same bar held still (a second
+# at a time), the line zoomed to the clip, and the bar on a tablet.
+def make_playback(browser, base: str, language: str, folder: Path) -> None:
+    track = f"{SHEET} home-dashboard-timeline >> [data-clip-track]"
+    window = f"{SHEET} home-dashboard-timeline >> [data-timeline-window]"
+    for name, viewport in (("clip-bar", PHONE), ("clip-bar-tablet", TABLET)):
+        page = open_clip(browser, base, language, viewport)
+        if page.locator(f"{SHEET} [data-open-line]").is_visible():
+            tap(page, f"{SHEET} [data-open-line]")
+        page.mouse.move(*clip_point(page, track, 0.3))
+        page.mouse.down()
+        page.mouse.move(*clip_point(page, track, 0.72), steps=4)
+        take(page, folder, name)
+
+    page = open_clip(browser, base, language, PHONE)
+    page.mouse.move(*clip_point(page, track, 0.5))
+    page.mouse.down()
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> [data-clip-bar].fine")
+    x, y = clip_point(page, track, 0.62)
+    page.mouse.move(x, y, steps=3)
+    take(page, folder, "clip-fine")
+
+    page = open_clip(browser, base, language, PHONE, "zoom")
+    tap(page, f"{SHEET} home-dashboard-timeline >> [data-clip-zoom]")
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> [data-timeline-zoomed]")
+    page.locator(f"{SHEET} home-dashboard-timeline").evaluate(MOVE_INTO_CLIP, 22)
+    take(page, folder, "clip-zoom")
+
+    page = open_clip(browser, base, language, PHONE, "zoom")
+    tap(page, f"{SHEET} home-dashboard-timeline >> [data-clip-zoom]")
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> [data-timeline-zoomed]")
+    page.locator(f"{SHEET} home-dashboard-timeline").evaluate(MOVE_INTO_CLIP, 22)
+    page.wait_for_timeout(600)
+    page.mouse.move(*clip_point(page, window, 0.5))
+    page.mouse.down()
+    page.wait_for_selector(f"{SHEET} home-dashboard-timeline >> .track.fine")
+    x, y = clip_point(page, window, 0.62)
+    page.mouse.move(x, y, steps=3)
+    take(page, folder, "clip-zoom-fine")
 
 
 def open_tile(page: Page, name: str) -> None:
@@ -708,7 +819,14 @@ def main() -> None:
         browser = playwright.chromium.launch(channel="chrome", headless=True, args=FAKE_MICROPHONE)
         # `editor` makes only the pictures of the editor on a computer (docs/editor.md).
         only_editor = "editor" in sys.argv[1:]
+        # `playback` makes only the pictures of a recording that plays.
+        only_playback = "playback" in sys.argv[1:]
         for language in ("en", "pl"):
+            if only_playback:
+                folder = OUTPUT / language
+                folder.mkdir(parents=True, exist_ok=True)
+                make_playback(browser, base, language, folder)
+                continue
             if only_editor:
                 folder = OUTPUT / language
                 folder.mkdir(parents=True, exist_ok=True)

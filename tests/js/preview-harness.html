@@ -12,7 +12,12 @@
       HASS_TIMING.hidden = 0;
 
       customElements.define("ha-icon", class extends HTMLElement {});
-      window.loadCardHelpers = async () => ({ createCardElement: (config) => Object.assign(document.createElement("div"), { dataset: { card: config.type } }) });
+      // dataset can only be read: the type of the card goes into it, not over it (that threw now and then in the tests).
+      window.loadCardHelpers = async () => ({ createCardElement: (config) => {
+        const card = document.createElement("div");
+        card.dataset.card = config.type;
+        return card;
+      } });
       const snapshot = await (await fetch("/tests/fixtures/registry_snapshot.json")).json();
       const params = new URLSearchParams(location.search);
       const sent = [];

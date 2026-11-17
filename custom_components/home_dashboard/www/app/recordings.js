@@ -16,6 +16,15 @@ const REFRESH_AFTER_LIVE_MS = 5000;
 // Holding the line still this long shows the whole day on it, to move far at once.
 const OVERVIEW_HOLD_MS = 400;
 const HOLD_SLOP_PX = 8;
+// Held still, the bar of the clip shows this many seconds over its width, so a finger picks one second.
+const FINE_S = 30;
+// Zoomed to a recording, the line shows it with this many seconds on either side.
+const ZOOM_MARGIN_S = 5;
+// Labels of the zoomed line stand at least this far apart.
+const ZOOM_LABEL_PX = 72;
+const ZOOM_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+// A tap this close to a recording on the line of the day zooms to it.
+const ZOOM_TAP_PX = 12;
 const SWIPE_PX = 40;
 const EVENTS_LIMIT = 500;
 const HLS = "application/vnd.apple.mpegurl";
@@ -39,6 +48,14 @@ export function frigateCamera(hass, entityId) {
 // Frigate answers some of its messages with JSON as text.
 const parsed = (answer) => (typeof answer === "string" ? JSON.parse(answer) : answer);
 const pad = (number) => String(number).padStart(2, "0");
+// A length inside a recording: 0:36, 9:05, 1:02:03.
+export function clipDuration(seconds) {
+  const whole = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const rest = `${pad(whole % 60)}`;
+  return hours ? `${hours}:${pad(minutes)}:${rest}` : `${minutes}:${rest}`;
+}
 
 export function localDay(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -451,6 +468,14 @@ export class HomeDashboardTimeline extends LitElement {
     connected: { type: Boolean },
     // A camera with only a stored picture has no live view.
     canLive: { type: Boolean },
+    // The recording that plays ({ start, end }): its own bar over the line, to pick a second inside it.
+    clip: { attribute: false },
+    // How a moment inside the recording is picked: "bar" (a bar of its own) or "zoom" (the line zoomed to it).
+    clipMode: {},
+    _clipPick: { state: true },
+    _zoomed: { state: true },
+    _fine: { state: true },
+    _zoomWidth: { state: true },
     _ranges: { state: true },
     _events: { state: true },
     _shown: { state: true },
@@ -473,6 +498,7 @@ export class HomeDashboardTimeline extends LitElement {
     super.disconnectedCallback();
     clearTimeout(this._settle);
     clearTimeout(this._hold);
+    clearTimeout(this._clipHold);
     clearTimeout(this._refresh);
     this._resize?.disconnect();
   }
@@ -481,6 +507,13 @@ export class HomeDashboardTimeline extends LitElement {
     const window = this.renderRoot.querySelector(".window");
     // The window opens sliding and growing; the mark is put back on its moment whenever the line changes size.
     this._resize = new ResizeObserver(() => {
+      // Zoomed to a recording, the line's width sets its scale.
+      const width = window.clientWidth;
+      if (width !== this._zoomWidth) {
+        this._zoomWidth = width;
+        if (this._zoomOn() && this._shown !== undefined && !this._scrubbing) this._moveTo(this._shown);
+      }
+      if (this._zoomOn()) return;
       if (this._scrubbing || this._overview || this._shown === undefined) return;
       const track = this.renderRoot.querySelector("[data-timeline-track]");
       if (!track) return;
@@ -492,7 +525,7 @@ export class HomeDashboardTimeline extends LitElement {
     window.addEventListener(
       "touchmove",
       (event) => {
-        if (this._overview) event.preventDefault();
+        if (this._overview || this._fine) event.preventDefault();
       },
       { passive: false },
     );
@@ -505,6 +538,15 @@ export class HomeDashboardTimeline extends LitElement {
     clearTimeout(this._hold);
     this._press = { x: event.clientX, id: event.pointerId };
     this._hold = setTimeout(() => {
+      if (this._zoomOn()) {
+        const center = Math.round(this._shown ?? this.clip.start);
+        clearTimeout(this._settle);
+        this._scrubbing = false;
+        this._fine = { center };
+        this._moveTo(center);
+        this._fire("timeline-scrub");
+        return;
+      }
       const { left, width } = this.renderRoot.querySelector(".window").getBoundingClientRect();
       this._press = { ...this._press, left, width };
       this._overview = true;
@@ -515,6 +557,16 @@ export class HomeDashboardTimeline extends LitElement {
   _holdMove(event) {
     if (!this._press || event.pointerId !== this._press.id) return;
     const dx = event.clientX - this._press.x;
+    if (this._fine) {
+      // The mark follows the finger over 30 s; the picture follows inside the recording that plays.
+      const half = FINE_S / 2;
+      const offset = Math.min(Math.max((dx / this._zoomWidth) * FINE_S, -half), half);
+      const at = Math.round(this._fine.center + offset);
+      if (at === this._shown) return;
+      this._shown = at;
+      if (this.clip && at >= this.clip.start && at < this.clip.end) this._fire("timeline-clip-scrub", { time: at });
+      return;
+    }
     if (!this._overview) {
       if (Math.abs(dx) > HOLD_SLOP_PX) this._holdCancel();
       return;
@@ -531,6 +583,13 @@ export class HomeDashboardTimeline extends LitElement {
   _holdEnd() {
     clearTimeout(this._hold);
     this._press = null;
+    if (this._fine) {
+      const at = this._shown;
+      this._fine = null;
+      this._moveTo(at);
+      this._settleZoomed(at);
+      return;
+    }
     if (!this._overview) return;
     this._overview = false;
     this._moveTo(this._shown);
@@ -552,6 +611,279 @@ export class HomeDashboardTimeline extends LitElement {
     }
     if (changed.has("live") && this.live) this._moveTo(Date.now() / 1000);
     if (changed.has("time") && this.time != null && !this._scrubbing) this._moveTo(this.time);
+    // Another recording, or none: a finger on the bar of the old one lets go of it.
+    if (changed.has("clip") && (this.clip?.start !== changed.get("clip")?.start || !this.clip)) this._clipRelease();
+    // The zoom lasts while recordings play (the next part keeps it); it ends with them, with live, or with ✕.
+    if (this._zoomed && ((changed.has("clip") && changed.get("clip") && !this.clip) || this.live)) this._zoomed = false;
+    if (changed.has("_zoomed") || (this._zoomed && changed.has("clip"))) this._moveTo(this.time ?? this._shown);
+  }
+
+  // The line zoomed to the recording (variant B) ---------------------------------------------------------------------
+  // A tap on a recording on the line of the day plays it and zooms the line so the recording fills it. The scale then
+  // stays while the line is zoomed: the recordings before and after it are on the line too, and moving the line onto
+  // one plays it from there (in a gap nothing plays). A recording that ends stops there; only the next part of the same
+  // recording plays on. Held still, the line shows 30 s over its width, a tick a second, and the mark follows the
+  // finger. The button left of play brings the line of the day back.
+
+  _zoomOn() {
+    return Boolean(this.clipMode === "zoom" && this._zoomed && this.clip && !this.live && this._zoomWidth > 0);
+  }
+
+  get zoomed() {
+    return this._zoomOn();
+  }
+
+  _scale() {
+    if (this._zoomOn()) {
+      const { after, before } = dayBounds(this.day);
+      const perSecond = this._zoomWidth / (this._fine ? FINE_S : this._zoomSpan);
+      return { origin: after, perSecond, from: after, to: before };
+    }
+    return { origin: dayBounds(this.day).after, perSecond: PX_PER_HOUR / 3600 };
+  }
+
+  zoomToClip(clip = this.clip) {
+    if (this.clipMode !== "zoom" || !clip) return;
+    this._zoomSpan = Math.max(clip.end - clip.start, 1) + 2 * ZOOM_MARGIN_S;
+    this._zoomed = true;
+  }
+
+  _unzoom() {
+    this._fine = null;
+    this._zoomed = false;
+  }
+
+  // What plays when a part ends: zoomed, only the rest of the same recording; another one is moved to by hand.
+  nextAfter(clip) {
+    const next = this.clipFrom(clip.end);
+    if (!next) return null;
+    if (this._zoomOn() && next.start > clip.end + 1) return null;
+    return next;
+  }
+
+  // Where the zoomed line stops: the recording that plays, from there; another recording, from there; a gap, nothing.
+  _settleZoomed(time) {
+    const clip = this.clip;
+    if (clip && time >= clip.start && time < clip.end) {
+      this._fire("timeline-clip-seek", { time: this._clipClamp(time), play: true });
+      return;
+    }
+    if (this._ranges.some((range) => range.start <= time && time < range.end))
+      this._fire("timeline-seek", { time, clip: this.clipFrom(time) });
+  }
+
+  // A tap on the line of the day: on (or right by) a recording, it plays from there and the line zooms to it.
+  _trackTap(event) {
+    if (this.clipMode !== "zoom" || this._zoomOn() || this._overview || this.live) return;
+    if (event.target.closest?.(".event")) return;
+    const track = event.currentTarget;
+    const { left } = track.getBoundingClientRect();
+    const padding = track.querySelector(".pad")?.offsetWidth ?? 0;
+    const { origin, perSecond } = this._scale();
+    const time = origin + (track.scrollLeft + event.clientX - left - padding) / perSecond;
+    const slack = ZOOM_TAP_PX / perSecond;
+    const range = this._ranges.find((candidate) => candidate.start - slack <= time && time < candidate.end + slack);
+    if (!range) return;
+    const at = Math.min(Math.max(time, range.start), range.end - 1);
+    const clip = this.clipFrom(at);
+    clearTimeout(this._settle);
+    this._scrubbing = false;
+    this.zoomToClip(clip);
+    this._moveTo(at);
+    this._fire("timeline-seek", { time: at, clip });
+  }
+
+  _renderZoomTrack() {
+    const { from, to, perSecond } = this._scale();
+    const fine = this._fine;
+    const step = ZOOM_STEPS.find((seconds) => seconds * perSecond >= ZOOM_LABEL_PX) ?? ZOOM_STEPS.at(-1);
+    const tick = ZOOM_STEPS.find((seconds) => seconds * perSecond >= 8) ?? step;
+    // The day at this scale is long: labels and ticks only around what is seen.
+    const around = fine ? fine.center : (this._shown ?? this.clip.start);
+    const seen = (this._zoomWidth / perSecond) * 1.5;
+    const marks = (every) => {
+      const list = [];
+      for (let second = Math.ceil(Math.max(from, around - seen) / every) * every; second <= Math.min(to, around + seen); second += every)
+        list.push(second);
+      return list;
+    };
+    const x = (time) => (Math.min(Math.max(time, from), to) - from) * perSecond;
+    const width = (start, end) => Math.max(2, x(end) - x(start));
+    return html`
+      <div class="track zoomed ${fine ? "fine" : ""}" data-timeline-track data-timeline-zoomed @scroll=${this._scrolled}>
+        <span class="pad"></span>
+        <div class="strip" style="width: ${(to - from) * perSecond}px">
+          ${tick < step ? marks(tick).map((second) => html`<i class="tick" style="left: ${x(second)}px"></i>`) : nothing}
+          ${marks(step).map((second) => html`<span class="hour" style="left: ${x(second)}px">${this._clock(second)}</span>`)}
+          ${this._ranges.map(
+            (range) => html`<i class="range" style="left: ${x(range.start)}px; width: ${width(range.start, range.end)}px"></i>`,
+          )}
+          <i class="range current" data-zoom-clip style="left: ${x(this.clip.start)}px; width: ${width(this.clip.start, this.clip.end)}px"></i>
+          ${this._events.map(
+            (event) => html`
+              <button
+                class="event"
+                style="left: ${x(event.start_time)}px"
+                aria-label=${`${this._clock(event.start_time)} ${event.sub_label ?? event.label ?? ""}`}
+                data-timeline-event=${event.id}
+                @click=${() => this._seekEvent(event)}
+              ></button>
+            `,
+          )}
+        </div>
+        <span class="pad"></span>
+      </div>
+    `;
+  }
+
+  // The bar of the clip ------------------------------------------------------------------------------------------
+  // On the line of the day a clip of 50 s is 5 px. Its own bar runs from its start to its end: a tap or a drag picks
+  // a moment (the picture follows the finger), letting go plays from there; held still for a moment the bar shows
+  // 30 s over its width, so the finger picks one second. With a mouse the bar tells the moment under it, and the
+  // arrow keys move by a second (with Shift by ten).
+
+  _clipBounds() {
+    const { start, end } = this.clip;
+    return { start, end: Math.max(start, end - 1) };
+  }
+
+  _clipClamp(time) {
+    const { start, end } = this._clipBounds();
+    return Math.min(Math.max(Math.round(time), start), end);
+  }
+
+  _clipTimeAt(x) {
+    const { start, end } = this.clip;
+    const { left, width } = this._clipRect;
+    const share = Math.min(Math.max((x - left) / width, 0), 1);
+    return this._clipClamp(start + share * (end - start));
+  }
+
+  _clipDown(event) {
+    if (!this.clip || event.button > 0) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    this._clipRect = event.currentTarget.getBoundingClientRect();
+    const at = this._clipTimeAt(event.clientX);
+    this._clipPress = { id: event.pointerId, x: event.clientX, lastX: event.clientX };
+    this._clipPick = { at, drag: true };
+    this._fire("timeline-clip-scrub", { time: at });
+    clearTimeout(this._clipHold);
+    this._clipHold = setTimeout(() => {
+      if (!this._clipPress || !this._clipPick) return;
+      this._clipPick = { ...this._clipPick, fine: { center: this._clipPick.at, x: this._clipPress.lastX } };
+    }, OVERVIEW_HOLD_MS);
+  }
+
+  _clipMove(event) {
+    if (!this.clip) return;
+    if (!this._clipPress) {
+      // A mouse over the bar: the moment under it, nothing played until a click.
+      if (event.pointerType !== "mouse") return;
+      this._clipRect = event.currentTarget.getBoundingClientRect();
+      this._clipPick = { at: this._clipTimeAt(event.clientX), hover: true };
+      return;
+    }
+    if (event.pointerId !== this._clipPress.id) return;
+    this._clipPress.lastX = event.clientX;
+    const fine = this._clipPick?.fine;
+    if (!fine && Math.abs(event.clientX - this._clipPress.x) > HOLD_SLOP_PX) clearTimeout(this._clipHold);
+    const at = fine
+      ? this._clipClamp(fine.center + ((event.clientX - fine.x) / this._clipRect.width) * FINE_S)
+      : this._clipTimeAt(event.clientX);
+    if (at === this._clipPick?.at) return;
+    this._clipPick = { ...this._clipPick, at };
+    this._fire("timeline-clip-scrub", { time: at });
+  }
+
+  _clipUp(event) {
+    if (!this._clipPress || event.pointerId !== this._clipPress.id) return;
+    const at = this._clipPick?.at;
+    this._clipRelease();
+    if (at != null) this._fire("timeline-clip-seek", { time: at, play: true });
+  }
+
+  _clipLeave() {
+    if (!this._clipPress && this._clipPick?.hover) this._clipPick = null;
+  }
+
+  _clipRelease() {
+    clearTimeout(this._clipHold);
+    this._clipPress = null;
+    if (this._clipPick) this._clipPick = null;
+  }
+
+  _clipKey(event) {
+    if (!this.clip) return;
+    const direction = { ArrowLeft: -1, ArrowRight: 1, ArrowDown: -1, ArrowUp: 1 }[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const from = this.time ?? this.clip.start;
+    this._fire("timeline-clip-seek", { time: this._clipClamp(from + direction * (event.shiftKey ? 10 : 1)), play: false });
+  }
+
+  _renderZoomChip(clip) {
+    const language = this.hass.language;
+    const length = clipDuration(clip.end - clip.start);
+    return this._zoomOn()
+      ? html`<button class="zoom-chip on" data-clip-unzoom @click=${this._unzoom}>
+          ${translate(language, "clip_zoomed", { length })}<ha-icon icon="mdi:close"></ha-icon>
+        </button>`
+      : html`<button class="zoom-chip" data-clip-zoom @click=${() => this.zoomToClip()}>
+          <ha-icon icon="mdi:magnify-plus-outline"></ha-icon>${translate(language, "clip_zoom", { length })}
+        </button>`;
+  }
+
+  _renderClip(t) {
+    const { start, end } = this.clip;
+    const length = Math.max(end - start, 1);
+    const pick = this._clipPick;
+    const at = pick ? pick.at : Math.min(Math.max(this.time ?? start, start), end);
+    const fine = pick?.fine;
+    // Held still the bar is 30 s around the finger: the knob moves over the seconds, the ends are 15 s away.
+    const place = (time) => (fine ? 0.5 + (time - fine.center) / FINE_S : (time - start) / length);
+    const knob = Math.min(Math.max(place(at), 0), 1);
+    const seconds = [];
+    if (fine)
+      for (let second = Math.ceil(fine.center - FINE_S / 2); second <= fine.center + FINE_S / 2; second += 1)
+        if (second >= start && second <= end) seconds.push(second);
+    return html`
+      <div class="clipbar ${pick?.drag ? "dragging" : ""} ${fine ? "fine" : ""}" data-clip-bar>
+        <span class="clip-edge" data-clip-start>${this._clock(fine ? Math.max(start, fine.center - FINE_S / 2) : start)}</span>
+        <div
+          class="clip-track"
+          role="slider"
+          tabindex="0"
+          aria-label=${t("clip_position")}
+          aria-valuemin="0"
+          aria-valuemax=${Math.round(length)}
+          aria-valuenow=${Math.round(at - start)}
+          aria-valuetext=${`${clipDuration(at - start)} / ${clipDuration(length)}, ${this._clock(at)}`}
+          data-clip-track
+          @pointerdown=${this._clipDown}
+          @pointermove=${this._clipMove}
+          @pointerup=${this._clipUp}
+          @pointercancel=${() => this._clipRelease()}
+          @pointerleave=${this._clipLeave}
+          @keydown=${this._clipKey}
+          @contextmenu=${(event) => event.preventDefault()}
+        >
+          <i class="clip-line"></i>
+          ${fine
+            ? seconds.map(
+                (second) =>
+                  html`<i class="clip-tick ${(second - start) % 5 === 0 ? "big" : ""}" style="left: ${place(second) * 100}%"></i>`,
+              )
+            : html`<i class="clip-fill" style="width: ${knob * 100}%"></i>`}
+          <i class="clip-knob" style="left: ${knob * 100}%" data-clip-knob></i>
+          ${pick
+            ? html`<span class="clip-bubble" style="left: ${knob * 100}%" data-clip-bubble
+                >${clipDuration(at - start)} / ${clipDuration(length)} · ${this._clock(at)}</span
+              >`
+            : nothing}
+        </div>
+        <span class="clip-edge" data-clip-end>${this._clock(fine ? Math.min(end, fine.center + FINE_S / 2) : end)}</span>
+      </div>
+    `;
   }
 
   updated() {
@@ -593,7 +925,8 @@ export class HomeDashboardTimeline extends LitElement {
   }
 
   _x(time) {
-    return ((time - dayBounds(this.day).after) / 3600) * PX_PER_HOUR;
+    const { origin, perSecond } = this._scale();
+    return (time - origin) * perSecond;
   }
 
   // The recording to play from a moment, and the one after a part that has ended.
@@ -644,7 +977,28 @@ export class HomeDashboardTimeline extends LitElement {
     const track = event.currentTarget;
     if (this._expected !== undefined && Math.abs(track.scrollLeft - this._expected) < 2) return;
     this._expected = undefined;
-    this._shown = dayBounds(this.day).after + (track.scrollLeft / PX_PER_HOUR) * 3600;
+    // Held still the mark follows the finger, not the line.
+    if (this._fine) return;
+    const { origin, perSecond } = this._scale();
+    this._shown = origin + track.scrollLeft / perSecond;
+    if (this._zoomOn()) {
+      if (!this._scrubbing) {
+        this._scrubbing = true;
+        this._fire("timeline-scrub");
+      }
+      const at = Math.round(this._shown);
+      if (this.clip && at >= this.clip.start && at < this.clip.end && at !== this._zoomAt) {
+        this._zoomAt = at;
+        this._fire("timeline-clip-scrub", { time: at });
+      }
+      clearTimeout(this._settle);
+      this._settle = setTimeout(() => {
+        this._scrubbing = false;
+        this._zoomAt = undefined;
+        this._settleZoomed(this._shown);
+      }, SETTLE_MS);
+      return;
+    }
     if (!this._scrubbing) {
       this._scrubbing = true;
       this._fire("timeline-scrub");
@@ -676,17 +1030,25 @@ export class HomeDashboardTimeline extends LitElement {
     // Until the day is known the line stands empty, so the window does not jump when it comes.
     const day = this.day;
     const shown = this._shown ?? Date.now() / 1000;
+    const clip = this.clip && !this.live ? this.clip : null;
+    const pick = clip ? this._clipPick : null;
     // Only a moment between two recordings is a gap; after the last one it is simply now.
     const gap =
+      !pick &&
       !this.live &&
       !this._ranges.some((range) => range.start <= shown && shown < range.end) &&
       this._ranges.some((range) => range.start > shown);
     return html`
       <div class="time ${this.live ? "quiet" : ""}" data-timeline-time>
         <!-- Live hides the time but keeps its room (.quiet), so the window does not move when LIVE is tapped. -->
-        <strong>${this._clock(shown)}</strong>
-        <small class=${gap ? "" : "spare"} data-timeline-gap>${t("recordings_gap")}</small>
+        <strong>${this._clock(pick && !pick.hover ? pick.at : shown)}</strong>
+        ${pick?.fine
+          ? html`<small data-clip-hint>${t("clip_fine_hint")}</small>`
+          : clip && this.clipMode === "zoom"
+            ? this._renderZoomChip(clip)
+            : html`<small class=${gap ? "" : "spare"} data-timeline-gap>${t("recordings_gap")}</small>`}
       </div>
+      ${clip && this.clipMode !== "zoom" ? this._renderClip(t) : nothing}
       <div class="bar">
         ${this._renderSkip(-1, shown, t)}
         <button
@@ -705,11 +1067,19 @@ export class HomeDashboardTimeline extends LitElement {
           @pointerdown=${this._holdStart}
           @pointermove=${this._holdMove}
           @pointerup=${this._holdEnd}
-          @pointercancel=${() => (this._overview ? this._holdEnd() : this._holdCancel())}
+          @pointercancel=${() => (this._overview || this._fine ? this._holdEnd() : this._holdCancel())}
           @contextmenu=${(event) => event.preventDefault()}
         >
-          ${day ? this._renderTrack() : nothing} ${this._overview ? this._renderDay() : nothing}
-          <i class="playhead" style=${this._overview ? `left: ${this._share(this._shown) * 100}%` : ""}></i>
+          ${day ? (this._zoomOn() ? this._renderZoomTrack() : this._renderTrack()) : nothing}
+          ${this._overview ? this._renderDay() : nothing}
+          <i
+            class="playhead"
+            style=${this._overview
+              ? `left: ${this._share(this._shown) * 100}%`
+              : this._fine
+                ? `left: calc(50% - 1.5px + ${(this._shown - this._fine.center) * (this._zoomWidth / FINE_S)}px)`
+                : ""}
+          ></i>
         </div>
         <button
           class="live ${this.live ? "on" : ""}"
@@ -749,7 +1119,7 @@ export class HomeDashboardTimeline extends LitElement {
 
   _renderTrack() {
     return html`
-      <div class="track" data-timeline-track @scroll=${this._scrolled}>
+      <div class="track" data-timeline-track @scroll=${this._scrolled} @click=${this._trackTap}>
         <span class="pad"></span>
         <div class="strip" style="width: ${24 * PX_PER_HOUR}px">
           ${Array.from(
@@ -758,7 +1128,12 @@ export class HomeDashboardTimeline extends LitElement {
           )}
           ${this._ranges.map(
             (range) =>
-              html`<i class="range" style="left: ${this._x(range.start)}px; width: ${Math.max(2, this._x(range.end) - this._x(range.start))}px"></i>`,
+              html`<i
+                class="range ${this.clipMode === "zoom" && this.clip && range.start <= this.clip.start && this.clip.start < range.end
+                  ? "current"
+                  : ""}"
+                style="left: ${this._x(range.start)}px; width: ${Math.max(2, this._x(range.end) - this._x(range.start))}px"
+              ></i>`,
           )}
           ${this._events.map(
             (event) => html`
@@ -817,6 +1192,104 @@ export class HomeDashboardTimeline extends LitElement {
       /* The line under the time keeps its room when there is nothing to say, so the window never jumps. */
       .time small.spare {
         visibility: hidden;
+      }
+      /* The bar of the clip: one row over the line of the day, the start and the end of the recording at its sides. */
+      .clipbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-sizing: border-box;
+        width: 100%;
+        height: 30px;
+        padding: 0 4px;
+      }
+      .clip-edge {
+        flex: none;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .clip-track {
+        position: relative;
+        flex: 1;
+        align-self: stretch;
+        min-width: 0;
+        outline: none;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      .clip-line,
+      .clip-fill {
+        position: absolute;
+        top: calc(50% - 3px);
+        left: 0;
+        height: 6px;
+        border-radius: 3px;
+        pointer-events: none;
+      }
+      .clip-line {
+        right: 0;
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .clip-fill {
+        background: #ff9f0a;
+      }
+      .clip-knob {
+        position: absolute;
+        top: calc(50% - 9px);
+        width: 18px;
+        height: 18px;
+        margin-left: -9px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        transition: transform 120ms;
+      }
+      .clipbar.dragging .clip-knob {
+        transform: scale(1.25);
+      }
+      .clip-track:focus-visible .clip-knob {
+        outline: 2px solid #ff9f0a;
+        outline-offset: 2px;
+      }
+      /* Held still: a second for each tick, a longer one every five, fading at the ends. */
+      .clipbar.fine .clip-line {
+        background: rgba(255, 159, 10, 0.25);
+      }
+      .clipbar.fine .clip-track {
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+      }
+      .clip-tick {
+        position: absolute;
+        top: calc(50% - 5px);
+        width: 1px;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.45);
+        pointer-events: none;
+      }
+      .clip-tick.big {
+        top: calc(50% - 9px);
+        height: 18px;
+        background: rgba(255, 255, 255, 0.85);
+      }
+      .clip-bubble {
+        position: absolute;
+        bottom: calc(50% + 14px);
+        z-index: 2;
+        padding: 4px 9px;
+        border-radius: 10px;
+        background: rgba(23, 24, 26, 0.92);
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        transform: translateX(-50%);
+        pointer-events: none;
       }
       .bar {
         display: flex;
@@ -917,6 +1390,58 @@ export class HomeDashboardTimeline extends LitElement {
         height: 14px;
         border-radius: 4px;
         background: rgba(255, 255, 255, 0.55);
+      }
+      .range.current {
+        background: #ff9f0a;
+      }
+      .track.zoomed .range:not(.current) {
+        opacity: 0.6;
+      }
+      /* Zoomed the clip is orange under the mark, so the mark turns white. */
+      .track.zoomed ~ .playhead {
+        background: #ffffff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+      }
+      .tick {
+        position: absolute;
+        bottom: 6px;
+        width: 1px;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.35);
+        pointer-events: none;
+      }
+      .track.zoomed.fine .hour {
+        color: #ffffff;
+      }
+      .track.zoomed .hour {
+        white-space: nowrap;
+      }
+      /* Variant B: zoom to the recording that plays, or back to the day; in the room of the line under the time. */
+      .zoom-chip {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+        gap: 5px;
+        margin-top: 2px;
+        padding: 3px 12px;
+        border-radius: 11px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 16px;
+        white-space: nowrap;
+        color: #ffd18a;
+        background: rgba(255, 159, 10, 0.18);
+        --mdc-icon-size: 16px;
+      }
+      /* A finger finds it more easily than it looks. */
+      .zoom-chip::before {
+        content: "";
+        position: absolute;
+        inset: -8px -6px;
+      }
+      .zoom-chip.on {
+        color: #17181a;
+        background: #ff9f0a;
       }
       .event {
         position: absolute;

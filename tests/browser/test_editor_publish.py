@@ -10,7 +10,10 @@ from .test_editor_app import APP, STRATEGY, desktop, open_editor, select, type_y
 
 DIALOG = "home-dashboard-editor-publish"
 HISTORY = "home-dashboard-editor-history"
-USERS = [{"id": "admin", "name": "Admin", "is_active": True}, {"id": "kid", "name": "Kuba", "is_active": True}]
+USERS = [
+    {"id": "admin", "name": "Admin", "is_active": True},
+    {"id": "kid", "name": "Kuba", "is_active": True},
+]
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +27,10 @@ def server(page) -> dict:
 
 def rename_kitchen(page, name="Kuchnia i jadalnia") -> None:
     select(page, "layout/1")
-    type_yaml(page, f"id: kitchen\nname: {name}\nsections:\n  - title: Kawa\n    tiles:\n      - entity: switch.entity_0235\n")
+    type_yaml(
+        page,
+        f"id: kitchen\nname: {name}\nsections:\n  - title: Kawa\n    tiles:\n      - entity: switch.entity_0235\n",
+    )
     wait_saved(page)
 
 
@@ -44,7 +50,9 @@ def test_the_dialog_says_what_changes_and_publishes_nothing_by_itself(desktop): 
     open_editor(desktop, users=USERS)
     rename_kitchen(desktop)
     open_dialog(desktop)
-    assert [text.strip() for text in changes(desktop)] == ["Pokój „Kuchnia” nazywa się teraz „Kuchnia i jadalnia”"]
+    assert [text.strip() for text in changes(desktop)] == [
+        "Pokój „Kuchnia” nazywa się teraz „Kuchnia i jadalnia”"
+    ]
     diff = desktop.locator(f"{APP} {DIALOG} [data-diff]").inner_text()
     assert "-     name: Kuchnia" in diff and "+     name: Kuchnia i jadalnia" in diff
     assert server(desktop)["live"]["strategy"]["layout"][1]["name"] == "Kuchnia"
@@ -157,7 +165,14 @@ def changes_of(page, before, after):
     )
 
 
-ROOM = {"id": "k", "name": "Kuchnia", "sections": [{"title": "Kawa", "tiles": [{"entity": "light.a"}, {"entity": "light.b"}]}, {"title": "Inne", "tiles": []}]}
+ROOM = {
+    "id": "k",
+    "name": "Kuchnia",
+    "sections": [
+        {"title": "Kawa", "tiles": [{"entity": "light.a"}, {"entity": "light.b"}]},
+        {"title": "Inne", "tiles": []},
+    ],
+}
 
 
 def test_rooms_added_removed_and_in_another_order(desktop):  # noqa: F811
@@ -169,8 +184,13 @@ def test_rooms_added_removed_and_in_another_order(desktop):  # noqa: F811
 
 
 def test_tiles_added_removed_moved_and_changed_in_a_room(desktop):  # noqa: F811
-    after = {**ROOM, "sections": [{"title": "Kawa", "tiles": [{"entity": "light.a", "name": "Blat"}, {"entity": "light.c"}]},
-                                  {"title": "Inne", "tiles": [{"entity": "light.b"}]}]}
+    after = {
+        **ROOM,
+        "sections": [
+            {"title": "Kawa", "tiles": [{"entity": "light.a", "name": "Blat"}, {"entity": "light.c"}]},
+            {"title": "Inne", "tiles": [{"entity": "light.b"}]},
+        ],
+    }
     found = changes_of(desktop, {"layout": [ROOM]}, {"layout": [after]})
     assert ["added", "Kuchnia \u203a Kawa: dodany light.c"] in found
     assert ["moved", "Kuchnia: light.b przeniesiony z Kawa do Inne"] in found
@@ -178,9 +198,18 @@ def test_tiles_added_removed_moved_and_changed_in_a_room(desktop):  # noqa: F811
 
 
 def test_sections_favourites_blocks_and_settings(desktop):  # noqa: F811
-    before = {"layout": [ROOM], "favorites": ["light.a"], "shortcuts": [{"kind": "panel", "name": "Ekspres"}], "appearance": {}}
-    after = {"layout": [{**ROOM, "sections": [*ROOM["sections"], {"title": "Nowa", "tiles": []}]}], "favorites": ["light.b"],
-             "shortcuts": [{"kind": "panel", "name": "Ekspres", "icon": "mdi:coffee"}], "appearance": {"tiles": {}}}
+    before = {
+        "layout": [ROOM],
+        "favorites": ["light.a"],
+        "shortcuts": [{"kind": "panel", "name": "Ekspres"}],
+        "appearance": {},
+    }
+    after = {
+        "layout": [{**ROOM, "sections": [*ROOM["sections"], {"title": "Nowa", "tiles": []}]}],
+        "favorites": ["light.b"],
+        "shortcuts": [{"kind": "panel", "name": "Ekspres", "icon": "mdi:coffee"}],
+        "appearance": {"tiles": {}},
+    }
     found = changes_of(desktop, before, after)
     assert found == [
         ["added", "Kuchnia: nowa sekcja „Nowa”"],
@@ -233,10 +262,25 @@ REVIEWED = """async ({ review, skip }) => {
 @pytest.mark.parametrize(
     ("review", "skip", "expected_room", "marked"),
     [
-        ({"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T10:00:00Z"}, None, "checked", True),
+        (
+            {"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T10:00:00Z"},
+            None,
+            "checked",
+            True,
+        ),
         (None, None, "live", False),
-        ({"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T10:00:00Z"}, "2026-11-13T10:00:00Z", "live", False),
-        ({"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T11:00:00Z"}, "2026-11-13T10:00:00Z", "checked", True),
+        (
+            {"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T10:00:00Z"},
+            "2026-11-13T10:00:00Z",
+            "live",
+            False,
+        ),
+        (
+            {"config": {"strategy": {"layout": [{"id": "checked"}]}}, "published_at": "2026-11-13T11:00:00Z"},
+            "2026-11-13T10:00:00Z",
+            "checked",
+            True,
+        ),
         ("fail", None, "live", False),
     ],
 )
@@ -252,10 +296,17 @@ def test_the_banner_of_a_version_to_check_and_no_saving_from_the_app(phone):
     mount(phone, {"_review": {"published_at": "2026-11-13T10:00:00Z"}, "layout": []})
     banner = phone.locator("home-dashboard-chrome [data-review-banner]")
     assert "Wersja do sprawdzenia" in banner.inner_text()
-    phone.evaluate("() => { window.alerts = []; window.alert = (text) => window.alerts.push(text); window.hass.calls.length = 0; }")
-    phone.evaluate("() => document.querySelector('home-dashboard-chrome')._saveSettings({ detail: { dashboard: {} } })")
+    phone.evaluate(
+        "() => { window.alerts = []; window.alert = (text) => window.alerts.push(text); window.hass.calls.length = 0; }"
+    )
+    phone.evaluate(
+        "() => document.querySelector('home-dashboard-chrome')._saveSettings({ detail: { dashboard: {} } })"
+    )
     assert phone.evaluate("window.alerts.length") == 1
-    assert phone.evaluate("window.hass.calls.filter((call) => call.message?.type === 'lovelace/config/save')") == []
+    assert (
+        phone.evaluate("window.hass.calls.filter((call) => call.message?.type === 'lovelace/config/save')")
+        == []
+    )
     with phone.expect_navigation():
         phone.locator("home-dashboard-chrome [data-review-leave]").click()
     assert phone.evaluate("sessionStorage.getItem('home-dashboard-skip-review')") == "2026-11-13T10:00:00Z"

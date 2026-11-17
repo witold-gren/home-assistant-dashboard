@@ -11,7 +11,9 @@ from .test_shortcuts import mount_admin, open_background, save_background, share
 
 MAKER = "home-dashboard-background-maker"
 # A small red picture, as a photo chosen from the disk
-PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000080000000808020000004b6d29dc0000001249444154789c63f8cfc0801561171db4120028ff3fc16eecdf610000000049454e44ae426082")
+PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000080000000808020000004b6d29dc0000001249444154789c63f8cfc0801561171db4120028ff3fc16eecdf610000000049454e44ae426082"
+)
 MODULES = """
     const maker = await import('/custom_components/home_dashboard/www/app/background-maker.js');
     const motifs = await import('/custom_components/home_dashboard/www/app/background-motifs.js');
@@ -23,22 +25,28 @@ def run(page, body: str, arg=None):
 
 
 def test_colours_mix_and_numbers_repeat_for_a_seed(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         const first = motifs.randomOf(5), again = motifs.randomOf(5), other = motifs.randomOf(6);
         const a = [first(), first()], b = [again(), again()], c = [other(), other()];
         return { mix: motifs.mix('#000000', '#ffffff', 0.5), rgb: motifs.rgbOf('#abc'),
                  same: a[0] === b[0] && a[1] === b[1], differ: a[0] !== c[0],
                  light: [motifs.lightness('#000000'), motifs.lightness('#ffffff')] };
-    """)
+    """,
+    )
     assert result == {"mix": "#808080", "rgb": [170, 187, 204], "same": True, "differ": True, "light": [0, 1]}
 
 
 def test_the_geometry_of_a_gradient_and_of_a_covering_photo(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         return { down: maker.gradientLine(100, 200, 180).map(Math.round),
                  side: maker.gradientLine(100, 200, 90).map(Math.round),
                  top: maker.coverRect(100, 200, 400, 400, 'top'), bottom: maker.coverRect(200, 100, 100, 100, 'bottom') };
-    """)
+    """,
+    )
     assert result["down"] == [50, 0, 50, 200]
     assert result["side"] == [0, 100, 100, 100]
     assert result["top"] == [-50, 0, 200, 200]
@@ -46,9 +54,19 @@ def test_the_geometry_of_a_gradient_and_of_a_covering_photo(desktop) -> None:  #
 
 
 def test_a_recipe_is_brought_back_into_range(desktop) -> None:  # noqa: F811
-    recipe = run(desktop, "return maker.recipeOf({ opacity: 4, grey: -1, blur: 'x', blend: 'odd', motif: 'nope', focus: 'side', seed: 2.5 });")
-    assert (recipe["opacity"], recipe["grey"], recipe["blur"], recipe["blend"], recipe["motif"], recipe["focus"], recipe["seed"]) == (
-        1, 0, 0, "tint", "", "center", 7)
+    recipe = run(
+        desktop,
+        "return maker.recipeOf({ opacity: 4, grey: -1, blur: 'x', blend: 'odd', motif: 'nope', focus: 'side', seed: 2.5 });",
+    )
+    assert (
+        recipe["opacity"],
+        recipe["grey"],
+        recipe["blur"],
+        recipe["blend"],
+        recipe["motif"],
+        recipe["focus"],
+        recipe["seed"],
+    ) == (1, 0, 0, "tint", "", "center", 7)
 
 
 def test_made_pictures_fill_the_slots_of_the_look(desktop) -> None:  # noqa: F811
@@ -58,17 +76,22 @@ def test_made_pictures_fill_the_slots_of_the_look(desktop) -> None:  # noqa: F81
 
 
 def test_there_are_dozens_of_gradients_and_a_ready_background_for_every_pattern(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         return { groups: Object.keys(maker.MAKER_PALETTES), presets: maker.MAKER_PRESETS.length,
                  ready: motifs.READY_BACKGROUNDS.map((item) => item.motif), names: motifs.MOTIF_NAMES };
-    """)
+    """,
+    )
     assert result["groups"] == ["calm", "cool", "warm", "nature", "pastel", "night"]
     assert result["presets"] == 48
     assert sorted(result["ready"]) == sorted(result["names"]) and len(result["names"]) == 16
 
 
 def test_every_pattern_draws_something_and_the_same_again_for_its_seed(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         const pixels = (recipe) => {
             const canvas = document.createElement('canvas'); canvas.width = 60; canvas.height = 130;
             maker.drawBackground(canvas, recipe);
@@ -81,12 +104,15 @@ def test_every_pattern_draws_something_and_the_same_again_for_its_seed(desktop) 
             const one = pixels({ ...base, motif, seed: 3 });
             return [motif, differ(one, plain), !differ(one, pixels({ ...base, motif, seed: 3 }))];
         }).filter(([, drawn, same]) => !drawn || !same).map(([motif]) => motif);
-    """)
+    """,
+    )
     assert result == []
 
 
 def test_a_photo_seen_at_nothing_leaves_the_gradient(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         const source = document.createElement('canvas'); source.width = 40; source.height = 40;
         const context = source.getContext('2d'); context.fillStyle = '#ff0000'; context.fillRect(0, 0, 40, 40);
         const image = new Image(); image.src = source.toDataURL(); await image.decode();
@@ -98,20 +124,23 @@ def test_a_photo_seen_at_nothing_leaves_the_gradient(desktop) -> None:  # noqa: 
         const base = { top: '#0000ff', bottom: '#0000ff', grey: 0, fade: 0, blend: 'normal' };
         return { hidden: pixel({ ...base, opacity: 0 }, image), shown: pixel({ ...base, opacity: 1 }, image),
                  grey: pixel({ ...base, opacity: 1, grey: 1 }, image) };
-    """)
+    """,
+    )
     assert result["hidden"][:3] == [0, 0, 255]
     assert result["shown"][:3] == [255, 0, 0]
     assert result["grey"][0] == result["grey"][1] == result["grey"][2]
 
 
-
 def test_a_smaller_photo_lies_in_its_corner_moved_as_asked(desktop) -> None:  # noqa: F811
-    rects = run(desktop, """
+    rects = run(
+        desktop,
+        """
         return {
             whole: maker.photoRect(100, 200, 100, 100, { size: 1, anchor: 'center' }),
             corner: maker.photoRect(100, 200, 100, 100, { size: 0.5, anchor: 'top-right' }),
             moved: maker.photoRect(100, 200, 100, 100, { size: 0.5, anchor: 'top-right', shift_x: -0.1, shift_y: 0.1 }),
-            bottom: maker.photoRect(100, 200, 100, 100, { size: 0.5, anchor: 'bottom-left' }) };""")
+            bottom: maker.photoRect(100, 200, 100, 100, { size: 0.5, anchor: 'bottom-left' }) };""",
+    )
     # The photo covers the screen (200 x 200 over 100 x 200) at size 1, half that below
     assert rects["whole"] == [-50, 0, 200, 200]
     assert rects["corner"] == [0, 0, 100, 100]
@@ -120,26 +149,39 @@ def test_a_smaller_photo_lies_in_its_corner_moved_as_asked(desktop) -> None:  # 
 
 
 def test_each_edge_fades_inwards_from_itself(desktop) -> None:  # noqa: F811
-    lines = run(desktop, """
+    lines = run(
+        desktop,
+        """
         const box = [10, 20, 100, 200];
-        return ['top', 'right', 'bottom', 'left'].map((edge) => maker.edgeLine(box, edge, 0.5));""")
+        return ['top', 'right', 'bottom', 'left'].map((edge) => maker.edgeLine(box, edge, 0.5));""",
+    )
     assert lines == [[10, 20, 10, 120], [110, 20, 60, 20], [10, 220, 10, 120], [10, 20, 60, 20]]
 
 
 def test_an_older_recipe_keeps_its_photo_where_it_was(desktop) -> None:  # noqa: F811
-    recipes = run(desktop, """
+    recipes = run(
+        desktop,
+        """
         return [maker.recipeOf({ focus: 'top' }), maker.recipeOf({ anchor: 'bottom-right', focus: 'top' }),
-                maker.recipeOf({ edges: ['top', 'left', 'top', 'nope', 'right', 'bottom'], size: 9, rotate: 45, flip_x: 'yes' })];""")
+                maker.recipeOf({ edges: ['top', 'left', 'top', 'nope', 'right', 'bottom'], size: 9, rotate: 45, flip_x: 'yes' })];""",
+    )
     old, placed, odd = recipes
     # Before: the whole photo, fading out downwards, kept at its focus
     assert (old["anchor"], old["size"], old["edges"], old["rotate"]) == ("top", 1, ["bottom"], 0)
     assert placed["anchor"] == "bottom-right"
     # Three edges at most (the last ones chosen), the size within 20-100 %, a turn by quarters, a mirror only if true
-    assert (odd["edges"], odd["size"], odd["rotate"], odd["flip_x"]) == (["left", "right", "bottom"], 1, 0, False)
+    assert (odd["edges"], odd["size"], odd["rotate"], odd["flip_x"]) == (
+        ["left", "right", "bottom"],
+        1,
+        0,
+        False,
+    )
 
 
 def test_the_photo_in_a_corner_leaves_the_gradient_elsewhere_and_turns_and_mirrors(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         // A photo red on its left half, green on its right half
         const source = document.createElement('canvas'); source.width = 40; source.height = 40;
         const context = source.getContext('2d');
@@ -153,20 +195,23 @@ def test_the_photo_in_a_corner_leaves_the_gradient_elsewhere_and_turns_and_mirro
         };
         const corner = { size: 0.5, anchor: 'top-right' };   // a 40 × 40 photo at x 0-40, y 0-40
         return { inside: pixel(corner, 5, 10), below: pixel(corner, 20, 70),
-                 mirrored: pixel({ ...corner, flip_x: true }, 5, 10), turned: pixel({ ...corner, rotate: 180 }, 5, 10) };""")
+                 mirrored: pixel({ ...corner, flip_x: true }, 5, 10), turned: pixel({ ...corner, rotate: 180 }, 5, 10) };""",
+    )
     assert result["inside"] == [255, 0, 0]
     assert result["below"] == [0, 0, 255]
     assert result["mirrored"] == [0, 255, 0]
     assert result["turned"] == [0, 255, 0]
 
 
-
 def test_a_tinted_photo_wears_the_colour_of_the_background_dark_to_light(desktop) -> None:  # noqa: F811
-    result = run(desktop, """
+    result = run(
+        desktop,
+        """
         const back = (r, g, b) => new Uint8ClampedArray([r, g, b, 255]);
         const tint = (photo, opacity = 1) => Array.from(maker.tintPixels(back(0, 0, 200), new Uint8ClampedArray(photo), opacity)).slice(0, 3);
         return { black: tint([0, 0, 0, 255]), white: tint([255, 255, 255, 255]), red: tint([255, 0, 0, 255]),
-                 clear: tint([255, 255, 255, 0]), half: tint([255, 255, 255, 255], 0.5) };""")
+                 clear: tint([255, 255, 255, 0]), half: tint([255, 255, 255, 255], 0.5) };""",
+    )
     # Black takes the deep colour of the background, white its light colour, any colour only its brightness
     assert result["black"] == [0, 0, 60]
     assert result["white"] == [140, 140, 230]
@@ -290,8 +335,14 @@ def test_the_place_of_a_photo_is_chosen_in_the_maker(phone):
         maker.locator(f"[data-maker-edge='{edge}']").click()
     maker.locator("[data-maker-flip='x']").click()
     maker.locator("[data-maker-choices='rotate'] [data-maker-choice='90']").click()
-    recipe = phone.evaluate(f"document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
-                            f".shadowRoot.querySelector('{MAKER}')._recipe")
+    recipe = phone.evaluate(
+        f"document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
+        f".shadowRoot.querySelector('{MAKER}')._recipe"
+    )
     assert (recipe["anchor"], recipe["edges"], recipe["flip_x"], recipe["rotate"]) == (
-        "top-right", ["left", "top", "right"], True, 90)
+        "top-right",
+        ["left", "top", "right"],
+        True,
+        90,
+    )
     assert maker.locator("[data-maker-anchor='top-right']").get_attribute("class") == "on"

@@ -51,7 +51,10 @@ def test_the_calendar_button_brings_the_days_below_the_header(phone):
     # Near the top edge, narrower than the screen, with the calendar and LIVE out of the way.
     assert 0 <= days["y"] <= 16 and days["width"] < 874 * 0.75
     assert calendar.evaluate("(button) => getComputedStyle(button).visibility") == "hidden"
-    assert phone.locator(f"{SHEET} header [data-corner-live]").evaluate("(b) => getComputedStyle(b).visibility") == "hidden"
+    assert (
+        phone.locator(f"{SHEET} header [data-corner-live]").evaluate("(b) => getComputedStyle(b).visibility")
+        == "hidden"
+    )
     # A pick puts them away; so does a swipe up.
     phone.locator(f"{DAYS} [data-recording-day='{YESTERDAY}']").click()
     phone.wait_for_timeout(400)
@@ -71,7 +74,10 @@ def test_the_line_button_brings_the_line_and_a_swipe_down_hides_it(phone):
     phone.wait_for_timeout(400)
     line = box(phone, TIMELINE)
     assert line["y"] + line["height"] <= 402 and line["width"] < 874 * 0.75
-    assert phone.locator(f"{SHEET} [data-open-line]").evaluate("(b) => getComputedStyle(b).visibility") == "hidden"
+    assert (
+        phone.locator(f"{SHEET} [data-open-line]").evaluate("(b) => getComputedStyle(b).visibility")
+        == "hidden"
+    )
     drag(phone, f"{TIMELINE} [data-timeline-time]", 80)
     assert box(phone, TIMELINE)["y"] >= 402
 
@@ -94,7 +100,9 @@ def test_the_live_player_may_be_as_tall_as_the_screen(phone):
     open_on_its_side(phone)
     phone.locator(f"{SHEET} [data-corner-live]").click()
     phone.wait_for_selector(f"{SHEET} .stage [data-live]", state="attached")
-    limit = phone.locator(f"{SHEET} [data-live]").evaluate("(live) => getComputedStyle(live).getPropertyValue('--video-max-height').trim()")
+    limit = phone.locator(f"{SHEET} [data-live]").evaluate(
+        "(live) => getComputedStyle(live).getPropertyValue('--video-max-height').trim()"
+    )
     assert limit == "100dvh"
 
 

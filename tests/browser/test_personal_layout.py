@@ -5,22 +5,35 @@ from __future__ import annotations
 from .test_panels import add_entity
 from .test_shortcuts import SHEET, mount_admin
 
-SCENES = [{"entity": "scene.a", "name": "Rano"}, {"entity": "scene.b", "name": "Wieczór"}, {"entity": "scene.c", "name": "Noc"}]
+SCENES = [
+    {"entity": "scene.a", "name": "Rano"},
+    {"entity": "scene.b", "name": "Wieczór"},
+    {"entity": "scene.c", "name": "Noc"},
+]
 ROOM = {
     "id": "r",
     "name": "Pokój",
     "areas": [],
     "home": [{"entity": "light.one", "name": "Jeden"}],
     "sections": [
-        {"title": "Światła", "tiles": [{"entity": "light.one", "name": "Jeden"}, {"entity": "light.two", "name": "Dwa"}]},
+        {
+            "title": "Światła",
+            "tiles": [{"entity": "light.one", "name": "Jeden"}, {"entity": "light.two", "name": "Dwa"}],
+        },
         {"title": "Automatyzacje", "tiles": [{"entity": "switch.auto", "name": "Auto"}]},
     ],
 }
 
 
 def add_things(page) -> None:
-    for entity_id, name in (("scene.a", "Rano"), ("scene.b", "Wieczór"), ("scene.c", "Noc"), ("light.one", "Jeden"),
-                            ("light.two", "Dwa"), ("switch.auto", "Auto")):
+    for entity_id, name in (
+        ("scene.a", "Rano"),
+        ("scene.b", "Wieczór"),
+        ("scene.c", "Noc"),
+        ("light.one", "Jeden"),
+        ("light.two", "Dwa"),
+        ("switch.auto", "Auto"),
+    ):
         add_entity(page, entity_id, "off", {"friendly_name": name})
 
 
@@ -72,9 +85,12 @@ def saved_prefs(page) -> dict:
 
 # Scenes ------------------------------------------------------------------------------------------
 
+
 def test_scenes_follow_the_personal_order_and_leave_out_what_was_hidden(phone):
     add_things(phone)
-    result = model(phone, {"scenes": SCENES}, {"scenes": ["scene.c", "scene.a"], "hidden_scenes": ["scene.b"]})
+    result = model(
+        phone, {"scenes": SCENES}, {"scenes": ["scene.c", "scene.a"], "hidden_scenes": ["scene.b"]}
+    )
     assert result["scenes"] == ["Noc", "Rano"]
 
 
@@ -100,11 +116,15 @@ def test_the_scenes_editor_still_shows_every_scene_to_an_administrator(phone):
 
 # Favorites ---------------------------------------------------------------------------------------
 
+
 def test_own_favorites_replace_the_shared_ones(phone):
     add_things(phone)
     raw = {"favorites": ["light.one"]}
     assert model(phone, raw, {})["favorites"] == ["light.one"]
-    assert model(phone, raw, {"favorites": ["light.two", "switch.auto"]})["favorites"] == ["light.two", "switch.auto"]
+    assert model(phone, raw, {"favorites": ["light.two", "switch.auto"]})["favorites"] == [
+        "light.two",
+        "switch.auto",
+    ]
 
 
 def test_a_favorite_is_added_by_search_and_starts_from_the_shared_ones(phone):
@@ -128,12 +148,16 @@ def shared_save(page) -> dict:
     page.evaluate("document.querySelector('home-dashboard-chrome')._reload = () => {}")
     page.locator(f"{SHEET} [data-layout-save]").click()
     page.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    return page.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy")
+    return page.evaluate(
+        "window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy"
+    )
 
 
 def test_an_administrator_arranges_rooms_for_everyone(phone):
     add_things(phone)
-    open_personal(phone, "rooms", {"layout": [ROOM, {**ROOM, "id": "s", "name": "Drugi"}], "rooms": {"hidden": ["s"]}})
+    open_personal(
+        phone, "rooms", {"layout": [ROOM, {**ROOM, "id": "s", "name": "Drugi"}], "rooms": {"hidden": ["s"]}}
+    )
     phone.locator(f"{SHEET} [data-layout-everyone] input").check()
     assert phone.locator(f"{SHEET} [data-order='s'].muted").count() == 1
     phone.locator(f"{SHEET} [data-order='s'] [data-personal='up']").click()
@@ -185,6 +209,7 @@ def test_a_denied_device_cannot_become_a_favorite(phone):
 
 # Menu --------------------------------------------------------------------------------------------
 
+
 def test_an_entry_of_the_menu_can_be_hidden_for_oneself(phone):
     menu = {"menu": {"groups": [{"items": [{"name": "A", "path": "/a"}, {"name": "B", "path": "/b"}]}]}}
     open_personal(phone, "menu", menu)
@@ -201,6 +226,7 @@ def test_an_entry_of_the_menu_can_be_hidden_for_oneself(phone):
 
 # My view of a room --------------------------------------------------------------------------------
 
+
 def test_a_hidden_section_and_tile_leave_the_room_and_home(phone):
     add_things(phone)
     prefs = {"hidden_sections": {"r": ["title:Automatyzacje"]}, "hidden_tiles": {"r": ["light.one"]}}
@@ -213,7 +239,10 @@ def test_an_administrator_takes_a_section_away_from_one_person(phone):
     add_things(phone)
     raw = {"layout": [ROOM], "access": {"kid": {"sections": ["r|title:Automatyzacje"]}}}
     assert [title for title, _ in model(phone, raw, {})["sections"]] == ["Światła"]
-    assert [title for title, _ in model(phone, raw, {}, user="mum")["sections"]] == ["Światła", "Automatyzacje"]
+    assert [title for title, _ in model(phone, raw, {}, user="mum")["sections"]] == [
+        "Światła",
+        "Automatyzacje",
+    ]
 
 
 def open_room_view(page) -> None:
@@ -250,14 +279,18 @@ def test_my_view_is_only_in_a_room(phone):
 
 def test_the_access_of_a_person_lists_the_sections(phone):
     add_things(phone)
-    result = phone.evaluate("""(room) => {
+    result = phone.evaluate(
+        """(room) => {
         const { model, hass } = window.dashboard;
         return model.accessChoices(hass(), { layout: [room] }).sections.map((item) => item.id);
-    }""", ROOM)
+    }""",
+        ROOM,
+    )
     assert result == ["r|title:Światła", "r|title:Automatyzacje"]
 
 
 # Start ---------------------------------------------------------------------------------------------
+
 
 def test_the_start_is_kept_with_the_account(phone):
     open_personal(phone, "scenes")

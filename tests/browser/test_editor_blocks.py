@@ -17,7 +17,11 @@ COFFEE = {
     "stats": [{"name": "Kawy", "entity": "sensor.test_total"}],
     "actions": [],
     "groups": [
-        {"title": "Ustawienia", "layout": "controls", "rows": [{"entity": "switch.test_cup_light"}, {"entity": "select.test_profile"}]},
+        {
+            "title": "Ustawienia",
+            "layout": "controls",
+            "rows": [{"entity": "switch.test_cup_light"}, {"entity": "select.test_profile"}],
+        },
         {"title": "Stan", "rows": []},
     ],
 }
@@ -29,7 +33,12 @@ STRATEGY = {
             "id": "kitchen",
             "name": "Kuchnia",
             "home": [{"entity": "switch.test_sounds"}],
-            "sections": [{"title": "Pralnia", "tiles": [{"kind": "panel", "name": "Pralka", "groups": [{"title": "Stan", "rows": []}]}]}],
+            "sections": [
+                {
+                    "title": "Pralnia",
+                    "tiles": [{"kind": "panel", "name": "Pralka", "groups": [{"title": "Stan", "rows": []}]}],
+                }
+            ],
         }
     ],
 }
@@ -76,7 +85,9 @@ def fill(page, locator, text: str) -> None:
 
 
 def keys(page) -> list[str]:
-    return page.locator(f"{APP} [data-node]").evaluate_all("(nodes) => nodes.map((node) => node.dataset.node)")
+    return page.locator(f"{APP} [data-node]").evaluate_all(
+        "(nodes) => nodes.map((node) => node.dataset.node)"
+    )
 
 
 # The tree -------------------------------------------------------------------------------------------------------
@@ -85,8 +96,16 @@ def keys(page) -> list[str]:
 def test_a_block_opens_into_numbers_buttons_groups_and_rows(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
     found = keys(desktop)
-    for key in ("shortcuts/0/stats", "shortcuts/0/stats/0", "shortcuts/0/actions", "shortcuts/0/groups", "shortcuts/0/groups/0",
-                "shortcuts/0/groups/0/rows/0", "shortcuts/0/groups/0/rows/1", "shortcuts/0/groups/1"):
+    for key in (
+        "shortcuts/0/stats",
+        "shortcuts/0/stats/0",
+        "shortcuts/0/actions",
+        "shortcuts/0/groups",
+        "shortcuts/0/groups/0",
+        "shortcuts/0/groups/0/rows/0",
+        "shortcuts/0/groups/0/rows/1",
+        "shortcuts/0/groups/1",
+    ):
         assert key in found
     assert "shortcuts/1/groups" not in found
     assert "layout/0/sections/0/tiles/0/groups/0" in found
@@ -100,8 +119,22 @@ def test_a_block_opens_into_numbers_buttons_groups_and_rows(desktop):  # noqa: F
 def test_a_block_has_a_form_of_its_tile_and_window(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
     select(desktop, "shortcuts/0")
-    found = desktop.locator(f"{APP} {FORM} [data-field]").evaluate_all("(fields) => fields.map((f) => f.dataset.field)")
-    assert found == ["name", "icon", "entity", "status", "state_text", "labels", "active", "active_state", "details", "compact", "fullscreen"]
+    found = desktop.locator(f"{APP} {FORM} [data-field]").evaluate_all(
+        "(fields) => fields.map((f) => f.dataset.field)"
+    )
+    assert found == [
+        "name",
+        "icon",
+        "entity",
+        "status",
+        "state_text",
+        "labels",
+        "active",
+        "active_state",
+        "details",
+        "compact",
+        "fullscreen",
+    ]
     field(desktop, "compact").locator("button").click()
     fill(desktop, field(desktop, "name").locator("input"), "Kawa")
     assert coffee(desktop)["compact"] is True and coffee(desktop)["name"] == "Kawa"
@@ -117,7 +150,10 @@ def test_states_are_named_with_their_own_words(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
     select(desktop, "shortcuts/0/groups/0/rows/0")
     labels = field(desktop, "labels")
-    assert labels.locator("[data-label]").evaluate_all("(inputs) => inputs.map((i) => i.dataset.label)") == ["on", "off"]
+    assert labels.locator("[data-label]").evaluate_all("(inputs) => inputs.map((i) => i.dataset.label)") == [
+        "on",
+        "off",
+    ]
     fill(desktop, labels.locator("[data-label='on']"), "Świeci")
     assert coffee(desktop)["groups"][0]["rows"][0]["labels"] == {"on": "Świeci"}
     select(desktop, "shortcuts/0")
@@ -130,7 +166,12 @@ def test_a_number_takes_its_digits_and_a_format_of_time(desktop):  # noqa: F811
     select(desktop, "shortcuts/0/stats/0")
     fill(desktop, field(desktop, "digits").locator("input"), "1")
     field(desktop, "format").locator("[data-option='duration']").click()
-    assert coffee(desktop)["stats"][0] == {"name": "Kawy", "entity": "sensor.test_total", "digits": 1, "format": "duration"}
+    assert coffee(desktop)["stats"][0] == {
+        "name": "Kawy",
+        "entity": "sensor.test_total",
+        "digits": 1,
+        "format": "duration",
+    }
     fill(desktop, field(desktop, "digits").locator("input"), "")
     assert "digits" not in coffee(desktop)["stats"][0]
 
@@ -164,7 +205,9 @@ def test_groups_are_added_laid_out_and_get_rows(desktop):  # noqa: F811
 
 
 def options(page) -> list[str]:
-    return page.locator(f"{APP} {FORM} [data-option-row]").evaluate_all("(rows) => rows.map((row) => row.dataset.optionRow)")
+    return page.locator(f"{APP} {FORM} [data-option-row]").evaluate_all(
+        "(rows) => rows.map((row) => row.dataset.optionRow)"
+    )
 
 
 def test_the_options_of_a_list_are_ordered_named_and_hidden(desktop):  # noqa: F811
@@ -187,7 +230,9 @@ def test_the_options_of_a_list_are_ordered_named_and_hidden(desktop):  # noqa: F
 
 
 def leftovers(page) -> list[str]:
-    return page.locator(f"{APP} [data-leftover]").evaluate_all("(items) => items.map((item) => item.dataset.leftover)")
+    return page.locator(f"{APP} [data-leftover]").evaluate_all(
+        "(items) => items.map((item) => item.dataset.leftover)"
+    )
 
 
 def test_the_entities_of_the_device_not_in_the_block_are_offered(desktop):  # noqa: F811
@@ -226,7 +271,9 @@ def test_a_row_goes_to_another_group_of_its_block_but_not_of_another_block(deskt
     node(desktop, "shortcuts/0/groups/0/rows/0").drag_to(node(desktop, "shortcuts/0/groups/1"))
     assert coffee(desktop)["groups"][1]["rows"] == [{"entity": "switch.test_cup_light"}]
     before = draft(desktop)
-    node(desktop, "shortcuts/0/groups/1/rows/0").drag_to(node(desktop, "layout/0/sections/0/tiles/0/groups/0"))
+    node(desktop, "shortcuts/0/groups/1/rows/0").drag_to(
+        node(desktop, "layout/0/sections/0/tiles/0/groups/0")
+    )
     assert draft(desktop) == before
 
 
@@ -282,39 +329,62 @@ def run(page, body: str, arg=None):
 
 
 def test_the_block_of_a_path(desktop):  # noqa: F811
-    paths = run(desktop, """const s = arg;
+    paths = run(
+        desktop,
+        """const s = arg;
         return [b.blockPathOf(s, ['shortcuts', 0, 'groups', 0, 'rows', 1]), b.blockPathOf(s, ['shortcuts', 1]),
             b.blockPathOf(s, ['layout', 0, 'sections', 0, 'tiles', 0, 'groups', 0]), b.blockPathOf(s, ['layout', 0, 'home', 0]),
-            b.blockPathOf(s, ['layout', 0])];""", STRATEGY)
+            b.blockPathOf(s, ['layout', 0])];""",
+        STRATEGY,
+    )
     assert paths == [["shortcuts", 0], None, ["layout", 0, "sections", 0, "tiles", 0], None, None]
 
 
 def test_adding_a_row_and_the_group_of_a_path(desktop):  # noqa: F811
-    result = run(desktop, """const s = { shortcuts: [{ kind: 'panel', name: 'A' }, { kind: 'panel', groups: [{ rows: [] }, { rows: [{}] }] }] };
+    result = run(
+        desktop,
+        """const s = { shortcuts: [{ kind: 'panel', name: 'A' }, { kind: 'panel', groups: [{ rows: [] }, { rows: [{}] }] }] };
         const first = b.addBlockRow(s, ['shortcuts', 0], 'light.a', null, 'Inne');
         const second = b.addBlockRow(s, ['shortcuts', 1], 'light.b', null, 'Inne');
         const third = b.addBlockRow(s, ['shortcuts', 1], 'light.c', 0, 'Inne');
         return [first.strategy.shortcuts[0].groups, first.path, second.path, third.path,
-            b.groupIndexOf(['shortcuts', 1], ['shortcuts', 1, 'groups', 1, 'rows', 0]), b.groupIndexOf(['shortcuts', 1], ['shortcuts', 1, 'stats'])];""")
-    assert result == [[{"title": "Inne", "rows": [{"entity": "light.a"}]}], ["shortcuts", 0, "groups", 0, "rows", 0],
-                      ["shortcuts", 1, "groups", 1, "rows", 1], ["shortcuts", 1, "groups", 0, "rows", 0], 1, None]
+            b.groupIndexOf(['shortcuts', 1], ['shortcuts', 1, 'groups', 1, 'rows', 0]), b.groupIndexOf(['shortcuts', 1], ['shortcuts', 1, 'stats'])];""",
+    )
+    assert result == [
+        [{"title": "Inne", "rows": [{"entity": "light.a"}]}],
+        ["shortcuts", 0, "groups", 0, "rows", 0],
+        ["shortcuts", 1, "groups", 1, "rows", 1],
+        ["shortcuts", 1, "groups", 0, "rows", 0],
+        1,
+        None,
+    ]
 
 
 def test_with_options_keeps_only_what_differs(desktop):  # noqa: F811
-    result = run(desktop, """const options = ['a', 'b', 'c'];
+    result = run(
+        desktop,
+        """const options = ['a', 'b', 'c'];
         return [p.withOptions({ entity: 'select.x' }, options, { order: ['b', 'a', 'c'] }),
             p.withOptions({ entity: 'select.x', order: ['b', 'a', 'c'] }, options, { order: ['a', 'b', 'c'] }),
             p.withOptions({ entity: 'select.x', labels: { a: 'A' } }, options, { labels: { a: '' } }),
-            p.withOptions({ entity: 'select.x' }, options, { hide: ['c'] })];""")
-    assert result == [{"entity": "select.x", "order": ["b", "a", "c"]}, {"entity": "select.x"}, {"entity": "select.x"},
-                      {"entity": "select.x", "hide": ["c"]}]
+            p.withOptions({ entity: 'select.x' }, options, { hide: ['c'] })];""",
+    )
+    assert result == [
+        {"entity": "select.x", "order": ["b", "a", "c"]},
+        {"entity": "select.x"},
+        {"entity": "select.x"},
+        {"entity": "select.x", "hide": ["c"]},
+    ]
 
 
 def test_the_states_an_entity_knows(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
-    known = run(desktop, """const hass = window.editor.app.hass;
+    known = run(
+        desktop,
+        """const hass = window.editor.app.hass;
         return [p.knownStates(hass, 'select.test_profile'), p.knownStates(hass, 'switch.test_sounds'), p.knownStates(hass, 'sensor.test_total'),
-            p.knownStates(hass, 'sensor.nowhere')];""")
+            p.knownStates(hass, 'sensor.nowhere')];""",
+    )
     assert known == [["Alex", "Sam", "Gość", "USER 4"], ["on", "off"], [], []]
 
 
@@ -324,7 +394,9 @@ def test_the_window_closes_when_another_room_is_chosen(desktop):  # noqa: F811
     open_editor(desktop, strategy)
     frame(desktop, "tablet")
     select(desktop, "layout/0/sections/0/tiles/0")
-    frame(desktop, "tablet").wait_for_function("""() => { const walk = (root) => { const hit = root.querySelector('home-dashboard-sheet');
+    frame(
+        desktop, "tablet"
+    ).wait_for_function("""() => { const walk = (root) => { const hit = root.querySelector('home-dashboard-sheet');
         if (hit) return hit; for (const e of root.querySelectorAll('*')) { const inner = e.shadowRoot && walk(e.shadowRoot); if (inner) return inner; } return null; };
         return walk(document)?.shadowRoot?.querySelector('.panel')?.dataset.kind === 'panel'; }""")
     select(desktop, f"layout/{len(strategy['layout']) - 1}")
@@ -351,6 +423,9 @@ def test_the_window_goes_when_something_else_is_chosen(desktop, then):  # noqa: 
 
 
 def test_a_number_row_chooses_its_control(desktop):  # noqa: F811
-    keys = run(desktop, """return [p.rowFields({ entity: 'input_number.limit' }).map((f) => f.key),
-        p.rowFields({ entity: 'sensor.power' }).map((f) => f.key)];""")
+    keys = run(
+        desktop,
+        """return [p.rowFields({ entity: 'input_number.limit' }).map((f) => f.key),
+        p.rowFields({ entity: 'sensor.power' }).map((f) => f.key)];""",
+    )
     assert "control" in keys[0] and "control" not in keys[1]

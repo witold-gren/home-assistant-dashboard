@@ -17,7 +17,10 @@ def open_school_on(page) -> None:
     add_school(page)
     jobs = [{"name": f"Praca {n}", "reward_label": f"{n} zł", "description": "Opis"} for n in range(1, 6)]
     add_entity(page, "sensor.rodzinnik_prace", "5", {"jobs": jobs})
-    children = [{"child": name, "balance": 10 * n, "savings": 0, "debt": 0} for n, name in enumerate(["Ola", "Ada", "Ewa", "Iza"], 1)]
+    children = [
+        {"child": name, "balance": 10 * n, "savings": 0, "debt": 0}
+        for n, name in enumerate(["Ola", "Ada", "Ewa", "Iza"], 1)
+    ]
     add_entity(page, "sensor.rodzinnik_bank", "4", {"currency": "PLN", "children": children})
     mount(page, {"shortcuts": [SCHOOL]})
     page.locator("[data-shortcut='Rok szkolny']").dispatch_event("click")
@@ -73,10 +76,12 @@ def test_the_status_uses_the_whole_screen_with_its_items_side_by_side(tablet):
     add_entity(tablet, "climate.bed", "auto", {"current_temperature": 17.5})
     add_entity(tablet, "climate.salon", "auto", {"current_temperature": 17, "friendly_name": "Salon"})
     sections = [{"title": "Uwaga", "alert": True, "items": [cold_item()]}]
-    mount(tablet, {"shortcuts": [{"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": sections}]})
+    mount(
+        tablet,
+        {"shortcuts": [{"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": sections}]},
+    )
     tablet.locator("home-dashboard-page [data-shortcut='Status']").dispatch_event("click")
     tablet.wait_for_selector(f"{SHEET} home-dashboard-overview [data-status-now]")
     assert "whole" in tablet.locator(f"{SHEET} .panel").get_attribute("class")
     first, second = tablet.locator(f"{SHEET} home-dashboard-overview [data-status-row]").all()[:2]
     assert abs(first.bounding_box()["y"] - second.bounding_box()["y"]) < 1
-

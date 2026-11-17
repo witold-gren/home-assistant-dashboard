@@ -14,8 +14,11 @@ SHEET = "home-dashboard-sheet"
 def edit_screen(page) -> None:
     page.locator("home-dashboard-page [data-rooms]").click()
     page.locator("[data-sheet-edit]").click()
+
+
 ADMIN_MOUNT = """async ({ dashboard, page, admin }) => {
     window.saved = [];
+    window.seen = [];
     window.uploads = [];
     const hass = window.dashboard.hass({
         user: { name: "User", is_admin: admin },
@@ -28,6 +31,8 @@ ADMIN_MOUNT = """async ({ dashboard, page, admin }) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard } };
             }
+            // What the household opens goes to a list of its own: the tests of saving count only what is saved.
+            if (message.type === "home_dashboard/activity/seen") { window.seen.push(message); return null; }
             if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
@@ -44,7 +49,14 @@ HOST = {
 }
 AVATAR = "data:image/svg+xml," + "%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'/%3E"
 SCHOOL = {"kind": "school", "name": "Rok szkolny", "icon": "mdi:school", "children": ["Lena", "Maja"]}
-LESSON = {"number": 1, "start": "08:00", "end": "08:45", "subject": "Matematyka", "classroom": "12", "teacher": "Pani"}
+LESSON = {
+    "number": 1,
+    "start": "08:00",
+    "end": "08:45",
+    "subject": "Matematyka",
+    "classroom": "12",
+    "teacher": "Pani",
+}
 
 
 def mount_admin(page, dashboard: dict, name: str = "home", admin: bool = True) -> None:
@@ -54,51 +66,155 @@ def mount_admin(page, dashboard: dict, name: str = "home", admin: bool = True) -
 
 def add_school(page) -> None:
     days = [
-        {"date": "2026-11-02", "name": "Poniedziałek", "is_today": False, "lessons": [{**LESSON, "subject": "Polski"}]},
-        {"date": "2026-11-03", "name": "Wtorek", "is_today": True, "lessons": [LESSON, {**LESSON, "subject": "WF", "canceled": True}]},
+        {
+            "date": "2026-11-02",
+            "name": "Poniedziałek",
+            "is_today": False,
+            "lessons": [{**LESSON, "subject": "Polski"}],
+        },
+        {
+            "date": "2026-11-03",
+            "name": "Wtorek",
+            "is_today": True,
+            "lessons": [LESSON, {**LESSON, "subject": "WF", "canceled": True}],
+        },
         {"date": "2026-11-07", "name": "Sobota", "is_today": False, "lessons": []},
     ]
-    add_entity(page, "sensor.rodzinnik_plan_lekcji", "x", {"children": [
-        {"child": "Maja", "days": days}, {"child": "Lena", "days": days}, {"child": "Kuba", "days": []},
-    ]})
+    add_entity(
+        page,
+        "sensor.rodzinnik_plan_lekcji",
+        "x",
+        {
+            "children": [
+                {"child": "Maja", "days": days},
+                {"child": "Lena", "days": days},
+                {"child": "Kuba", "days": []},
+            ]
+        },
+    )
     grade = {"grade": "5", "category": "test", "is_new": True, "proposition": False}
-    add_entity(page, "sensor.rodzinnik_oceny", "1", {"children": [{"child": "Lena", "semester": 1, "subjects": [
-        {"subject": "Religia", "averages": {"semester_1": 5.75}, "grades": [grade, {**grade, "is_new": False, "proposition": True}]},
-    ]}]})
-    add_entity(page, "sensor.rodzinnik_terminarz", "x", {"children": [{"child": "Lena", "entries": [
-        {"date": "2026-11-06", "kind": "Sprawdzian", "title": "Ułamki", "start": "08:00"},
-    ]}]})
-    add_entity(page, "sensor.rodzinnik_obiady", "x", {"variants": [
-        {"variant": "szkola", "label": "Szkoła", "available": True, "days": [
-            {"name": "Wtorek", "meals": [{"meal": "Obiad", "items": [{"name": "Rosół"}, {"name": "Kotlet"}]}]},
-        ]},
-        {"variant": "brak", "label": "Brak", "available": False, "days": []},
-    ]})
+    add_entity(
+        page,
+        "sensor.rodzinnik_oceny",
+        "1",
+        {
+            "children": [
+                {
+                    "child": "Lena",
+                    "semester": 1,
+                    "subjects": [
+                        {
+                            "subject": "Religia",
+                            "averages": {"semester_1": 5.75},
+                            "grades": [grade, {**grade, "is_new": False, "proposition": True}],
+                        },
+                    ],
+                }
+            ]
+        },
+    )
+    add_entity(
+        page,
+        "sensor.rodzinnik_terminarz",
+        "x",
+        {
+            "children": [
+                {
+                    "child": "Lena",
+                    "entries": [
+                        {"date": "2026-11-06", "kind": "Sprawdzian", "title": "Ułamki", "start": "08:00"},
+                    ],
+                }
+            ]
+        },
+    )
+    add_entity(
+        page,
+        "sensor.rodzinnik_obiady",
+        "x",
+        {
+            "variants": [
+                {
+                    "variant": "szkola",
+                    "label": "Szkoła",
+                    "available": True,
+                    "days": [
+                        {
+                            "name": "Wtorek",
+                            "meals": [{"meal": "Obiad", "items": [{"name": "Rosół"}, {"name": "Kotlet"}]}],
+                        },
+                    ],
+                },
+                {"variant": "brak", "label": "Brak", "available": False, "days": []},
+            ]
+        },
+    )
     week = {
         "week_start": "2026-11-02",
         "week_end": "2026-11-08",
         "children": [
-            {"child": "Ola", "child_color": "#f5ec00", "avatar": AVATAR, "set": "Salon", "color": "#77bb41", "tasks": ["Kurze", "Zakupy"]},
+            {
+                "child": "Ola",
+                "child_color": "#f5ec00",
+                "avatar": AVATAR,
+                "set": "Salon",
+                "color": "#77bb41",
+                "tasks": ["Kurze", "Zakupy"],
+            },
             {"child": "Kuba", "set": "Zmywarka", "color": "#112233", "tasks": ["Naczynia"]},
             {"child": "Ewa", "free_week": True},
         ],
     }
-    later = {"week_start": "2026-11-09", "week_end": "2026-11-15", "children": [{"child": "Ola", "set": "Kuchnia", "tasks": []}]}
+    later = {
+        "week_start": "2026-11-09",
+        "week_end": "2026-11-15",
+        "children": [{"child": "Ola", "set": "Kuchnia", "tasks": []}],
+    }
     add_entity(page, "sensor.rodzinnik_obowiazki", "x", {**week, "next_week": later})
-    add_entity(page, "sensor.rodzinnik_prace", "1", {"jobs": [{"name": "Grabienie", "reward_label": "5 do 10 zł", "description": "Liście"}]})
+    add_entity(
+        page,
+        "sensor.rodzinnik_prace",
+        "1",
+        {"jobs": [{"name": "Grabienie", "reward_label": "5 do 10 zł", "description": "Liście"}]},
+    )
     allowance = {"amount": 11.0, "period_label": "co tydzień", "next_payment": "2026-11-16"}
     operations = [
-        {"booked_at": f"2026-11-{day:02d}T07:29:14+01:00", "amount": amount, "title": title, "kind_label": "Zakup", "reversed": False}
+        {
+            "booked_at": f"2026-11-{day:02d}T07:29:14+01:00",
+            "amount": amount,
+            "title": title,
+            "kind_label": "Zakup",
+            "reversed": False,
+        }
         for day, amount, title in [
-            (9, -70.0, "Prezent"), (8, 11.0, "Kieszonkowe"), (7, -5.0, "Lody"), (6, 20.0, "Grabienie"),
-            (5, -3.0, "Naklejki"), (4, 11.0, "Najstarsza"),
+            (9, -70.0, "Prezent"),
+            (8, 11.0, "Kieszonkowe"),
+            (7, -5.0, "Lody"),
+            (6, 20.0, "Grabienie"),
+            (5, -3.0, "Naklejki"),
+            (4, 11.0, "Najstarsza"),
         ]
     ]
     operations[1]["reversed"] = True
-    add_entity(page, "sensor.rodzinnik_bank", "1", {"currency": "PLN", "children": [
-        {"child": "Ola", "balance": 65, "savings": 10, "debt": 0, "allowance": allowance, "recent_transactions": operations},
-        {"child": "Ewa", "balance": 7, "savings": 0, "debt": 0},
-    ]})
+    add_entity(
+        page,
+        "sensor.rodzinnik_bank",
+        "1",
+        {
+            "currency": "PLN",
+            "children": [
+                {
+                    "child": "Ola",
+                    "balance": 65,
+                    "savings": 10,
+                    "debt": 0,
+                    "allowance": allowance,
+                    "recent_transactions": operations,
+                },
+                {"child": "Ewa", "balance": 7, "savings": 0, "debt": 0},
+            ],
+        },
+    )
 
 
 def open_school(page) -> None:
@@ -251,7 +367,9 @@ def test_a_hidden_alarm_panel_stays_hidden(phone):
 def test_an_alarm_panel_uses_the_name_from_the_layout(phone):
     add_alarm(phone, "alarm_control_panel.base", "armed_away")
     tile = {"entity": "alarm_control_panel.base", "name": "Dom"}
-    layout = [{"id": "r", "name": "R", "areas": [], "home": [], "sections": [{"title": "S", "tiles": [tile]}]}]
+    layout = [
+        {"id": "r", "name": "R", "areas": [], "home": [], "sections": [{"title": "S", "tiles": [tile]}]}
+    ]
     phone.evaluate("window.history.replaceState(null, '', '?filter=security')")
     mount(phone, {"layout": layout})
     assert phone.locator("[data-entity='alarm_control_panel.base'] strong").inner_text() == "Dom"
@@ -277,14 +395,22 @@ def test_a_shortcut_can_hide_in_guest_mode(phone):
 
 def test_an_action_can_call_a_service_of_its_entity(phone):
     add_entity(phone, "vacuum.robot", "docked")
-    item = {"kind": "panel", "name": "Odkurzacz", "actions": [
-        {"name": "Do bazy", "entity": "vacuum.robot", "service": "vacuum.return_to_base"},
-    ]}
+    item = {
+        "kind": "panel",
+        "name": "Odkurzacz",
+        "actions": [
+            {"name": "Do bazy", "entity": "vacuum.robot", "service": "vacuum.return_to_base"},
+        ],
+    }
     mount(phone, {"shortcuts": [item]})
     phone.locator("[data-shortcut='Odkurzacz']").click()
     phone.locator("[data-action='vacuum.robot']").click()
     (sent,) = calls(phone)
-    assert (sent["domain"], sent["service"], sent["data"]) == ("vacuum", "return_to_base", {"entity_id": "vacuum.robot"})
+    assert (sent["domain"], sent["service"], sent["data"]) == (
+        "vacuum",
+        "return_to_base",
+        {"entity_id": "vacuum.robot"},
+    )
 
 
 def test_the_card_button_can_have_its_own_name(phone):
@@ -413,13 +539,16 @@ def test_weeks_can_be_changed_only_where_there_is_data(phone):
     ],
 )
 def test_the_set_label_stays_readable_on_any_colour(phone, colour, expected):
-    assert phone.evaluate(
-        """async (colour) => {
+    assert (
+        phone.evaluate(
+            """async (colour) => {
             const { colourStyle } = await import("/custom_components/home_dashboard/www/app/school.js");
             return colourStyle(colour);
         }""",
-        colour,
-    ) == expected
+            colour,
+        )
+        == expected
+    )
 
 
 def test_jobs_and_bank(phone):
@@ -444,7 +573,9 @@ def test_the_bank_shows_the_face_the_allowance_and_the_last_five_operations(phon
     assert "najbliższa wypłata" in allowance and "16.11" in allowance
     operations = account.locator("[data-operation]")
     assert operations.count() == 5
-    assert "Prezent" in operations.nth(0).inner_text() and "-70,00" in operations.nth(0).inner_text().replace("\u2212", "-")
+    assert "Prezent" in operations.nth(0).inner_text() and "-70,00" in operations.nth(0).inner_text().replace(
+        "\u2212", "-"
+    )
     assert "Najstarsza" not in account.inner_text()
     # Money in is green, a reversed operation is crossed out
     assert "in" in operations.nth(3).locator(".amount").get_attribute("class")
@@ -471,7 +602,9 @@ def test_the_school_screen_survives_missing_sensors(phone):
 
 
 def backdrop(page) -> str | None:
-    return page.evaluate("""() => window.card.shadowRoot.querySelector(".backdrop")?.getAttribute("style") ?? null""")
+    return page.evaluate(
+        """() => window.card.shadowRoot.querySelector(".backdrop")?.getAttribute("style") ?? null"""
+    )
 
 
 def test_no_background_no_layer(phone):
@@ -483,18 +616,24 @@ def test_no_background_no_layer(phone):
     ("value", "expected"),
     [
         ("#223344", "background: #223344"),
-        ("/api/image/serve/x/original", 'background-image: url("/api/image/serve/x/original"); background-position: center center'),
+        (
+            "/api/image/serve/x/original",
+            'background-image: url("/api/image/serve/x/original"); background-position: center center',
+        ),
         ('red; } </style>"', "background: red  /style"),
     ],
 )
 def test_a_background_cannot_break_out_of_its_style(phone, value, expected):
-    assert phone.evaluate(
-        """async (value) => {
+    assert (
+        phone.evaluate(
+            """async (value) => {
             const { backgroundStyle } = await import("/custom_components/home_dashboard/www/app/styles.js");
             return backgroundStyle(value);
         }""",
-        value,
-    ) == expected
+            value,
+        )
+        == expected
+    )
 
 
 def test_home_shows_its_background_and_other_pages_do_not(phone):
@@ -506,11 +645,14 @@ def test_home_shows_its_background_and_other_pages_do_not(phone):
 
 def test_the_tiles_stay_above_the_background(phone):
     mount(phone, {"background": "#223344"})
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const root = window.card.shadowRoot;
         const box = root.querySelector("h1").getBoundingClientRect();
         return root.elementFromPoint(box.left + 4, box.top + 4).closest("h1")?.localName;
-    }""") == "h1"
+    }""")
+        == "h1"
+    )
 
 
 def test_a_room_has_its_own_background(phone):
@@ -608,15 +750,18 @@ def test_someone_else_has_no_checkbox_and_saves_only_for_themselves(phone):
     ],
 )
 def test_what_a_person_sees(phone, shared, own, mode, expected):
-    assert phone.evaluate(
-        """({ shared, own, mode }) => {
+    assert (
+        phone.evaluate(
+            """({ shared, own, mode }) => {
             const { model } = window.dashboard;
             const config = model.normalizeConfig({ backgrounds: { home: shared } });
             const mine = model.personalize(config, "a", own ? { backgrounds: { home: own } } : {});
             return model.pickBackground(mine, "home", null, mode);
         }""",
-        {"shared": shared, "own": own, "mode": mode},
-    ) == expected
+            {"shared": shared, "own": own, "mode": mode},
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -633,15 +778,18 @@ def test_what_a_person_sees(phone, shared, own, mode, expected):
     ],
 )
 def test_each_shape_of_screen_has_its_background(phone, shared, own, mode, shape, expected):
-    assert phone.evaluate(
-        """({ shared, own, mode, shape }) => {
+    assert (
+        phone.evaluate(
+            """({ shared, own, mode, shape }) => {
             const { model } = window.dashboard;
             const config = model.normalizeConfig({ backgrounds: { home: shared } });
             const mine = model.personalize(config, "a", own ? { backgrounds: { home: own } } : {});
             return model.pickBackground(mine, "home", null, mode, shape);
         }""",
-        {"shared": shared, "own": own, "mode": mode, "shape": shape},
-    ) == expected
+            {"shared": shared, "own": own, "mode": mode, "shape": shape},
+        )
+        == expected
+    )
 
 
 def test_the_part_of_the_picture_to_keep(phone):
@@ -656,9 +804,12 @@ def test_the_part_of_the_picture_to_keep(phone):
                     pick("#123456", undefined), pick({ position: "sideways" }, undefined)];
         }"""
     ) == ["top", "bottom", "center", "center"]
-    assert phone.evaluate(
-        """async () => (await import("/custom_components/home_dashboard/www/app/styles.js")).backgroundStyle("/a.png", "x; color: red")"""
-    ) == 'background-image: url("/a.png"); background-position: center center'
+    assert (
+        phone.evaluate(
+            """async () => (await import("/custom_components/home_dashboard/www/app/styles.js")).backgroundStyle("/a.png", "x; color: red")"""
+        )
+        == 'background-image: url("/a.png"); background-position: center center'
+    )
 
 
 def test_a_wide_background_and_its_part_are_saved_for_everyone(phone):
@@ -679,7 +830,9 @@ def test_a_wide_background_and_its_part_are_saved_for_everyone(phone):
 
 
 def test_turning_the_screen_changes_the_background(phone):
-    mount_admin(phone, {"backgrounds": {"home": {"light": "#101010", "light_wide": "#202020", "position": "top"}}})
+    mount_admin(
+        phone, {"backgrounds": {"home": {"light": "#101010", "light_wide": "#202020", "position": "top"}}}
+    )
     phone.wait_for_selector("home-dashboard-page .backdrop")
     style = "() => document.querySelector('home-dashboard-page').shadowRoot.querySelector('.backdrop').getAttribute('style')"
     assert "#101010" in phone.evaluate(style)
@@ -748,7 +901,9 @@ def test_a_room_background_is_kept_under_the_room(phone):
 # Opening at start --------------------------------------------------------------------------------
 
 
-def target(page, pathname: str, search: str = "", start: str | None = "/home-dashboard/home", started: bool = False):
+def target(
+    page, pathname: str, search: str = "", start: str | None = "/home-dashboard/home", started: bool = False
+):
     return page.evaluate(
         """async ({ pathname, search, start, started }) => {
             const { startTarget } = await import("/custom_components/home_dashboard/www/loader.js");
@@ -831,10 +986,17 @@ def test_scenes_sit_right_under_the_cameras(phone):
 def test_a_scene_runs_on_a_tap_and_keeps_its_icon(phone):
     add_scenes(phone)
     mount(phone, {"scenes": SCENES})
-    assert phone.evaluate("""() => window.card.shadowRoot.querySelector("[data-scenes] .tile ha-icon").icon""") == "mdi:weather-sunny"
+    assert (
+        phone.evaluate("""() => window.card.shadowRoot.querySelector("[data-scenes] .tile ha-icon").icon""")
+        == "mdi:weather-sunny"
+    )
     phone.locator("[data-scenes] .tile").first.click()
     (sent,) = calls(phone)
-    assert (sent["domain"], sent["service"], sent["data"]) == ("scene", "turn_on", {"entity_id": "scene.morning"})
+    assert (sent["domain"], sent["service"], sent["data"]) == (
+        "scene",
+        "turn_on",
+        {"entity_id": "scene.morning"},
+    )
 
 
 def test_a_script_runs_too(phone):
@@ -905,7 +1067,9 @@ def test_a_search_stays_within_scenes_and_scripts(phone):
     add_entity(phone, "light.movie", "off", {"friendly_name": "Movie lamp"})
     phone.locator("[data-add-tile]").click()
     phone.locator("[data-pick-search]").fill("movie")
-    assert phone.locator("[data-pick]").evaluate_all("(rows) => rows.map((row) => row.dataset.pick)") == ["scene.movie"]
+    assert phone.locator("[data-pick]").evaluate_all("(rows) => rows.map((row) => row.dataset.pick)") == [
+        "scene.movie"
+    ]
 
 
 def test_scenes_are_added_moved_and_saved_apart_from_the_rooms(phone):
@@ -921,7 +1085,11 @@ def test_scenes_are_added_moved_and_saved_apart_from_the_rooms(phone):
     phone.locator("[data-edit-save]").click()
     phone.wait_for_function("window.saved.length === 1")
     strategy = phone.evaluate("window.saved[0].config.strategy")
-    assert [tile["entity"] for tile in strategy["scenes"]] == ["scene.night", "scene.morning", "script.coffee"]
+    assert [tile["entity"] for tile in strategy["scenes"]] == [
+        "scene.night",
+        "scene.morning",
+        "script.coffee",
+    ]
     assert strategy["favorites"] == ["light.a"]
     assert "layout" not in strategy
 
@@ -998,10 +1166,19 @@ def test_a_shortcut_opens_a_page_in_a_sheet_without_leaving_home(phone):
 
 
 def test_a_page_in_a_sheet_lies_on_the_sheet_without_a_background_of_its_own(phone):
-    mount(phone, {**MEDIA_SHORTCUT, "backgrounds": {"media": {"light": "/local/media.jpg", "dark": "/local/media.jpg"}}})
+    mount(
+        phone,
+        {
+            **MEDIA_SHORTCUT,
+            "backgrounds": {"media": {"light": "/local/media.jpg", "dark": "/local/media.jpg"}},
+        },
+    )
     phone.locator("[data-shortcut='Media']").click()
     phone.wait_for_selector(f"{EMBEDDED} .sources")
-    assert phone.locator(EMBEDDED).evaluate("(page) => getComputedStyle(page).backgroundColor") == "rgba(0, 0, 0, 0)"
+    assert (
+        phone.locator(EMBEDDED).evaluate("(page) => getComputedStyle(page).backgroundColor")
+        == "rgba(0, 0, 0, 0)"
+    )
     assert phone.locator(f"{EMBEDDED} .backdrop").count() == 0
 
 
@@ -1077,7 +1254,10 @@ def open_vacuum(page) -> None:
 def test_an_open_card_is_not_stretched_on_an_upright_tablet(tablet):
     tablet.set_viewport_size({"width": 820, "height": 1180})
     open_vacuum(tablet)
-    assert tablet.locator(f"{SHEET} [data-live]").evaluate("(card) => getComputedStyle(card).maxWidth") == "760px"
+    assert (
+        tablet.locator(f"{SHEET} [data-live]").evaluate("(card) => getComputedStyle(card).maxWidth")
+        == "760px"
+    )
 
 
 def test_on_a_tablet_on_its_side_the_panel_stands_beside_its_card(tablet):
@@ -1102,7 +1282,8 @@ def test_a_map_taller_than_the_screen_is_narrowed_until_the_window_fits(tablet):
     open_vacuum(tablet)
     # A map whose height follows its width, like a real one: taller than the screen at the column's width.
     tablet.locator(f"{SHEET} [data-card='custom:map']").evaluate(
-        "(card) => { card.style.aspectRatio = '1 / 1'; card.style.width = '100%'; }")
+        "(card) => { card.style.aspectRatio = '1 / 1'; card.style.width = '100%'; }"
+    )
     tablet.wait_for_timeout(400)
     card = tablet.locator(f"{SHEET} [data-live]").bounding_box()
     action = tablet.locator(f"{SHEET} [data-action='vacuum.robot']").bounding_box()
@@ -1110,13 +1291,28 @@ def test_a_map_taller_than_the_screen_is_narrowed_until_the_window_fits(tablet):
     assert action["y"] + action["height"] <= 820
 
 
-ROOMS_CARD = {"type": "custom:map", "entity": "vacuum.robot", "map_modes": [{
-    "template": "vacuum_clean_segment", "max_repeats": 3,
-    "service_call_schema": {"service": "vacuum.send_command", "service_data": {
-        "command": "app_segment_clean", "entity_id": "[[entity_id]]",
-        "params": [{"segments": "[[selection]]", "repeat": "[[repeats]]"}]}},
-    "predefined_selections": [{"id": 16, "label": {"text": "Pokój dzieci"}}, {"id": 17, "label": {"text": "Salon"}}],
-}]}
+ROOMS_CARD = {
+    "type": "custom:map",
+    "entity": "vacuum.robot",
+    "map_modes": [
+        {
+            "template": "vacuum_clean_segment",
+            "max_repeats": 3,
+            "service_call_schema": {
+                "service": "vacuum.send_command",
+                "service_data": {
+                    "command": "app_segment_clean",
+                    "entity_id": "[[entity_id]]",
+                    "params": [{"segments": "[[selection]]", "repeat": "[[repeats]]"}],
+                },
+            },
+            "predefined_selections": [
+                {"id": 16, "label": {"text": "Pokój dzieci"}},
+                {"id": 17, "label": {"text": "Salon"}},
+            ],
+        }
+    ],
+}
 
 
 def test_the_rooms_of_the_map_are_chosen_beside_it_and_cleaned(tablet):
@@ -1131,8 +1327,11 @@ def test_the_rooms_of_the_map_are_chosen_beside_it_and_cleaned(tablet):
     tablet.locator(f"{SHEET} [data-room-repeats]").click()
     go.click()
     sent = [call for call in calls(tablet) if call.get("service") == "send_command"]
-    assert sent[-1]["data"] == {"command": "app_segment_clean", "entity_id": "vacuum.robot",
-                                "params": [{"segments": [17, 16], "repeat": 2}]}
+    assert sent[-1]["data"] == {
+        "command": "app_segment_clean",
+        "entity_id": "vacuum.robot",
+        "params": [{"segments": [17, 16], "repeat": 2}],
+    }
     # Chosen again from nothing after it went.
     assert tablet.locator(f"{SHEET} [data-room].on").count() == 0
 
@@ -1246,10 +1445,13 @@ def test_columns_stand_next_to_each_other_on_a_tablet(tablet):
     [(90000, "1 d 1 h"), (3700, "1 h 1 min"), (120, "2 min"), (-1, "\u2013")],
 )
 def test_durations_read_like_the_overview(phone, seconds, expected):
-    assert phone.evaluate(
-        """async (seconds) => {
+    assert (
+        phone.evaluate(
+            """async (seconds) => {
             const { formatDuration } = await import("/custom_components/home_dashboard/www/app/host.js");
             return formatDuration(seconds);
         }""",
-        seconds,
-    ) == expected
+            seconds,
+        )
+        == expected
+    )

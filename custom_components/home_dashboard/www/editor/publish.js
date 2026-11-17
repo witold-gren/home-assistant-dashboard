@@ -5,6 +5,9 @@
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "../app/i18n.js";
 import { describeChanges, diffHunks, diffLines, missingEntities } from "./changes.js";
+import { DOCS_ANCHORS } from "./docs-anchors.js";
+import "./help.js";
+import { callWS } from "./ws.js";
 
 const PUBLISH_TAG = "home-dashboard-editor-publish";
 const HISTORY_TAG = "home-dashboard-editor-history";
@@ -235,6 +238,7 @@ export class HomeDashboardEditorPublish extends LitElement {
         <header>
           <h2>${this._t("editor_publish_title")}</h2>
           <span class="grow"></span>
+          <home-dashboard-editor-help part="publish" .anchor=${DOCS_ANCHORS.saving} .language=${this.hass?.language}></home-dashboard-editor-help>
           <button class="ghost" data-dialog-close aria-label=${this._t("close")} @click=${() => this._emit("dialog-close")}>
             <ha-icon icon="mdi:close"></ha-icon>
           </button>
@@ -317,7 +321,7 @@ export class HomeDashboardEditorHistory extends LitElement {
   async _open(version) {
     this._chosen = version.id;
     this._config = null;
-    const found = await this.hass.callWS({ type: "home_dashboard/editor/history_get", url_path: this.urlPath, version: version.id });
+    const found = await callWS(this.hass, { type: "home_dashboard/editor/history_get", url_path: this.urlPath, version: version.id });
     if (this._chosen === version.id) this._config = found.config;
   }
 
@@ -334,6 +338,7 @@ export class HomeDashboardEditorHistory extends LitElement {
         <header>
           <h2>${this._t("editor_history_title")}</h2>
           <span class="grow"></span>
+          <home-dashboard-editor-help part="history" .anchor=${DOCS_ANCHORS.saving} .language=${this.hass?.language}></home-dashboard-editor-help>
           <button class="ghost" data-dialog-close aria-label=${this._t("close")} @click=${() => this._emit("dialog-close")}>
             <ha-icon icon="mdi:close"></ha-icon>
           </button>

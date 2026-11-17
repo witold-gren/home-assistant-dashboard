@@ -18,11 +18,21 @@ STRATEGY = {
             "id": "living",
             "name": "Salon",
             "sections": [
-                {"title": "Oświetlenie", "tiles": [{"entity": "light.entity_0096", "name": "Sofa"}, {"entity": "light.entity_0097"}]},
+                {
+                    "title": "Oświetlenie",
+                    "tiles": [
+                        {"entity": "light.entity_0096", "name": "Sofa"},
+                        {"entity": "light.entity_0097"},
+                    ],
+                },
                 {"title": "Inne", "tiles": [{"entity": "switch.missing", "name": "Zniknął"}]},
             ],
         },
-        {"id": "kitchen", "name": "Kuchnia", "sections": [{"title": "Kawa", "tiles": [{"entity": "switch.entity_0235"}]}]},
+        {
+            "id": "kitchen",
+            "name": "Kuchnia",
+            "sections": [{"title": "Kawa", "tiles": [{"entity": "switch.entity_0235"}]}],
+        },
     ],
     "shortcuts": [{"kind": "panel", "name": "Ekspres", "icon": "mdi:coffee-maker"}],
 }
@@ -46,7 +56,9 @@ def open_editor(page, strategy=STRATEGY, **options) -> None:
 
 
 def sent(page, kind: str) -> list:
-    return page.evaluate(f"window.editor.server.state.sent.filter((m) => m.type === 'home_dashboard/editor/{kind}')")
+    return page.evaluate(
+        f"window.editor.server.state.sent.filter((m) => m.type === 'home_dashboard/editor/{kind}')"
+    )
 
 
 def server(page) -> dict:
@@ -87,7 +99,18 @@ def wait_saved(page) -> None:
 def test_the_tree_shows_home_rooms_sections_tiles_and_blocks(desktop):
     open_editor(desktop)
     labels = desktop.locator(f"{APP} [data-node] .label").all_inner_texts()
-    for label in ("Ulubione", "Sceny", "Salon", "Oświetlenie", "Sofa", "Entity 0097", "Kuchnia", "Kawa", "Ekspres", "Wygląd i motywy"):
+    for label in (
+        "Ulubione",
+        "Sceny",
+        "Salon",
+        "Oświetlenie",
+        "Sofa",
+        "Entity 0097",
+        "Kuchnia",
+        "Kawa",
+        "Ekspres",
+        "Wygląd i motywy",
+    ):
         assert label in labels
     groups = desktop.locator(f"{APP} [data-group] .group-name").all_inner_texts()
     assert groups == ["STRONA GŁÓWNA", "POKOJE", "BLOKI", "USTAWIENIA"]
@@ -95,7 +118,9 @@ def test_the_tree_shows_home_rooms_sections_tiles_and_blocks(desktop):
 
 def test_a_tile_of_a_missing_entity_and_its_room_are_marked(desktop):
     open_editor(desktop)
-    assert "warn" in desktop.locator(f"{APP} [data-node='layout/0/sections/1/tiles/0']").get_attribute("class")
+    assert "warn" in desktop.locator(f"{APP} [data-node='layout/0/sections/1/tiles/0']").get_attribute(
+        "class"
+    )
     assert "warn" in desktop.locator(f"{APP} [data-node='layout/0']").get_attribute("class")
     assert "warn" not in desktop.locator(f"{APP} [data-node='layout/1']").get_attribute("class")
     select(desktop, "layout/0/sections/1/tiles/0")
@@ -105,7 +130,9 @@ def test_a_tile_of_a_missing_entity_and_its_room_are_marked(desktop):
 def test_search_keeps_what_matches_with_the_way_to_it(desktop):
     open_editor(desktop)
     desktop.locator(f"{APP} [data-search]").fill("0235")
-    keys = desktop.locator(f"{APP} [data-node]").evaluate_all("(nodes) => nodes.map((node) => node.dataset.node)")
+    keys = desktop.locator(f"{APP} [data-node]").evaluate_all(
+        "(nodes) => nodes.map((node) => node.dataset.node)"
+    )
     assert keys == ["layout/1", "layout/1/sections/0", "layout/1/sections/0/tiles/0"]
 
 
@@ -140,7 +167,9 @@ def test_typing_yaml_changes_the_draft_and_nothing_live(desktop):
     state = server(desktop)
     assert state["draft"]["config"]["strategy"]["layout"][0]["sections"][0]["tiles"][0]["name"] == "Kanapa"
     assert state["live"]["strategy"]["layout"][0]["sections"][0]["tiles"][0]["name"] == "Sofa"
-    assert state["draft"]["base"] == desktop.evaluate("(strategy) => window.editor.configHash({ strategy })", STRATEGY)
+    assert state["draft"]["base"] == desktop.evaluate(
+        "(strategy) => window.editor.configHash({ strategy })", STRATEGY
+    )
 
 
 def test_many_letters_are_saved_once(desktop):
@@ -255,9 +284,12 @@ def run(page, body: str, arg=None):
 
 
 def test_set_at_copies_the_way_and_shares_nothing(desktop):
-    result = run(desktop, """const before = { a: [{ b: 1 }, { b: 2 }], c: { d: 1 } };
+    result = run(
+        desktop,
+        """const before = { a: [{ b: 1 }, { b: 2 }], c: { d: 1 } };
         const after = t.setAt(before, ['a', 1, 'b'], 5);
-        return [before.a[1].b, after.a[1].b, after.c === before.c, after.a[0] === before.a[0], after.a === before.a];""")
+        return [before.a[1].b, after.a[1].b, after.c === before.c, after.a[0] === before.a[0], after.a === before.a];""",
+    )
     assert result == [2, 5, True, True, False]
 
 
@@ -272,23 +304,39 @@ def test_set_at_copies_the_way_and_shares_nothing(desktop):
     ],
 )
 def test_moving_an_item_within_or_between_lists(desktop, source, target, index, expected):
-    result = run(desktop, "return t.moveItem({ x: ['a', 'b', 'c'], y: ['z'] }, arg[0], arg[1], arg[2]);", [source, target, index])
+    result = run(
+        desktop,
+        "return t.moveItem({ x: ['a', 'b', 'c'], y: ['z'] }, arg[0], arg[1], arg[2]);",
+        [source, target, index],
+    )
     assert result == expected
 
 
 def test_insert_and_remove(desktop):
-    result = run(desktop, """const value = { x: ['a', 'b'] };
-        return [t.insertAt(value, ['x'], 1, 'n'), t.insertAt(value, ['new'], undefined, 'n'), t.removeAt(value, ['x', 0]), value];""")
-    assert result == [{"x": ["a", "n", "b"]}, {"x": ["a", "b"], "new": ["n"]}, {"x": ["b"]}, {"x": ["a", "b"]}]
+    result = run(
+        desktop,
+        """const value = { x: ['a', 'b'] };
+        return [t.insertAt(value, ['x'], 1, 'n'), t.insertAt(value, ['new'], undefined, 'n'), t.removeAt(value, ['x', 0]), value];""",
+    )
+    assert result == [
+        {"x": ["a", "n", "b"]},
+        {"x": ["a", "b"], "new": ["n"]},
+        {"x": ["b"]},
+        {"x": ["a", "b"]},
+    ]
 
 
 def test_the_look_of_the_editor_follows_home_assistant_and_can_be_chosen(desktop):
     desktop.evaluate("() => localStorage.removeItem('home-dashboard-editor-theme')")
     open_editor(desktop)
     app = desktop.locator(APP)
-    desktop.evaluate("() => { window.editor.app.hass = { ...window.editor.app.hass, themes: { darkMode: true } }; }")
+    desktop.evaluate(
+        "() => { window.editor.app.hass = { ...window.editor.app.hass, themes: { darkMode: true } }; }"
+    )
     desktop.wait_for_function("window.editor.app.dataset.theme === 'dark'")
-    desktop.evaluate("() => { window.editor.app.hass = { ...window.editor.app.hass, themes: { darkMode: false } }; }")
+    desktop.evaluate(
+        "() => { window.editor.app.hass = { ...window.editor.app.hass, themes: { darkMode: false } }; }"
+    )
     desktop.wait_for_function("window.editor.app.dataset.theme === 'light'")
     button = desktop.locator(f"{APP} [data-theme-button]")
     button.click()  # auto → light
@@ -313,7 +361,9 @@ def test_the_look_of_the_system_when_home_assistant_says_nothing(desktop):
 
 
 def tree_keys(page) -> list[str]:
-    return page.locator(f"{APP} [data-node]").evaluate_all("(nodes) => nodes.map((node) => node.dataset.node)")
+    return page.locator(f"{APP} [data-node]").evaluate_all(
+        "(nodes) => nodes.map((node) => node.dataset.node)"
+    )
 
 
 def test_a_group_of_the_tree_folds_and_remembers_it(desktop):
@@ -323,7 +373,9 @@ def test_a_group_of_the_tree_folds_and_remembers_it(desktop):
     desktop.locator(f"{APP} [data-group-fold='rooms']").click()
     assert "layout/0" not in tree_keys(desktop)
     assert "favorites" in tree_keys(desktop)  # the other groups stay open
-    assert "rooms" in desktop.evaluate("() => JSON.parse(localStorage.getItem('home-dashboard-editor-collapsed'))")
+    assert "rooms" in desktop.evaluate(
+        "() => JSON.parse(localStorage.getItem('home-dashboard-editor-collapsed'))"
+    )
     desktop.locator(f"{APP} [data-group='rooms'] .group-name").click()
     assert "layout/0" in tree_keys(desktop)
 

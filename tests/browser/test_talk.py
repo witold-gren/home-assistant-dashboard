@@ -23,7 +23,13 @@ SETUP = """(arg) => {
     if (arg.speaker) add("switch.hall_speaker", "eufy", "eufy_sdk", "on");
 }"""
 
-CONFIG = {"cameras": {"tiles": ["camera.hall_nvr"], "controls": {"camera.hall_nvr": "camera.hall"}, "talk": "camera"}}
+CONFIG = {
+    "cameras": {
+        "tiles": ["camera.hall_nvr"],
+        "controls": {"camera.hall_nvr": "camera.hall"},
+        "talk": "camera",
+    }
+}
 
 
 def run(page, body: str, config=None):
@@ -49,13 +55,16 @@ def test_without_a_speaker_there_is_nothing_to_talk_through(phone):
 
 def test_the_setting_picks_the_way_and_falls_back_to_the_intercom(phone):
     phone.evaluate(SETUP, {"speaker": True})
-    modes = run(phone, """const room = { id: 'x', name: 'Korytarz' };
+    modes = run(
+        phone,
+        """const room = { id: 'x', name: 'Korytarz' };
         const intercom = model.normalizeConfig({ ...config, cameras: { ...config.cameras, talk: 'intercom' } });
         const elsewhere = Object.keys(instance.states).find((id) => id.startsWith('light.'));
         return [t.talkMode(instance, 'camera.hall_nvr', cfg, { room }).kind,
                 t.talkMode(instance, 'camera.hall_nvr', intercom, { room }).kind,
                 t.talkMode(instance, elsewhere, cfg, { room }).kind,
-                t.talkMode(instance, elsewhere, cfg, {})];""")
+                t.talkMode(instance, elsewhere, cfg, {})];""",
+    )
     assert modes == ["camera", "intercom", "intercom", None]
 
 
@@ -98,9 +107,15 @@ def test_talking_streams_the_microphone_to_the_integration_and_stops_cleanly(pho
         session.stop();
         return window.events; }}""")
     assert events == [
-        "mic", "worklet", "sign /api/eufy_sdk/talk/T8410ABC?rate=48000",
-        "socket ws://ha.local:8123/api/eufy_sdk/talk/T8410ABC?rate=48000&authSig=x", "connected",
-        "send 256 bytes", "send stop", "track stopped", "context closed",
+        "mic",
+        "worklet",
+        "sign /api/eufy_sdk/talk/T8410ABC?rate=48000",
+        "socket ws://ha.local:8123/api/eufy_sdk/talk/T8410ABC?rate=48000&authSig=x",
+        "connected",
+        "send 256 bytes",
+        "send stop",
+        "track stopped",
+        "context closed",
     ]
 
 
@@ -127,7 +142,9 @@ SHEET_JS = "document.querySelector('home-dashboard-chrome').shadowRoot.querySele
 
 def see_live(page) -> None:
     """The live view runs and its video moves, as once a camera has woken."""
-    page.evaluate(f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; sheet._liveShown = true; await sheet.updateComplete; }}")
+    page.evaluate(
+        f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; sheet._liveShown = true; await sheet.updateComplete; }}"
+    )
 
 
 def open_hall(page) -> None:
@@ -144,7 +161,9 @@ def test_nobody_is_talked_to_before_they_can_be_seen(phone):
     assert button.get_attribute("aria-disabled") == "true"
     assert "podglądu na żywo" in button.get_attribute("aria-label")
     # Live, but the camera still wakes: still nobody to see.
-    phone.evaluate(f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; }}")
+    phone.evaluate(
+        f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; }}"
+    )
     assert button.get_attribute("aria-disabled") == "true"
     see_live(phone)
     assert button.get_attribute("aria-disabled") == "false"
@@ -152,7 +171,9 @@ def test_nobody_is_talked_to_before_they_can_be_seen(phone):
 
 def test_a_tap_before_the_live_view_says_it_is_needed_and_starts_nothing(phone):
     open_hall(phone)
-    phone.evaluate("() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }")
+    phone.evaluate(
+        "() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }"
+    )
     # A button that waits can still be tapped, to say why it waits.
     phone.locator(f"{SHEET} [data-camera-talk]").click(force=True)
     note = phone.locator(f"{SHEET} [data-talk-problem]")
@@ -162,7 +183,9 @@ def test_a_tap_before_the_live_view_says_it_is_needed_and_starts_nothing(phone):
 
 def without_https(page) -> None:
     # As over plain http:// on the home network: the browser gives no microphone at all.
-    page.evaluate("() => Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })")
+    page.evaluate(
+        "() => Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })"
+    )
 
 
 def test_without_https_the_talk_button_is_crossed_out_and_only_explains(phone):
@@ -172,7 +195,9 @@ def test_without_https_the_talk_button_is_crossed_out_and_only_explains(phone):
     button = phone.locator(f"{SHEET} [data-camera-talk]")
     assert button.locator("ha-icon").get_attribute("icon") == "mdi:microphone-off"
     assert "HTTPS" in button.get_attribute("aria-label")
-    phone.evaluate("() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }")
+    phone.evaluate(
+        "() => { window.sockets = 0; window.WebSocket = class { constructor() { window.sockets += 1; } }; }"
+    )
     button.click(force=True)
     assert "HTTPS" in phone.locator(f"{SHEET} [data-talk-problem]").inner_text()
     assert phone.evaluate("window.sockets") == 0
@@ -259,13 +284,16 @@ def test_a_path_with_a_query_gets_the_rate_appended(phone):
 
 def test_each_camera_can_choose_how_it_talks(phone):
     phone.evaluate(SETUP, {"speaker": True})
-    modes = run(phone, """const room = { id: 'x', name: 'Korytarz' };
+    modes = run(
+        phone,
+        """const room = { id: 'x', name: 'Korytarz' };
         const per = (way) => model.normalizeConfig({ ...config, cameras: { ...config.cameras, talk_with: { 'camera.hall_nvr': way } } });
         const kind = (mode) => mode && (mode.speaker?.go2rtc ? `go2rtc:${mode.speaker.go2rtc}` : mode.kind);
         return [kind(t.talkMode(instance, 'camera.hall_nvr', per('go2rtc'), { room })),
                 kind(t.talkMode(instance, 'camera.hall_nvr', per('intercom'), { room })),
                 kind(t.talkMode(instance, 'camera.hall_nvr', per('none'), { room })),
-                kind(t.talkMode(instance, 'camera.hall_nvr', per('auto'), { room }))];""")
+                kind(t.talkMode(instance, 'camera.hall_nvr', per('auto'), { room }))];""",
+    )
     # go2rtc talks to the camera the window is linked to (cameras.controls), which is the one with the speaker.
     assert modes == ["go2rtc:camera.hall", "intercom", None, "camera"]
 

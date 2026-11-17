@@ -591,6 +591,10 @@ export const controlStyles = css`
   .moving .blind {
     transition: height 260ms linear;
   }
+  .actions button.on {
+    color: var(--hd-appliance-ink);
+    background: var(--hd-appliance);
+  }
   .actions button.moving {
     color: var(--hd-cover-icon);
     background: var(--hd-cover);

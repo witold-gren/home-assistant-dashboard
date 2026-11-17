@@ -28,7 +28,9 @@ MOUNT = """async ({ dashboard, info, fails, admin }) => {
 }"""
 
 
-def open_from_menu(page, dashboard: dict = MENU, info: dict = RUNNING, fails: bool = False, admin: bool = True) -> None:
+def open_from_menu(
+    page, dashboard: dict = MENU, info: dict = RUNNING, fails: bool = False, admin: bool = True
+) -> None:
     page.evaluate(MOUNT, {"dashboard": dashboard, "info": info, "fails": fails, "admin": admin})
     page.locator("home-dashboard-page [data-menu]").first.click()
     page.locator("[data-menu-app='abc_frigate']").click()
@@ -80,7 +82,9 @@ def test_a_fallback_address_is_used_when_the_session_fails(phone):
 
 def test_an_app_can_be_a_shortcut_on_home(phone):
     shortcut = {"kind": "app", "name": "Frigate", "icon": "mdi:cctv", "addon": "abc_frigate"}
-    phone.evaluate(MOUNT, {"dashboard": {"shortcuts": [shortcut]}, "info": RUNNING, "fails": False, "admin": True})
+    phone.evaluate(
+        MOUNT, {"dashboard": {"shortcuts": [shortcut]}, "info": RUNNING, "fails": False, "admin": True}
+    )
     phone.locator("home-dashboard-page [data-shortcut='Frigate']").click()
     phone.locator(f"{APP} [data-app-frame]").wait_for(state="attached")
 
@@ -95,7 +99,10 @@ def test_the_idle_timer_leaves_an_open_app_alone(phone):
 
 def test_the_music_page_can_be_an_app(phone):
     dashboard = {"music": {"addon": "abc_music"}}
-    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False})
+    phone.evaluate(
+        MOUNT.replace('"home")', '"music")'),
+        {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False},
+    )
     phone.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
     endpoints = phone.evaluate("window.ws.filter((m) => m.type === 'supervisor/api').map((m) => m.endpoint)")
     assert "/addons/abc_music/info" in endpoints
@@ -103,7 +110,10 @@ def test_the_music_page_can_be_an_app(phone):
 
 def test_the_music_app_fills_the_page(phone):
     dashboard = {"music": {"addon": "abc_music"}}
-    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False})
+    phone.evaluate(
+        MOUNT.replace('"home")', '"music")'),
+        {"dashboard": dashboard, "info": RUNNING, "fails": False, "admin": False},
+    )
     frame = phone.locator(f"home-dashboard-page {APP} [data-app-frame]")
     frame.wait_for(state="attached")
     assert frame.bounding_box()["height"] > 600
@@ -114,7 +124,10 @@ NAV = "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector(
 
 def open_full_music(page, info: dict = RUNNING, music: dict | None = None) -> None:
     dashboard = {"music": music or {"addon": "abc_music", "fullscreen": True}}
-    page.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": info, "fails": False, "admin": False})
+    page.evaluate(
+        MOUNT.replace('"home")', '"music")'),
+        {"dashboard": dashboard, "info": info, "fails": False, "admin": False},
+    )
     page.evaluate("""() => {
         window.navigated = [];
         document.querySelector("home-dashboard-chrome")._navigate = (target) => window.navigated.push(target.key);
@@ -237,7 +250,9 @@ def test_full_music_runs_under_the_clock_and_gets_room_inside(phone):
     frame = app_frame(phone)
     phone.wait_for_selector("home-dashboard-page .page.under-clock")
     assert phone.locator(f"home-dashboard-page {APP} [data-app-frame]").bounding_box()["y"] == 0
-    assert frame.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--hd-inset')").endswith("px")
+    assert frame.evaluate(
+        "getComputedStyle(document.documentElement).getPropertyValue('--hd-inset')"
+    ).endswith("px")
 
 
 def test_music_without_the_option_stays_below_the_clock(phone):
@@ -249,7 +264,10 @@ def test_music_without_the_option_stays_below_the_clock(phone):
 
 def test_a_frame_from_another_address_stays_below_the_clock(phone):
     dashboard = {"music": {"addon": "abc_music", "fullscreen": True, "frame": "http://127.0.0.1:9/"}}
-    phone.evaluate(MOUNT.replace('"home")', '"music")'), {"dashboard": dashboard, "info": RUNNING, "fails": True, "admin": False})
+    phone.evaluate(
+        MOUNT.replace('"home")', '"music")'),
+        {"dashboard": dashboard, "info": RUNNING, "fails": True, "admin": False},
+    )
     phone.locator(f"home-dashboard-page {APP} [data-app-frame]").wait_for(state="attached")
     phone.wait_for_timeout(600)
     assert phone.locator("home-dashboard-page .page.under-clock").count() == 0

@@ -59,6 +59,8 @@ import {
   chipKey,
   shownShortcuts,
   watchedEntityIds,
+  scaledPicture,
+  TILE_PICTURE,
 } from "./model.js";
 import {
   addSection,
@@ -682,13 +684,13 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
-  _pictureUrl(camera) {
-    const url = this._hass.hassUrl(camera.picture);
+  _pictureUrl(camera, size = TILE_PICTURE.small) {
+    const url = scaledPicture(this._hass.hassUrl(camera.picture), size);
     if (camera.updatedAt || !this._pictureTick) return url;
     return `${url}${url.includes("?") ? "&" : "?"}tick=${this._pictureTick}`;
   }
 
-  _renderCamera(camera, named = false) {
+  _renderCamera(camera, named = false, size = TILE_PICTURE.small) {
     // An unavailable camera still opens, to its window that says so under its name: which camera went away is seen
     // there, not written into a small tile. A guest's camera does not.
     const blocked = camera.unavailable || camera.guest;
@@ -701,7 +703,7 @@ export class HomeDashboardPage extends LitElement {
       >
         ${camera.picture
           ? html`<img
-              src=${this._pictureUrl(camera)}
+              src=${this._pictureUrl(camera, size)}
               alt=""
               loading="lazy"
               @error=${(event) => (event.target.hidden = true)}
@@ -738,7 +740,7 @@ export class HomeDashboardPage extends LitElement {
           ${cameraColumns(cameras).map(
             (column) => html`
               <div class="camera-column ${column.length > 1 || (column[0].unavailable && anyWorking) ? "stacked" : ""}">
-                ${column.map((camera) => this._renderCamera(camera))}
+                ${column.map((camera) => this._renderCamera(camera, false, column.length > 1 ? TILE_PICTURE.small : TILE_PICTURE.big))}
               </div>
             `,
           )}
@@ -752,7 +754,7 @@ export class HomeDashboardPage extends LitElement {
     return html`
       <section>
         <h2>${translate(this._hass.language, "section_cameras")}</h2>
-        <div class="camera-list">${cameras.map((camera) => this._renderCamera(camera, true))}</div>
+        <div class="camera-list">${cameras.map((camera) => this._renderCamera(camera, true, TILE_PICTURE.list))}</div>
       </section>
     `;
   }

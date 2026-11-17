@@ -17,10 +17,14 @@
         "description": "Apply to every dashboard and device, at once.",
         "data": {
           "color_mode": "Colour mode",
-          "editor_in_sidebar": "Show the editor in the sidebar"
+          "editor_in_sidebar": "Show the editor in the sidebar",
+          "activity_in_sidebar": "Show Household activity in the sidebar",
+          "activity_record": "Write down the household activity"
         },
         "data_description": {
-          "editor_in_sidebar": "The Dashboard editor panel (administrators only). Hidden, it still opens at /home-dashboard-editor."
+          "editor_in_sidebar": "The Dashboard editor panel (administrators only). Hidden, it still opens at /home-dashboard-editor.",
+          "activity_in_sidebar": "The Household activity panel (administrators; its data only for the owner). Hidden, it still opens at /home-dashboard-activity.",
+          "activity_record": "The dashboards write down the pages and windows each person opens, kept 30 days for the Household activity panel. Off: nothing new is written; what was written goes away after 30 days."
         }
       }
     }
@@ -31,6 +35,50 @@
         "auto": "Automatic (follows the system)",
         "light": "Light",
         "dark": "Dark"
+      }
+    }
+  },
+  "services": {
+    "show_camera": {
+      "name": "Show a camera",
+      "description": "Opens the dashboard's own window of a camera on the open dashboards asked for, with the picture of the event. It closes by itself after a while unless somebody turns on the live view; the event home_dashboard_camera_closed says when it is gone.",
+      "fields": {
+        "entity_id": {
+          "name": "Camera",
+          "description": "The camera (camera.*) or its picture (image.*) as the dashboard shows it."
+        },
+        "picture": {
+          "name": "Picture of the event",
+          "description": "An image.* entity with the snapshot of the event, shown until the live view starts. Empty: the camera's own picture."
+        },
+        "title": {
+          "name": "Title",
+          "description": "The title of the window. Empty: the name of the camera."
+        },
+        "close_after": {
+          "name": "Close after",
+          "description": "Seconds before the window closes by itself; 0 keeps it open. The live view or a touch keeps it open."
+        },
+        "live_limit": {
+          "name": "Live view at most",
+          "description": "Seconds the window stays open at most once the live view is on."
+        },
+        "live": {
+          "name": "Live view at once",
+          "description": "Starts the live view as the window opens (a camera that records all the time); it still closes after the time above unless somebody touches it."
+        },
+        "interrupt": {
+          "name": "Comes first",
+          "description": "Replaces the window of another camera on the screen (e.g. the doorbell over a motion window); the settings and editing are still never taken away."
+        },
+        "browser_id": {
+          "name": "Devices",
+          "description": "Browser Mod ids of the devices to open it on (e.g. hall_ipad). Empty: every device."
+        },
+        "user_id": {
+          "name": "People",
+          "description": "Home Assistant user ids to open it for. Empty: everybody."
+        }
       }
     }
   }

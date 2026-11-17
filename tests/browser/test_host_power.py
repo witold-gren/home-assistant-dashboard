@@ -59,7 +59,9 @@ def test_the_room_tile_shows_the_power_and_opens_its_machine_alone(phone):
     open_nuc(phone)
     assert phone.locator(f"{SHEET} .panel").get_attribute("data-kind") == "host"
     assert "Intel NUC" in phone.locator(f"{SHEET} header h2").inner_text()
-    assert phone.locator(f"{SHEET} {HOST} [data-column]").evaluate_all("(items) => items.map((item) => item.dataset.column)") == ["Serwer"]
+    assert phone.locator(f"{SHEET} {HOST} [data-column]").evaluate_all(
+        "(items) => items.map((item) => item.dataset.column)"
+    ) == ["Serwer"]
 
 
 def test_the_plug_tells_what_it_draws_today_and_in_total(phone):
@@ -77,7 +79,11 @@ def test_the_plug_tells_what_it_draws_today_and_in_total(phone):
 def test_the_power_is_drawn_from_its_history_and_nothing_is_switched(phone):
     open_nuc(phone)
     phone.wait_for_selector(f"{SHEET} {HOST} home-dashboard-history-chart >> svg")
-    asked = [message for message in phone.evaluate("window.asked") if message["type"] == "history/history_during_period"]
+    asked = [
+        message
+        for message in phone.evaluate("window.asked")
+        if message["type"] == "history/history_during_period"
+    ]
     assert asked[-1]["entity_ids"] == ["sensor.plug_power"]
     assert phone.evaluate("window.hass.calls") == []
     assert phone.locator(f"{SHEET} {HOST} [data-power] button[role='switch']").count() == 0
@@ -86,14 +92,24 @@ def test_the_power_is_drawn_from_its_history_and_nothing_is_switched(phone):
 def test_a_new_state_does_not_load_the_history_again(phone):
     open_nuc(phone)
     phone.wait_for_selector(f"{SHEET} {HOST} home-dashboard-history-chart >> svg")
-    count = phone.evaluate("window.asked.filter((message) => message.type === 'history/history_during_period').length")
+    count = phone.evaluate(
+        "window.asked.filter((message) => message.type === 'history/history_during_period').length"
+    )
     add_entity(phone, "sensor.plug_power", "30", {"unit_of_measurement": "W"})
-    phone.evaluate("""async (answers) => { const sheet = document.querySelector('home-dashboard-chrome').shadowRoot
+    phone.evaluate(
+        """async (answers) => { const sheet = document.querySelector('home-dashboard-chrome').shadowRoot
         .querySelector('home-dashboard-sheet');
-        sheet.hass = window.dashboard.hass({ callWS: eval(answers) }); await sheet.updateComplete; }""", ANSWERS)
+        sheet.hass = window.dashboard.hass({ callWS: eval(answers) }); await sheet.updateComplete; }""",
+        ANSWERS,
+    )
     phone.wait_for_function("""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')
         .shadowRoot.querySelector('home-dashboard-host').shadowRoot.querySelector('[data-watts]').innerText.startsWith('30')""")
-    assert phone.evaluate("window.asked.filter((message) => message.type === 'history/history_during_period').length") == count
+    assert (
+        phone.evaluate(
+            "window.asked.filter((message) => message.type === 'history/history_during_period').length"
+        )
+        == count
+    )
 
 
 def test_the_whole_window_keeps_every_machine(phone):

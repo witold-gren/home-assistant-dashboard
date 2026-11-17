@@ -3,7 +3,7 @@
 import { html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { createRecorder } from "./intercom.js";
-import { effectiveArea, intercomAreas, liveCameraFor } from "./model.js";
+import { effectiveArea, intercomAreas, liveCameraFor, scaledPicture, TILE_PICTURE } from "./model.js";
 import { localDay, recordingSource } from "./recordings.js";
 import {
   LANDSCAPE_PHONE,
@@ -37,6 +37,7 @@ export const CameraSheets = (Base) =>
         tap_action: { action: "none" },
       });
       if (!this._live) return;
+      this._engaged(true);
       this._liveTimer = setTimeout(() => this._stopLive(), LIVE_LIMIT_MS);
       this._hearLive();
     }
@@ -176,7 +177,7 @@ export const CameraSheets = (Base) =>
                 data-thumb=${camera.entityId}
                 @click=${() => this._showCamera(camera.entityId)}
               >
-                <img src=${this.hass.hassUrl(camera.picture)} alt="" loading="lazy" />
+                <img src=${scaledPicture(this.hass.hassUrl(camera.picture), TILE_PICTURE.thumb)} alt="" loading="lazy" />
               </button>
             `,
           )}
@@ -230,11 +231,32 @@ export const CameraSheets = (Base) =>
       if (Math.floor(time) !== Math.floor(this._playhead ?? 0)) this._playhead = time;
     }
 
+    // A moment picked on the bar of the clip: the picture follows the finger, letting go plays from there.
+    _clipScrub(time) {
+      const video = this._clipVideo();
+      if (!this._clip || !video) return;
+      video.pause();
+      video.currentTime = Math.max(0, time - this._clip.start);
+    }
+
+    _clipSeek({ time, play }) {
+      const video = this._clipVideo();
+      if (!this._clip || !video) return;
+      video.currentTime = Math.max(0, time - this._clip.start);
+      this._playhead = time;
+      if (play) video.play().catch(() => {});
+    }
+
     _clipEnded() {
       if (!this._clip) return;
-      const next = this.renderRoot.querySelector("home-dashboard-timeline")?.clipFrom(this._clip.end);
+      const line = this.renderRoot.querySelector("home-dashboard-timeline");
+      const next = line ? line.nextAfter(this._clip) : null;
       if (next) this._playClip(next);
-      else {
+      else if (line?.zoomed) {
+        // On the zoomed line the recording stops at its end; the next one is a move of the line away.
+        this._clipPaused = true;
+        this._playhead = this._clip.end;
+      } else {
         // The last recording is over: back to the camera's last picture, never to the live view.
         this._clip = null;
         this._playhead = null;
@@ -265,6 +287,12 @@ export const CameraSheets = (Base) =>
 
     _videos() {
       return this._inStage("video");
+    }
+
+    // A window opened by an automation stays while somebody uses it: the live view or a touch (chrome.js).
+    _engaged(live) {
+      if (!this.sheet?.remote) return;
+      this.dispatchEvent(new CustomEvent("camera-engaged", { detail: { live } }));
     }
 
     // Elements of these names in the picture, down through the shadow roots of the players.

@@ -70,9 +70,18 @@ UPLOAD = """async (arg) => {
 
 
 def test_a_recording_goes_to_the_endpoint_which_plays_it(phone):
-    result = phone.evaluate(UPLOAD, {"admin": False, "answer": {"played": [{"area": "salon"}], "missing": []}})
+    result = phone.evaluate(
+        UPLOAD, {"admin": False, "answer": {"played": [{"area": "salon"}], "missing": []}}
+    )
     assert result["error"] is None
-    assert result["sent"] == [{"url": "/api/intercom/message?areas=salon,pok%C3%B3j%20dzieci", "type": "audio/wav", "size": 44, "method": "POST"}]
+    assert result["sent"] == [
+        {
+            "url": "/api/intercom/message?areas=salon,pok%C3%B3j%20dzieci",
+            "type": "audio/wav",
+            "size": 44,
+            "method": "POST",
+        }
+    ]
 
 
 def test_nowhere_played_is_an_error(phone):
@@ -97,8 +106,12 @@ def test_done_with_the_endpoint_sends_no_service_call(phone):
         const card = document.querySelector('home-dashboard-chrome');
         card.hass = { ...card.hass, fetchWithAuth: async (url, init) => (window.uploads.push(url),
             { ok: true, json: async () => ({ played: [{ area: 'area_a' }], missing: [] }) }) }; }""")
-    phone.evaluate(OPEN.replace("stop: () => (window.recorderLog.push('stop'), null)",
-                                "stop: () => (window.recorderLog.push('stop'), new Blob([new Uint8Array(44)]))"))
+    phone.evaluate(
+        OPEN.replace(
+            "stop: () => (window.recorderLog.push('stop'), null)",
+            "stop: () => (window.recorderLog.push('stop'), new Blob([new Uint8Array(44)]))",
+        )
+    )
     phone.wait_for_selector(f"{CARD}[data-intercom-state='recording']")
     phone.locator(f"{CARD} [data-intercom-done]").click()
     phone.wait_for_selector(f"{CARD}[data-intercom-state='sent']")
@@ -149,5 +162,7 @@ def test_a_recording_closed_during_its_tail_sends_nothing(phone):
 
 def test_closing_the_window_drops_the_recording_at_once(phone):
     open_card(phone)
-    phone.evaluate("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()")
+    phone.evaluate(
+        "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()"
+    )
     assert "cancel" in phone.evaluate("window.recorderLog")

@@ -95,7 +95,9 @@ def test_an_effect_can_be_chosen(phone):
 
 
 def test_the_effect_off_of_a_hue_lamp_is_said_in_words_and_sent_as_it_is(phone):
-    open_entity(phone, "light.a", "on", {**DIMMABLE, "effect_list": ["off", "candle", "Rain"], "effect": "off"})
+    open_entity(
+        phone, "light.a", "on", {**DIMMABLE, "effect_list": ["off", "candle", "Rain"], "effect": "off"}
+    )
     names = phone.locator(f"{SHEET} [data-light-effect] option").all_inner_texts()
     assert names[0] == "Brak" and "off" not in names
     phone.locator(f"{SHEET} [data-light-effect]").select_option("candle")
@@ -136,14 +138,25 @@ ALARM = {"supported_features": 55, "code_format": None, "friendly_name": "Dział
 
 def test_an_alarm_lists_what_it_supports_and_marks_the_current_mode(phone):
     open_entity(phone, "alarm_control_panel.a", "armed_away", ALARM)
-    modes = phone.locator(f"{SHEET} [data-alarm]").evaluate_all("(items) => items.map((item) => item.dataset.alarm)")
-    assert modes == ["armed_home", "armed_away", "armed_night", "armed_vacation", "armed_custom_bypass", "disarmed"]
+    modes = phone.locator(f"{SHEET} [data-alarm]").evaluate_all(
+        "(items) => items.map((item) => item.dataset.alarm)"
+    )
+    assert modes == [
+        "armed_home",
+        "armed_away",
+        "armed_night",
+        "armed_vacation",
+        "armed_custom_bypass",
+        "disarmed",
+    ]
     assert "on" in phone.locator(f"{SHEET} [data-alarm='armed_away']").get_attribute("class")
 
 
 def test_a_small_alarm_has_only_its_own_modes(phone):
     open_entity(phone, "alarm_control_panel.a", "disarmed", {"supported_features": 3})
-    modes = phone.locator(f"{SHEET} [data-alarm]").evaluate_all("(items) => items.map((item) => item.dataset.alarm)")
+    modes = phone.locator(f"{SHEET} [data-alarm]").evaluate_all(
+        "(items) => items.map((item) => item.dataset.alarm)"
+    )
     assert modes == ["armed_home", "armed_away", "disarmed"]
 
 
@@ -182,7 +195,10 @@ def test_the_menu_shows_the_rooms_first_and_editing_last(phone):
 
 def test_the_header_has_no_pencil_any_more(phone):
     mount_admin(phone, {})
-    assert phone.locator("home-dashboard-page [data-edit-home], home-dashboard-page [data-edit-room]").count() == 0
+    assert (
+        phone.locator("home-dashboard-page [data-edit-home], home-dashboard-page [data-edit-room]").count()
+        == 0
+    )
 
 
 def test_someone_who_cannot_edit_sees_only_the_rooms(phone):
@@ -202,7 +218,9 @@ def test_the_menu_opens_the_background_of_home(phone):
 def test_the_intercom_is_a_sound_wave(phone):
     area = phone.evaluate("Object.keys(window.dashboard.snapshot.areas)[0]")
     mount(phone, {"intercom": {"script": "script.a", "areas": [area]}})
-    icons = phone.evaluate("""() => [...window.card.shadowRoot.querySelectorAll(".intercom ha-icon")].map((icon) => icon.getAttribute("icon"))""")
+    icons = phone.evaluate(
+        """() => [...window.card.shadowRoot.querySelectorAll(".intercom ha-icon")].map((icon) => icon.getAttribute("icon"))"""
+    )
     assert "mdi:waveform" in icons
     assert "mdi:bullhorn-outline" not in icons
 
@@ -218,7 +236,12 @@ CONTROLS = {
             "layout": "controls",
             "rows": [
                 {"entity": "switch.power", "name": "Zasilanie", "icon": "mdi:power"},
-                {"entity": "select.mode", "name": "Tryb", "labels": {"video": "Wideo"}, "icons": {"video": "mdi:movie"}},
+                {
+                    "entity": "select.mode",
+                    "name": "Tryb",
+                    "labels": {"video": "Wideo"},
+                    "icons": {"video": "mdi:movie"},
+                },
                 {"entity": "number.level", "name": "Jasność"},
                 {"entity": "sensor.wifi", "name": "Wi-Fi"},
             ],
@@ -267,9 +290,20 @@ def test_a_short_list_of_sources_and_sound_modes_is_shown_as_choices(phone):
         phone,
         "media_player.bar",
         "on",
-        {"source_list": ["Bluetooth", "HDMI", "USB"], "source": "HDMI", "sound_mode_list": ["Cinema", "Game"], "sound_mode": "Game"},
+        {
+            "source_list": ["Bluetooth", "HDMI", "USB"],
+            "source": "HDMI",
+            "sound_mode_list": ["Cinema", "Game"],
+            "sound_mode": "Game",
+        },
     )
-    item = {"kind": "tv", "entity": "media_player.bar", "name": "Bar", "sound_mode": True, "shortcuts": [{"name": "HDMI", "icon": "mdi:hdmi"}]}
+    item = {
+        "kind": "tv",
+        "entity": "media_player.bar",
+        "name": "Bar",
+        "sound_mode": True,
+        "shortcuts": [{"name": "HDMI", "icon": "mdi:hdmi"}],
+    }
     mount(phone, room_with(item))
     phone.locator("home-dashboard-page [data-tile='Bar']").click()
     phone.wait_for_selector(f"{SHEET} .choices")
@@ -291,8 +325,6 @@ def test_filter_animation_adds_nothing_to_the_length_of_the_page(moving_phone):
     assert length <= end_of_page + 1
 
 
-
-
 # Security filter --------------------------------------------------------------------------------
 
 GUESTS = {"name": "Gość", "entities": ["input_boolean.home", "input_boolean.cabin"]}
@@ -300,7 +332,10 @@ GUESTS = {"name": "Gość", "entities": ["input_boolean.home", "input_boolean.ca
 
 def guests_dashboard() -> dict:
     home = [{"entity": "input_boolean.home", "name": "Gość Dom", "turn_on_only": True}]
-    cabin = [{"entity": "input_boolean.cabin", "name": "Gość działka"}, {"entity": "alarm_control_panel.a", "name": "Altanka"}]
+    cabin = [
+        {"entity": "input_boolean.cabin", "name": "Gość działka"},
+        {"entity": "alarm_control_panel.a", "name": "Altanka"},
+    ]
     return {
         "security": {"group": GUESTS},
         "layout": [
@@ -324,7 +359,9 @@ def test_the_guest_group_is_at_the_top_of_the_security_filter(phone):
     first = phone.locator("home-dashboard-page section[data-room]").first
     assert first.get_attribute("data-room") == "__security_group"
     assert first.locator("h2").text_content().strip() == "Gość"
-    assert first.locator("[data-entity]").evaluate_all("(tiles) => tiles.map((tile) => tile.dataset.entity)") == [
+    assert first.locator("[data-entity]").evaluate_all(
+        "(tiles) => tiles.map((tile) => tile.dataset.entity)"
+    ) == [
         "input_boolean.home",
         "input_boolean.cabin",
     ]
@@ -352,8 +389,9 @@ def test_other_filters_have_no_group(phone):
 def test_an_alarm_of_a_device_that_is_gone_stays_out_of_the_filter(phone):
     entity = "alarm_control_panel.gone"
     add_entity(phone, entity, "unavailable", {"restored": True})
-    assert phone.evaluate(
-        """(id) => {
+    assert (
+        phone.evaluate(
+            """(id) => {
             const { model, hass } = window.dashboard;
             const instance = hass();
             instance.entities[id] = { entity_id: id, area_id: Object.keys(instance.areas)[0] };
@@ -361,15 +399,18 @@ def test_an_alarm_of_a_device_that_is_gone_stays_out_of_the_filter(phone):
             const home = model.buildHomeModel(instance, config, model.selectEntities(instance, config));
             return home.filterRooms.flatMap((room) => room.tiles).some((tile) => tile.entityId === id);
         }""",
-        entity,
-    ) is False
+            entity,
+        )
+        is False
+    )
 
 
 def test_an_alarm_without_a_name_in_the_layout_is_called_after_its_device(phone):
     entity = "alarm_control_panel.garage"
     add_entity(phone, entity, "armed_home", {"friendly_name": "Security mode"})
-    assert phone.evaluate(
-        """(id) => {
+    assert (
+        phone.evaluate(
+            """(id) => {
             const { model, hass } = window.dashboard;
             const instance = hass();
             const area = Object.keys(instance.areas)[0];
@@ -379,8 +420,10 @@ def test_an_alarm_without_a_name_in_the_layout_is_called_after_its_device(phone)
             const home = model.buildHomeModel(instance, config, model.selectEntities(instance, config));
             return home.filterRooms.flatMap((room) => room.tiles).find((tile) => tile.entityId === id).name;
         }""",
-        entity,
-    ) == "Garaż"
+            entity,
+        )
+        == "Garaż"
+    )
 
 
 # Menu and icons ---------------------------------------------------------------------------------
@@ -405,18 +448,26 @@ def test_the_list_of_areas_starts_with_home_and_goes_there(phone):
 )
 def test_an_icon_from_a_missing_set_falls_back_to_the_default(phone, icon, expected):
     add_entity(phone, "switch.a", "off", {"icon": icon})
-    assert phone.evaluate(
-        """() => {
+    assert (
+        phone.evaluate(
+            """() => {
             window.customIcons = { hue: {} };
             const { model, hass } = window.dashboard;
             return model.buildTile(hass(), "switch.a", null, model.normalizeConfig({})).icon;
         }"""
-    ) == expected
+        )
+        == expected
+    )
 
 
 # Remote of a webOS TV ---------------------------------------------------------------------------
 
-TV_ITEM = {"kind": "tv", "entity": "media_player.tv", "name": "TV", "shortcuts": [{"name": "YouTube", "icon": "mdi:youtube"}]}
+TV_ITEM = {
+    "kind": "tv",
+    "entity": "media_player.tv",
+    "name": "TV",
+    "shortcuts": [{"name": "YouTube", "icon": "mdi:youtube"}],
+}
 MANY_SOURCES = ["YouTube", *[f"App {index}" for index in range(20)]]
 
 
@@ -489,7 +540,11 @@ def open_car(page, door: str = "off") -> None:
         "kind": "panel",
         "name": "Samochód",
         "groups": [
-            {"title": "Stan", "layout": "summary", "rows": [{"entity": "binary_sensor.door"}, {"entity": "binary_sensor.oil"}]},
+            {
+                "title": "Stan",
+                "layout": "summary",
+                "rows": [{"entity": "binary_sensor.door"}, {"entity": "binary_sensor.oil"}],
+            },
             {"title": "Trasa", "layout": "controls", "rows": [{"entity": "sensor.trip", "name": "Dziś"}]},
         ],
     }
@@ -538,7 +593,9 @@ def test_the_name_of_the_kitchen_fits_without_being_cut(phone):
     layout = [{"id": "r", "name": "Kuchnia i Jadalnia", "areas": [], "home": [], "sections": []}]
     phone.evaluate("window.history.replaceState(null, '', '?room=r')")
     mount_admin(phone, {"layout": layout, "intercom": {"script": "script.a", "areas": ["r"]}}, "room")
-    assert phone.locator("home-dashboard-page .room-name").evaluate("(name) => name.scrollWidth <= name.clientWidth")
+    assert phone.locator("home-dashboard-page .room-name").evaluate(
+        "(name) => name.scrollWidth <= name.clientWidth"
+    )
 
 
 # A device's own card ----------------------------------------------------------------------------
@@ -808,11 +865,14 @@ def test_a_person_sets_the_order_of_cameras(phone):
 
 
 def test_a_person_hides_a_camera_for_themselves(phone):
-    assert model(
-        phone,
-        """const mine = model.personalize(config, "kid", { hidden_cameras: [ids[0]] });
+    assert (
+        model(
+            phone,
+            """const mine = model.personalize(config, "kid", { hidden_cameras: [ids[0]] });
            return model.buildCameras(instance, mine).some((camera) => camera.entityId === ids[0]);""",
-    ) is False
+        )
+        is False
+    )
 
 
 def test_rooms_follow_the_personal_order_on_home_and_in_the_list(phone):
@@ -869,7 +929,9 @@ def open_personal(page) -> None:
 
 
 def user_data(page) -> list:
-    return [message for message in page.evaluate("window.saved") if message["type"] == "frontend/set_user_data"]
+    return [
+        message for message in page.evaluate("window.saved") if message["type"] == "frontend/set_user_data"
+    ]
 
 
 def test_moving_a_camera_saves_it_with_the_account(phone):
@@ -950,7 +1012,12 @@ def test_access_sorts_entities_into_tabs_and_blocks_into_other(phone):
     add_entity(phone, "lock.a", "locked", {"friendly_name": "Zamek"})
     add_entity(phone, "media_player.a", "off", {"friendly_name": "Głośnik"})
     add_entity(phone, "switch.a", "off", {"friendly_name": "Wtyczka"})
-    tiles = [{"entity": "light.a"}, {"entity": "lock.a"}, {"entity": "media_player.a"}, {"entity": "switch.a"}]
+    tiles = [
+        {"entity": "light.a"},
+        {"entity": "lock.a"},
+        {"entity": "media_player.a"},
+        {"entity": "switch.a"},
+    ]
     frame = {"kind": "panel", "name": "Frigate", "frame": "about:blank"}
     raw = {**room_with(*tiles, frame), "shortcuts": [{"kind": "host", "name": "Host"}]}
     result = phone.evaluate(
@@ -1017,6 +1084,7 @@ def test_the_inset_of_the_screen_adds_little_to_the_bottom_bar(phone):
 
 # Who sees a tile -------------------------------------------------------------------------------
 
+
 def rule_for(page, visibility: dict, user: str) -> bool:
     add_entity(page, "switch.desk", "off", {"friendly_name": "Biurko"})
     return page.evaluate(
@@ -1066,7 +1134,15 @@ def test_a_rule_covers_a_camera_and_a_block(phone):
 
 def edit_room(page, visibility: dict | None = None, access: dict | None = None, user: str = "me") -> None:
     add_entity(page, "switch.desk", "off", {"friendly_name": "Biurko"})
-    layout = [{"id": "r", "name": "R", "areas": [], "home": [{"entity": "switch.desk", "name": "Biurko"}], "sections": []}]
+    layout = [
+        {
+            "id": "r",
+            "name": "R",
+            "areas": [],
+            "home": [{"entity": "switch.desk", "name": "Biurko"}],
+            "sections": [],
+        }
+    ]
     page.evaluate("window.history.replaceState(null, '', '?room=r')")
     mount_admin(page, {"layout": layout, "visibility": visibility or {}, "access": access or {}}, "room")
     page.evaluate(
@@ -1158,7 +1234,9 @@ def test_a_tile_sinks_under_the_finger_and_comes_back(moving_phone):
     mount(moving_phone)
     moving_phone.locator(TILE).first.scroll_into_view_if_needed()
     press_on(moving_phone, TILE)
-    pressed = moving_phone.locator(TILE).first.evaluate("(tile) => new DOMMatrix(getComputedStyle(tile).transform).a")
+    pressed = moving_phone.locator(TILE).first.evaluate(
+        "(tile) => new DOMMatrix(getComputedStyle(tile).transform).a"
+    )
     assert pressed < 1
     moving_phone.mouse.up()
     moving_phone.wait_for_timeout(300)
@@ -1253,7 +1331,9 @@ def test_a_pressed_tile_sinks_clearly(moving_phone):
     moving_phone.locator(TILE).first.scroll_into_view_if_needed()
     press_on(moving_phone, TILE)
     moving_phone.wait_for_timeout(120)
-    scale = moving_phone.locator(TILE).first.evaluate("(tile) => new DOMMatrix(getComputedStyle(tile).transform).a")
+    scale = moving_phone.locator(TILE).first.evaluate(
+        "(tile) => new DOMMatrix(getComputedStyle(tile).transform).a"
+    )
     assert scale <= 0.94
     moving_phone.mouse.up()
 
@@ -1369,11 +1449,15 @@ def test_privacy_except_some_people_keeps_the_cameras_for_them(phone):
 
 
 def test_privacy_rules_by_person(phone):
-    held = phone.evaluate("""() => { const { model } = window.dashboard; const as = (user) => ({ user });
+    held = phone.evaluate(
+        """() => { const { model } = window.dashboard; const as = (user) => ({ user });
         return [model.privacyHoldsFor({}, as(CHILD)), model.privacyHoldsFor({ users: ['Kuba'] }, as(CHILD)),
             model.privacyHoldsFor({ users: ['Kuba'] }, as({ id: 'x', name: 'Mama' })),
             model.privacyHoldsFor({ except: ['parent-id'] }, as({ id: 'parent-id' })),
-            model.privacyHoldsFor({ except: ['parent-id'] }, as({}))]; }""".replace("CHILD", "{ id: 'c', name: 'Kuba' }"))
+            model.privacyHoldsFor({ except: ['parent-id'] }, as({}))]; }""".replace(
+            "CHILD", "{ id: 'c', name: 'Kuba' }"
+        )
+    )
     assert held == [True, True, False, False, True]
 
 
@@ -1489,7 +1573,10 @@ def test_every_language_has_every_text(phone):
 def row_room(page, layout: str | None = "row") -> None:
     for number in range(6):
         add_entity(page, f"switch.s{number}", "off", {"friendly_name": f"Tryb {number}"})
-    section = {"title": "Automatyzacje", "tiles": [{"entity": f"switch.s{n}", "name": f"T{n}"} for n in range(6)]}
+    section = {
+        "title": "Automatyzacje",
+        "tiles": [{"entity": f"switch.s{n}", "name": f"T{n}"} for n in range(6)],
+    }
     if layout:
         section["layout"] = layout
     rooms = [{"id": "r", "name": "R", "areas": [], "home": [], "sections": [section]}]
@@ -1542,7 +1629,13 @@ def test_scenes_in_a_row_match_the_ordinary_tiles(size, request):
     names = ["Dobranoc", "Wyciszenie Wszystkie"]
     for index, name in enumerate(names):
         add_entity(page, f"scene.s{index}", "2026-01-01", {"friendly_name": name})
-    mount(page, {"scenes": [{"entity": f"scene.s{i}", "name": name} for i, name in enumerate(names)], "scenes_layout": "row"})
+    mount(
+        page,
+        {
+            "scenes": [{"entity": f"scene.s{i}", "name": name} for i, name in enumerate(names)],
+            "scenes_layout": "row",
+        },
+    )
     sizes = page.locator("home-dashboard-page .tile").evaluate_all(
         """(tiles) => {
             const size = (tile) => { const box = tile.getBoundingClientRect(); return [Math.round(box.width), Math.round(box.height)]; };
@@ -1569,11 +1662,21 @@ def test_the_scenes_editor_saves_the_row(phone):
 
 
 # An Apple TV --------------------------------------------------------------------------------------
-APPLE_TV = {"kind": "tv", "entity": "media_player.atv", "name": "Apple TV", "shortcuts": [{"name": "YouTube", "icon": "mdi:youtube"}]}
+APPLE_TV = {
+    "kind": "tv",
+    "entity": "media_player.atv",
+    "name": "Apple TV",
+    "shortcuts": [{"name": "YouTube", "icon": "mdi:youtube"}],
+}
 
 
 def open_apple_tv(page, state: str = "playing", attributes: dict | None = None) -> None:
-    add_entity(page, "media_player.atv", state, {"source_list": ["YouTube", "Emby", "TV"], "app_name": "YouTube", **(attributes or {})})
+    add_entity(
+        page,
+        "media_player.atv",
+        state,
+        {"source_list": ["YouTube", "Emby", "TV"], "app_name": "YouTube", **(attributes or {})},
+    )
     add_entity(page, "remote.atv", "on")
     page.evaluate("""() => {
         const original = window.dashboard.hass;
@@ -1612,7 +1715,10 @@ def test_an_apple_tv_without_its_own_power_wakes_itself(phone):
     open_apple_tv(phone, "off")
     phone.locator(f"{SHEET} [data-remote='tv_power']").click()
     assert (calls(phone)[-1]["domain"], calls(phone)[-1]["service"], calls(phone)[-1]["data"]) == (
-        "media_player", "turn_on", {"entity_id": "media_player.atv"})
+        "media_player",
+        "turn_on",
+        {"entity_id": "media_player.atv"},
+    )
     assert phone.locator(f"{SHEET} [data-tv-key='up']").is_disabled()
 
 

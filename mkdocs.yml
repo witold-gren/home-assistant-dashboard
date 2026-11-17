@@ -11,8 +11,9 @@ docs_dir: docs
 strict: true
 
 exclude_docs: |
-  design/
-  reference/
+  # Anchored to docs/: a bare `design/` would also hide folders of that name deeper down (assets/…).
+  /design/
+  /reference/
 
 extra_css:
   - stylesheets/extra.css
@@ -78,6 +79,8 @@ plugins:
             Gallery: Galeria
             Own devices: Własne urządzenia
             Apple Home look: Wygląd Apple Home
+            What changed most: Najważniejsze zmiany
+            One standard: Jeden standard
             Changelog: Lista zmian
 
 nav:
@@ -88,6 +91,8 @@ nav:
   - Gallery: gallery.md
   - Own devices: own-devices.md
   - Apple Home look: apple-home.md
+  - What changed most: highlights.md
+  - One standard: standard.md
   - Changelog: changelog.md
 
 markdown_extensions:

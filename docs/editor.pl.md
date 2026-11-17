@@ -2,7 +2,7 @@
 
 [English](editor.md) · [README](../README.pl.md) · [Przewodnik](guide.pl.md) · [Opis konfiguracji](configuration.pl.md)
 
-**Edytor dashboardu** służy do budowania i zmieniania Home Dashboard na komputerze. Po lewej widzisz cały dashboard
+<b class="ui">Edytor dashboardu</b> służy do budowania i zmieniania Home Dashboard na komputerze. Po lewej widzisz cały dashboard
 jako drzewo, pośrodku prawdziwy dashboard iPhone'a i iPada, a po prawej formularz tego, co wybrałeś. Każda zmiana od
 razu pojawia się w podglądzie. **Na telefonach i tabletach w domu nic się nie zmienia, dopóki nie opublikujesz.** YAML
 nie jest potrzebny, ale zawsze jest obok każdego formularza, jeśli wolisz pisać.
@@ -13,28 +13,28 @@ widzi. Za pierwszym razem czytaj po kolei; później każdy rozdział można czy
 
 Zrzuty ekranu pokazują zmyślony dom (`dev/demo.js`), nigdy prawdziwy.
 
-## Spis treści
+## Spis treści {#contents}
 
-1. [Zanim zaczniesz](#1-zanim-zaczniesz)
-2. [Otwieranie edytora](#2-otwieranie-edytora)
-3. [Pierwszy dashboard i jego pokoje](#3-pierwszy-dashboard-i-jego-pokoje)
-4. [Co jest na ekranie](#4-co-jest-na-ekranie)
-5. [Podgląd](#5-podgląd)
-6. [Pokoje](#6-pokoje)
-7. [Sekcje i kafelki](#7-sekcje-i-kafelki)
-8. [Strona główna](#8-strona-główna)
-9. [Bloki: maszyny, urządzenia, własne ekrany](#9-bloki-maszyny-urządzenia-własne-ekrany)
-10. [Wygląd, motywy i tła](#10-wygląd-motywy-i-tła)
-11. [Pasek statusu tabletu i kalendarze](#11-pasek-statusu-tabletu-i-kalendarze)
-12. [Menu i pasek stron](#12-menu-i-pasek-stron)
-13. [Kamery, energia, interkom i pozostałe ustawienia](#13-kamery-energia-interkom-i-pozostałe-ustawienia)
-14. [Kto co widzi](#14-kto-co-widzi)
-15. [Zapisywanie, publikowanie i historia](#15-zapisywanie-publikowanie-i-historia)
-16. [Ustawienia edytora: własne telefony i tablety](#16-ustawienia-edytora-własne-telefony-i-tablety)
-17. [Cały dashboard w dziesięciu krokach](#17-cały-dashboard-w-dziesięciu-krokach)
-18. [Wskazówki i problemy](#18-wskazówki-i-problemy)
+1. [Zanim zaczniesz](#before-you-start)
+2. [Otwieranie edytora](#opening-the-editor)
+3. [Pierwszy dashboard i jego pokoje](#the-first-dashboard-and-its-rooms)
+4. [Co jest na ekranie](#a-tour-of-the-screen)
+5. [Podgląd](#the-preview)
+6. [Pokoje](#rooms)
+7. [Sekcje i kafelki](#sections-and-tiles)
+8. [Strona główna](#the-home-page)
+9. [Bloki: maszyny, urządzenia, własne ekrany](#blocks-machines-appliances-screens-of-their)
+10. [Wygląd, motywy i tła](#look-themes-and-backgrounds)
+11. [Pasek statusu tabletu i kalendarze](#the-status-bar-of-a-tablet)
+12. [Menu i pasek stron](#menu-and-bar-of-pages)
+13. [Kamery, energia, interkom i pozostałe ustawienia](#cameras-energy-intercom-and-the-other)
+14. [Kto co widzi](#who-sees-what)
+15. [Zapisywanie, publikowanie i historia](#saving-publishing-and-history)
+16. [Ustawienia edytora: własne telefony i tablety](#editor-settings-your-own-phones-and)
+17. [Cały dashboard w dziesięciu krokach](#a-whole-dashboard-in-ten-steps)
+18. [Wskazówki i problemy](#tips-and-problems)
 
-## 1. Zanim zaczniesz
+## 1. Zanim zaczniesz {#before-you-start}
 
 Potrzebujesz:
 
@@ -54,39 +54,41 @@ Dobrze wiedzieć przed pierwszym kliknięciem:
   Możesz klikać bez obaw.
 - **Cofnij** i **Ponów** (⌘Z i ⇧⌘Z albo Ctrl+Z i Ctrl+Shift+Z) cofają każdy krok, nawet duży, jak utworzenie
   wszystkich pokoi naraz.
+- **Esc** zamyka to, co otwarte, po jednej rzeczy, od najgłębszej: obrazek pokazany w dużym rozmiarze, okno obrazków,
+  listę kafelków do dodania, dialog (jak jego ✕: nic się nie zapisuje ani nie publikuje).
 
-## 2. Otwieranie edytora
+## 2. Otwieranie edytora {#opening-the-editor}
 
-**Edytor dashboardu** jest w bocznym menu Home Assistanta (widzą go tylko administratorzy). Jeśli wolisz krótsze
+<b class="ui">Edytor dashboardu</b> jest w bocznym menu Home Assistanta (widzą go tylko administratorzy). Jeśli wolisz krótsze
 menu, otwórz Ustawienia → Urządzenia oraz usługi → Home Dashboard → **Konfiguruj** i wyłącz *Pokazuj edytor w pasku
 bocznym*; edytor otwiera się wtedy pod adresem `/home-dashboard-editor`.
 
 Edytor ma własny jasny i ciemny wygląd. Domyślnie idzie za Home Assistantem; przycisk z połową słońca na górnym pasku
 przełącza Auto, Jasny i Ciemny, a przeglądarka to zapamiętuje. Dashboard w podglądzie ma własny wybór (rozdział 5).
 
-## 3. Pierwszy dashboard i jego pokoje
+## 3. Pierwszy dashboard i jego pokoje {#the-first-dashboard-and-its-rooms}
 
-### Jeszcze nie ma dashboardu
+### Jeszcze nie ma dashboardu {#no-dashboard-yet}
 
 Przy pierwszym uruchomieniu edytor nie znajduje dashboardu korzystającego z Home Dashboard i proponuje go utworzyć:
 
 ![Edytor bez dashboardu](screenshots/pl/editor-new.png)
 
-**Utwórz dashboard i jego pokoje** dodaje dashboard *Home Dashboard* w Ustawienia → Dashboardy i otwiera go w
+<b class="ui">Utwórz dashboard i jego pokoje</b> dodaje dashboard *Home Dashboard* w Ustawienia → Dashboardy i otwiera go w
 edytorze. (Można go też utworzyć ręcznie w Ustawienia → Dashboardy i wkleić `strategy: {type: custom:home-dashboard}`
 do jego surowej konfiguracji; edytor go wtedy znajdzie.)
 
-### Pokoje z obszarów
+### Pokoje z obszarów {#rooms-from-areas}
 
-Nowy dashboard nie ma pokoi. W drzewie jest **Utwórz pokoje z obszarów**; otwiera to okno:
+Nowy dashboard nie ma pokoi. W drzewie jest <b class="ui">Utwórz pokoje z obszarów</b>; otwiera to okno:
 
 ![Pokoje z obszarów Home Assistanta](screenshots/pl/editor-generate.png)
 
-- **Obszary** po lewej: jeden pokój dla każdego zaznaczonego obszaru. Liczba mówi, ile kafelków dostanie pokój.
+- <b class="ui">Obszary</b> po lewej: jeden pokój dla każdego zaznaczonego obszaru. Liczba mówi, ile kafelków dostanie pokój.
   Obszary bez kafelków nie są zaznaczone.
-- **Sekcje** po prawej: w jakie grupy trafią urządzenia pokoju, według rodzaju: *Oświetlenie*, *Klimat i rolety*,
+- <b class="ui">Sekcje</b> po prawej: w jakie grupy trafią urządzenia pokoju, według rodzaju: *Oświetlenie*, *Klimat i rolety*,
   *Multimedia*, *Urządzenia*, *Bezpieczeństwo* i *Automatyzacje*, jeśli je zaznaczysz.
-- **Kilka kafelków każdego pokoju na stronie głównej** umieszcza główne światła, termostat i rolety każdego pokoju
+- <b class="ui">Kilka kafelków każdego pokoju na stronie głównej</b> umieszcza główne światła, termostat i rolety każdego pokoju
   także na stronie głównej.
 - Encje ukryte, konfiguracyjne i diagnostyczne zostają pominięte. Urządzenie widoczne w dwóch integracjach (np.
   termostat w Netatmo i w HomeKit) daje jeden kafelek, nie dwa.
@@ -98,7 +100,7 @@ obok *Pokoje* i proponuje tylko obszary, które nie mają jeszcze pokoju.
 > Zaczęcie od pokoi z obszarów to najszybsza droga. Wszystko dalej można zmienić: przemianować pokoje, połączyć dwa
 > obszary w jeden pokój, przesunąć kafelki, usunąć niepotrzebne.
 
-## 4. Co jest na ekranie
+## 4. Co jest na ekranie {#a-tour-of-the-screen}
 
 ![Edytor: drzewo, podgląd i formularz kafelka na stronie głównej](screenshots/pl/editor-home.png)
 
@@ -115,15 +117,15 @@ obok *Pokoje* i proponuje tylko obszary, które nie mają jeszcze pokoju.
 | **{} YAML** | cały dashboard jako YAML, do przeczytania albo wklejenia |
 | ? | ten przewodnik na stronie dokumentacji, w nowej karcie (po polsku albo po angielsku, jak Home Assistant) |
 | ⚙ | ustawienia edytora: telefony i tablety podglądu (rozdział 16) |
-| **Historia** | opublikowane wersje (rozdział 15) |
-| **Opublikuj** | publikuje szkic (rozdział 15) |
+| <b class="ui">Historia</b> | opublikowane wersje (rozdział 15) |
+| <b class="ui">Opublikuj</b> | publikuje szkic (rozdział 15) |
 
 **Drzewo** po lewej zawiera wszystko, w czterech grupach:
 
-- **Strona główna**: *Ulubione* i *Sceny* strony głównej.
-- **Pokoje**: każdy pokój z listą *Na stronie głównej*, własnymi scenami i sekcjami z kafelkami.
-- **Bloki**: kafelki, które otwierają własny ekran (rozdział 9).
-- **Ustawienia**: wygląd, osoby, kamery, energia, pasek statusu, menu, kolejność pokoi, encje, światła, strona główna i
+- <b class="ui">Strona główna</b>: *Ulubione* i *Sceny* strony głównej.
+- <b class="ui">Pokoje</b>: każdy pokój z listą *Na stronie głównej*, własnymi scenami i sekcjami z kafelkami.
+- <b class="ui">Bloki</b>: kafelki, które otwierają własny ekran (rozdział 9).
+- <b class="ui">Ustawienia</b>: wygląd, osoby, kamery, energia, pasek statusu, menu, kolejność pokoi, encje, światła, strona główna i
   tablet, strony Muzyka, Media i Mapa, pasek stron i interkom.
 
 Liczba obok węzła mówi, ile rzeczy jest w środku. Żółty ⚠ oznacza pokój albo kafelek z problemem, zwykle z encją,
@@ -132,17 +134,25 @@ jej prawej zwija albo rozwija wszystko w niej. **Wyszukiwarka** znajduje pokój,
 
 **Formularz** po prawej edytuje to, co wybrałeś. Nad nim są przyciski dla tej rzeczy (*Duplikuj*, *W górę*, *W dół*,
 *Usuń*, a dla pokoju *Dodaj sekcję*). Obok każdego pola szarym tekstem jest nazwa jego klucza w YAML, więc zawsze
-łatwo go znaleźć w konfiguracji. Zakładka **YAML** pokazuje to samo jako tekst i przyjmuje wpisane tam zmiany.
+łatwo go znaleźć w konfiguracji. Zakładka <b class="ui">YAML</b> pokazuje to samo jako tekst i przyjmuje wpisane tam zmiany.
 Klucze, których formularz nie zna, zostają nietknięte.
 
 **Kolumny** są tak szerokie, jak je przeciągniesz: przeciągnij paski między nimi; dwuklik przywraca pierwszą szerokość.
 
-## 5. Podgląd
+**Mały ?** nad drzewem, podglądem i formularzem otwiera małe okienko z opisem tego, co robi ta część, bez wychodzenia
+z edytora (Esc albo kliknięcie obok je zamyka). Na jego dole *Więcej w przewodniku* otwiera rozdział o niej; nad
+formularzem to rozdział o tym, co wybrałeś: pokój, kafelek, wygląd, kto co widzi… Przewodnik od razu otwiera tylko ?
+w pasku górnym.
+
+**Adres** strony zawiera to, co wybrane (`…#/layout/0/sections/1`): skopiuj go albo odśwież stronę, a edytor otworzy
+się na tym samym, gdy dashboard się wczyta.
+
+## 5. Podgląd {#the-preview}
 
 Podgląd to nie obrazek: to prawdziwy dashboard działający w ramkach iPhone'a i iPada, od razu pokazujący szkic.
 
-- **Telefon**, **Tablet**, **Oba**: które urządzenia pokazać.
-- **Jak ustawiono**, **Jasny**, **Ciemny**: kolory dashboardu. *Jak ustawiono* idzie za ustawieniem samego dashboardu.
+- <b class="ui">Telefon</b>, <b class="ui">Tablet</b>, <b class="ui">Oba</b>: które urządzenia pokazać.
+- <b class="ui">Jak ustawiono</b>, <b class="ui">Jasny</b>, <b class="ui">Ciemny</b>: kolory dashboardu. *Jak ustawiono* idzie za ustawieniem samego dashboardu.
 - **Model** telefonu i tabletu: każdy rozmiar ekranu Apple raz, z modelami tego rozmiaru (od iPhone'a SE do 17 Pro
   Max, od iPada 1–6 do iPada Pro 13″). Własne urządzenia dowolnej marki dodaje się w ustawieniach edytora
   (rozdział 16).
@@ -161,13 +171,13 @@ Podgląd i drzewo działają razem:
 - Pod ramką edytor mówi, czy okno wybranego bloku **mieści się na tablecie bez przewijania** (*Okno mieści się bez
   przewijania ✓*) albo o ile się przewija.
 
-## 6. Pokoje
+## 6. Pokoje {#rooms}
 
 ![Pokój i jego formularz](screenshots/pl/editor-room.png)
 
 - **Dodanie pokoju:** **+** obok *Pokoje*. Zaczyna pusty, z nazwą do zmiany.
 - **Formularz pokoju:** *Nazwa* (widoczna wszędzie), *Id* (adres pokoju w linkach; jego zmiana później psuje linki i
-  pokoje ukryte przez osoby, więc wybierz go raz) i **Obszary**: obszary Home Assistanta należące do pokoju. Pokój może
+  pokoje ukryte przez osoby, więc wybierz go raz) i <b class="ui">Obszary</b>: obszary Home Assistanta należące do pokoju. Pokój może
   mieć kilka obszarów (kuchnia i jadalnia razem); ich kamery, rząd statusu i interkom należą do pokoju.
 - **Sekcje:** *Dodaj sekcję* nad formularzem. Sekcja to nagłówek z kafelkami pod nim.
 - **Kolejność:** *W górę* i *W dół* albo przeciągnięcie pokoju w drzewie. **Ustawienia → Pokoje: kolejność i ukryte**
@@ -177,13 +187,13 @@ Pokój ma w drzewie trzy rodzaje list:
 
 | Węzeł | Co to jest | Gdzie widać |
 |---|---|---|
-| **Na stronie głównej** | kafelki pokoju na stronie głównej | strona główna, karta pokoju |
-| **Sceny pokoju** | sceny i skrypty pokoju | strona pokoju, na górze |
+| <b class="ui">Na stronie głównej</b> | kafelki pokoju na stronie głównej | strona główna, karta pokoju |
+| <b class="ui">Sceny pokoju</b> | sceny i skrypty pokoju | strona pokoju, na górze |
 | **sekcja** (*Oświetlenie*, *Klimat i rolety*…) | kafelki strony pokoju | strona pokoju |
 
-## 7. Sekcje i kafelki
+## 7. Sekcje i kafelki {#sections-and-tiles}
 
-### Lista sekcji
+### Lista sekcji {#the-list-of-a-section}
 
 ![Sekcja: jej kafelki na liście](screenshots/pl/editor-section.png)
 
@@ -191,12 +201,12 @@ Wybranie sekcji (albo *Na stronie głównej*, *Ulubione*, *Sceny*) pokazuje jej 
 albo jeden rząd przewijany w bok) i **listę jej kafelków**: kliknięcie otwiera kafelek w jego formularzu, strzałki go
 przesuwają, kosz usuwa.
 
-### Dodawanie kafelków
+### Dodawanie kafelków {#adding-tiles}
 
 Dwa sposoby, oba nad formularzem:
 
-- **Encja nowego kafelka…** — wpisz id encji (pole podpowiada) i **Dodaj**.
-- **Wybierz z listy…** — okno ze wszystkimi encjami domu:
+- <b class="ui">Encja nowego kafelka…</b> — wpisz id encji (pole podpowiada) i <b class="ui">Dodaj</b>.
+- <b class="ui">Wybierz z listy…</b> — okno ze wszystkimi encjami domu:
 
 ![Wybór encji z listy](screenshots/pl/editor-picker.png)
 
@@ -210,7 +220,7 @@ Dwa sposoby, oba nad formularzem:
   dodał tylko jedną.
 - Zaznacz kilka i **Dodaj (n)**. To, co zaznaczysz, najpierw widać w podglądzie.
 
-### Formularz kafelka
+### Formularz kafelka {#the-form-of-a-tile}
 
 ![Formularz kafelka](screenshots/pl/editor-tile.png)
 
@@ -228,31 +238,31 @@ Dwa sposoby, oba nad formularzem:
 | Usługa dotknięcia | `action` | skrypt albo usługa wywołana zamiast tego przy dotknięciu |
 | Zaznacz, potem uruchom; Nazwy opcji | `confirm`, `labels` | dla listy (`select`): uruchomienie dopiero po wyborze i własne nazwy opcji |
 
-Pod formularzem **Okno urządzenia** mówi, co otwiera dotknięcie kafelka:
+Pod formularzem <b class="ui">Okno urządzenia</b> mówi, co otwiera dotknięcie kafelka:
 
-- **Własna karta (YAML)**: karta Home Assistant otwiera się zamiast okna dashboardu, dla tej encji w całym
+- <b class="ui">Własna karta (YAML)</b>: karta Home Assistant otwiera się zamiast okna dashboardu, dla tej encji w całym
   dashboardzie (`entities.overrides.<id>.card`). Wpisz ją razem z `type`, np. `type: custom:lamp-card`; puste pole
   przywraca okno dashboardu.
-- **Zrób blok z tego kafelka**: kafelek staje się na miejscu blokiem, z nazwą, ikoną i rozmiarem (rozdział 9).
+- <b class="ui">Zrób blok z tego kafelka</b>: kafelek staje się na miejscu blokiem, z nazwą, ikoną i rozmiarem (rozdział 9).
 
 Kafelek, który już jest blokiem albo go otwiera, nie ma tej części: jego blok ma własne formularze. Jak wybrać między
 kafelkiem, kartą a blokiem, opisuje [Okna dla własnych urządzeń](own-devices.pl.md).
 
-Zakładka **YAML** pokazuje kafelek jako tekst:
+Zakładka <b class="ui">YAML</b> pokazuje kafelek jako tekst:
 
 ![Ten sam kafelek w YAML](screenshots/pl/editor-yaml.png)
 
 **Przesuwanie kafelków:** *W górę*, *W dół* albo przeciągnięcie w drzewie, także do innej sekcji lub pokoju.
-**Duplikuj** robi kopię pod spodem. **Usuń** usuwa (jedno Cofnij przywraca).
+<b class="ui">Duplikuj</b> robi kopię pod spodem. <b class="ui">Usuń</b> usuwa (jedno Cofnij przywraca).
 
-## 8. Strona główna
+## 8. Strona główna {#the-home-page}
 
 Strona główna to to, co telefon i tablet otwierają najpierw. Składa się z:
 
 1. **Ulubionych** (w drzewie: *Strona główna → Ulubione*): kafelki na górze, najczęściej używane rzeczy w domu.
 2. **Scen** (*Strona główna → Sceny*): sceny i skrypty w rzędzie; *Ustawienia → Strona główna i tablet* ustawia, czy
    są siatką, czy rzędem.
-3. **Karty każdego pokoju** z kafelkami jego listy **Na stronie głównej**. Pokój z pustą listą nadal pokazuje swoją
+3. **Karty każdego pokoju** z kafelkami jego listy <b class="ui">Na stronie głównej</b>. Pokój z pustą listą nadal pokazuje swoją
    nazwę, która otwiera pokój.
 
 Na zrzucie z rozdziału 4 wybrany jest kafelek *Lampa przy sofie* z listy *Na stronie głównej* salonu: czerwona ramka
@@ -262,26 +272,26 @@ pokazuje, gdzie jest na stronie głównej, na telefonie i na tablecie.
 dotyku na stronę główną po kilku minutach i układ scen. Plakietki na górze strony głównej (pogoda, klimat, światła,
 ochrona, media) tworzy sam dashboard.
 
-## 9. Bloki: maszyny, urządzenia, własne ekrany
+## 9. Bloki: maszyny, urządzenia, własne ekrany {#blocks-machines-appliances-screens-of-their}
 
-**Blok** to kafelek, który zamiast jednego urządzenia otwiera własny ekran: ekspres z liczbami i ustawieniami, pralka,
-samochód, odkurzacz, serwer, plan lekcji, tramwaje. Bloki są w drzewie pod **Bloki** albo bezpośrednio w sekcji
+<b class="ui">Blok</b> to kafelek, który zamiast jednego urządzenia otwiera własny ekran: ekspres z liczbami i ustawieniami, pralka,
+samochód, odkurzacz, serwer, plan lekcji, tramwaje. Bloki są w drzewie pod <b class="ui">Bloki</b> albo bezpośrednio w sekcji
 (kafelek z `kind`).
 
 **Nowy blok:** **+** obok **Bloki** wypisuje rodzaje (Blok, Status, Odjazdy, Aplikacja, Wiadomości, Maszyny, Strona),
-te same co **Dodaj** na tablecie; nowy blok od razu jest wybrany i pojawia się wśród odznak strony głównej. **Blok w
-pokoju:** **Zrób blok z tego kafelka** pod formularzem kafelka albo blok wybrany w polu **Blok** kafelka.
+te same co <b class="ui">Dodaj</b> na tablecie; nowy blok od razu jest wybrany i pojawia się wśród odznak strony głównej. **Blok w
+pokoju:** <b class="ui">Zrób blok z tego kafelka</b> pod formularzem kafelka albo blok wybrany w polu <b class="ui">Blok</b> kafelka.
 
 ![Blok: jego okno w podglądzie, wybrana jedna liczba](screenshots/pl/editor-block.png)
 
 Blok kilku encji (`kind: panel`) rozwija się w drzewie na części, każda z formularzem:
 
-- **Liczby na górze** (`stats`): po jednej liczbie, z jednostką, miejscami po przecinku i formatem. *Czas (m:ss)* i
+- <b class="ui">Liczby na górze</b> (`stats`): po jednej liczbie, z jednostką, miejscami po przecinku i formatem. *Czas (m:ss)* i
   *Czas (h min)* pokazują sekundy (albo jednostkę czujnika) jako czas. *Atrybut zamiast stanu* pokazuje atrybut, np.
   grę uruchomioną na konsoli.
-- **Przyciski** (`actions`): encja, usługa (puste = naciśnij albo włącz), pytanie zadawane najpierw (`confirm`) i pola
+- <b class="ui">Przyciski</b> (`actions`): encja, usługa (puste = naciśnij albo włącz), pytanie zadawane najpierw (`confirm`) i pola
   dla skryptu (`data`, w YAML). Przy więcej niż trzech przyciskach na tablecie stoją we własnym rzędzie.
-- **Grupy** (`groups`) z **wierszami**: grupa to nagłówek i wiersze encji. *Układ*: *Wiersze*, *Kontrolki* (duże
+- <b class="ui">Grupy</b> (`groups`) z **wierszami**: grupa to nagłówek i wiersze encji. *Układ*: *Wiersze*, *Kontrolki* (duże
   przełączniki, wybory, suwaki) albo *Podsumowanie* (jedna linia, która się rozwija i mówi „Wszystko w porządku” albo
   co wymaga uwagi). Wiersz listy (`select`) może mieć opcje ułożone, nazwane i ukryte okiem.
 - **Z urządzenia, jeszcze nie w bloku**: encje urządzeń bloku, których jego okno nie pokazuje; kliknięcie dodaje
@@ -294,13 +304,13 @@ Blok kilku encji (`kind: panel`) rozwija się w drzewie na części, każda z fo
   (h min)* brzmi „przekroczono o 10 min”.
 
 Wybranie bloku otwiera jego okno w podglądzie, a pod tabletem edytor mówi, czy mieści się bez przewijania. Kafelek
-staje się blokiem po wybraniu bloku w jego polu **Blok**; zmiana nazwy bloku zmienia ją też w jego kafelkach, menu,
+staje się blokiem po wybraniu bloku w jego polu <b class="ui">Blok</b>; zmiana nazwy bloku zmienia ją też w jego kafelkach, menu,
 pasku statusu i zasadach dostępu.
 
 **Inne rodzaje bloków** mają formularz z tymi samymi polami co formularz bloku na tablecie. Na przykład ekran Status
 ma sekcje z pozycjami (lista włączonych świateł, alarm wody, słaba bateria, urządzenie w danym stanie, słowo stanu
-jak `OB` UPS-a na baterii). Pozycja z **Pokazuj też jako ostrzeżenie na stronie głównej** (`notify`) jest też paskiem nad
-kamerami na stronie głównej, jak słaba bateria; z **Alarm (czerwony, nie da się zamknąć na stronie głównej)** (`alarm`)
+jak `OB` UPS-a na baterii). Pozycja z <b class="ui">Pokazuj też jako ostrzeżenie na stronie głównej</b> (`notify`) jest też paskiem nad
+kamerami na stronie głównej, jak słaba bateria; z <b class="ui">Alarm (czerwony, nie da się zamknąć na stronie głównej)</b> (`alarm`)
 nie da się go zamknąć, dopóki stan trwa (wyciek wody, dym, alarm
 wywołany):
 
@@ -309,7 +319,7 @@ wywołany):
 Pozostałe: odjazdy (linie z kolorami), wiadomości, host z kolumnami pasków i maszyn, rok szkolny, dodatek w ramce,
 strona, telewizor z aplikacjami, waga. Listy się rozwijają, przesuwają strzałkami i usuwają koszem.
 
-## 10. Wygląd, motywy i tła
+## 10. Wygląd, motywy i tła {#look-themes-and-backgrounds}
 
 **Ustawienia → Wygląd i motywy** ma część dla każdej grupy wyglądu: cały dashboard, tła stron, kafelki (z kolorami
 według rodzaju), napisy, bloki na górze, okrągłe przyciski, plakietki, okna, mapa i odtwarzacz. Długie części startują
@@ -327,21 +337,21 @@ oknie. Kliknięcie w pole otwiera okno:
 ![Kolor albo gradient tła](screenshots/pl/editor-background.png)
 
 - **Obrazki:** wgrane do Home Assistanta i te z folderu `/config/www`, jako miniatury (kliknięcie wybiera, lupka
-  powiększa), oraz **Wgraj obrazek z komputera**.
+  powiększa), oraz <b class="ui">Wgraj obrazek z komputera</b>.
 - **Kolor i gradient:** jeden kolor z palety albo gradient: jego kolory, ich miejsca w procentach, kierunek, ⇅ do
   odwrócenia, 48 gotowych gradientów i duży podgląd. CSS zostaje pod spodem do ręcznej zmiany.
 
-**Utwórz tło** pod polami otwiera kreator tła: 16 gotowych teł, wzory, gradienty i własne zdjęcie, przezroczyste,
+<b class="ui">Utwórz tło</b> pod polami otwiera kreator tła: 16 gotowych teł, wzory, gradienty i własne zdjęcie, przezroczyste,
 odbarwione albo rozmyte, z telefonem i tabletem obok. Zdjęcie można zmniejszyć i położyć w rogu, z boku albo na
-środku (**Rozmiar i położenie**), przesunąć, obrócić, odbić i wygasić od najwyżej trzech krawędzi (**Wygaszanie od
-krawędzi**), np. pokój w prawym górnym rogu, który z lewej i od dołu przechodzi w gradient. Tryb **Zabarwione tłem** (domyślny)
-nadaje zdjęciu kolory gradientu pod nim: ciemne miejsca dostają głęboki odcień tła, jasne jego jasny odcień. **Użyj jako tło** tworzy obraz pionowy i szeroki i wpisuje je do
+środku (<b class="ui">Rozmiar i położenie</b>), przesunąć, obrócić, odbić i wygasić od najwyżej trzech krawędzi (**Wygaszanie od
+krawędzi**), np. pokój w prawym górnym rogu, który z lewej i od dołu przechodzi w gradient. Tryb <b class="ui">Zabarwione tłem</b> (domyślny)
+nadaje zdjęciu kolory gradientu pod nim: ciemne miejsca dostają głęboki odcień tła, jasne jego jasny odcień. <b class="ui">Użyj jako tło</b> tworzy obraz pionowy i szeroki i wpisuje je do
 jasnego wyglądu, ciemnego albo obu.
 
 **Motywy:** wygląd można zapisać na tablecie jako motyw (Menu → Wygląd → Motywy) i udostępnić jako plik. Z
 dashboardem przychodzą dwa: **Home Dashboard** i **Apple Home** (zob. [przewodnik Apple Home](apple-home.pl.md)).
 
-## 11. Pasek statusu tabletu i kalendarze
+## 11. Pasek statusu tabletu i kalendarze {#the-status-bar-of-a-tablet}
 
 Tablet w poziomie może pokazywać kolumnę z godziną, pogodą, dzisiejszymi wydarzeniami i tym, co się dzieje, zamiast
 wąskiego paska. **Ustawienia → Pasek statusu**:
@@ -349,24 +359,24 @@ wąskiego paska. **Ustawienia → Pasek statusu**:
 ![Pasek statusu: kalendarze domu](screenshots/pl/editor-status.png)
 
 - **Wygląd paska** (`appearance.status`): czy jest widoczny, jego części i ich kolejność, kolory, krycie, rozmycie.
-- **Kalendarz** (`status_panel.calendars`): kalendarze domu. Dzisiejsze wydarzenia są pod pogodą: całodniowe miękko w
+- <b class="ui">Kalendarz</b> (`status_panel.calendars`): kalendarze domu. Dzisiejsze wydarzenia są pod pogodą: całodniowe miękko w
   kolorze kalendarza, pozostałe z godziną, w trakcie „teraz”, znikają po końcu; najwyżej tyle, ile *Najwięcej w pasku
   statusu*. Dotknięcie otwiera miesiąc z wydarzeniami wybranego dnia. *Kolory kalendarzy* nadają każdemu kalendarzowi
   kolor. Na telefonie te same wydarzenia są w *Wybierz obszar → Moje kalendarze*, gdzie każda osoba dodaje pod
   trybikiem własne kalendarze.
-- **Co pokazuje pasek** (`status_panel`), czyli plakietki *W domu* i reszta paska:
-  - **Drzwi (W domu)** i **Okna (W domu)** (`doors`, `windows`): każda lista ma swoją plakietkę, gdy coś z niej jest
+- <b class="ui">Co pokazuje pasek</b> (`status_panel`), czyli plakietki *W domu* i reszta paska:
+  - <b class="ui">Drzwi (W domu)</b> i <b class="ui">Okna (W domu)</b> (`doors`, `windows`): każda lista ma swoją plakietkę, gdy coś z niej jest
     otwarte; dotknięcie na tablecie pokazuje listę otwartych z godziną otwarcia. Wpisz tylko te, które mają mówić
     (wejściowe, balkon, toaleta), nie drzwi pokoi, które zwykle są otwarte.
-  - **Znaczniki (W domu)** (`flags`): plakietka, dopóki pomocnik jest włączony, np. **Poczta** z
+  - <b class="ui">Znaczniki (W domu)</b> (`flags`): plakietka, dopóki pomocnik jest włączony, np. **Poczta** z
     `input_boolean.mail_in_mailbox`, który włącza otwarcie skrzynki; dotknięcie otwiera pomocnika, żeby go wyłączyć.
-  - **Nieliczone w W domu** (`ignore`): światła i urządzenia poza licznikiem, np. lampa z własnym harmonogramem. To
+  - <b class="ui">Nieliczone w W domu</b> (`ignore`): światła i urządzenia poza licznikiem, np. lampa z własnym harmonogramem. To
     jedyne miejsce tego ustawienia; tablet pokazuje je tylko osobno na liście włączonych.
   - co *Teraz* działa (pralka z programem i pozostałym czasem), pobór mocy z wykresem ostatnich godzin, tramwaje.
 
 iPad w podglądzie od razu pokazuje pasek ze szkicu.
 
-## 12. Menu i pasek stron
+## 12. Menu i pasek stron {#menu-and-bar-of-pages}
 
 ![Menu: jego grupy, otwarte w podglądzie](screenshots/pl/editor-menu.png)
 
@@ -377,27 +387,27 @@ osób i ukryta w trybie gościa. Wybranie *Menu* otwiera menu w podglądzie.
 **Ustawienia → Pasek stron** zawiera miejsca dolnego paska telefonu i bocznego paska tabletu: od 2 do 5 z: strona
 główna, Muzyka, Media, Energia, Mapa, Sceny, menu albo pokój, w kolejności, oraz wygląd paska.
 
-## 13. Kamery, energia, interkom i pozostałe ustawienia
+## 13. Kamery, energia, interkom i pozostałe ustawienia {#cameras-energy-intercom-and-the-other}
 
 | Węzeł | Co ustawia |
 |---|---|
-| **Kamery** | które kamery i w jakiej kolejności; prywatność i tryb gościa (zasady z przełącznikiem, kamery, które ukrywają, i osoby); pojedyncze kamery: kamera na żywo dla zdjęcia, rozmowa, okrągłe przyciski, obracanie, encje pod trybikiem |
-| **Energia** | fazy licznika, zakres napięcia, magazyn energii (stacja zasilania na baterii) |
-| **Interkom** | skrypt komunikatów, pokoje do zaznaczenia i pola wywołania |
-| **Pokoje: kolejność i ukryte** | kolejność pokoi i pokoje ukryte przed wszystkimi |
-| **Encje: dodane, pominięte, własne** | encje dodane do pokoju, nigdy niepokazywane same, własna nazwa, ikona, obszar albo karta encji |
-| **Światła** | grupa świateł zamiast jej lamp |
-| **Strona główna i tablet** | pogoda, ochrona, powrót tabletu na stronę główną, sceny |
-| **Strona Muzyka**, **Strona Media**, **Strona Mapa** | aplikacja muzyczna w ramce, grupy głośników i mediów, osoby i miejsca na mapie |
+| <b class="ui">Kamery</b> | które kamery i w jakiej kolejności; prywatność i tryb gościa (zasady z przełącznikiem, kamery, które ukrywają, i osoby); pojedyncze kamery: kamera na żywo dla zdjęcia, rozmowa, okrągłe przyciski, obracanie, encje pod trybikiem |
+| <b class="ui">Energia</b> | fazy licznika, zakres napięcia, magazyn energii (stacja zasilania na baterii) |
+| <b class="ui">Interkom</b> | skrypt komunikatów, pokoje do zaznaczenia i pola wywołania |
+| <b class="ui">Pokoje: kolejność i ukryte</b> | kolejność pokoi i pokoje ukryte przed wszystkimi |
+| <b class="ui">Encje: dodane, pominięte, własne</b> | encje dodane do pokoju, nigdy niepokazywane same, własna nazwa, ikona, obszar albo karta encji |
+| <b class="ui">Światła</b> | grupa świateł zamiast jej lamp |
+| <b class="ui">Strona główna i tablet</b> | pogoda, ochrona, powrót tabletu na stronę główną, sceny |
+| <b class="ui">Strona Muzyka</b>, <b class="ui">Strona Media</b>, <b class="ui">Strona Mapa</b> | aplikacja muzyczna w ramce, grupy głośników i mediów, osoby i miejsca na mapie |
 
-Blok otwierający stronę (np. **Źródła** z `page: media`) nie ma własnych grup: grupy i kafelki strony Media
-(Głośniki, Telewizory, własne grupy) dodajesz w **Strona Media** → **sections**. Pod właściwościami takiego bloku jest
+Blok otwierający stronę (np. <b class="ui">Źródła</b> z `page: media`) nie ma własnych grup: grupy i kafelki strony Media
+(Głośniki, Telewizory, własne grupy) dodajesz w <b class="ui">Strona Media</b> → **sections**. Pod właściwościami takiego bloku jest
 przycisk **Edytuj: Strona Media**, który tam prowadzi.
 
 Każdy ma formularz; zakładka YAML zostaje obok dla tego, co wolisz wpisać. Klucze opisuje
 [opis konfiguracji](configuration.pl.md).
 
-## 14. Kto co widzi
+## 14. Kto co widzi {#who-sees-what}
 
 Dzieci nie potrzebują przełączników garażu, a gość kamer wewnątrz domu. **Ustawienia → Dostęp osób**:
 
@@ -405,39 +415,39 @@ Dzieci nie potrzebują przełączników garażu, a gość kamer wewnątrz domu. 
 
 - Wybierz **osobę**, a potem to, czego **nie widzi**, w grupach (kamery, pokoje, sekcje, bloki na górze, światła,
   media, ochrona, sceny i skrypty, reszta), z okiem przy każdej rzeczy.
-- **Kto widzi kafelek albo blok** (`visibility`): zasady dla jednej rzeczy, encji, `block:<nazwa>` albo
+- <b class="ui">Kto widzi kafelek albo blok</b> (`visibility`): zasady dla jednej rzeczy, encji, `block:<nazwa>` albo
   `shortcut:<nazwa>`, z osobami, które ją widzą (*only*) albo nie (*except*).
 - To tylko ukrywa rzeczy w dashboardzie; to nie jest uprawnienie Home Assistanta. Administratorzy widzą wszystko w
   edytorze.
 
 Sprawdź to przez **Jako** w podglądzie: dashboard tej osoby, tak jak ona go zobaczy.
 
-## 15. Zapisywanie, publikowanie i historia
+## 15. Zapisywanie, publikowanie i historia {#saving-publishing-and-history}
 
 **Szkic** zapisuje się na serwerze chwilę po każdej zmianie (*Szkic zapisany*). Czeka też w innej przeglądarce.
 *Wyrzuć* go usuwa.
 
-**Opublikuj** otwiera podsumowanie:
+<b class="ui">Opublikuj</b> otwiera podsumowanie:
 
 ![Publikowanie: co się zmienia i różnice w YAML](screenshots/pl/editor-publish.png)
 
 - **Co się zmieni**, prostymi słowami, i **różnice w YAML**.
 - **Sprawdzenie:** encje, których nie ma, i informacja, że opublikowana wersja trafi do historii.
-- **Notatka do historii** (co i dlaczego, opcjonalnie).
-- **Najpierw sprawdzi:** wybierz osobę i **Opublikuj do sprawdzenia**: tylko jej dashboard pokazuje tę wersję, z
+- <b class="ui">Notatka do historii</b> (co i dlaczego, opcjonalnie).
+- <b class="ui">Najpierw sprawdzi:</b> wybierz osobę i <b class="ui">Opublikuj do sprawdzenia</b>: tylko jej dashboard pokazuje tę wersję, z
   paskiem *Wersja do sprawdzenia* i przyciskiem powrotu do zwykłej. Góra edytora mówi, kto sprawdza; *Zakończ* kończy
   sprawdzanie. Dobre, żeby dużą zmianę wypróbować najpierw na jednym tablecie.
 - **Opublikuj dla wszystkich:** każde urządzenie wczyta nową wersję, a ta, którą zastępuje, trafia do historii. Jeśli
   w międzyczasie dashboard zmieniono gdzie indziej (na tablecie), edytor to mówi, zamiast nadpisać tę zmianę;
   *Opublikuj mimo to* ją nadpisuje.
 
-**Historia** przechowuje 30 ostatnich opublikowanych wersji, z tym, kto i kiedy je opublikował, oraz notatką. Wybierz
-jedną, żeby zobaczyć, czym różni się od obecnej; **Przywróć jako szkic** robi z niej szkic, do obejrzenia i
+<b class="ui">Historia</b> przechowuje 30 ostatnich opublikowanych wersji, z tym, kto i kiedy je opublikował, oraz notatką. Wybierz
+jedną, żeby zobaczyć, czym różni się od obecnej; <b class="ui">Przywróć jako szkic</b> robi z niej szkic, do obejrzenia i
 opublikowania jak każdy inny.
 
 ![Historia: wersja i jej różnice](screenshots/pl/editor-history.png)
 
-## 16. Ustawienia edytora: własne telefony i tablety
+## 16. Ustawienia edytora: własne telefony i tablety {#editor-settings-your-own-phones-and}
 
 ⚙ na górnym pasku otwiera ustawienia edytora:
 
@@ -450,19 +460,19 @@ opublikowania jak każdy inny.
   pionowo, a tablet poziomo, niezależnie od kolejności wpisanych wymiarów.
 - Lista jest zapisywana w tej przeglądarce. Jeden model każdego rodzaju zawsze zostaje widoczny.
 
-## 17. Cały dashboard w dziesięciu krokach
+## 17. Cały dashboard w dziesięciu krokach {#a-whole-dashboard-in-ten-steps}
 
 Kolejność, która najlepiej działa dla nowego domu:
 
 1. **Najpierw obszary.** W Home Assistant przypisz każdemu urządzeniu obszar (Ustawienia → Obszary). Ukryj to, czego
    nikt nie potrzebuje.
 2. **Otwórz edytor** i **utwórz dashboard** (rozdział 3).
-3. **Utwórz pokoje z obszarów**, z *Oświetleniem*, *Klimatem i roletami*, *Multimediami*, *Urządzeniami* i
+3. <b class="ui">Utwórz pokoje z obszarów</b>, z *Oświetleniem*, *Klimatem i roletami*, *Multimediami*, *Urządzeniami* i
    *Bezpieczeństwem* oraz kilkoma kafelkami każdego pokoju na stronie głównej.
 4. **Uporządkuj pokoje:** przemianuj je, połącz obszary będące jednym pokojem, ułóż pokoje w kolejności (*Pokoje:
    kolejność i ukryte*), usuń niepotrzebne kafelki i dodaj brakujące przez *Wybierz z listy…*.
-5. **Zbuduj stronę główną:** kilka **Ulubionych** (główne światła, drzwi wejściowe, ogrzewanie), **Sceny**, a w każdym
-   pokoju listę **Na stronie głównej** z dwoma do czterech kafelków.
+5. **Zbuduj stronę główną:** kilka **Ulubionych** (główne światła, drzwi wejściowe, ogrzewanie), <b class="ui">Sceny</b>, a w każdym
+   pokoju listę <b class="ui">Na stronie głównej</b> z dwoma do czterech kafelków.
 6. **Dodaj bloki** dla rzeczy z wieloma encjami: ekspres, pralka, samochód, odkurzacz, serwer, UPS. Zacznij od
    najważniejszych liczb, potem grupy; *Z urządzenia, jeszcze nie w bloku* pokazuje, co zostało.
 7. **Wybierz wygląd:** motyw, tło dla strony głównej i każdego pokoju (pomoże kreator tła), kolory kafelków.
@@ -470,11 +480,11 @@ Kolejność, która najlepiej działa dla nowego domu:
    znaczniki jak poczta, lampy nieliczone), na ekranie Status ostrzeżenia na stronę główną (woda, dym, alarm, słabe
    baterie), powrót tabletu na stronę główną, pasek stron i menu.
 9. **Zdecyduj, kto co widzi**, i sprawdź to przez **Jako** w podglądzie.
-10. **Opublikuj do sprawdzenia** na jednym tablecie, potem **Opublikuj dla wszystkich**. Zostaw notatkę w historii.
+10. <b class="ui">Opublikuj do sprawdzenia</b> na jednym tablecie, potem **Opublikuj dla wszystkich**. Zostaw notatkę w historii.
 
 Potem edytor jest miejscem każdej zmiany: nowe urządzenie to kafelek dodany w minutę, nowy pokój to kliknięcie ✨.
 
-## 18. Wskazówki i problemy
+## 18. Wskazówki i problemy {#tips-and-problems}
 
 - **Zmiana nie pojawia się na tablecie.** Pojawia się po **opublikowaniu**. Otwarty tablet trzyma starą wersję, dopóki
   nie wczyta dashboardu ponownie (przeciągnij w dół albo otwórz aplikację jeszcze raz).
@@ -489,7 +499,7 @@ Potem edytor jest miejscem każdej zmiany: nowe urządzenie to kafelek dodany w 
 - **W oknie tła nie ma obrazków z folderu `www`.** Pojawiają się po restarcie Home Assistanta z nową wersją
   integracji.
 - **Nic w edytorze nie wywołuje usług**, więc możesz śmiało wszystko sprawdzać. Jedyne, co zmienia dashboardy domu,
-  to **Opublikuj**.
+  to <b class="ui">Opublikuj</b>.
 
 Więcej odpowiedzi, z dokładnymi komunikatami, jest w [FAQ w README](../README.pl.md#faq), a każdy klucz konfiguracji
 w [opisie konfiguracji](configuration.pl.md).

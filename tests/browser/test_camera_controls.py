@@ -49,16 +49,27 @@ def test_the_buttons_of_a_device_turn_its_camera(phone):
     phone.evaluate(ADD_DEVICE)
     result = run(phone, "return model.cameraMoves(instance, 'camera.slup', config);")
     assert {direction: move["entity"] for direction, move in result["moves"].items()} == {
-        "left": "button.slup_pan_left", "right": "button.slup_pan_right", "up": "button.slup_tilt_up", "down": "button.slup_tilt_down"}
+        "left": "button.slup_pan_left",
+        "right": "button.slup_pan_right",
+        "up": "button.slup_tilt_up",
+        "down": "button.slup_tilt_down",
+    }
     assert result["moves"]["left"] == press("button.slup_pan_left")
     assert result["mode"] == "names"
-    assert result["presets"] == {"select": "select.slup_preset", "button": "button.slup_go_to_preset",
-                                 "options": ["0 · HOME", "1 · GATE"], "current": "0 · HOME"}
+    assert result["presets"] == {
+        "select": "select.slup_preset",
+        "button": "button.slup_go_to_preset",
+        "options": ["0 · HOME", "1 · GATE"],
+        "current": "0 · HOME",
+    }
 
 
 def test_a_camera_without_such_buttons_has_no_arrows(phone):
-    result = run(phone, """const id = Object.keys(instance.states).find((key) => key.startsWith('camera.'));
-        return model.cameraMoves(instance, id, config);""")
+    result = run(
+        phone,
+        """const id = Object.keys(instance.states).find((key) => key.startsWith('camera.'));
+        return model.cameraMoves(instance, id, config);""",
+    )
     assert result == {"mode": "auto", "moves": {}, "presets": None}
 
 
@@ -77,9 +88,14 @@ def test_the_settings_are_grouped_and_named_without_the_device(phone):
 
 def test_the_configuration_can_choose_the_settings(phone):
     phone.evaluate(ADD_DEVICE)
-    phone.evaluate("window.cameraConfig = { cameras: { settings: { 'camera.slup': ['switch.slup_microphone', 'sensor.slup_battery'] } } }")
+    phone.evaluate(
+        "window.cameraConfig = { cameras: { settings: { 'camera.slup': ['switch.slup_microphone', 'sensor.slup_battery'] } } }"
+    )
     panel = run(phone, "return model.cameraSettingsPanel(instance, 'camera.slup', config, 'Słup');")
-    assert [row["entity"] for row in panel["groups"][0]["rows"]] == ["switch.slup_microphone", "sensor.slup_battery"]
+    assert [row["entity"] for row in panel["groups"][0]["rows"]] == [
+        "switch.slup_microphone",
+        "sensor.slup_battery",
+    ]
 
 
 def open_slup(page) -> None:
@@ -92,11 +108,15 @@ def open_slup(page) -> None:
 
 def go_live(page, wide_picture: bool = False) -> None:
     """The live view as it starts: the last picture stands in, which is all that turning needs."""
-    page.evaluate("""async () => { const sheet = document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet'); sheet._live = true; await sheet.updateComplete; }""")
+    page.evaluate(
+        """async () => { const sheet = document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet'); sheet._live = true; await sheet.updateComplete; }"""
+    )
     if wide_picture:
         page.evaluate("""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.poster').src = 'data:image/svg+xml,' + encodeURIComponent(
             '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900"/></svg>')""")
-        page.wait_for_function("() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.poster').naturalWidth === 1600")
+        page.wait_for_function(
+            "() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.poster').naturalWidth === 1600"
+        )
 
 
 def test_without_a_live_view_turning_and_sound_are_greyed(phone):
@@ -172,7 +192,9 @@ def run_async(page, body: str):
 def test_the_eufy_set_finds_the_buttons_by_their_keys_in_any_language(phone):
     phone.evaluate(POLISH_EUFY)
     before = run_async(phone, "return model.cameraMoves(instance, 'camera.ogrod', config).mode;")
-    result = run_async(phone, LOAD_KEYS + " return [model.cameraMoves(instance, 'camera.ogrod', config), asked.length];")
+    result = run_async(
+        phone, LOAD_KEYS + " return [model.cameraMoves(instance, 'camera.ogrod', config), asked.length];"
+    )
     controls, asked = result
     # Without the keys the Polish names say nothing; with them the eufy set is found.
     assert before == "auto"
@@ -186,7 +208,11 @@ def test_the_eufy_set_finds_the_buttons_by_their_keys_in_any_language(phone):
 
 def test_the_keys_are_read_from_the_registry_only_once(phone):
     phone.evaluate(POLISH_EUFY)
-    asked = run_async(phone, LOAD_KEYS + " await model.loadTranslationKeys(registry, model.controlEntityIds(instance, 'camera.ogrod', config)); return asked.length;")
+    asked = run_async(
+        phone,
+        LOAD_KEYS
+        + " await model.loadTranslationKeys(registry, model.controlEntityIds(instance, 'camera.ogrod', config)); return asked.length;",
+    )
     assert asked == 1
 
 
@@ -197,7 +223,12 @@ def test_entities_chosen_by_hand_turn_a_camera_whose_buttons_have_other_names(ph
     controls = run(phone, "return model.cameraMoves(instance, 'camera.slup', config);")
     assert controls["mode"] == "manual"
     assert controls["moves"] == {
-        "left": {"domain": "script", "service": "turn_on", "data": {"entity_id": "script.turn_left"}, "entity": "script.turn_left"},
+        "left": {
+            "domain": "script",
+            "service": "turn_on",
+            "data": {"entity_id": "script.turn_left"},
+            "entity": "script.turn_left",
+        },
         "right": press("button.slup_pan_right"),
     }
     assert controls["presets"]["options"] == ["0 · HOME", "1 · GATE"]
@@ -213,17 +244,38 @@ def test_an_onvif_camera_turns_with_the_service_and_goes_to_its_positions(phone)
     }""")
     controls = run(phone, "return model.cameraMoves(instance, 'camera.brama', config);")
     assert controls["mode"] == "onvif"
-    assert controls["moves"]["left"] == {"domain": "onvif", "service": "ptz", "data": {
-        "entity_id": "camera.brama", "pan": "LEFT", "move_mode": "ContinuousMove", "continuous_duration": 0.5, "speed": 0.5}}
+    assert controls["moves"]["left"] == {
+        "domain": "onvif",
+        "service": "ptz",
+        "data": {
+            "entity_id": "camera.brama",
+            "pan": "LEFT",
+            "move_mode": "ContinuousMove",
+            "continuous_duration": 0.5,
+            "speed": 0.5,
+        },
+    }
     assert controls["moves"]["up"]["data"]["tilt"] == "UP"
-    calls = run(phone, "return model.presetCalls(model.cameraMoves(instance, 'camera.brama', config).presets, '2');")
-    assert calls == [{"domain": "onvif", "service": "ptz", "data": {"entity_id": "camera.brama", "move_mode": "GotoPreset", "preset": "2"}}]
+    calls = run(
+        phone, "return model.presetCalls(model.cameraMoves(instance, 'camera.brama', config).presets, '2');"
+    )
+    assert calls == [
+        {
+            "domain": "onvif",
+            "service": "ptz",
+            "data": {"entity_id": "camera.brama", "move_mode": "GotoPreset", "preset": "2"},
+        }
+    ]
 
 
 def test_turning_can_be_switched_off_for_a_camera(phone):
     phone.evaluate(ADD_DEVICE)
     phone.evaluate("window.cameraConfig = { cameras: { ptz: { 'camera.slup': { mode: 'none' } } } }")
-    assert run(phone, "return model.cameraMoves(instance, 'camera.slup', config);") == {"mode": "none", "moves": {}, "presets": None}
+    assert run(phone, "return model.cameraMoves(instance, 'camera.slup', config);") == {
+        "mode": "none",
+        "moves": {},
+        "presets": None,
+    }
 
 
 def test_a_chosen_set_that_finds_nothing_turns_nothing(phone):
@@ -275,11 +327,16 @@ def test_the_arrows_and_presets_press_the_buttons(phone):
     phone.locator(f"{SHEET} [data-ptz-toggle]").click()
     phone.locator(f"{SHEET} [data-ptz='left']").click()
     phone.locator(f"{SHEET} [data-quick='positions']").click()
-    assert phone.locator(f"{SHEET} [data-quick-menu='positions'] [data-quick-option]").all_inner_texts() == ["0 · HOME", "1 · GATE"]
+    assert phone.locator(f"{SHEET} [data-quick-menu='positions'] [data-quick-option]").all_inner_texts() == [
+        "0 · HOME",
+        "1 · GATE",
+    ]
     phone.locator(f"{SHEET} [data-quick-option='1 · GATE']").click()
     assert phone.locator(f"{SHEET} [data-quick-menu]").count() == 0
     phone.wait_for_function("window.hass.calls.filter((c) => c.type === 'service').length >= 3")
-    calls = phone.evaluate("window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])")
+    calls = phone.evaluate(
+        "window.hass.calls.filter((c) => c.type === 'service').map((c) => [c.domain, c.service, c.data])"
+    )
     assert calls == [
         ["button", "press", {"entity_id": "button.slup_pan_left"}],
         ["select", "select_option", {"entity_id": "select.slup_preset", "option": "1 · GATE"}],
@@ -290,8 +347,12 @@ def test_the_arrows_and_presets_press_the_buttons(phone):
 def test_the_gear_opens_the_settings_of_the_camera(phone):
     open_slup(phone)
     phone.locator(f"{SHEET} [data-details]").click()
-    phone.wait_for_function("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'panel'")
-    title = phone.evaluate("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.item.name")
+    phone.wait_for_function(
+        "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'panel'"
+    )
+    title = phone.evaluate(
+        "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.item.name"
+    )
     assert title == "Słup: ustawienia"
     assert phone.evaluate("window.moreInfo ?? []") == []
 
@@ -305,7 +366,10 @@ def test_a_camera_whose_device_has_a_battery_is_a_battery_camera(phone):
         snapshot.entities['camera.other'] = { entity_id: 'camera.other', device_id: 'other', platform: 'neolink' };
         snapshot.states['camera.other'] = { entity_id: 'camera.other', state: 'idle', attributes: {} };
     }""")
-    result = run(phone, "return [model.isBatteryCamera(instance, 'camera.slup', config), model.isBatteryCamera(instance, 'camera.other', config)];")
+    result = run(
+        phone,
+        "return [model.isBatteryCamera(instance, 'camera.slup', config), model.isBatteryCamera(instance, 'camera.other', config)];",
+    )
     assert result == [True, False]
 
 
@@ -322,14 +386,20 @@ def test_another_camera_can_lend_its_buttons_for_turning(phone):
     assert result["moves"]["left"]["entity"] == "button.slup_pan_left"
     assert result["presets"]["select"] == "select.slup_preset"
     phone.evaluate("window.cameraConfig = {}")
-    assert run(phone, "return model.cameraMoves(instance, 'camera.nvr_slup', config);") == {"mode": "auto", "moves": {}, "presets": None}
+    assert run(phone, "return model.cameraMoves(instance, 'camera.nvr_slup', config);") == {
+        "mode": "auto",
+        "moves": {},
+        "presets": None,
+    }
 
 
 def test_the_age_is_top_left_and_the_positions_bottom_left(phone):
     open_slup(phone)
     phone.evaluate("""() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.picture img').src = 'data:image/svg+xml,' + encodeURIComponent(
             '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900"/></svg>')""")
-    phone.wait_for_function("() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.picture img').naturalWidth === 1600")
+    phone.wait_for_function(
+        "() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').shadowRoot.querySelector('.picture img').naturalWidth === 1600"
+    )
     picture = phone.locator(f"{SHEET} .stage").bounding_box()
     age = phone.locator(f"{SHEET} .age").bounding_box()
     assert age["y"] - picture["y"] < 20 and age["x"] - picture["x"] < 20
@@ -383,7 +453,9 @@ def test_a_long_list_of_positions_on_its_side_stays_under_the_header_and_scrolls
 def test_a_long_list_of_positions_upright_stays_on_the_screen(phone):
     menu = open_many_positions(phone, {"width": 402, "height": 874})
     assert menu["y"] >= 0 and menu["y"] + menu["height"] <= 874
-    assert phone.locator(f"{SHEET} [data-quick-menu='positions']").evaluate("(e) => e.scrollHeight > e.clientHeight")
+    assert phone.locator(f"{SHEET} [data-quick-menu='positions']").evaluate(
+        "(e) => e.scrollHeight > e.clientHeight"
+    )
 
 
 def test_on_its_side_the_right_column_mirrors_the_left_and_the_ring_stays_on_the_picture(phone):
@@ -410,4 +482,7 @@ def test_on_its_side_the_right_column_mirrors_the_left_and_the_ring_stays_on_the
     left = poster["x"] + (poster["width"] - shown) / 2
     assert abs(positions["x"] - (left + 12)) < 2 and positions["y"] > 250
     phone.locator(f"{SHEET} [data-open-line]").click()
-    assert phone.locator(f"{SHEET} [data-quick-bar]").evaluate("(e) => getComputedStyle(e).visibility") == "hidden"
+    assert (
+        phone.locator(f"{SHEET} [data-quick-bar]").evaluate("(e) => getComputedStyle(e).visibility")
+        == "hidden"
+    )

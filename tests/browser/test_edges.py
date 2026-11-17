@@ -21,8 +21,10 @@ def run(page, body: str, arg=None):
 
 def test_a_picture_on_the_view_keeps_its_part_and_its_veil(phone):
     value = run(phone, "return s.viewBackgroundFor('/local/home.jpg', 'top', 0.25);")
-    assert value == ('linear-gradient(rgba(251, 250, 255, 0.25), rgba(251, 250, 255, 0.25)), '
-                     'url("/local/home.jpg") center top / cover no-repeat, #fbfaff')
+    assert value == (
+        "linear-gradient(rgba(251, 250, 255, 0.25), rgba(251, 250, 255, 0.25)), "
+        'url("/local/home.jpg") center top / cover no-repeat, #fbfaff'
+    )
 
 
 def test_colours_and_gradients_go_on_the_view_too(phone):
@@ -119,6 +121,8 @@ def test_a_page_shown_again_brings_its_own_background_back(phone):
 def test_the_map_and_energy_have_backgrounds_of_their_own(phone):
     for name in ("map", "energy"):
         phone.evaluate("() => document.body.replaceChildren()")
-        phone.evaluate(MOUNT_IN_ROOT.replace('"home", window.view', f'"{name}", window.view'),
-                       {"backgrounds": {name: {"light": "#123456"}, "home": {"light": "#654321"}}})
+        phone.evaluate(
+            MOUNT_IN_ROOT.replace('"home", window.view', f'"{name}", window.view'),
+            {"backgrounds": {name: {"light": "#123456"}, "home": {"light": "#654321"}}},
+        )
         assert "rgb(18, 52, 86)" in phone.evaluate("window.view.style.getPropertyValue('background-image')")

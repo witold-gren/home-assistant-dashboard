@@ -22,7 +22,7 @@ Everything else is optional and has a default. There are three places to change 
 
 | Where | Who | What |
 |---|---|---|
-| Menu → **Dashboard settings** → **Edit configuration** | administrators | the whole block as YAML, without `type` |
+| Menu → <b class="ui">Dashboard settings</b> → <b class="ui">Edit configuration</b> | administrators | the whole block as YAML, without `type` |
 | Home Assistant's **Raw configuration editor** of the dashboard | administrators | the same, with `type` |
 | the editing windows of the dashboard | see [chapter 13](#13-editing-windows) | parts of it, without YAML |
 
@@ -170,7 +170,7 @@ entity, in a room, on Home, in Scenes and in media categories (not in `favorites
 
 - `labels` replaces the names of the options on the tile and in its window. An option without a label keeps the name
   Home Assistant gives it.
-- `confirm: true` changes the window: the heading over the options reads **Mark one, then run it**, a touch only marks
+- `confirm: true` changes the window: the heading over the options reads <b class="ui">Mark one, then run it</b>, a touch only marks
   an option, and the button **Run: …** under the options selects it. The button is grey until an option is marked and
   while the entity is unavailable. This suits a coffee machine, where a drink should not be made by brushing the screen.
 
@@ -339,6 +339,8 @@ See the guide: [Cameras](guide.md#5-cameras).
 | `ptz` | mapping camera → setting | `{}` | how a camera turns, see below |
 | `quick` | mapping camera → `{siren, light, night}` | `{}` | own entities of the round buttons, or `none` |
 | `talk_with` | mapping camera → mode | `{}` | `auto`, `go2rtc`, `intercom` or `none` |
+| `clip_picker` | `bar` or `zoom` | `bar` | picking a moment inside a recording: the clip bar over the line, or the line zoomed to the clip |
+| `clip_picker_with` | mapping camera → `bar` or `zoom` | `{}` | the other way for one camera (its picture or its live camera) |
 | `talk` | `intercom` or `camera` | `intercom` | talking in a camera window: the room's intercom or the camera |
 | `settings` | mapping camera → list of entity ids | `{}` | own choice of entities for the gear of a camera window |
 | `columns` | 2 to 5 | `3` | cameras in a row of all cameras on a tablet |
@@ -378,6 +380,8 @@ cameras:
   quick:
     camera.garden: {siren: switch.garden_alarm, light: light.garden_floodlight, night: none}
   talk_with: {camera.garden: go2rtc}
+  clip_picker: bar
+  clip_picker_with: {camera.driveway: zoom}
   settings:
     camera.garden: [switch.garden_microphone, select.garden_night_vision]
   columns: 4
@@ -845,7 +849,7 @@ appearance:
 
 ### `themes` and `theme`
 
-`themes` is the library of the **Themes** tab: `{id, name, appearance, backgrounds}` each. `theme` is the id of the
+`themes` is the library of the <b class="ui">Themes</b> tab: `{id, name, appearance, backgrounds}` each. `theme` is the id of the
 theme the current look started from. The themes that come with the dashboard have the ids `home_dashboard` and
 `apple_home`; an entry with the same id is this home's version of it. Both keys are written by the Themes tab; there
 is little reason to edit them by hand.
@@ -918,13 +922,13 @@ visibility:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `doors` | list of entity ids or `{entity, name}` | `[]` | doors of **At home**; open while `on`, `open` (a lock: not locked); a tap lists the open ones |
-| `windows` | list of entity ids or `{entity, name}` | `[]` | windows of **At home**, a badge of their own; a tap lists the open ones |
+| `doors` | list of entity ids or `{entity, name}` | `[]` | doors of <b class="ui">At home</b>; open while `on`, `open` (a lock: not locked); a tap lists the open ones |
+| `windows` | list of entity ids or `{entity, name}` | `[]` | windows of <b class="ui">At home</b>, a badge of their own; a tap lists the open ones |
 | `flags` | list of entity ids or `{entity, name, icon}` | `[]` | a badge while a helper is `on`, e.g. mail in the mailbox; a tap opens the helper to turn it off |
-| `now` | list | `[]` | items of **Now**, see below |
+| `now` | list | `[]` | items of <b class="ui">Now</b>, see below |
 | `power` | list of entity ids or `{entity, name, color, switch}` | `[]` | power now with a line of 6 hours; with `switch` only while that switch is on (a charger) |
 | `departures` | list of entity ids or `null` | `null` | the trams; `null` takes the first departures block |
-| `ignore` | list of entity ids | `[]` | lights and devices **At home** does not count (e.g. a lamp with its own schedule) |
+| `ignore` | list of entity ids | `[]` | lights and devices <b class="ui">At home</b> does not count (e.g. a lamp with its own schedule) |
 | `calendars` | list of calendar entity ids | `[]` | the calendars of the home: today's events under the weather, the calendar window and each person's list |
 | `calendar_limit` | number | `3` | events shown at most in the bar, the rest as "+N more" |
 | `calendar_hide` | `end` or `start` | `end` | an event with an hour goes after its end (it says "now" meanwhile) or after its start |
@@ -974,26 +978,28 @@ configuration saves the whole `strategy:` block at once.
 
 ### Dashboard settings
 
-**Open:** Menu → **Dashboard settings**. **Who:** administrators. **Saved:** with **Save** at the top.
+**Open:** Menu → <b class="ui">Dashboard settings</b>. **Who:** administrators. **Saved:** with <b class="ui">Save</b> at the top.
 
 | Field | Writes |
 |---|---|
-| **Back to Home on a tablet after** | `idle.return_after` |
-| **Open this dashboard at start on this device** | this device only |
-| **Warnings on Home** → Mute for a week / Show again | your user data |
-| **Talking in a camera window** | `cameras.talk` |
-| **Columns of all cameras on a tablet** | `cameras.columns` |
-| **Layout of all cameras on a tablet** | `cameras.layout` |
-| **The same camera in another integration** | `cameras.controls` |
-| **Turning and talking of each camera** → Turning | `cameras.ptz` |
+| <b class="ui">Back to Home on a tablet after</b> | `idle.return_after` |
+| <b class="ui">Open this dashboard at start on this device</b> | this device only |
+| <b class="ui">Warnings on Home</b> → Mute for a week / Show again | your user data |
+| <b class="ui">Talking in a camera window</b> | `cameras.talk` |
+| <b class="ui">Picking a moment in a recording</b> | `cameras.clip_picker` |
+| <b class="ui">Columns of all cameras on a tablet</b> | `cameras.columns` |
+| <b class="ui">Layout of all cameras on a tablet</b> | `cameras.layout` |
+| <b class="ui">The same camera in another integration</b> | `cameras.controls` |
+| <b class="ui">Turning and talking of each camera</b> → Turning | `cameras.ptz` |
 | → Siren button, Light button, Night vision button | `cameras.quick` |
 | → Talking | `cameras.talk_with` |
-| **Edit configuration** | opens the YAML editor |
-| **Load the app afresh** | nothing; reloads the files of the dashboard |
+| → Picking a moment in a recording | `cameras.clip_picker_with` |
+| <b class="ui">Edit configuration</b> | opens the YAML editor |
+| <b class="ui">Load the app afresh</b> | nothing; reloads the files of the dashboard |
 
 ### Edit configuration (YAML)
 
-**Open:** Dashboard settings → **Edit configuration**. **Who:** administrators. **Writes:** everything.
+**Open:** Dashboard settings → <b class="ui">Edit configuration</b>. **Who:** administrators. **Writes:** everything.
 
 Saving checks the syntax and refuses a configuration that would stop the dashboard from drawing, with the path of the
 problem:
@@ -1005,29 +1011,29 @@ problem:
 - a tile needs `entity`, unless it has `shortcut` or is `kind: panel` or `kind: scale` with a `name`;
 - a shortcut needs `name` and `kind`.
 
-**Load the version before the last save** brings back the configuration from before the last save, kept on this device.
+<b class="ui">Load the version before the last save</b> brings back the configuration from before the last save, kept on this device.
 
 ### Edit this screen (the room editor)
 
-**Open:** in a room, three dots → **Edit this screen**; for the Scenes of Home, open the **Scenes** page first.
-**Who:** administrators. **Saved:** with **Save**; the cross drops the changes.
+**Open:** in a room, three dots → <b class="ui">Edit this screen</b>; for the Scenes of Home, open the <b class="ui">Scenes</b> page first.
+**Who:** administrators. **Saved:** with <b class="ui">Save</b>; the cross drops the changes.
 
 | Tab | Edits | Writes |
 |---|---|---|
-| **Room page** | sections: name, arrows, one row (`layout: row`), remove, **Add a section** | `layout[].sections` |
-| **Scenes** | the Scenes row of the room | `layout[].scenes` |
-| **Home page** | the room's tiles on Home | `layout[].home` |
+| <b class="ui">Room page</b> | sections: name, arrows, one row (`layout: row`), remove, <b class="ui">Add a section</b> | `layout[].sections` |
+| <b class="ui">Scenes</b> | the Scenes row of the room | `layout[].scenes` |
+| <b class="ui">Home page</b> | the room's tiles on Home | `layout[].home` |
 
-Tiles are dragged by their handle, also between sections. **Add a tile** opens the tile search, a tap on a tile opens
+Tiles are dragged by their handle, also between sections. <b class="ui">Add a tile</b> opens the tile search, a tap on a tile opens
 the tile window. The first save of a room built from its area writes the whole room into `layout`. On the Scenes page
-the editor has one list (`scenes`) and the arrows button sets `scenes_layout: row`. Rules of **Who sees this** are saved
+the editor has one list (`scenes`) and the arrows button sets `scenes_layout: row`. Rules of <b class="ui">Who sees this</b> are saved
 together, into `visibility` and `access`.
 
 A green tile is seen only by chosen people; a red one is hidden from someone.
 
 ### Add a tile
 
-**Open:** **Add a tile** in the room editor. With nothing typed it lists what belongs to the room's areas and has no
+**Open:** <b class="ui">Add a tile</b> in the room editor. With nothing typed it lists what belongs to the room's areas and has no
 tile yet; typing searches all of Home Assistant. In Scenes it offers only scenes and scripts. A pick adds
 `{entity: …}` to the list.
 
@@ -1037,25 +1043,25 @@ tile yet; typing searches all of Home Assistant. In Scenes it offers only scenes
 
 | Field | Writes |
 |---|---|
-| **Name on the tile** | `name` of the tile; empty removes it |
-| **Size**: Flat, Tall (two rows) | `size: tall`; not for blocks |
-| **Who sees this**: Everyone, Only chosen, All except | `visibility.<key>`; the key leaves `access.*.hide` |
-| **Edit the block** (a `kind: panel` tile) | opens the [block form](#the-block-form); its result replaces the tile |
-| **Remove the tile** | removes the entry |
+| <b class="ui">Name on the tile</b> | `name` of the tile; empty removes it |
+| <b class="ui">Size</b>: Flat, Tall (two rows) | `size: tall`; not for blocks |
+| <b class="ui">Who sees this</b>: Everyone, Only chosen, All except | `visibility.<key>`; the key leaves `access.*.hide` |
+| <b class="ui">Edit the block</b> (a `kind: panel` tile) | opens the [block form](#the-block-form); its result replaces the tile |
+| <b class="ui">Remove the tile</b> | removes the entry |
 
 Other keys of a tile (`calm`, `confirm`, `labels`…) are set in YAML and kept by the window.
 
 ### Summary badges
 
-**Open:** on Home, three dots → **Summary badges**. **Who:** administrators. **Writes:** `shortcuts`, at once.
+**Open:** on Home, three dots → <b class="ui">Summary badges</b>. **Who:** administrators. **Writes:** `shortcuts`, at once.
 
-It lists the shortcuts with a pencil and arrows for their order, **Media categories**, and **New block**: Status,
+It lists the shortcuts with a pencil and arrows for their order, <b class="ui">Media categories</b>, and <b class="ui">New block</b>: Status,
 Departures, App, News, Machines, Block and Page. A School block is added in YAML and then edited here. A renamed
 shortcut keeps its rules in `access` and `visibility`; someone's own order and hiding of chips need setting again.
 
 ### The block form
 
-**Open:** the pencil in Summary badges, a new block there, or **Edit the block** in the tile window.
+**Open:** the pencil in Summary badges, a new block there, or <b class="ui">Edit the block</b> in the tile window.
 **Who:** administrators.
 
 | Kind | Fields |
@@ -1071,79 +1077,79 @@ shortcut keeps its rules in `access` and `visibility`; someone's own order and h
 | Page | Page |
 | School | Children, Sensors (`sources`, YAML) |
 
-An item of Status has **Shown when**: an entity is in a state, a value is below a limit, a battery is low, a list is not
+An item of Status has <b class="ui">Shown when</b>: an entity is in a state, a value is below a limit, a battery is low, a list is not
 empty, a device works or always (text). Each kind brings its own fields, and every item has **Also as a warning on
 Home** (`notify`), days of the week and months. Options the form does not know stay in the block untouched, and an
-empty field is left out. **Remove the block** asks for a second tap.
+empty field is left out. <b class="ui">Remove the block</b> asks for a second tap.
 
 ### Media categories
 
-**Open:** Summary badges → **Media categories**. **Who:** administrators. **Writes:** `media.sections`: sections
+**Open:** Summary badges → <b class="ui">Media categories</b>. **Who:** administrators. **Writes:** `media.sections`: sections
 with a title and tiles (Name, Entity, Icon, Kind `tv` or `panel`, Turning on and off as YAML).
 
 ### Edit the menu
 
-**Open:** at the bottom of the side menu, **Edit the menu**. **Who:** administrators. **Writes:** `menu.groups`: groups
+**Open:** at the bottom of the side menu, <b class="ui">Edit the menu</b>. **Who:** administrators. **Writes:** `menu.groups`: groups
 with a title and entries (Name, Icon, App, Address, Shortcut, Action, Administrators only, Who sees it, Hide in guest
 mode). Until the first save the form starts from the menu shown now.
 
 ### My layout
 
-**Open:** on Home, three dots → **My layout**. **Who:** everyone. **Writes:** your user data, at once.
+**Open:** on Home, three dots → <b class="ui">My layout</b>. **Who:** everyone. **Writes:** your user data, at once.
 
 Tabs: Cameras, Areas, Chips, Scenes, Favorites (order, hiding, adding by search) and Menu (hiding). At the bottom:
-**Open this dashboard at start on my devices** and **Restore the shared layout**. On Areas and Favorites an
-administrator can tick **For everyone**; **Save for everyone** then writes `rooms.order`, `rooms.hidden` and
+<b class="ui">Open this dashboard at start on my devices</b> and <b class="ui">Restore the shared layout</b>. On Areas and Favorites an
+administrator can tick <b class="ui">For everyone</b>; <b class="ui">Save for everyone</b> then writes `rooms.order`, `rooms.hidden` and
 `favorites`.
 
 ### My view
 
-**Open:** in a room, three dots → **My view**. **Who:** everyone. **Writes:** your user data: hidden sections and
-tiles of this room, the Scenes row included. **Show everything in this room** brings them back.
+**Open:** in a room, three dots → <b class="ui">My view</b>. **Who:** everyone. **Writes:** your user data: hidden sections and
+tiles of this room, the Scenes row included. <b class="ui">Show everything in this room</b> brings them back.
 
 ### User access
 
-**Open:** three dots → **User access**. **Who:** administrators. **Writes:** `access`, with **Save**.
+**Open:** three dots → <b class="ui">User access</b>. **Who:** administrators. **Writes:** `access`, with <b class="ui">Save</b>.
 
-Choose a person or **Everyone but me** (every other account that exists now). Tabs: Cameras, Areas (`rooms`), Sections
+Choose a person or <b class="ui">Everyone but me</b> (every other account that exists now). Tabs: Cameras, Areas (`rooms`), Sections
 (`sections`), Chips (the weather, the chips and the shortcuts), Lights, Media, Security, Scenes and scripts, Other
 (other entities and blocks). Everything except Areas and Sections goes to `hide`.
 
 ### Background of this screen
 
-**Open:** on Home, in a room, on the Scenes page, the Map or Energy: three dots → **Background of this screen**.
-**Who:** everyone. **Writes:** your user data; with **For everyone** (administrators) `backgrounds.<page>`.
+**Open:** on Home, in a room, on the Scenes page, the Map or Energy: three dots → <b class="ui">Background of this screen</b>.
+**Who:** everyone. **Writes:** your user data; with <b class="ui">For everyone</b> (administrators) `backgrounds.<page>`.
 
 A gradient, a colour or a picture for the light and the dark look, **Upright / Wide** for the shape, and **Part of the
 picture** (`position`). At the top, your look: System, Light or Dark, kept in your user data.
 
-**Make a background** opens the background maker: 16 ready backgrounds, 16 patterns drawn by code (hills, mountains,
+<b class="ui">Make a background</b> opens the background maker: 16 ready backgrounds, 16 patterns drawn by code (hills, mountains,
 dunes, waves, aurora, lights, colour blobs, sunset, ripples, contours, stripes, glass, petals, stars, arcs, paper)
-with **Another version of the pattern**, 48 gradients in six groups (calm, cool, warm, nature, pastel, night) or two
+with <b class="ui">Another version of the pattern</b>, 48 gradients in six groups (calm, cool, warm, nature, pastel, night) or two
 colours of your own and their direction, and a photo if wanted: how much of it is seen, greyed, blur, how it
 mixes with the gradient (by default *Tinted by the background*: the photo in the colours of the gradient under it), its size (20–100 %), its place (a corner, a side or the middle) and a move from there, a turn
-by 90°, mirrors sideways and upside down, and fading out from up to three of its edges with how wide. **For the look** chooses light, dark or both. **Use as
+by 90°, mirrors sideways and upside down, and fading out from up to three of its edges with how wide. <b class="ui">For the look</b> chooses light, dark or both. **Use as
 background** sends two JPEG pictures to Home Assistant (upright 1290 × 2796 and wide 2732 × 2048, through
 `/api/image/upload`) and puts them in the slots of that look (`light` and `light_wide`, or the dark ones); the window
-then saves them as any picture. **Download** saves the picture of the shape shown as a file. The last settings of the
+then saves them as any picture. <b class="ui">Download</b> saves the picture of the shape shown as a file. The last settings of the
 maker are kept on the device.
 
 ### Look
 
-**Open:** side menu → **Look**. **Who:** everyone. **Writes:** your user data; an administrator with **For everyone**
-ticked writes `appearance` with **Save for everyone**.
+**Open:** side menu → <b class="ui">Look</b>. **Who:** everyone. **Writes:** your user data; an administrator with <b class="ui">For everyone</b>
+ticked writes `appearance` with <b class="ui">Save for everyone</b>.
 
 | Tab | Keys of `appearance` |
 |---|---|
-| **Background** | `background_strength`, `bounce`, `page.*`, `map.*` |
-| **Buttons** | `tiles.opacity`, `tiles.radius`, `tiles.fill`, `tiles.colours` |
-| **Colours** | `text.*`, `tiles.background`, `text`, `icon`, `icon_background`, `chips.*`, `buttons.*`, `badges.*` |
-| **Bar** | `nav.*`, `status.*`, `player.*` |
-| **Windows** | `sheets.*` |
-| **Icons** | `icons` |
-| **Themes** (with For everyone) | `themes`, `theme`, and `appearance` and `backgrounds` when a theme is used |
+| <b class="ui">Background</b> | `background_strength`, `bounce`, `page.*`, `map.*` |
+| <b class="ui">Buttons</b> | `tiles.opacity`, `tiles.radius`, `tiles.fill`, `tiles.colours` |
+| <b class="ui">Colours</b> | `text.*`, `tiles.background`, `text`, `icon`, `icon_background`, `chips.*`, `buttons.*`, `badges.*` |
+| <b class="ui">Bar</b> | `nav.*`, `status.*`, `player.*` |
+| <b class="ui">Windows</b> | `sheets.*` |
+| <b class="ui">Icons</b> | `icons` |
+| <b class="ui">Themes</b> (with For everyone) | `themes`, `theme`, and `appearance` and `backgrounds` when a theme is used |
 
-**Back to the look for everyone** removes your own changes.
+<b class="ui">Back to the look for everyone</b> removes your own changes.
 
 ### Device settings and the pencil
 

@@ -1,4 +1,4 @@
-# Throwaway Home Assistant used by `make ui`: the real frontend with demo entities, no Zigbee.
+# Throwaway Home Assistant used by `make demo`: the real frontend with demo entities, no Zigbee.
 homeassistant:
   name: Home Dashboard Dev
   latitude: 51.1

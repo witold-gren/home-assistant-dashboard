@@ -24,9 +24,13 @@ import { loadPrefs, PREFS_EVENT, personalPrefs } from "./prefs.js";
 import { stopWatchingPresses, watchPresses } from "./press.js";
 import { backgroundVeil, navVariables, sheetVariables } from "./appearance.js";
 import { applyColorMode, backgroundTop, DARK_SCHEME, isDark, pageColour, tokens, viewBackground } from "./styles.js";
+import { hideMenu, restoreMenu } from "./ha-menu.js";
 import { STATUS_WIDTH } from "./status-panel.js";
 import { previewColorMode, previewMode, previewPrefs, previewUserId } from "./preview.js";
 import { mediaQuery } from "./media.js";
+import { escapeInside, isEscape } from "./escape.js";
+import { addressWithoutCamera, browserModId, cameraFromAddress, cameraTileFor, missingReason } from "./camera-window.js";
+import { createUsageReporter, windowName } from "./usage.js";
 
 // The same key as main.js: chrome.js must not import main.js, which defines every element.
 const SKIP_REVIEW_KEY = "home-dashboard-skip-review";
@@ -66,7 +70,7 @@ export function navEntries(items, { pages, rooms = [], areas = {} }) {
   });
 }
 // Pages of Home Assistant that have a window here, so that nobody has to leave the dashboard for them.
-const WINDOWS = { "/history": "history", "/logbook": "logbook" };
+const WINDOWS = { "/history": "history", "/logbook": "logbook", "/home-dashboard-activity": "household" };
 const LINKS = MENU_LINKS;
 
 const CAMERA_BAND = "#17181a";
@@ -322,6 +326,7 @@ export class HomeDashboardChrome extends LitElement {
     _statusFolded: { state: true },
     _holding: { state: true },
     _hint: { state: true },
+    _activityViewer: { state: true },
   };
 
   shouldUpdate(changed) {
@@ -343,6 +348,8 @@ export class HomeDashboardChrome extends LitElement {
     if (this.hass) loadPrefs(this.hass);
     this._refreshPlayer();
     this._watchSettings();
+    this._watchCameras();
+    this._openCameraFromAddress();
   }
 
   _onPrefs = () => {
@@ -373,7 +380,140 @@ export class HomeDashboardChrome extends LitElement {
       .catch(() => null);
   }
 
-  _applySettings({ color_mode: mode }) {
+  // What the household opens: each page and window is told to Home Assistant for the owner's panel
+  // "Household activity" (usage.js); never from the editor's preview.
+  _tellUsage(changed) {
+    if (previewMode() || !this.hass || this._usageOff) return;
+    this._usage ??= createUsageReporter(() => this.hass);
+    const path = window.location.pathname;
+    const room = new URLSearchParams(window.location.search).get("room");
+    const where = room ? `${path}?room=${room}` : path;
+    if (where !== this._usagePath) {
+      this._usagePath = where;
+      const page = path.split("/").filter(Boolean).slice(1).join("/") || "home";
+      // A room is on the page "room" with ?room=<id>: its name comes from the dashboard.
+      const name = room ? `${page}/${this._roomTitle?.(room) ?? room}` : page;
+      this._usage("page", name, { page: where });
+    }
+    if (changed.has("_overlay") && this._overlay) {
+      this._usage("window", windowName(this._overlay, this.hass), {
+        page: path,
+        entity_id: this._overlay.sheet?.entityId,
+      });
+    }
+  }
+
+  _roomTitle(id) {
+    return this._config?.layout?.find((room) => room.id === id)?.name ?? this.hass?.areas?.[id]?.name ?? id;
+  }
+
+  // The window of a camera from outside ---------------------------------------------------------------------
+
+  // An automation shows a camera (home_dashboard.show_camera): only a dashboard really used, not the editor's preview.
+  _watchCameras() {
+    if (this._cameraWatch || previewMode() || !this.hass?.connection?.subscribeMessage) return;
+    this._cameraWatch = this.hass.connection
+      .subscribeMessage((message) => this._showCamera(message), {
+        type: "home_dashboard/camera/subscribe",
+        browser_id: browserModId(),
+      })
+      .catch(() => null);
+  }
+
+  // Somebody busy with the dashboard keeps what they do: the settings, editing, or a camera already on the screen.
+  // A camera that comes first (the doorbell) takes the place of another camera, never of the settings or editing.
+  _cameraBusy(interrupt) {
+    const overlay = this._overlay;
+    if (this.card?.editing || overlay?.type === "settings") return true;
+    return !interrupt && overlay?.sheet?.kind === "camera";
+  }
+
+  _showCamera(message) {
+    if (!message?.entity_id) return;
+    const report = (reason) => this._cameraClosed(message, reason, false);
+    if (!this._config) return report("busy");
+    if (this._cameraBusy(message.interrupt)) return report("busy");
+    const entityId = cameraTileFor(this.hass, this._config, message.entity_id);
+    if (!entityId) return report(missingReason(this.hass, message.entity_id));
+    // The window it takes the place of says so now: its automation goes on at once.
+    const previous = this._remote;
+    if (previous) {
+      this._remote = null;
+      clearTimeout(this._remoteTimer);
+      this._cameraClosed(previous, "replaced", previous.live);
+    }
+    // A live view asked for by the automation does not keep the window open; somebody's touch does.
+    const remote = { ...message, live: Boolean(message.live), autoLive: Boolean(message.live) };
+    this.open({
+      type: "sheet",
+      sheet: { kind: "camera", entityId, picture: message.picture, title: message.title, remote, startLive: remote.autoLive },
+    });
+    this._remote = remote;
+    clearTimeout(this._remoteTimer);
+    if (message.close_after > 0) this._remoteTimer = setTimeout(() => this._closeRemote("timeout"), message.close_after * 1000);
+  }
+
+  // The live view, or a touch, keeps the window open; it still closes after the longest live view.
+  _onCameraEngaged = (event) => {
+    const remote = this._remote;
+    if (remote?.autoLive && event.detail?.live) return;
+    if (!remote || remote.engaged) {
+      if (remote && event.detail?.live) remote.live = true;
+      return;
+    }
+    remote.engaged = true;
+    remote.live = Boolean(event.detail?.live);
+    clearTimeout(this._remoteTimer);
+    this._remoteTimer = setTimeout(() => this._closeRemote("timeout"), remote.live_limit * 1000);
+  };
+
+  _closeRemote(reason) {
+    if (!this._remote || this._overlay?.sheet?.remote !== this._remote) return;
+    this._remote.reason = reason;
+    const sheet = this.renderRoot.querySelector("home-dashboard-sheet");
+    if (sheet?.hdLeave) sheet.hdLeave();
+    else this.close();
+  }
+
+  // Whatever closes the window (✕, Esc, the back button, a swipe, the time, another window), the automation hears it.
+  _followRemote() {
+    const remote = this._remote;
+    if (!remote || this._overlay?.sheet?.remote === remote) return;
+    this._remote = null;
+    clearTimeout(this._remoteTimer);
+    this._cameraClosed(remote, remote.reason ?? "closed", remote.live);
+  }
+
+  _cameraClosed(message, reason, live) {
+    if (message.request == null) return;
+    this.hass?.callWS?.({
+      type: "home_dashboard/camera/closed",
+      request: message.request,
+      entity_id: message.entity_id,
+      reason,
+      browser_id: browserModId(),
+      live,
+    })?.catch?.(() => null);
+  }
+
+  // A tap on a notification opens the dashboard at ?camera=camera.iwiny_slup&live=1: that camera's window, once.
+  _openCameraFromAddress() {
+    if (this._addressCameraDone || !this._config || previewMode()) return;
+    const asked = cameraFromAddress();
+    this._addressCameraDone = true;
+    if (!asked) return;
+    window.history.replaceState(window.history.state, "", addressWithoutCamera());
+    const entityId = cameraTileFor(this.hass, this._config, asked.entityId);
+    if (!entityId) return;
+    // After the page has its first picture, so the window rises over it, not over an empty screen.
+    requestAnimationFrame(() => this.open({ type: "sheet", sheet: { kind: "camera", entityId, startLive: asked.live } }));
+  }
+
+  _applySettings({ color_mode: mode, activity_record: record, activity_viewer: viewer }) {
+    // The household activity in the menu, only for the people who may see it (the owner by default).
+    this._activityViewer = viewer === true;
+    // Writing down the household activity can be turned off in the options of the integration.
+    this._usageOff = record === false;
     this._sharedMode = mode;
     this._useColorMode();
   }
@@ -511,6 +651,7 @@ export class HomeDashboardChrome extends LitElement {
       this._afterClose = null;
     };
     window.addEventListener("popstate", this._onPopState);
+    window.addEventListener("keydown", this._onEscape);
     ACTIVITY_EVENTS.forEach((name) => window.addEventListener(name, this._armIdle, { capture: true, passive: true }));
     this._themeMeta = document.querySelector('meta[name="theme-color"]');
     this._themeColour = this._themeMeta?.getAttribute("content");
@@ -563,6 +704,7 @@ export class HomeDashboardChrome extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("popstate", this._onPopState);
+    window.removeEventListener("keydown", this._onEscape);
     for (const [name, handler] of this._edgeHandlers) window.removeEventListener(name, handler, { capture: true });
     ACTIVITY_EVENTS.forEach((name) => window.removeEventListener(name, this._armIdle, { capture: true }));
     this._observer?.disconnect();
@@ -572,6 +714,9 @@ export class HomeDashboardChrome extends LitElement {
     clearTimeout(this._idleTimer);
     this._settingsWatch?.then((unsubscribe) => unsubscribe?.());
     this._settingsWatch = null;
+    this._cameraWatch?.then((unsubscribe) => unsubscribe?.());
+    this._cameraWatch = null;
+    clearTimeout(this._remoteTimer);
     this._scheme.removeEventListener("change", this._paintDocument);
     document.removeEventListener("visibilitychange", this._onVisible);
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
@@ -593,35 +738,16 @@ export class HomeDashboardChrome extends LitElement {
   // open window closes and another page returns to Home. The app asks the page for the menu, and this listener hears
   // it before Home Assistant does.
   // The menu of Home Assistant does not belong on this dashboard, which has its own; a wide phone or a tablet would keep
-  // it docked at the side. It is hidden while the dashboard is open and comes back on any other page of Home Assistant.
-  // The kiosk mode of Home Assistant hides it as "always hidden" does, but Home Assistant never saves it: changing
-  // `dockedSidebar` instead got saved as the user's own choice whenever Home Assistant stored its settings (at every
-  // load, when the preferences of the theme arrive), and the menu stayed hidden everywhere. An older Home Assistant
-  // without the kiosk mode still gets `dockedSidebar`, given back when leaving.
+  // it docked at the side. It is hidden while the dashboard is open and comes back on any other page (ha-menu.js).
   _hideSidebar() {
-    const app = document.querySelector("home-assistant");
-    if (!app?._updateHass || !app.hass || this._sidebarHidden) return;
-    if ("kioskMode" in app.hass) {
-      if (app.hass.kioskMode) return; // in kiosk mode already, not by the dashboard
-      this._sidebarHidden = "kiosk";
-      app._updateHass({ kioskMode: true });
-      return;
-    }
-    if (app.hass.dockedSidebar === "always_hidden") return;
-    this._sidebarHidden = app.hass.dockedSidebar;
-    app._updateHass({ dockedSidebar: "always_hidden" });
+    if (this._sidebarHidden) return;
+    this._sidebarHidden = hideMenu() ?? undefined;
   }
 
   _restoreSidebar() {
     const hidden = this._sidebarHidden;
     this._sidebarHidden = undefined;
-    const app = document.querySelector("home-assistant");
-    if (!hidden || !app?._updateHass || !app.hass) return;
-    if (hidden === "kiosk") {
-      if (app.hass.kioskMode) app._updateHass({ kioskMode: false });
-    } else if (app.hass.dockedSidebar === "always_hidden") {
-      app._updateHass({ dockedSidebar: hidden });
-    }
+    restoreMenu(hidden);
   }
 
   // On the dashboard the menu of Home Assistant hides; on any other page of Home Assistant it comes back.
@@ -961,6 +1087,8 @@ export class HomeDashboardChrome extends LitElement {
     // A floating bar leaves a gap under it, which the page and the player make room for.
     (this.root ?? document.documentElement).style.setProperty("--hd-nav-gap", this._appearance.nav.style === "floating" ? "8px" : "0px");
     if (changed.has("pageBackground") || changed.has("_overlay")) this._paintBand();
+    if (changed.has("_overlay")) this._followRemote();
+    this._tellUsage(changed);
     (this.root ?? document.documentElement).style.setProperty(
       "--hd-rail-space",
       this._navGone ? "0px" : this._statusOpen ? `${STATUS_WIDTH}px` : RAIL_SPACE,
@@ -976,6 +1104,21 @@ export class HomeDashboardChrome extends LitElement {
       this._timer = setInterval(refresh, 2000);
     }
   }
+
+  // Esc on a computer: a small window inside the open one goes first, then the open window itself, as its ✕ (or arrow
+  // back) does. Nothing open: Esc does nothing.
+  _onEscape = (event) => {
+    if (!isEscape(event)) return;
+    if (escapeInside(this.renderRoot)) {
+      event.preventDefault();
+      return;
+    }
+    if (!this._overlay) return;
+    event.preventDefault();
+    const shown = this.renderRoot.querySelector("home-dashboard-sheet, home-dashboard-settings");
+    if (shown?.hdLeave) shown.hdLeave();
+    else this.close();
+  };
 
   // Overlays take a history entry, so the back button closes them instead of leaving the page.
   open(overlay) {
@@ -1285,6 +1428,13 @@ export class HomeDashboardChrome extends LitElement {
               <ha-icon icon="mdi:palette-outline"></ha-icon>${translate(language, "look_title")}
             </button>
           </li>
+          ${this._activityViewer
+            ? html`<li>
+                <button data-household @click=${() => this.open({ type: "sheet", sheet: { kind: "household" } })}>
+                  <ha-icon icon="mdi:account-clock-outline"></ha-icon>${translate(language, "household_activity")}
+                </button>
+              </li>`
+            : nothing}
           ${admin
             ? html`<li>
                 <button data-settings @click=${() => this.open({ type: "settings" })}>
@@ -1338,6 +1488,7 @@ export class HomeDashboardChrome extends LitElement {
       .selection=${this._selection}
       .layout=${currentLayout()}
       @sheet-close=${() => this.close()}
+      @camera-engaged=${this._onCameraEngaged}
       @sheet-change=${(event) => this.open({ type: "sheet", sheet: event.detail })}
       @sheet-room=${(event) => this._pickRoom(event.detail.id)}
       @sheet-home=${this._pickHome}

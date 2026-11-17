@@ -5,8 +5,18 @@ from __future__ import annotations
 from .test_shortcuts import SHEET
 
 SCREEN = "home-dashboard-notifications"
-OLD = {"notification_id": "old", "title": "Stare", "message": "Treść", "created_at": "2026-11-01T08:00:00+00:00"}
-NEW = {"notification_id": "new", "title": "Nowe", "message": "**Ważne**: zobacz [ustawienia](/config)", "created_at": "2026-11-07T08:00:00+00:00"}
+OLD = {
+    "notification_id": "old",
+    "title": "Stare",
+    "message": "Treść",
+    "created_at": "2026-11-01T08:00:00+00:00",
+}
+NEW = {
+    "notification_id": "new",
+    "title": "Nowe",
+    "message": "**Ważne**: zobacz [ustawienia](/config)",
+    "created_at": "2026-11-07T08:00:00+00:00",
+}
 MOUNT = """async ({ notifications }) => {
     window.watch = null;
     window.unwatched = 0;
@@ -39,7 +49,9 @@ def open_window(page, *items: dict) -> None:
 
 
 def ids(page) -> list:
-    return page.locator(f"{SCREEN} [data-notification]").evaluate_all("(rows) => rows.map((row) => row.dataset.notification)")
+    return page.locator(f"{SCREEN} [data-notification]").evaluate_all(
+        "(rows) => rows.map((row) => row.dataset.notification)"
+    )
 
 
 def test_nothing_to_show_says_so(phone):
@@ -68,7 +80,9 @@ def test_a_removed_notification_disappears(phone):
 def test_dismissing_asks_the_server(phone):
     open_window(phone, OLD)
     phone.locator(f"{SCREEN} [data-notification-dismiss]").click()
-    assert phone.evaluate("window.calls") == [["persistent_notification", "dismiss", {"notification_id": "old"}]]
+    assert phone.evaluate("window.calls") == [
+        ["persistent_notification", "dismiss", {"notification_id": "old"}]
+    ]
 
 
 def test_dismissing_all_needs_a_second_tap(phone):
@@ -115,3 +129,41 @@ def test_closing_the_window_ends_the_subscription(phone):
     open_window(phone, OLD)
     phone.locator(f"{SHEET} header button").first.click()
     phone.wait_for_function("window.unwatched === 1")
+
+
+HOMEKIT = {
+    "notification_id": "homekit",
+    "title": "HomeKit Pairing",
+    "message": "To set up HASS Devices:21070 in the Home App, scan the QR code or enter the following code:\n"
+    "### 446-75-889\n![image](/api/homekit/pairingqr?abc-123)",
+    "created_at": "2026-11-17T18:06:00+00:00",
+}
+
+
+def test_the_homekit_pairing_shows_its_code_as_a_heading_and_its_qr_code(phone):
+    open_window(phone, HOMEKIT)
+    row = phone.locator(f"{SCREEN} [data-notification='homekit']")
+    assert row.locator("[data-heading]").inner_text() == "446-75-889"
+    assert row.locator("[data-picture]").get_attribute("src") == "/api/homekit/pairingqr?abc-123"
+    text = row.locator(".message").inner_text()
+    assert "###" not in text and "![" not in text
+
+
+def test_a_picture_only_from_home_assistant_or_https(phone):
+    bad = {
+        **OLD,
+        "message": "![a](javascript:alert(1))\n![b](http://evil.example/x.png)\n![c](data:image/png;base64,AAA)",
+    }
+    open_window(phone, bad)
+    row = phone.locator(f"{SCREEN} [data-notification='old']")
+    assert row.locator("img").count() == 0
+
+
+def test_lists_italic_and_code_read_as_in_home_assistant(phone):
+    message = {**OLD, "message": "Kroki:\n- *pierwszy*\n- `drugi`\n\n1. trzeci"}
+    open_window(phone, message)
+    row = phone.locator(f"{SCREEN} [data-notification='old']")
+    assert row.locator("[data-item]").count() == 3
+    assert row.locator("[data-item] i").inner_text() == "pierwszy"
+    assert row.locator("[data-item] code").inner_text() == "drugi"
+    assert row.locator("[data-item] .mark").all_inner_texts() == ["•", "•", "1."]

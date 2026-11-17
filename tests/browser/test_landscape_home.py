@@ -17,8 +17,11 @@ HASS = "document.querySelector('home-assistant').hass"
 
 
 def go(page, path: str) -> None:
-    page.evaluate("""(path) => { history.pushState(null, '', path);
-        window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } })); }""", path)
+    page.evaluate(
+        """(path) => { history.pushState(null, '', path);
+        window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } })); }""",
+        path,
+    )
 
 
 def test_the_menu_of_home_assistant_hides_by_the_kiosk_mode_never_by_the_users_choice(phone):
@@ -86,4 +89,9 @@ def test_a_phone_on_its_side_stays_a_phone_with_three_tiles_in_a_row(phone):
 def test_a_wide_phone_on_its_side_is_not_a_tablet_either(phone):
     phone.set_viewport_size({"width": 956, "height": 440})
     mount(phone)
-    assert phone.evaluate("(async () => (await import('/custom_components/home_dashboard/www/app/chrome.js')).currentLayout())()") == "phone"
+    assert (
+        phone.evaluate(
+            "(async () => (await import('/custom_components/home_dashboard/www/app/chrome.js')).currentLayout())()"
+        )
+        == "phone"
+    )

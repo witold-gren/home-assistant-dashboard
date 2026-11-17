@@ -35,6 +35,11 @@ export function createHass(snapshot, overrides = {}) {
     callWS: async (message) => {
       if (message.type === "frontend/get_user_data") return null;
       if (message.type === "config/entity_registry/get_entries") return {};
+      // What the household opens (usage.js) goes to a list of its own, so tests of calls see only theirs.
+      if (message.type === "home_dashboard/activity/seen") {
+        globalThis.seen = [...(globalThis.seen ?? []), message];
+        return null;
+      }
       return calls.push({ type: "ws", message });
     },
     // The calendars' events a test sets in `window.calendarEvents` (by calendar), as Home Assistant's REST API gives them.
@@ -44,8 +49,18 @@ export function createHass(snapshot, overrides = {}) {
       return calendar ? structuredClone(globalThis.calendarEvents?.[calendar] ?? []) : null;
     },
     connection: {
-      subscribeMessage: async (callback) => {
-        callback({ color_mode: snapshot.colorMode ?? "auto" });
+      subscribeMessage: async (callback, message) => {
+        // A camera to show (home_dashboard.show_camera): a test sends it with window.showCamera({...}).
+        if (message?.type === "home_dashboard/camera/subscribe") {
+          globalThis.cameraSubscriptions = [...(globalThis.cameraSubscriptions ?? []), { callback, message }];
+          globalThis.showCamera = (camera) => globalThis.cameraSubscriptions.forEach((each) => each.callback(camera));
+          return () => {};
+        }
+        callback({
+          color_mode: snapshot.colorMode ?? "auto",
+          activity_record: snapshot.activityRecord ?? true,
+          activity_viewer: snapshot.activityViewer ?? false,
+        });
         return () => {};
       },
       sendMessagePromise: async (message) => {

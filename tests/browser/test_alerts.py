@@ -24,12 +24,43 @@ BATTERIES = """(levels) => {
     localStorage.removeItem('home-dashboard-alerts-dismissed');
 }"""
 
-STATUS = {"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": [{"title": "Uwaga", "alert": True, "items": [
-    {"name": "Kamery na baterię", "icon": "mdi:battery-alert", "auto": "battery", "platforms": ["eufy_sdk", "neolink"],
-     "device_has": "camera", "below": 20, "notify": True},
-    {"name": "Zigbee", "icon": "mdi:battery-alert", "auto": "battery", "platforms": ["zha"], "below": 10, "notify": True},
-    {"name": "Bez powiadomienia", "icon": "mdi:battery", "auto": "battery", "platforms": ["eufy_sdk"], "below": 99},
-]}]}
+STATUS = {
+    "kind": "overview",
+    "name": "Status",
+    "icon": "mdi:check",
+    "sections": [
+        {
+            "title": "Uwaga",
+            "alert": True,
+            "items": [
+                {
+                    "name": "Kamery na baterię",
+                    "icon": "mdi:battery-alert",
+                    "auto": "battery",
+                    "platforms": ["eufy_sdk", "neolink"],
+                    "device_has": "camera",
+                    "below": 20,
+                    "notify": True,
+                },
+                {
+                    "name": "Zigbee",
+                    "icon": "mdi:battery-alert",
+                    "auto": "battery",
+                    "platforms": ["zha"],
+                    "below": 10,
+                    "notify": True,
+                },
+                {
+                    "name": "Bez powiadomienia",
+                    "icon": "mdi:battery",
+                    "auto": "battery",
+                    "platforms": ["eufy_sdk"],
+                    "below": 99,
+                },
+            ],
+        }
+    ],
+}
 
 
 def open_home(page, porch="12", garden="80") -> None:
@@ -39,7 +70,9 @@ def open_home(page, porch="12", garden="80") -> None:
 
 
 def cards(page) -> list:
-    return page.locator(f"{PAGE} [data-alert]").evaluate_all("(cards) => cards.map((card) => card.dataset.alert)")
+    return page.locator(f"{PAGE} [data-alert]").evaluate_all(
+        "(cards) => cards.map((card) => card.dataset.alert)"
+    )
 
 
 def test_only_notifying_items_with_something_to_say_show_on_home(phone):
@@ -56,7 +89,9 @@ def test_one_device_opens_with_more_and_several_are_only_listed(phone):
     phone.locator(f"{PAGE} [data-alert-more]").click()
     # The dashboard's own window of the sensor, not Home Assistant's.
     phone.wait_for_selector("home-dashboard-sheet .panel[data-kind='sensor']")
-    phone.evaluate("() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()")
+    phone.evaluate(
+        "() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')._close()"
+    )
     phone.wait_for_timeout(400)
     open_home(phone, garden="15")
     card = phone.locator(f"{PAGE} [data-alert]").last
@@ -116,10 +151,33 @@ LEAKS = """(states) => {
     localStorage.removeItem('home-dashboard-alerts-dismissed');
 }"""
 
-ALARMS = {"kind": "overview", "name": "Status", "icon": "mdi:check", "sections": [{"title": "Uwaga", "alert": True, "items": [
-    {"name": "Wyciek wody", "icon": "mdi:water-alert", "auto": "alarm", "classes": ["moisture"], "notify": True},
-    {"name": "Dym", "icon": "mdi:smoke-detector-alert", "auto": "alarm", "classes": ["smoke", "gas"], "notify": True},
-]}]}
+ALARMS = {
+    "kind": "overview",
+    "name": "Status",
+    "icon": "mdi:check",
+    "sections": [
+        {
+            "title": "Uwaga",
+            "alert": True,
+            "items": [
+                {
+                    "name": "Wyciek wody",
+                    "icon": "mdi:water-alert",
+                    "auto": "alarm",
+                    "classes": ["moisture"],
+                    "notify": True,
+                },
+                {
+                    "name": "Dym",
+                    "icon": "mdi:smoke-detector-alert",
+                    "auto": "alarm",
+                    "classes": ["smoke", "gas"],
+                    "notify": True,
+                },
+            ],
+        }
+    ],
+}
 
 
 def open_alarms(page, sink="on", washer="off", smoke="off") -> None:
@@ -179,8 +237,15 @@ def test_the_block_form_offers_an_alarm_item(phone):
     assert kind == ["alarm", "alarm", ["moisture"], True, "battery"]
 
 
-ALARM_ITEM = {"name": "Alarm wywołany", "icon": "mdi:alarm-light", "entity": "alarm_control_panel.home",
-              "state": ["triggered"], "labels": {"triggered": "Wyzwolony"}, "alarm": True, "notify": True}
+ALARM_ITEM = {
+    "name": "Alarm wywołany",
+    "icon": "mdi:alarm-light",
+    "entity": "alarm_control_panel.home",
+    "state": ["triggered"],
+    "labels": {"triggered": "Wyzwolony"},
+    "alarm": True,
+    "notify": True,
+}
 
 
 @pytest.mark.parametrize(("state", "shown"), [("triggered", ["Status/Alarm wywołany"]), ("disarmed", [])])

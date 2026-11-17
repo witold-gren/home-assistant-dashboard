@@ -13,6 +13,7 @@ def open_camera(page) -> None:
     open_slup(page)
     page.wait_for_function(f"{SHEET_JS}.shadowRoot.querySelector('.picture img')?.naturalWidth === 1600")
 
+
 SHEET = "home-dashboard-sheet"
 SHEET_JS = "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
 
@@ -20,17 +21,24 @@ ZOOM = "async () => await import('/custom_components/home_dashboard/www/app/zoom
 
 
 def zoom_module(page, body: str):
-    return page.evaluate(f"async () => {{ const z = await import('/custom_components/home_dashboard/www/app/zoom.js'); {body} }}")
+    return page.evaluate(
+        f"async () => {{ const z = await import('/custom_components/home_dashboard/www/app/zoom.js'); {body} }}"
+    )
 
 
 def test_a_view_never_shows_past_the_picture(phone):
-    views = zoom_module(phone, """return [z.clampView({ scale: 9, x: 50, y: -5000 }, 400, 200),
-        z.clampView({ scale: 0.5, x: -10, y: -10 }, 400, 200)];""")
+    views = zoom_module(
+        phone,
+        """return [z.clampView({ scale: 9, x: 50, y: -5000 }, 400, 200),
+        z.clampView({ scale: 0.5, x: -10, y: -10 }, 400, 200)];""",
+    )
     assert views == [{"scale": 4, "x": 0, "y": -600}, {"scale": 1, "x": 0, "y": 0}]
 
 
 def test_zooming_keeps_the_point_under_the_fingers(phone):
-    view = zoom_module(phone, "return z.zoomAround({ scale: 1, x: 0, y: 0 }, 2, { x: 100, y: 50 }, 400, 200);")
+    view = zoom_module(
+        phone, "return z.zoomAround({ scale: 1, x: 0, y: 0 }, 2, { x: 100, y: 50 }, 400, 200);"
+    )
     # The point at 100, 50 is still at 100, 50: 100 - 100 * 2 = -100.
     assert view == {"scale": 2, "x": -100, "y": -50}
 
@@ -40,9 +48,11 @@ def box(page):
 
 
 def pointer(page, kind: str, pointer_id: int, x: float, y: float) -> None:
-    page.evaluate(f"""([kind, id, x, y]) => {SHEET_JS}.shadowRoot.querySelector('.stage').dispatchEvent(
+    page.evaluate(
+        f"""([kind, id, x, y]) => {SHEET_JS}.shadowRoot.querySelector('.stage').dispatchEvent(
         new PointerEvent(kind, {{ pointerId: id, clientX: x, clientY: y, bubbles: true, composed: true, isPrimary: id === 1 }}))""",
-        [kind, pointer_id, x, y])
+        [kind, pointer_id, x, y],
+    )
 
 
 def transform(page) -> str:
@@ -102,7 +112,9 @@ def test_the_whole_picture_comes_back_with_the_live_view(phone):
     open_camera(phone)
     pinch(phone, 2)
     phone.wait_for_selector(f"{SHEET} [data-zoom-reset]")
-    phone.evaluate(f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; await sheet.updateComplete; }}")
+    phone.evaluate(
+        f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; await sheet.updateComplete; }}"
+    )
     phone.wait_for_selector(f"{SHEET} [data-zoom-reset]", state="detached")
 
 
@@ -120,9 +132,16 @@ def test_a_real_two_finger_pinch_on_a_touch_screen(moving_phone):
     b = box(page)
     cx, cy = b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
     session = page.context.new_cdp_session(page)
+
     def send(kind, points):
-        session.send("Input.dispatchTouchEvent", {
-            "type": kind, "touchPoints": [{"x": x, "y": y, "id": index} for index, (x, y) in enumerate(points)]})
+        session.send(
+            "Input.dispatchTouchEvent",
+            {
+                "type": kind,
+                "touchPoints": [{"x": x, "y": y, "id": index} for index, (x, y) in enumerate(points)],
+            },
+        )
+
     send("touchStart", [(cx - 30, cy), (cx + 30, cy)])
     for step in range(1, 11):
         send("touchMove", [(cx - 30 - 3 * step, cy), (cx + 30 + 3 * step, cy)])
@@ -142,9 +161,12 @@ def test_a_finger_whose_lifting_was_lost_does_not_turn_one_finger_into_a_pinch(p
     pointer(phone, "pointerup", 5, cx + 20, cy)
     before = transform(phone)
     # A new touch with one finger only moves the picture: its scale stays.
-    phone.evaluate(f"""([x, y]) => {{ const stage = {SHEET_JS}.shadowRoot.querySelector('.stage');
+    phone.evaluate(
+        f"""([x, y]) => {{ const stage = {SHEET_JS}.shadowRoot.querySelector('.stage');
         const send = (kind, px) => stage.dispatchEvent(new PointerEvent(kind, {{ pointerId: 6, isPrimary: true, clientX: px, clientY: y, bubbles: true, composed: true }}));
-        send('pointerdown', x); send('pointermove', x + 30); send('pointermove', x + 60); send('pointerup', x + 60); }}""", [cx, cy])
+        send('pointerdown', x); send('pointermove', x + 30); send('pointermove', x + 60); send('pointerup', x + 60); }}""",
+        [cx, cy],
+    )
     after = transform(phone)
     assert after.split("scale(")[1] == before.split("scale(")[1]
 
@@ -196,11 +218,14 @@ def test_a_drag_down_on_a_zoomed_picture_moves_it_and_does_not_close_the_window(
         phone.evaluate(TOUCH, [kind, fingers, changed])
 
     def can_close() -> bool:
-        return phone.evaluate(f"""([x, y]) => {{ const sheet = {SHEET_JS};
+        return phone.evaluate(
+            f"""([x, y]) => {{ const sheet = {SHEET_JS};
             const stage = sheet.shadowRoot.querySelector('.stage');
             let path = []; let node = stage.querySelector('.picture img');
             while (node) {{ path.push(node); node = node.parentNode ?? node.host; }}
-            return sheet._canDrag(path); }}""", [cx, cy])
+            return sheet._canDrag(path); }}""",
+            [cx, cy],
+        )
 
     # Not zoomed: the picture is part of the window, and a drag down closes it as before.
     assert can_close() is True
@@ -228,7 +253,9 @@ def test_a_real_drag_down_on_a_zoomed_picture_keeps_the_window(moving_phone):
     session = page.context.new_cdp_session(page)
 
     def send(kind, points):
-        session.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": [{"x": x, "y": y} for x, y in points]})
+        session.send(
+            "Input.dispatchTouchEvent", {"type": kind, "touchPoints": [{"x": x, "y": y} for x, y in points]}
+        )
 
     send("touchStart", [(cx - 30, cy), (cx + 30, cy)])
     for step in range(1, 11):
@@ -246,16 +273,22 @@ def test_a_real_drag_down_on_a_zoomed_picture_keeps_the_window(moving_phone):
 
 
 def test_the_clip_keeps_a_zoomed_picture_where_it_lay(phone):
-    clips = zoom_module(phone, """return [z.clipFor({ scale: 1, x: 0, y: 0 }, 400, 200),
+    clips = zoom_module(
+        phone,
+        """return [z.clipFor({ scale: 1, x: 0, y: 0 }, 400, 200),
         z.clipFor({ scale: 2, x: -100, y: -50 }, 400, 200),
-        z.clipFor({ scale: 2, x: -100, y: -50 }, 400, 200, { left: 50, top: 0, width: 300, height: 200 })];""")
+        z.clipFor({ scale: 2, x: -100, y: -50 }, 400, 200, { left: 50, top: 0, width: 300, height: 200 })];""",
+    )
     # At 2x moved by -100, -50 the element's own 50..250 x 25..125 covers the 400 x 200 it lay on.
     assert clips == ["", "inset(25px 150px 75px 50px)", "inset(25px 175px 75px 75px)"]
 
 
 def test_a_picture_with_bands_moves_only_within_the_picture(phone):
-    views = zoom_module(phone, """const rect = { left: 50, top: 0, width: 300, height: 200 };
-        return [z.clampView({ scale: 2, x: 0, y: 0 }, 400, 200, rect), z.clampView({ scale: 2, x: -1000, y: 0 }, 400, 200, rect)];""")
+    views = zoom_module(
+        phone,
+        """const rect = { left: 50, top: 0, width: 300, height: 200 };
+        return [z.clampView({ scale: 2, x: 0, y: 0 }, 400, 200, rect), z.clampView({ scale: 2, x: -1000, y: 0 }, 400, 200, rect)];""",
+    )
     # The picture's left edge (50) stays at 50 or further left: x <= 50 * (1 - 2); its right edge (350) at 350 or right.
     assert views == [{"scale": 2, "x": -50, "y": 0}, {"scale": 2, "x": -350, "y": 0}]
 
@@ -268,7 +301,13 @@ def test_on_its_side_a_zoomed_picture_does_not_spill_over_the_screen(phone):
     pinch(phone, 2)
     phone.wait_for_selector(f"{SHEET} .stage.zoomed")
     # Just left of where the picture lay nothing of it shows: the clip keeps it in its own place.
-    hit = phone.evaluate(f"""([x, y]) => {SHEET_JS}.shadowRoot.elementFromPoint(x, y)?.localName""", [b["x"] - 10, b["y"] + b["height"] / 2])
+    hit = phone.evaluate(
+        f"""([x, y]) => {SHEET_JS}.shadowRoot.elementFromPoint(x, y)?.localName""",
+        [b["x"] - 10, b["y"] + b["height"] / 2],
+    )
     assert hit != "img"
-    inside = phone.evaluate(f"""([x, y]) => {SHEET_JS}.shadowRoot.elementFromPoint(x, y)?.localName""", [b["x"] + 10, b["y"] + b["height"] / 2])
+    inside = phone.evaluate(
+        f"""([x, y]) => {SHEET_JS}.shadowRoot.elementFromPoint(x, y)?.localName""",
+        [b["x"] + 10, b["y"] + b["height"] / 2],
+    )
     assert inside == "img"

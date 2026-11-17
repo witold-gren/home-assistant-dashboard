@@ -10,7 +10,12 @@ from .test_editor_app import APP, desktop, open_editor, select  # noqa: F401
 
 FORM = "home-dashboard-editor-schema"
 BLOCKS = [
-    {"kind": "overview", "name": "Status", "icon": "mdi:clipboard-pulse-outline", "sections": [{"title": "Uwaga", "items": []}]},
+    {
+        "kind": "overview",
+        "name": "Status",
+        "icon": "mdi:clipboard-pulse-outline",
+        "sections": [{"title": "Uwaga", "items": []}],
+    },
     {"kind": "departures", "name": "MPK", "entities": ["sensor.tram_8"]},
     {"kind": "news", "name": "Infopiguła", "sections": []},
     {"kind": "host", "name": "Host", "columns": [{"title": "NUC"}]},
@@ -212,7 +217,9 @@ def test_a_device_entry_names_its_states_in_pairs(editor) -> None:
 
 def test_a_tv_turns_on_with_its_own_service(editor) -> None:
     select(editor, "shortcuts/7")
-    assert field(editor, ".on.service").locator("input").get_attribute("placeholder") == "media_player.turn_on"
+    assert (
+        field(editor, ".on.service").locator("input").get_attribute("placeholder") == "media_player.turn_on"
+    )
     change(editor, ".off.service", "script.tv_off")
     assert block(editor, 7)["off"] == {"service": "script.tv_off"}
 

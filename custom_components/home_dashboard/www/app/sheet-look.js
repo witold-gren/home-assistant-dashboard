@@ -867,6 +867,15 @@ export const LookSheets = (Base) =>
       `;
     }
 
+    _renderHousehold() {
+      // The owner's view of the household activity (activity/activity.js), loaded only when it is opened.
+      import("../activity/activity.js");
+      return html`
+        ${this._renderHeader(this._t("household_activity"), false, false)}
+        <home-dashboard-activity embedded .hass=${this.hass} .narrow=${true}></home-dashboard-activity>
+      `;
+    }
+
     _renderLogbook() {
       return html`
         ${this._renderHeader(this._t("logbook"), false, false)}

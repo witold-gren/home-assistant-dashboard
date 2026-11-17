@@ -17,10 +17,14 @@
         "description": "Dotyczą wszystkich dashboardów i urządzeń, od razu.",
         "data": {
           "color_mode": "Tryb kolorów",
-          "editor_in_sidebar": "Pokazuj edytor w pasku bocznym"
+          "editor_in_sidebar": "Pokazuj edytor w pasku bocznym",
+          "activity_in_sidebar": "Pokazuj Aktywność domowników w pasku bocznym",
+          "activity_record": "Zapisuj aktywność domowników"
         },
         "data_description": {
-          "editor_in_sidebar": "Panel Edytor dashboardu (tylko dla administratorów). Ukryty nadal otwiera się pod adresem /home-dashboard-editor."
+          "editor_in_sidebar": "Panel Edytor dashboardu (tylko dla administratorów). Ukryty nadal otwiera się pod adresem /home-dashboard-editor.",
+          "activity_in_sidebar": "Panel Aktywność domowników (administratorzy; dane tylko dla właściciela). Ukryty nadal otwiera się pod adresem /home-dashboard-activity.",
+          "activity_record": "Dashboardy zapisują strony i okna, które otwiera każda osoba, przez 30 dni, dla panelu Aktywność domowników. Wyłączone: nic nowego się nie zapisuje; to, co zapisane, znika po 30 dniach."
         }
       }
     }
@@ -31,6 +35,50 @@
         "auto": "Automatyczny (jak w systemie)",
         "light": "Jasny",
         "dark": "Ciemny"
+      }
+    }
+  },
+  "services": {
+    "show_camera": {
+      "name": "Pokaż kamerę",
+      "description": "Otwiera okno kamery samego dashboardu na wskazanych otwartych dashboardach, ze zdjęciem zdarzenia. Zamyka się samo po chwili, chyba że ktoś włączy podgląd na żywo; zdarzenie home_dashboard_camera_closed mówi, kiedy zniknęło.",
+      "fields": {
+        "entity_id": {
+          "name": "Kamera",
+          "description": "Kamera (camera.*) albo jej obraz (image.*), tak jak pokazuje ją dashboard."
+        },
+        "picture": {
+          "name": "Zdjęcie zdarzenia",
+          "description": "Encja image.* ze zdjęciem z wykrycia, widoczna do włączenia podglądu na żywo. Puste: zwykły obraz kamery."
+        },
+        "title": {
+          "name": "Tytuł",
+          "description": "Tytuł okna. Puste: nazwa kamery."
+        },
+        "close_after": {
+          "name": "Zamknij po",
+          "description": "Po ilu sekundach okno zamyka się samo; 0 zostawia je otwarte. Podgląd na żywo albo dotknięcie zatrzymuje zamykanie."
+        },
+        "live_limit": {
+          "name": "Podgląd na żywo najdłużej",
+          "description": "Ile sekund najdłużej okno zostaje otwarte po włączeniu podglądu na żywo."
+        },
+        "live": {
+          "name": "Od razu na żywo",
+          "description": "Włącza podgląd na żywo przy otwarciu okna (kamera, która nagrywa cały czas); okno i tak zamyka się po czasie z pola wyżej, chyba że ktoś go dotknie."
+        },
+        "interrupt": {
+          "name": "Pierwszeństwo",
+          "description": "Zastępuje okno innej kamery na ekranie (np. dzwonek zamiast okna po ruchu); ustawień ani edycji i tak nigdy nie zabiera."
+        },
+        "browser_id": {
+          "name": "Urządzenia",
+          "description": "Identyfikatory Browser Mod urządzeń, na których otworzyć okno (np. hall_ipad). Puste: wszystkie."
+        },
+        "user_id": {
+          "name": "Osoby",
+          "description": "Identyfikatory użytkowników Home Assistant. Puste: wszyscy."
+        }
       }
     }
   }

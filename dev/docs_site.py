@@ -25,7 +25,7 @@ GENERATED = {
     "changelog.md": "CHANGELOG.md",
 }
 
-LINK = re.compile(r'(\]\(|src=")([^)"\s#]+)')
+LINK = re.compile(r'(\]\(|src="|href=")([^)"\s#]+)')
 PICTURE = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
 
 
@@ -86,6 +86,20 @@ def html_pictures(markdown: str, url: str) -> str:
     return relative.sub(lambda match: match.group(1) + up + match.group(2), markdown)
 
 
+def html_links(markdown: str) -> str:
+    """Links written as HTML (<a href="gallery.md">, a badge of the README): MkDocs leaves them as they are,
+    so they get the address of the page, in the language of the document they lead to."""
+    relative = re.compile(r'(<a[^>]*?\shref=")(?![a-z]+:|/|#)([^"/]+\.md)(#[^"]*)?"')
+
+    def address(match: re.Match) -> str:
+        name = match.group(2)
+        language = "pl" if name.endswith(".pl.md") else "en"
+        page = name.replace(".pl.md", ".md") + (match.group(3) or "")
+        return match.group(1) + page_url(page, language) + '"'
+
+    return relative.sub(address, markdown)
+
+
 def has_polish(name: str) -> bool:
     """A document with a Polish one beside it; the made ones count by their sources, before they are made."""
     polish = name.replace(".md", ".pl.md")
@@ -127,7 +141,7 @@ def on_page_markdown(markdown: str, page, config, files) -> str:
     markdown = link.sub(
         lambda match: match.group(1) + other_language(from_docs(match.group(2)), language), markdown
     )
-    return html_pictures(markdown, page.url)
+    return html_pictures(html_links(markdown), page.url)
 
 
 if __name__ == "__main__":

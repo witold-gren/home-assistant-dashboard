@@ -1,6 +1,6 @@
-"""Open the dashboard in the real frontend of the `make ui` instance and report what happened.
+"""Open the dashboard in the real frontend of the `make demo` instance and report what happened.
 
-    python dev/check_frontend.py <output folder>
+python dev/check_frontend.py <output folder>
 """
 
 from __future__ import annotations
@@ -64,7 +64,9 @@ INTERACT = f"""() => {{
     dashboardChrome.shadowRoot.querySelector('[data-page="energy"]').click();
     return location.pathname;
 }}"""
-SAME_CHROME = f"""() => {{ {FIND} return window.dashboardChromeBefore === dashboardChrome && dashboardChrome.page; }}"""
+SAME_CHROME = (
+    f"""() => {{ {FIND} return window.dashboardChromeBefore === dashboardChrome && dashboardChrome.page; }}"""
+)
 OPEN_DETAILS = f"""() => {{
     {FIND}
     find(huiRoot.shadowRoot, "home-dashboard-page").shadowRoot.querySelector(".tile.light .text").click();
@@ -75,7 +77,9 @@ OPEN_SHEET = f"""(kind) => {{
     {FIND}
     find(huiRoot.shadowRoot, "home-dashboard-page").shadowRoot.querySelector(`.tile[data-entity^="${{kind}}."] .text`).click();
 }}"""
-SHEET_GONE = f"""() => {{ {FIND} return !dashboardChrome.shadowRoot.querySelector("home-dashboard-sheet"); }}"""
+SHEET_GONE = (
+    f"""() => {{ {FIND} return !dashboardChrome.shadowRoot.querySelector("home-dashboard-sheet"); }}"""
+)
 OPEN_DRAWER = f"""() => {{ {FIND} dashboardChrome.open({{ type: "drawer" }}); }}"""
 
 
@@ -96,9 +100,9 @@ def main(output: Path) -> None:
             page.on("pageerror", lambda error, log=problems: log.append(f"pageerror: {error} {error.stack}"))
             page.on(
                 "console",
-                lambda message, log=problems: log.append(f"console: {message.text[:200]}")
-                if message.type == "error"
-                else None,
+                lambda message, log=problems: (
+                    log.append(f"console: {message.text[:200]}") if message.type == "error" else None
+                ),
             )
             page.goto(f"{BASE}/home-dashboard/home", wait_until="domcontentloaded")
             page.wait_for_timeout(7000)
@@ -127,7 +131,11 @@ def main(output: Path) -> None:
                 page.screenshot(path=output / f"{name}-{kind}.png")
                 page.go_back()
                 page.wait_for_timeout(800)
-                print(f"   {kind} sheet closed by back:", page.evaluate(SHEET_GONE), page.evaluate("location.pathname"))
+                print(
+                    f"   {kind} sheet closed by back:",
+                    page.evaluate(SHEET_GONE),
+                    page.evaluate("location.pathname"),
+                )
             page.evaluate(OPEN_DRAWER)
             page.wait_for_timeout(600)
             page.screenshot(path=output / f"{name}-drawer.png")

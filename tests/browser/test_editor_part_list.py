@@ -12,8 +12,11 @@ STRATEGY = {
         {
             "id": "garden",
             "name": "Działka",
-            "home": [{"entity": "light.entity_0096", "name": "Altanka"}, {"entity": "light.entity_0097"},
-                     {"entity": "switch.entity_0235", "name": "Alarm"}],
+            "home": [
+                {"entity": "light.entity_0096", "name": "Altanka"},
+                {"entity": "light.entity_0097"},
+                {"entity": "switch.entity_0235", "name": "Alarm"},
+            ],
             "sections": [{"title": "Kawa", "tiles": []}],
         },
     ],
@@ -53,9 +56,15 @@ def test_rows_move_and_go_in_place(desktop) -> None:  # noqa: F811
     assert [tile.get("name") for tile in draft(desktop)["layout"][0]["home"]] == [None, "Altanka", "Alarm"]
     assert desktop.locator(f"{APP} [data-part='{HOME}/0'] [data-part-up]").is_disabled()
     desktop.locator(f"{APP} [data-part='{HOME}/2'] [data-part-remove]").click()
-    assert [tile["entity"] for tile in draft(desktop)["layout"][0]["home"]] == ["light.entity_0097", "light.entity_0096"]
+    assert [tile["entity"] for tile in draft(desktop)["layout"][0]["home"]] == [
+        "light.entity_0097",
+        "light.entity_0096",
+    ]
     # still on the list
-    assert desktop.locator(f"{APP} [data-props-title]").inner_text() == desktop.locator(f"{APP} [data-node='{HOME}']").first.inner_text().splitlines()[0]
+    assert (
+        desktop.locator(f"{APP} [data-props-title]").inner_text()
+        == desktop.locator(f"{APP} [data-node='{HOME}']").first.inner_text().splitlines()[0]
+    )
 
 
 def test_an_added_tile_shows_in_the_list(desktop) -> None:  # noqa: F811

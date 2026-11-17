@@ -4,6 +4,8 @@
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "../app/i18n.js";
+import { DOCS_ANCHORS } from "./docs-anchors.js";
+import "./help.js";
 
 export const DEVICES_KEY = "home-dashboard-editor-devices";
 export const KINDS = ["phone", "tablet"];
@@ -11,8 +13,10 @@ export const KINDS = ["phone", "tablet"];
 export const SIZE_LIMITS = { min: 200, max: 3000 };
 
 /** What is kept: `{ phone: { key: { name, width, height, hidden, custom } }, tablet: { … } }`, only the changes. */
-export function readDevicePrefs(storage = globalThis.localStorage) {
+export function readDevicePrefs(storage) {
   try {
+    // The storage is looked up inside the try: a blocked one throws already when it is named.
+    storage ??= globalThis.localStorage;
     const saved = JSON.parse(storage?.getItem(DEVICES_KEY) ?? "{}");
     return Object.fromEntries(KINDS.map((kind) => [kind, saved?.[kind] && typeof saved[kind] === "object" ? saved[kind] : {}]));
   } catch {
@@ -20,8 +24,9 @@ export function readDevicePrefs(storage = globalThis.localStorage) {
   }
 }
 
-export function writeDevicePrefs(prefs, storage = globalThis.localStorage) {
+export function writeDevicePrefs(prefs, storage) {
   try {
+    storage ??= globalThis.localStorage;
     storage?.setItem(DEVICES_KEY, JSON.stringify(prefs));
   } catch {
     // A browser that keeps nothing still shows the changes until the page is closed.
@@ -202,6 +207,8 @@ export class HomeDashboardEditorDevices extends LitElement {
       <section class="box" data-editor-settings-dialog @click=${(event) => event.stopPropagation()}>
         <header>
           <h3><ha-icon icon="mdi:cog-outline"></ha-icon>${this._t("editor_settings")}</h3>
+          <span class="grow"></span>
+          <home-dashboard-editor-help part="devices" .anchor=${DOCS_ANCHORS.devices} .language=${this.hass?.language}></home-dashboard-editor-help>
           <button class="icon" data-settings-close aria-label=${this._t("background_close")} @click=${this._close}>×</button>
         </header>
         <div class="content">
@@ -235,6 +242,9 @@ export class HomeDashboardEditorDevices extends LitElement {
       color: var(--text);
       background: var(--panel);
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .grow {
+      flex: 1;
     }
     header {
       display: flex;

@@ -13,8 +13,17 @@ STRATEGY = {
     "type": "custom:home-dashboard",
     "favorites": [],
     "layout": [
-        {"id": "test_kitchen", "name": "Kuchnia", "sections": [{"title": "Kawa", "tiles": [{"entity": "light.test_lamp"}]}]},
-        {"id": "office", "name": "Biuro", "areas": ["test_office"], "sections": [{"title": "Biurko", "tiles": []}]},
+        {
+            "id": "test_kitchen",
+            "name": "Kuchnia",
+            "sections": [{"title": "Kawa", "tiles": [{"entity": "light.test_lamp"}]}],
+        },
+        {
+            "id": "office",
+            "name": "Biuro",
+            "areas": ["test_office"],
+            "sections": [{"title": "Biurko", "tiles": []}],
+        },
     ],
 }
 
@@ -53,7 +62,9 @@ def open_picker(page, node="layout/0/sections/0") -> None:
 
 
 def rows(page) -> list[str]:
-    return page.locator(f"{APP} {PICKER} [data-picker-row]").evaluate_all("(rows) => rows.map((row) => row.dataset.pickerRow)")
+    return page.locator(f"{APP} {PICKER} [data-picker-row]").evaluate_all(
+        "(rows) => rows.map((row) => row.dataset.pickerRow)"
+    )
 
 
 def row(page, entity: str):
@@ -74,7 +85,13 @@ def draft(page) -> dict:
 def test_a_section_of_a_room_opens_on_the_room_s_area(desktop):  # noqa: F811
     open_picker(desktop)
     assert "Kuchnia \u203a Kawa" in desktop.locator(f"{APP} {PICKER} header").inner_text()
-    kitchen = {"cover.test_blind_homekit", "cover.test_blind_netatmo", "cover.test_blinds_group", "light.test_lamp", "select.test_drink"}
+    kitchen = {
+        "cover.test_blind_homekit",
+        "cover.test_blind_netatmo",
+        "cover.test_blinds_group",
+        "light.test_lamp",
+        "select.test_drink",
+    }
     assert set(rows(desktop)) == kitchen
 
 
@@ -149,7 +166,10 @@ def test_the_battery_of_the_device_and_the_area_are_told(desktop):  # noqa: F811
 
 def test_a_list_gets_the_suggestion_of_its_run_button(desktop):  # noqa: F811
     open_picker(desktop)
-    assert "zaznacz, potem uruchom" in row(desktop, "select.test_drink").locator("[data-picker-tip]").inner_text()
+    assert (
+        "zaznacz, potem uruchom"
+        in row(desktop, "select.test_drink").locator("[data-picker-tip]").inner_text()
+    )
 
 
 # Ticking and adding -----------------------------------------------------------------------------------------
@@ -158,7 +178,9 @@ def test_a_list_gets_the_suggestion_of_its_run_button(desktop):  # noqa: F811
 def test_what_is_ticked_shows_in_the_preview_and_not_in_the_draft(desktop):  # noqa: F811
     open_picker(desktop)
     row(desktop, "cover.test_blind_homekit").click()
-    preview = desktop.evaluate("window.homeDashboardPreview.strategy.layout[0].sections[0].tiles.map((t) => t.entity)")
+    preview = desktop.evaluate(
+        "window.homeDashboardPreview.strategy.layout[0].sections[0].tiles.map((t) => t.entity)"
+    )
     assert preview == ["light.test_lamp", "cover.test_blind_homekit"]
     assert len(draft(desktop)["layout"][0]["sections"][0]["tiles"]) == 1
     assert "Zaznaczone: 1" in desktop.locator(f"{APP} {PICKER} [data-picker-count]").inner_text()
@@ -173,7 +195,11 @@ def test_adding_puts_the_tiles_in_the_order_they_were_ticked_as_one_step(desktop
     row(desktop, "cover.test_blind_homekit").click()
     desktop.locator(f"{APP} {PICKER} [data-picker-add]").click()
     tiles = draft(desktop)["layout"][0]["sections"][0]["tiles"]
-    assert tiles == [{"entity": "light.test_lamp"}, {"entity": "select.test_drink", "confirm": True}, {"entity": "cover.test_blind_homekit"}]
+    assert tiles == [
+        {"entity": "light.test_lamp"},
+        {"entity": "select.test_drink", "confirm": True},
+        {"entity": "cover.test_blind_homekit"},
+    ]
     assert desktop.locator(f"{APP} {PICKER}").count() == 0
     assert "sel" in desktop.locator(f"{APP} [data-node='layout/0/sections/0/tiles/1']").get_attribute("class")
     desktop.locator(f"{APP} [data-undo]").click()
@@ -225,28 +251,51 @@ def run(page, body: str, arg=None):
 
 def test_kind_area_battery_and_tile(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
-    result = run(desktop, """return [m.kindOf('cover.a'), m.kindOf('scene.a'), m.kindOf('vacuum.a'), m.areaOf(hass, 'light.test_lamp'),
+    result = run(
+        desktop,
+        """return [m.kindOf('cover.a'), m.kindOf('scene.a'), m.kindOf('vacuum.a'), m.areaOf(hass, 'light.test_lamp'),
         m.areaOf(hass, 'automation.test_morning'), m.batteryOf(hass, 'light.test_lamp'), m.batteryOf(hass, 'cover.test_blind_netatmo'),
-        m.tileFor(hass, 'select.test_drink', ['favorites']), m.tileFor(hass, 'automation.test_morning', ['scenes'])];""")
-    assert result == ["covers", "automations", "other", "test_kitchen", None, 42, None, "select.test_drink", {"entity": "automation.test_morning", "calm": True}]
+        m.tileFor(hass, 'select.test_drink', ['favorites']), m.tileFor(hass, 'automation.test_morning', ['scenes'])];""",
+    )
+    assert result == [
+        "covers",
+        "automations",
+        "other",
+        "test_kitchen",
+        None,
+        42,
+        None,
+        "select.test_drink",
+        {"entity": "automation.test_morning", "calm": True},
+    ]
 
 
 def test_usage_counts_every_place(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
-    places = run(desktop, """const strategy = { favorites: ['light.a'], scenes: [{ entity: 'scene.x' }],
+    places = run(
+        desktop,
+        """const strategy = { favorites: ['light.a'], scenes: [{ entity: 'scene.x' }],
         layout: [{ id: 'k', name: 'Kuchnia', home: [{ entity: 'light.a' }], scenes: [{ entity: 'scene.x' }],
             sections: [{ tiles: [{ entity: 'light.a' }, { shortcut: 'Ekspres', entity: 'sensor.e' }] }] }] };
-        return Object.fromEntries(m.usage(strategy, 'pl'));""")
-    assert places == {"light.a": ["Ulubione", "Kuchnia"], "scene.x": ["Sceny", "Kuchnia"], "sensor.e": ["Kuchnia"]}
+        return Object.fromEntries(m.usage(strategy, 'pl'));""",
+    )
+    assert places == {
+        "light.a": ["Ulubione", "Kuchnia"],
+        "scene.x": ["Sceny", "Kuchnia"],
+        "sensor.e": ["Kuchnia"],
+    }
 
 
 def test_twins_need_one_area_one_kind_and_two_integrations(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
-    twins = run(desktop, """
+    twins = run(
+        desktop,
+        """
         const ids = (entity) => m.twinsOf(hass, entity).map((twin) => twin.entity);
         hass.states['cover.test_blind_netatmo'] = { ...hass.states['cover.test_blind_netatmo'], attributes: { device_class: 'garage' } };
         const differentClass = ids('cover.test_blind_homekit');
-        return [ids('light.test_lamp'), differentClass, ids('select.test_drink')];""")
+        return [ids('light.test_lamp'), differentClass, ids('select.test_drink')];""",
+    )
     assert twins == [[], [], []]
 
 
@@ -271,7 +320,9 @@ def test_a_home_of_thousands_of_entities_is_listed_at_once(desktop):  # noqa: F8
 
 def test_two_blinds_of_one_integration_and_lights_of_many_are_no_twins(desktop):  # noqa: F811
     open_editor(desktop, STRATEGY)
-    twins = run(desktop, """const add = (id, platform, area) => {
+    twins = run(
+        desktop,
+        """const add = (id, platform, area) => {
             hass.states[id] = { entity_id: id, state: 'open', attributes: { friendly_name: id } };
             hass.entities[id] = { entity_id: id, platform, area_id: area };
         };
@@ -279,5 +330,6 @@ def test_two_blinds_of_one_integration_and_lights_of_many_are_no_twins(desktop):
         add('cover.salon_c', 'zha', 'test_office');
         add('light.k_hue', 'hue', 'test_kitchen'); add('light.k_zha', 'zha', 'test_kitchen');
         const ids = (entity) => m.twinsOf({ ...hass, states: { ...hass.states } }, entity).map((twin) => twin.entity);
-        return [ids('cover.salon_a'), ids('cover.salon_c'), ids('light.k_hue'), ids('cover.test_blinds_group')];""")
+        return [ids('cover.salon_a'), ids('cover.salon_c'), ids('light.k_hue'), ids('cover.test_blinds_group')];""",
+    )
     assert twins == [[], [], [], []]

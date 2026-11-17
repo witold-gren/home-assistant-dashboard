@@ -15,13 +15,13 @@ CONTRAST_TEXT = 4.5
 CONTRAST_ICON = 3
 
 
-
 def as_rgb(value: str) -> str:
     """A colour mixed for the opacity of the look is written as srgb; the same colour as rgb."""
     if not value.startswith("color(srgb "):
         return value
-    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb "):-1].split()[:3])
+    red, green, blue = (round(float(part) * 255) for part in value[len("color(srgb ") : -1].split()[:3])
     return f"rgb({red}, {green}, {blue})"
+
 
 def open_dark(browser, base_url: str, viewport: dict) -> Page:
     page = browser.new_page(viewport=viewport, color_scheme="dark")
@@ -214,13 +214,14 @@ def test_the_page_opens_with_the_last_mode_before_it_connects(phone, base_url):
 
 
 def test_the_page_subscribes_once_and_stops_when_it_goes(phone):
+    # Each subscription once (the settings and the camera window), each stopped when the page goes.
     count = phone.evaluate("""async () => {
-        let subscribed = 0;
-        let stopped = 0;
+        const subscribed = {};
+        const stopped = {};
         const hass = window.dashboard.hass();
-        hass.connection.subscribeMessage = async () => {
-            subscribed += 1;
-            return () => { stopped += 1; };
+        hass.connection.subscribeMessage = async (callback, message) => {
+            subscribed[message.type] = (subscribed[message.type] ?? 0) + 1;
+            return () => { stopped[message.type] = (stopped[message.type] ?? 0) + 1; };
         };
         window.hass = hass;
         window.card = await window.dashboard.mount(hass, {}, "home");
@@ -231,7 +232,8 @@ def test_the_page_subscribes_once_and_stops_when_it_goes(phone):
         await new Promise((resolve) => setTimeout(resolve));
         return { subscribed, stopped };
     }""")
-    assert count == {"subscribed": 1, "stopped": 1}
+    each = {"home_dashboard/settings/subscribe": 1, "home_dashboard/camera/subscribe": 1}
+    assert count == {"subscribed": each, "stopped": each}
 
 
 def test_an_older_integration_leaves_the_page_on_automatic(phone):

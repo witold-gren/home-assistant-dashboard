@@ -76,17 +76,25 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 |---|---|---|---|
 | ![Camera](screenshots/en/camera.png) | ![All cameras](screenshots/en/cameras.png) | ![Connections of a camera on a battery](screenshots/en/connections.png) | ![Intercom](screenshots/en/intercom.png) |
 
-| All cameras on a tablet | One big camera, live |
-|---|---|
-| ![All cameras on a tablet](screenshots/en/cameras-tablet.png) | ![One big camera, live](screenshots/en/cameras-featured.png) |
+| Clip bar: a moment of a recording | Clip bar held still | Line zoomed to the clip | Zoomed line held still |
+|---|---|---|---|
+| ![Clip bar: a moment of a recording](screenshots/en/clip-bar.png) | ![Clip bar held still](screenshots/en/clip-fine.png) | ![Line zoomed to the clip](screenshots/en/clip-zoom.png) | ![Zoomed line held still](screenshots/en/clip-zoom-fine.png) |
 
-| Camera window on a tablet | Camera on a phone on its side |
+| Clip bar on a tablet | All cameras on a tablet |
 |---|---|
-| ![Camera window on a tablet](screenshots/en/camera-tablet.png) | ![Camera on a phone on its side](screenshots/en/camera-landscape.png) |
+| ![Clip bar on a tablet](screenshots/en/clip-bar-tablet.png) | ![All cameras on a tablet](screenshots/en/cameras-tablet.png) |
 
-| Saved positions | Line of time |
+| One big camera, live | Camera window on a tablet |
 |---|---|
-| ![Saved positions](screenshots/en/camera-landscape-positions.png) | ![Line of time](screenshots/en/camera-landscape-line.png) |
+| ![One big camera, live](screenshots/en/cameras-featured.png) | ![Camera window on a tablet](screenshots/en/camera-tablet.png) |
+
+| Camera on a phone on its side | Saved positions |
+|---|---|
+| ![Camera on a phone on its side](screenshots/en/camera-landscape.png) | ![Saved positions](screenshots/en/camera-landscape-positions.png) |
+
+| Line of time |
+|---|
+| ![Line of time](screenshots/en/camera-landscape-line.png) |
 
 ## Energy
 
@@ -148,20 +156,28 @@ They show a made-up home from `dev/demo.js`; the camera pictures are free CC0 ph
 
 The editor on a computer, at 1600 × 960; a step-by-step guide is in [The dashboard editor](editor.md).
 
-| Home in the editor | Rooms from areas | A room |
+| A new dashboard | Home in the editor | Rooms from areas |
 |---|---|---|
-| ![Home in the editor](screenshots/en/editor-home.png) | ![Rooms from areas](screenshots/en/editor-generate.png) | ![A room](screenshots/en/editor-room.png) |
+| ![A new dashboard](screenshots/en/editor-new.png) | ![Home in the editor](screenshots/en/editor-home.png) | ![Rooms from areas](screenshots/en/editor-generate.png) |
 
-| A section | Choosing entities | A block |
+| A room | A section | Choosing entities |
 |---|---|---|
-| ![A section](screenshots/en/editor-section.png) | ![Choosing entities](screenshots/en/editor-picker.png) | ![A block](screenshots/en/editor-block.png) |
+| ![A room](screenshots/en/editor-room.png) | ![A section](screenshots/en/editor-section.png) | ![Choosing entities](screenshots/en/editor-picker.png) |
 
-| Look and backgrounds | A background colour | Status bar |
+| A tile | A tile in YAML | A block |
 |---|---|---|
-| ![Look and backgrounds](screenshots/en/editor-look.png) | ![A background colour](screenshots/en/editor-background.png) | ![Status bar](screenshots/en/editor-status.png) |
+| ![A tile](screenshots/en/editor-tile.png) | ![A tile in YAML](screenshots/en/editor-yaml.png) | ![A block](screenshots/en/editor-block.png) |
 
-| Menu | Publishing | History |
+| A status block | Look and backgrounds | A background colour |
 |---|---|---|
-| ![Menu](screenshots/en/editor-menu.png) | ![Publishing](screenshots/en/editor-publish.png) | ![History](screenshots/en/editor-history.png) |
+| ![A status block](screenshots/en/editor-status-block.png) | ![Look and backgrounds](screenshots/en/editor-look.png) | ![A background colour](screenshots/en/editor-background.png) |
+
+| Status bar | User access | Menu |
+|---|---|---|
+| ![Status bar](screenshots/en/editor-status.png) | ![User access](screenshots/en/editor-access.png) | ![Menu](screenshots/en/editor-menu.png) |
+
+| Publishing | History | Settings of the editor |
+|---|---|---|
+| ![Publishing](screenshots/en/editor-publish.png) | ![History](screenshots/en/editor-history.png) | ![Settings of the editor](screenshots/en/editor-settings.png) |
 
 [← Back to the README](../README.md) · [Polski](gallery.pl.md)

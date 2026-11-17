@@ -13,7 +13,7 @@ wersja w sześciu krokach jest w [przewodniku](guide.pl.md#apple-home-krok-po-kr
 ## 1. Czego potrzebujesz
 
 - Home Assistant z zainstalowanym Home Dashboard w wersji 0.1.6 lub nowszej ([instalacja](guide.pl.md#1-instalacja)).
-- Konto administratora: tylko ono ustawia wygląd **Dla wszystkich**.
+- Konto administratora: tylko ono ustawia wygląd <b class="ui">Dla wszystkich</b>.
 - Obszary w Home Assistant z przypisanymi urządzeniami. Pokój w dashboardzie to obszar, więc bez obszarów nie ma
   pokoi ani ich teł ([co decyduje w Home Assistant](guide.pl.md#2-co-decyduje-w-home-assistant)).
 - Po jednym zdjęciu na każdy pokój, który ma mieć własne tło, i jedno na stronę główną. Wystarczą zdjęcia z telefonu.
@@ -23,16 +23,16 @@ wersja w sześciu krokach jest w [przewodniku](guide.pl.md#apple-home-krok-po-kr
 
 Wygląd najlepiej działa na uporządkowanym dashboardzie, więc zanim zajmiesz się kolorami:
 
-1. Sprawdź, że każdy pokój pokazuje to, co trzeba. Trzy kropki w pokoju → **Edytuj ten ekran**: dodaj brakujące
+1. Sprawdź, że każdy pokój pokazuje to, co trzeba. Trzy kropki w pokoju → <b class="ui">Edytuj ten ekran</b>: dodaj brakujące
    kafelki, ułóż sekcje, usuń zbędne ([pokoje](guide.pl.md#3-pokoje)).
-2. Na stronie głównej ułóż kolejność pokoi i ulubione: trzy kropki → **Mój układ** → **Dla wszystkich**.
+2. Na stronie głównej ułóż kolejność pokoi i ulubione: trzy kropki → <b class="ui">Mój układ</b> → <b class="ui">Dla wszystkich</b>.
 3. Dodaj sceny do pokoi, jeśli ich używasz: w Apple Home to rząd szklanych przycisków pod kamerami.
 
 ## 3. Włącz motyw Apple Home
 
-1. Menu → **Wygląd**.
-2. Zaznacz **Dla wszystkich**: od tej chwili zmieniasz wygląd całego domu, a nie tylko swój.
-3. Zakładka **Motywy** → **Użyj** przy **Apple Home**.
+1. Menu → <b class="ui">Wygląd</b>.
+2. Zaznacz <b class="ui">Dla wszystkich</b>: od tej chwili zmieniasz wygląd całego domu, a nie tylko swój.
+3. Zakładka <b class="ui">Motywy</b> → <b class="ui">Użyj</b> przy **Apple Home**.
 
 Strona przeładuje się w nowym wyglądzie. Co dokładnie ustawia motyw:
 
@@ -75,7 +75,7 @@ Przykłady z zrzutów są w `dev/demo-pictures/backgrounds` w repozytorium.
 ### Przygotowanie tła krok po kroku (Photopea albo GIMP)
 
 1. **Nowy obraz** 1284 × 2778 px.
-2. **Gradient**: narzędzie gradientu liniowego, kolor górny → kolor dolny (palety niżej), przeciągnij od góry do dołu
+2. <b class="ui">Gradient</b>: narzędzie gradientu liniowego, kolor górny → kolor dolny (palety niżej), przeciągnij od góry do dołu
    z lekkim skosem w prawo (około 170°).
 3. **Zdjęcie pokoju**: wklej jako nową warstwę i przesuń do prawego górnego rogu. Ma zajmować mniej więcej górną
    jedną trzecią i wychodzić poza prawą krawędź.
@@ -119,11 +119,11 @@ widać, gdzie jesteś.
 
 Dla strony głównej i każdego pokoju:
 
-1. Otwórz stronę albo pokój, trzy kropki → **Tło tego ekranu**.
-2. Na górze wybierz **Jasny**. W polu **Zdjęcie** wybierz plik jasny: trafi do Home Assistant.
-3. Wybierz **Ciemny** i wgraj plik ciemny.
+1. Otwórz stronę albo pokój, trzy kropki → <b class="ui">Tło tego ekranu</b>.
+2. Na górze wybierz <b class="ui">Jasny</b>. W polu <b class="ui">Zdjęcie</b> wybierz plik jasny: trafi do Home Assistant.
+3. Wybierz <b class="ui">Ciemny</b> i wgraj plik ciemny.
 4. **Część zdjęcia, która zostaje: Góra**, żeby po przycięciu zostało zdjęcie, a nie gradient.
-5. Zaznacz **Dla wszystkich** przy obu wyglądach i **Zapisz**.
+5. Zaznacz <b class="ui">Dla wszystkich</b> przy obu wyglądach i <b class="ui">Zapisz</b>.
 
 Na tablecie ustawionym poziomo możesz dodać osobne tło: przełącznik **Pionowy / Poziomy** w tym samym oknie. Tło
 poziome ma 2778 × 1284 px i zdjęcie po prawej stronie. Bez niego tablet użyje tła pionowego.
@@ -145,17 +145,17 @@ backgrounds:
 
 ### Sceny, Mapa i Energia
 
-Strona Scen, Mapa i Energia też mają **Tło tego ekranu** (klucze `scenes`, `map`, `energy`). Apple Home daje Mapie
+Strona Scen, Mapa i Energia też mają <b class="ui">Tło tego ekranu</b> (klucze `scenes`, `map`, `energy`). Apple Home daje Mapie
 ciemne tło pod ciemną mapę. Energii pasuje tło strony głównej albo spokojny gradient bez zdjęcia.
 
 ## 5. Dopracowanie
 
-- **Ikony** (**Wygląd → Ikony**): znajdź urządzenie, potem ikonę po angielsku, np. `led strip`, `ceiling light`,
+- <b class="ui">Ikony</b> (**Wygląd → Ikony**): znajdź urządzenie, potem ikonę po angielsku, np. `led strip`, `ceiling light`,
   `floor lamp`. Dobre ikony robią dużą różnicę.
 - **Kolory przycisków zostaw neutralne.** Kolor dla rodzaju przycisków (**Wygląd → Przyciski**) przydaje się
   najwyżej dla jednego rodzaju, np. żółte światła. Kolorowe przyciski na kolorowym tle szybko wyglądają ciężko.
-- **Pasek** (**Wygląd → Pasek**): wybierz od 2 do 5 pozycji, np. Dom, Sceny, ulubiony pokój i Menu.
-- **Odtwarzacz**: **Wstrzymany zostaje: 0** chowa go od razu po pauzie, jak w Apple Home.
+- <b class="ui">Pasek</b> (**Wygląd → Pasek**): wybierz od 2 do 5 pozycji, np. Dom, Sceny, ulubiony pokój i Menu.
+- <b class="ui">Odtwarzacz</b>: **Wstrzymany zostaje: 0** chowa go od razu po pauzie, jak w Apple Home.
 - **Napisy za słabo widoczne?** Zmniejsz **Wygląd → Tło → Wyrazistość tła** do 80–90%. Strona nałoży lekką
   zasłonę, a kolory zostaną.
 - **Przyciski za ciemne albo za jasne?** **Wygląd → Przyciski → Krycie przycisków**: mniej daje więcej koloru tła,
@@ -163,19 +163,19 @@ ciemne tło pod ciemną mapę. Energii pasuje tło strony głównej albo spokojn
 
 ## 6. Telefon i tablet
 
-- **Telefon**: aplikacja Home Assistant Companion. Dashboard ustaw jako startowy w **Mój układ → Otwieraj ten
+- <b class="ui">Telefon</b>: aplikacja Home Assistant Companion. Dashboard ustaw jako startowy w **Mój układ → Otwieraj ten
   dashboard przy starcie**. Odbicie przewijania (**Wygląd → Tło**) daje miękkie zachowanie jak w aplikacjach.
 - **Tablet ścienny**: pasek jest z boku, a tło leży także pod nim. Dla tabletu poziomego przygotuj tła poziome (krok 4).
   Powrót do strony głównej po bezczynności ustawisz w **Ustawieniach dashboardu**.
 - **Tryb ciemny**: wygląd przełącza się sam razem z systemem. Wybór **Systemowy / Jasny / Ciemny** dla siebie jest
-  w **Tło tego ekranu**.
+  w <b class="ui">Tło tego ekranu</b>.
 
 ## 7. Zapisz i podziel się
 
 1. **Wygląd → Motywy → Zapisz zmiany w motywie Apple Home**: Twoja wersja motywu, razem z tłami, zostaje w
    bibliotece. Przycisk z okrągłą strzałką wraca do wersji wbudowanej.
-2. **Eksportuj do pliku**: jeden plik `*.home-dashboard-theme.json` z wyglądem i zdjęciami teł.
-3. W innym domu: **Importuj motyw**, wybierz plik, przypisz każde tło do pokoju albo **Pomiń** i **Zapisz dla
+2. <b class="ui">Eksportuj do pliku</b>: jeden plik `*.home-dashboard-theme.json` z wyglądem i zdjęciami teł.
+3. W innym domu: <b class="ui">Importuj motyw</b>, wybierz plik, przypisz każde tło do pokoju albo <b class="ui">Pomiń</b> i **Zapisz dla
    wszystkich**. Własne ikony przechodzą tylko dla urządzeń o tym samym `entity_id`.
 
 ## 8. Gdy coś nie wygląda dobrze
@@ -183,9 +183,9 @@ ciemne tło pod ciemną mapę. Energii pasuje tło strony głównej albo spokojn
 | Objaw | Rozwiązanie |
 |---|---|
 | Na zdjęciu tła widać prostokąt | maska zdjęcia ma za ostre brzegi: rozmyj ją albo wydłuż gradient maski (krok 4.6) |
-| Pokój ma niebieskie tło zamiast swojego | pokój nie ma jeszcze tła; dodaj je w **Tło tego ekranu** tego pokoju |
-| W trybie ciemnym widać jasne tło | brakuje wersji ciemnej; wgraj ją przy **Ciemny** |
+| Pokój ma niebieskie tło zamiast swojego | pokój nie ma jeszcze tła; dodaj je w <b class="ui">Tło tego ekranu</b> tego pokoju |
+| W trybie ciemnym widać jasne tło | brakuje wersji ciemnej; wgraj ją przy <b class="ui">Ciemny</b> |
 | Zdjęcie przycięte, widać sam gradient | ustaw **Część zdjęcia: Góra** albo przygotuj tło poziome |
-| Białe napisy nieczytelne na jasnym tle | ciemniejsze kolory gradientu albo **Wyrazistość tła** 80–90% |
+| Białe napisy nieczytelne na jasnym tle | ciemniejsze kolory gradientu albo <b class="ui">Wyrazistość tła</b> 80–90% |
 | Plik motywu ma kilkadziesiąt MB | tła są za duże; zapisz je ponownie jako JPG 85% w rozmiarze 1284 × 2778 |
 | Okno urządzenia jest jednolite, bez rozmytego pokoju | w **Wygląd → Okna** krycie jest za wysokie; Apple Home ma 22% |

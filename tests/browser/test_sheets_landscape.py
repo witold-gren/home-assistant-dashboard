@@ -22,8 +22,10 @@ CHECK = """(kind) => {
 }"""
 
 
-@pytest.mark.parametrize("domain, kind", [("climate.", "climate"), ("cover.", "cover"), ("light.", "light"),
-                                          ("alarm_control_panel.", "alarm")])
+@pytest.mark.parametrize(
+    "domain, kind",
+    [("climate.", "climate"), ("cover.", "cover"), ("light.", "light"), ("alarm_control_panel.", "alarm")],
+)
 def test_a_window_on_its_side_keeps_its_parts_apart(phone, domain, kind):
     phone.set_viewport_size({"width": 874, "height": 402})
     phone.evaluate("""() => {
@@ -33,11 +35,16 @@ def test_a_window_on_its_side_keeps_its_parts_apart(phone, domain, kind):
             attributes: { friendly_name: "Poddasze", supported_features: 63 } };
     }""")
     mount(phone)
-    entity = phone.evaluate("(prefix) => Object.keys(window.hass.states).find((id) => id.startsWith(prefix))", domain)
+    entity = phone.evaluate(
+        "(prefix) => Object.keys(window.hass.states).find((id) => id.startsWith(prefix))", domain
+    )
     if not entity:
         pytest.skip(f"no {domain} in the snapshot")
-    phone.evaluate("""([entityId, kind]) => document.querySelector('home-dashboard-chrome')
-        .open({ type: 'sheet', sheet: { kind, entityId } })""", [entity, kind])
+    phone.evaluate(
+        """([entityId, kind]) => document.querySelector('home-dashboard-chrome')
+        .open({ type: 'sheet', sheet: { kind, entityId } })""",
+        [entity, kind],
+    )
     phone.wait_for_selector("home-dashboard-sheet .center")
     phone.wait_for_timeout(400)
     assert phone.evaluate(CHECK, kind) == {"underHeader": True, "aboveInfo": True}

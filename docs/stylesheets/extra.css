@@ -11,3 +11,13 @@
 .md-typeset table img {
   max-height: 420px;
 }
+
+/* A name on the screen (a button, a field, a tab) written in the text: <b class="ui">Publish</b>. Tests check
+   that every such name is in the texts of the editor (i18n.js), so the guide never names a button that is not there. */
+.md-typeset .ui {
+  font-weight: 600;
+  padding: 0 0.3em;
+  border-radius: 0.3em;
+  background: var(--md-code-bg-color);
+  white-space: nowrap;
+}

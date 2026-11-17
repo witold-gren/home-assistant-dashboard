@@ -132,7 +132,12 @@ def test_a_block_without_its_entity_is_left_out(phone):
 
 def test_a_block_can_hide_in_guest_mode(phone):
     add_entity(phone, "input_boolean.guest", "on")
-    mount(phone, room_with({"kind": "panel", "name": "NVR", "frame": "about:blank", "hidden_when": "input_boolean.guest"}))
+    mount(
+        phone,
+        room_with(
+            {"kind": "panel", "name": "NVR", "frame": "about:blank", "hidden_when": "input_boolean.guest"}
+        ),
+    )
     assert phone.locator("home-dashboard-page [data-tile='NVR']").count() == 0
 
 
@@ -187,10 +192,17 @@ def test_rows_send_the_service_of_their_kind(phone):
 
 def test_a_slider_of_a_device_that_says_nothing_shows_a_dash_and_cannot_move(phone):
     add_entity(phone, "sensor.machine", "ready")
-    add_entity(phone, "number.charge", "unknown", {"min": 0, "max": 100, "step": 1, "friendly_name": "Ładuj do"})
+    add_entity(
+        phone, "number.charge", "unknown", {"min": 0, "max": 100, "step": 1, "friendly_name": "Ładuj do"}
+    )
     add_entity(phone, "number.level", "40", {"min": 0, "max": 100, "step": 1, "unit_of_measurement": "%"})
     rows = [{"entity": "number.charge", "name": "Ładuj do"}, {"entity": "number.level", "name": "Poziom"}]
-    open_block(phone, room_with(block(groups=[{"title": "A", "layout": "controls", "rows": rows}, {"title": "B", "rows": []}])))
+    open_block(
+        phone,
+        room_with(
+            block(groups=[{"title": "A", "layout": "controls", "rows": rows}, {"title": "B", "rows": []}])
+        ),
+    )
     charge = phone.locator("[data-field='number.charge']")
     assert "unknown" not in charge.inner_text() and "\u2013" in charge.inner_text()
     assert charge.locator("[data-range]").is_disabled()
@@ -282,7 +294,9 @@ def test_a_tall_control_card_pushes_the_buttons_down(phone):
     card = phone.locator("[data-card='custom:robot-card']")
     card.evaluate("(card) => { card.style.display = 'block'; card.style.height = '1100px'; }")
     bottom = card.evaluate("(card) => card.getBoundingClientRect().bottom")
-    top = phone.locator("[data-action='button.dance']").evaluate("(button) => button.getBoundingClientRect().top")
+    top = phone.locator("[data-action='button.dance']").evaluate(
+        "(button) => button.getBoundingClientRect().top"
+    )
     assert top >= bottom
 
 
@@ -372,7 +386,11 @@ def test_the_remote_starts_a_tv_that_is_off(phone):
     open_tv(phone, {"state": "off", "attributes": {}})
     phone.locator("[data-remote='tv_power']").click()
     (sent,) = calls(phone)
-    assert (sent["domain"], sent["service"], sent["data"]) == ("remote", "turn_on", {"entity_id": "remote.tv"})
+    assert (sent["domain"], sent["service"], sent["data"]) == (
+        "remote",
+        "turn_on",
+        {"entity_id": "remote.tv"},
+    )
 
 
 def test_the_remote_shows_the_volume_while_it_moves(phone):
@@ -437,7 +455,9 @@ def test_a_source_is_chosen_once_the_tv_has_started(phone):
         return { before, calls };
     }""")
     assert sent["before"] == 0
-    assert sent["calls"] == [["media_player", "select_source", {"entity_id": "media_player.x", "source": "Netflix"}]]
+    assert sent["calls"] == [
+        ["media_player", "select_source", {"entity_id": "media_player.x", "source": "Netflix"}]
+    ]
 
 
 def test_a_tv_that_never_starts_gets_no_source(phone):
@@ -458,7 +478,11 @@ def test_a_tv_that_never_starts_gets_no_source(phone):
 def test_sound_modes_show_only_when_asked_for_and_hide_unknown_ones(phone):
     state = {
         "state": "on",
-        "attributes": {**ON_TV["attributes"], "sound_mode": "Cinema", "sound_mode_list": ["Cinema", "Unknown 7"]},
+        "attributes": {
+            **ON_TV["attributes"],
+            "sound_mode": "Cinema",
+            "sound_mode_list": ["Cinema", "Unknown 7"],
+        },
     }
     open_tv(phone, state, sound_mode=True)
     assert phone.locator("[data-choice='Cinema']").count() == 1
@@ -586,7 +610,9 @@ def test_the_document_behind_the_page_takes_its_colour_and_gives_it_back(phone):
     mount(phone)
     assert phone.evaluate("document.documentElement.style.backgroundColor") == "rgb(251, 250, 255)"
     assert phone.evaluate("""document.querySelector('meta[name="theme-color"]').content""") == "#fbfaff"
-    phone.evaluate("""() => document.querySelector("home-dashboard-chrome")._applySettings({ color_mode: "dark" })""")
+    phone.evaluate(
+        """() => document.querySelector("home-dashboard-chrome")._applySettings({ color_mode: "dark" })"""
+    )
     assert phone.evaluate("document.body.style.backgroundColor") == "rgb(18, 19, 22)"
     phone.evaluate("""() => document.querySelector("home-dashboard-chrome").remove()""")
     assert phone.evaluate("document.body.style.backgroundColor") == ""
@@ -616,8 +642,6 @@ def test_security_lists_two_cameras_in_a_row_on_an_upright_tablet(tablet):
 
 
 # Return to Home ----------------------------------------------------------------------------------
-
-
 
 
 def test_a_tablet_left_alone_goes_back_to_home(tablet):
@@ -730,8 +754,13 @@ def laundry_block() -> dict:
         stats=[{"name": "Program", "entity": "sensor.machine"}],
         actions=[{"name": "Start", "entity": "button.start"}],
         groups=[
-            {"title": "Program", "layout": "controls", "rows": [
-                {"entity": "select.spin", "name": "Spin", "order": ["400 Rpm", "800 Rpm", "1400 Rpm"]}]},
+            {
+                "title": "Program",
+                "layout": "controls",
+                "rows": [
+                    {"entity": "select.spin", "name": "Spin", "order": ["400 Rpm", "800 Rpm", "1400 Rpm"]}
+                ],
+            },
             {"title": "State", "rows": [{"entity": "sensor.door", "name": "Door"}]},
         ],
     )
@@ -816,12 +845,33 @@ def test_time_left_below_zero_reads_as_the_limit_passed_by(phone):
 # A console: a button on its tile, numbers of time in their own units, the game as an attribute, scripts with fields.
 
 XBOX = {
-    "kind": "panel", "name": "Xbox", "entity": "media_player.xbox",
-    "quick": {"name": "Wyłącz", "icon": "mdi:power", "service": "media_player.turn_off", "confirm": "Wyłączyć Xboxa?"},
-    "stats": [{"name": "Dziś", "entity": "sensor.play_today", "format": "hours"},
-              {"name": "Gra", "entity": "media_player.xbox", "attribute": "media_title"}],
-    "actions": [{"name": "Za 15 min", "entity": "script.xbox_turn_off_in", "service": "script.xbox_turn_off_in", "data": {"minutes": 15}},
-                {"name": "Wyłącz teraz", "entity": "media_player.xbox", "service": "media_player.turn_off", "confirm": "Wyłączyć?"}],
+    "kind": "panel",
+    "name": "Xbox",
+    "entity": "media_player.xbox",
+    "quick": {
+        "name": "Wyłącz",
+        "icon": "mdi:power",
+        "service": "media_player.turn_off",
+        "confirm": "Wyłączyć Xboxa?",
+    },
+    "stats": [
+        {"name": "Dziś", "entity": "sensor.play_today", "format": "hours"},
+        {"name": "Gra", "entity": "media_player.xbox", "attribute": "media_title"},
+    ],
+    "actions": [
+        {
+            "name": "Za 15 min",
+            "entity": "script.xbox_turn_off_in",
+            "service": "script.xbox_turn_off_in",
+            "data": {"minutes": 15},
+        },
+        {
+            "name": "Wyłącz teraz",
+            "entity": "media_player.xbox",
+            "service": "media_player.turn_off",
+            "confirm": "Wyłączyć?",
+        },
+    ],
 }
 
 
@@ -842,7 +892,14 @@ def test_a_console_tile_has_its_turn_off_while_on_asked_in_its_window(phone):
     assert "Wyłączyć Xboxa?" in confirm.inner_text()
     assert calls(phone) == []
     confirm.locator("[data-confirm-yes]").click()
-    assert calls(phone) == [{"type": "service", "domain": "media_player", "service": "turn_off", "data": {"entity_id": "media_player.xbox"}}]
+    assert calls(phone) == [
+        {
+            "type": "service",
+            "domain": "media_player",
+            "service": "turn_off",
+            "data": {"entity_id": "media_player.xbox"},
+        }
+    ]
 
 
 def test_an_off_console_has_no_button(phone):
@@ -853,12 +910,18 @@ def test_an_off_console_has_no_button(phone):
 
 
 # The cloud state of a console can stay "on" after it went off; a sensor that pings it says better.
-XBOX_CHECKED = {**XBOX, "status": "binary_sensor.xbox_playing", "labels": {"on": "Włączony", "off": "Wyłączony"},
-                "active": "binary_sensor.xbox_playing"}
+XBOX_CHECKED = {
+    **XBOX,
+    "status": "binary_sensor.xbox_playing",
+    "labels": {"on": "Włączony", "off": "Wyłączony"},
+    "active": "binary_sensor.xbox_playing",
+}
 
 
 @pytest.mark.parametrize(("playing", "status", "buttons"), [("off", "Wyłączony", 0), ("on", "Włączony", 1)])
-def test_a_console_off_by_its_active_sensor_has_no_button_though_its_cloud_says_on(phone, playing, status, buttons):
+def test_a_console_off_by_its_active_sensor_has_no_button_though_its_cloud_says_on(
+    phone, playing, status, buttons
+):
     add_xbox(phone, "on")
     add_entity(phone, "binary_sensor.xbox_playing", playing, {})
     mount(phone, room_with(XBOX_CHECKED))
@@ -872,23 +935,40 @@ def test_a_script_gets_its_fields_only(phone):
     add_xbox(phone)
     open_block(phone, room_with(XBOX), "Xbox")
     phone.locator("home-dashboard-sheet [data-action='script.xbox_turn_off_in']").click()
-    assert calls(phone) == [{"type": "service", "domain": "script", "service": "xbox_turn_off_in", "data": {"minutes": 15}}]
+    assert calls(phone) == [
+        {"type": "service", "domain": "script", "service": "xbox_turn_off_in", "data": {"minutes": 15}}
+    ]
 
 
 # Numbers in rows: minus and plus buttons with the value between them, sent once the taps stop; a slider says its value as it moves.
 
 LIMITS = {
-    "kind": "panel", "name": "Limity", "entity": "sensor.machine",
-    "groups": [{"title": "Limity", "rows": [
-        {"entity": "input_number.daily", "name": "Dziennie", "control": "stepper", "format": "hours", "labels": {"0": "Bez limitu"}},
-        {"entity": "input_number.volume", "name": "Głośność"},
-    ]}],
+    "kind": "panel",
+    "name": "Limity",
+    "entity": "sensor.machine",
+    "groups": [
+        {
+            "title": "Limity",
+            "rows": [
+                {
+                    "entity": "input_number.daily",
+                    "name": "Dziennie",
+                    "control": "stepper",
+                    "format": "hours",
+                    "labels": {"0": "Bez limitu"},
+                },
+                {"entity": "input_number.volume", "name": "Głośność"},
+            ],
+        }
+    ],
 }
 
 
 def add_limits(page, daily: str = "0.0") -> None:
     add_entity(page, "sensor.machine", "on")
-    add_entity(page, "input_number.daily", daily, {"min": 0, "max": 360, "step": 15, "unit_of_measurement": "min"})
+    add_entity(
+        page, "input_number.daily", daily, {"min": 0, "max": 360, "step": 15, "unit_of_measurement": "min"}
+    )
     add_entity(page, "input_number.volume", "40", {"min": 0, "max": 100, "step": 1})
 
 
@@ -904,15 +984,23 @@ def test_a_stepper_shows_its_value_at_once_and_sends_it_once(phone):
     assert value.inner_text() == "2 h 30 min"
     assert calls(phone) == []
     phone.wait_for_function("window.hass.calls.length === 1")
-    assert calls(phone) == [{"type": "service", "domain": "input_number", "service": "set_value",
-                             "data": {"entity_id": "input_number.daily", "value": 150}}]
+    assert calls(phone) == [
+        {
+            "type": "service",
+            "domain": "input_number",
+            "service": "set_value",
+            "data": {"entity_id": "input_number.daily", "value": 150},
+        }
+    ]
 
 
 def test_a_slider_says_its_value_while_it_moves(phone):
     add_limits(phone)
     open_block(phone, room_with(LIMITS), "Limity")
     slider = phone.locator("home-dashboard-sheet [data-range='input_number.volume']")
-    slider.evaluate("(input) => { input.value = '63'; input.dispatchEvent(new Event('input', { bubbles: true })); }")
+    slider.evaluate(
+        "(input) => { input.value = '63'; input.dispatchEvent(new Event('input', { bubbles: true })); }"
+    )
     assert phone.locator("home-dashboard-sheet [data-range-value='input_number.volume']").inner_text() == "63"
     assert calls(phone) == []
     slider.evaluate("(input) => input.dispatchEvent(new Event('change', { bubbles: true }))")
@@ -924,11 +1012,25 @@ def test_a_slider_says_its_value_while_it_moves(phone):
 
 PIN = {"service": "script.xbox_change_with_pin", "field": "pin"}
 GUARDED = {
-    "kind": "panel", "name": "Limity", "entity": "sensor.machine",
-    "groups": [{"title": "Limity", "rows": [
-        {"entity": "input_number.daily", "name": "Dziennie", "control": "stepper", "format": "hours", "labels": {"0": "Bez limitu"}, "pin": PIN},
-        {"entity": "input_boolean.turns_off", "name": "Wyłącz po limicie", "pin": PIN},
-    ]}],
+    "kind": "panel",
+    "name": "Limity",
+    "entity": "sensor.machine",
+    "groups": [
+        {
+            "title": "Limity",
+            "rows": [
+                {
+                    "entity": "input_number.daily",
+                    "name": "Dziennie",
+                    "control": "stepper",
+                    "format": "hours",
+                    "labels": {"0": "Bez limitu"},
+                    "pin": PIN,
+                },
+                {"entity": "input_boolean.turns_off", "name": "Wyłącz po limicie", "pin": PIN},
+            ],
+        }
+    ],
 }
 
 
@@ -941,14 +1043,22 @@ def open_guarded(page, daily="120.0"):
 def test_raising_a_limit_asks_for_the_code_and_goes_back_once_set(phone):
     open_guarded(phone)
     phone.locator("home-dashboard-sheet [data-stepper='input_number.daily'] [data-step-up]").click()
-    phone.locator("home-dashboard-sheet [data-pin-keys], home-dashboard-sheet [data-pin-key='1']").first.wait_for()
+    phone.locator(
+        "home-dashboard-sheet [data-pin-keys], home-dashboard-sheet [data-pin-key='1']"
+    ).first.wait_for()
     assert calls(phone) == []
     for key in "1234":
         phone.locator(f"home-dashboard-sheet [data-pin-key='{key}']").click()
     phone.locator("home-dashboard-sheet [data-pin-ok]").click()
     phone.wait_for_function("window.hass.calls.length === 1")
-    assert calls(phone) == [{"type": "service", "domain": "script", "service": "xbox_change_with_pin",
-                             "data": {"entity_id": "input_number.daily", "value": 135, "pin": "1234"}}]
+    assert calls(phone) == [
+        {
+            "type": "service",
+            "domain": "script",
+            "service": "xbox_change_with_pin",
+            "data": {"entity_id": "input_number.daily", "value": 135, "pin": "1234"},
+        }
+    ]
     # Home Assistant sets it: the window of the block comes back
     phone.evaluate("""() => { const s = window.dashboard.snapshot.states['input_number.daily'];
         window.dashboard.snapshot.states['input_number.daily'] = { ...s, state: '135.0' };
@@ -978,9 +1088,17 @@ def test_a_pin_is_done_when_the_state_is_the_one_asked(phone):
 
 def test_a_tap_steps_a_little_and_a_held_button_by_round_steps(phone):
     add_entity(phone, "sensor.machine", "on")
-    add_entity(phone, "input_number.daily", "63.0", {"min": 0, "max": 360, "step": 1, "unit_of_measurement": "min"})
-    block = {"kind": "panel", "name": "Limity", "entity": "sensor.machine", "groups": [{"title": "L", "rows": [
-        {"entity": "input_number.daily", "control": "stepper", "steps": [1, 5]}]}]}
+    add_entity(
+        phone, "input_number.daily", "63.0", {"min": 0, "max": 360, "step": 1, "unit_of_measurement": "min"}
+    )
+    block = {
+        "kind": "panel",
+        "name": "Limity",
+        "entity": "sensor.machine",
+        "groups": [
+            {"title": "L", "rows": [{"entity": "input_number.daily", "control": "stepper", "steps": [1, 5]}]}
+        ],
+    }
     open_block(phone, room_with(block), "Limity")
     stepper = phone.locator("home-dashboard-sheet [data-stepper='input_number.daily']")
     stepper.locator("[data-step-up]").click()

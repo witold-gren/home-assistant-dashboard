@@ -11,9 +11,11 @@ ROW = f"{SETTINGS} [data-camera-control='image.slup_last_screen']"
 
 def open_settings(page, cameras: dict | None = None) -> None:
     page.evaluate(ADD_DEVICE)
-    page.evaluate("() => { window.dashboard.snapshot.entities['script.turn_left'] = { entity_id: 'script.turn_left', hidden: false };"
-                  " window.dashboard.snapshot.states['script.turn_left'] = { entity_id: 'script.turn_left', state: 'off',"
-                  " attributes: { friendly_name: 'Turn left' } }; }")
+    page.evaluate(
+        "() => { window.dashboard.snapshot.entities['script.turn_left'] = { entity_id: 'script.turn_left', hidden: false };"
+        " window.dashboard.snapshot.states['script.turn_left'] = { entity_id: 'script.turn_left', state: 'off',"
+        " attributes: { friendly_name: 'Turn left' } }; }"
+    )
     mount_admin(page, {"cameras": {"tiles": ["image.slup_last_screen"], **(cameras or {})}})
     page.evaluate("() => document.querySelector('home-dashboard-chrome').open({ type: 'settings' })")
     page.wait_for_selector(ROW)
@@ -22,7 +24,9 @@ def open_settings(page, cameras: dict | None = None) -> None:
 def saved_cameras(page) -> dict:
     page.locator(f"{SETTINGS} [data-save]").click()
     page.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
-    return page.evaluate("window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy.cameras")
+    return page.evaluate(
+        "window.saved.filter((m) => m.type === 'lovelace/config/save').at(-1).config.strategy.cameras"
+    )
 
 
 def test_each_camera_says_what_was_found_for_turning(phone):
@@ -40,7 +44,13 @@ def test_turning_chosen_by_hand_is_saved_for_the_camera(phone):
     phone.locator(f"{ROW} [data-ptz-field='right']").select_option("button.slup_pan_right")
     assert "Obróć w lewo" in phone.locator(f"{ROW} .camera-row small").inner_text()
     cameras = saved_cameras(phone)
-    assert cameras["ptz"] == {"image.slup_last_screen": {"mode": "manual", "left": "script.turn_left", "right": "button.slup_pan_right"}}
+    assert cameras["ptz"] == {
+        "image.slup_last_screen": {
+            "mode": "manual",
+            "left": "script.turn_left",
+            "right": "button.slup_pan_right",
+        }
+    }
 
 
 def test_back_to_automatic_takes_the_setting_away(phone):
@@ -57,7 +67,9 @@ def test_onvif_positions_are_typed_as_tokens(phone):
     phone.locator(f"{ROW} [data-ptz-mode]").select_option("onvif")
     phone.locator(f"{ROW} [data-ptz-presets]").fill("1, 2 ,3")
     phone.locator(f"{ROW} [data-ptz-presets]").dispatch_event("change")
-    assert saved_cameras(phone)["ptz"] == {"image.slup_last_screen": {"mode": "onvif", "presets": ["1", "2", "3"]}}
+    assert saved_cameras(phone)["ptz"] == {
+        "image.slup_last_screen": {"mode": "onvif", "presets": ["1", "2", "3"]}
+    }
 
 
 def test_talking_is_chosen_for_the_camera(phone):

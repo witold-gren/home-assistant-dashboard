@@ -43,7 +43,9 @@ SETUP = """(arg) => {
 
 
 def run(page, body: str):
-    return page.evaluate(f"async () => {{ const r = await import('/custom_components/home_dashboard/www/app/recordings.js'); {body} }}")
+    return page.evaluate(
+        f"async () => {{ const r = await import('/custom_components/home_dashboard/www/app/recordings.js'); {body} }}"
+    )
 
 
 def signed(page) -> list[str]:
@@ -55,8 +57,14 @@ def at(page, seconds: int) -> int:
 
 
 def open_garage(page, days=None, segments=None) -> None:
-    page.evaluate(SETUP, {"day": YESTERDAY, "days": days if days is not None else [{"day": YESTERDAY, "events": 1}],
-                          "segments": segments})
+    page.evaluate(
+        SETUP,
+        {
+            "day": YESTERDAY,
+            "days": days if days is not None else [{"day": YESTERDAY, "events": 1}],
+            "segments": segments,
+        },
+    )
     mount_admin(page, {"cameras": {"tiles": ["camera.garage"]}})
     page.evaluate("""() => document.querySelector('home-dashboard-chrome')
         .open({ type: 'sheet', sheet: { kind: 'camera', entityId: 'camera.garage' } })""")
@@ -70,8 +78,11 @@ def sheet(page, script: str):
 
 
 def scroll_line_to(page, seconds: int) -> None:
-    sheet(page, f"""sheet.shadowRoot.querySelector('home-dashboard-timeline').shadowRoot
-        .querySelector('[data-timeline-track]').scrollLeft = ({seconds} / 3600) * 360;""")
+    sheet(
+        page,
+        f"""sheet.shadowRoot.querySelector('home-dashboard-timeline').shadowRoot
+        .querySelector('[data-timeline-track]').scrollLeft = ({seconds} / 3600) * 360;""",
+    )
 
 
 # Pure parts -----------------------------------------------------------------------------------
@@ -79,11 +90,18 @@ def scroll_line_to(page, seconds: int) -> None:
 
 def test_a_frigate_camera_is_known_by_its_attributes_or_its_device(phone):
     phone.evaluate(SETUP, {"day": YESTERDAY, "days": []})
-    found = run(phone, """const h = window.dashboard.hass();
+    found = run(
+        phone,
+        """const h = window.dashboard.hass();
         h.entities['image.garage_last'] = { entity_id: 'image.garage_last', device_id: 'frigate_device' };
         return [r.frigateCamera(h, 'camera.garage'), r.frigateCamera(h, 'image.garage_last'),
-                r.frigateCamera(h, Object.keys(h.states).find((id) => id.startsWith('light.')))];""")
-    assert found == [{"instance": "frigate", "camera": "garage"}, {"instance": "frigate", "camera": "garage"}, None]
+                r.frigateCamera(h, Object.keys(h.states).find((id) => id.startsWith('light.')))];""",
+    )
+    assert found == [
+        {"instance": "frigate", "camera": "garage"},
+        {"instance": "frigate", "camera": "garage"},
+        None,
+    ]
 
 
 def test_a_day_covers_its_local_midnights_and_a_week_starts_on_monday(phone):
@@ -95,14 +113,20 @@ def test_a_day_covers_its_local_midnights_and_a_week_starts_on_monday(phone):
 
 
 def test_pieces_close_together_make_one_stretch(phone):
-    ranges = run(phone, """return r.recordedRanges([
-        { start_time: 30, end_time: 40 }, { start_time: 0, end_time: 10 }, { start_time: 11, end_time: 20 }]);""")
+    ranges = run(
+        phone,
+        """return r.recordedRanges([
+        { start_time: 30, end_time: 40 }, { start_time: 0, end_time: 10 }, { start_time: 11, end_time: 20 }]);""",
+    )
     assert ranges == [{"start": 0, "end": 20}, {"start": 30, "end": 40}]
 
 
 def test_a_moment_plays_where_it_was_recorded_or_from_the_next_stretch(phone):
-    clips = run(phone, """const ranges = [{ start: 0, end: 20 }, { start: 100, end: 2000 }];
-        return [r.clipAt(ranges, 5.6), r.clipAt(ranges, 50), r.clipAt(ranges, 150), r.clipAt(ranges, 2500)];""")
+    clips = run(
+        phone,
+        """const ranges = [{ start: 0, end: 20 }, { start: 100, end: 2000 }];
+        return [r.clipAt(ranges, 5.6), r.clipAt(ranges, 50), r.clipAt(ranges, 150), r.clipAt(ranges, 2500)];""",
+    )
     assert clips == [{"start": 5, "end": 20}, {"start": 100, "end": 700}, {"start": 150, "end": 750}, None]
 
 
@@ -196,7 +220,12 @@ def test_live_and_recording_take_each_others_place(phone):
     assert phone.locator(f"{SHEET} video[data-clip]").count() == 0
     assert phone.locator(f"{TIMELINE} [data-timeline-live].on").count() == 1
     # LIVE is said once on the line, not again over it.
-    assert phone.locator(f"{TIMELINE} [data-timeline-time]").evaluate("(time) => getComputedStyle(time).visibility") == "hidden"
+    assert (
+        phone.locator(f"{TIMELINE} [data-timeline-time]").evaluate(
+            "(time) => getComputedStyle(time).visibility"
+        )
+        == "hidden"
+    )
     # Going back to a recording ends the live view, which lets a camera on a battery rest.
     phone.locator(f"{TIMELINE} [data-timeline-event='e1']").evaluate("(button) => button.click()")
     phone.wait_for_selector(f"{SHEET} video[data-clip]", state="attached")
@@ -413,7 +442,9 @@ def test_a_new_live_view_starts_again_from_the_picture(phone):
 
 # A stand-in for the card of Home Assistant: it makes its camera player muted, and like the real WebRTC player
 # that one keeps the sound of the stream only when it is not muted at the moment the stream connects.
-CHROME_SHEET = "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
+CHROME_SHEET = (
+    "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
+)
 
 MUTED_CARD = """() => {
     if (!customElements.get('ha-camera-stream')) {
@@ -463,11 +494,15 @@ def test_the_live_pill_stays_grey_until_the_video_moves(phone):
     open_garage(phone)
     phone.locator(f"{TIMELINE} [data-timeline-live]").click()
     phone.wait_for_selector(f"{SHEET} [data-live-pill].waiting")
-    grey = phone.locator(f"{SHEET} [data-live-pill]").evaluate("(pill) => getComputedStyle(pill).backgroundColor")
+    grey = phone.locator(f"{SHEET} [data-live-pill]").evaluate(
+        "(pill) => getComputedStyle(pill).backgroundColor"
+    )
     assert grey == "rgb(99, 99, 102)"
     phone.evaluate("window.startVideo()")
     phone.wait_for_selector(f"{SHEET} [data-live-pill]:not(.waiting)")
-    lit = phone.locator(f"{SHEET} [data-live-pill]").evaluate("(pill) => getComputedStyle(pill).backgroundColor")
+    lit = phone.locator(f"{SHEET} [data-live-pill]").evaluate(
+        "(pill) => getComputedStyle(pill).backgroundColor"
+    )
     assert lit != grey
 
 
@@ -515,7 +550,9 @@ def test_live_turns_into_disconnect_and_back(phone):
     # Orange at once, while the camera wakes.
     assert live_button(phone) == ("NA ŻYWO", "rgb(255, 159, 10)")
     phone.evaluate("window.startVideo()")
-    phone.wait_for_function(f"{CHROME_SHEET}.shadowRoot.querySelector('home-dashboard-timeline').connected === true")
+    phone.wait_for_function(
+        f"{CHROME_SHEET}.shadowRoot.querySelector('home-dashboard-timeline').connected === true"
+    )
     assert live_button(phone) == ("ROZŁĄCZ", "rgb(255, 159, 10)")
     # Pressed, the camera lets go and the window stays, with the line to look through.
     phone.locator(f"{TIMELINE} [data-timeline-live]").click()

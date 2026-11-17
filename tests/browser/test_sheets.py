@@ -236,18 +236,24 @@ def test_live_camera_comes_from_the_same_device(phone):
 
 
 def test_camera_tile_goes_live_on_that_same_camera(phone):
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const { model, hass } = window.dashboard;
         return model.liveCameraFor(hass(), "camera.anything", model.normalizeConfig({}));
-    }""") == "camera.anything"
+    }""")
+        == "camera.anything"
+    )
 
 
 def test_live_camera_can_be_set_by_hand(phone):
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const { model, hass } = window.dashboard;
         const config = model.normalizeConfig({ cameras: { live: { "image.a": "camera.b" } } });
         return model.liveCameraFor(hass(), "image.a", config);
-    }""") == "camera.b"
+    }""")
+        == "camera.b"
+    )
 
 
 # History
@@ -448,7 +454,8 @@ def test_player_model(phone):
 
 
 def test_position_never_passes_the_end(phone):
-    assert phone.evaluate("""() => {
+    assert (
+        phone.evaluate("""() => {
         const { model, hass } = window.dashboard;
         const instance = hass();
         const config = model.normalizeConfig({});
@@ -456,7 +463,9 @@ def test_position_never_passes_the_end(phone):
         const playing = window.dashboard.withState(instance, id, { state: "playing", attributes: {
             media_duration: 100, media_position: 90, media_position_updated_at: new Date(0).toISOString() } });
         return model.buildPlayer(playing, id, config, 500000).position;
-    }""") == 100
+    }""")
+        == 100
+    )
 
 
 # Pages
@@ -527,7 +536,12 @@ def test_map_page_shows_the_map_card_and_people(phone):
     }}""")
     phone.wait_for_function("window.createdCards.length === 1")
     assert phone.evaluate("window.createdCards[0].type") == "map"
-    assert phone.evaluate("window.createdCards[0].entities.filter((item) => item.entity?.startsWith('person.')).length") == 4
+    assert (
+        phone.evaluate(
+            "window.createdCards[0].entities.filter((item) => item.entity?.startsWith('person.')).length"
+        )
+        == 4
+    )
     assert phone.locator("[data-person]").count() == 4
 
 
@@ -673,6 +687,7 @@ SETTINGS_HASS = """(dashboard) => {
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard }, title: "x" };
             }
+            if (message.type === "home_dashboard/activity/seen") return null;
             if (!["frontend/get_user_data", "config/auth/list", "config/entity_registry/get_entries"].includes(message.type)) window.saved.push(message);
             return null;
         },
@@ -825,7 +840,9 @@ def test_a_real_layout_survives_the_round_trip(phone):
             "id": "kitchen",
             "name": "Kuchnia",
             "areas": ["kitchen"],
-            "home": [{"kind": "panel", "name": "Ekspres", "entity": "sensor.a", "labels": {"on": "Gotowy: tak"}}],
+            "home": [
+                {"kind": "panel", "name": "Ekspres", "entity": "sensor.a", "labels": {"on": "Gotowy: tak"}}
+            ],
             "sections": [{"title": "Światła", "tiles": [{"entity": "light.a", "name": "Główne # lampa"}]}],
         }
     ]
@@ -836,7 +853,9 @@ def test_a_real_layout_survives_the_round_trip(phone):
 
 
 def sheet_of(page, script: str):
-    return page.evaluate(f"async () => {{ const sheet = {CHROME}.shadowRoot.querySelector('home-dashboard-sheet'); {script} }}")
+    return page.evaluate(
+        f"async () => {{ const sheet = {CHROME}.shadowRoot.querySelector('home-dashboard-sheet'); {script} }}"
+    )
 
 
 def test_the_battery_hint_stays_through_the_live_view_and_fades_for_a_recording(phone):
@@ -849,7 +868,10 @@ def test_the_battery_hint_stays_through_the_live_view_and_fades_for_a_recording(
     assert phone.locator(hint).count() == 1
     assert "baterię" in phone.locator(hint).text_content()
     assert "faint" not in phone.locator(hint).get_attribute("class")
-    sheet_of(phone, "sheet._stopLive(); sheet._clip = { url: '/clip.mp4', start: 0, end: 60 }; await sheet.updateComplete;")
+    sheet_of(
+        phone,
+        "sheet._stopLive(); sheet._clip = { url: '/clip.mp4', start: 0, end: 60 }; await sheet.updateComplete;",
+    )
     assert "faint" in phone.locator(hint).get_attribute("class")
     assert phone.locator(hint).evaluate("(element) => getComputedStyle(element).opacity") == "0.35"
     assert before is not None
@@ -859,6 +881,8 @@ def test_a_waking_camera_shows_a_ring_over_its_last_picture(phone):
     open_camera(phone)
     assert phone.locator("home-dashboard-sheet [data-live-waking]").count() == 0
     phone.locator("[data-timeline-live]").click()
-    phone.wait_for_selector("home-dashboard-sheet .live-wrap:not(.shown) [data-live-waking]", state="attached")
+    phone.wait_for_selector(
+        "home-dashboard-sheet .live-wrap:not(.shown) [data-live-waking]", state="attached"
+    )
     sheet_of(phone, "sheet._liveShown = true; await sheet.updateComplete;")
     assert phone.locator("home-dashboard-sheet [data-live-waking]").count() == 0

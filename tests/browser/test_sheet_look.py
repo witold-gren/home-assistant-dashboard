@@ -5,26 +5,53 @@ from __future__ import annotations
 from .test_panels import add_entity
 from .test_shortcuts import SHEET, mount_admin
 
-GLASS = {"sheets": {"background": "#1d2c5c", "text": "#ffffff", "controls": "#2c3d72", "opacity": 70, "blur": 30, "scrim": 25}}
+GLASS = {
+    "sheets": {
+        "background": "#1d2c5c",
+        "text": "#ffffff",
+        "controls": "#2c3d72",
+        "opacity": 70,
+        "blur": 30,
+        "scrim": 25,
+    }
+}
 
 
 def run(page, body: str, arg=None):
-    return page.evaluate(f"async (arg) => {{ const a = await import('/custom_components/home_dashboard/www/app/appearance.js'); {body} }}", arg)
+    return page.evaluate(
+        f"async (arg) => {{ const a = await import('/custom_components/home_dashboard/www/app/appearance.js'); {body} }}",
+        arg,
+    )
 
 
 def test_a_plain_window_keeps_the_colours_of_the_look(phone):
-    assert run(phone, "return a.sheetVariables({});") == "--hd-sheet-opacity: 100%; --hd-sheet-blur: 0px; --hd-sheet-scrim: 0.45"
+    assert (
+        run(phone, "return a.sheetVariables({});")
+        == "--hd-sheet-opacity: 100%; --hd-sheet-blur: 0px; --hd-sheet-scrim: 0.45"
+    )
 
 
 def test_a_glass_window_replaces_the_colours_inside_it(phone):
     variables = run(phone, "return a.sheetVariables(arg);", GLASS)
-    for expected in ("--hd-sheet-bg: #1d2c5c", "--hd-sheet-opacity: 70%", "--hd-sheet-blur: 30px", "--hd-sheet-scrim: 0.25",
-                     "--hd-ov-text: #ffffff", "--hd-ov-off: #2c3d72", "--hd-ov-surface: #2c3d72"):
+    for expected in (
+        "--hd-sheet-bg: #1d2c5c",
+        "--hd-sheet-opacity: 70%",
+        "--hd-sheet-blur: 30px",
+        "--hd-sheet-scrim: 0.25",
+        "--hd-ov-text: #ffffff",
+        "--hd-ov-off: #2c3d72",
+        "--hd-ov-surface: #2c3d72",
+    ):
         assert expected in variables
 
 
 def open_lamp(page, look: dict) -> None:
-    add_entity(page, "light.lamp", "on", {"friendly_name": "Lampa", "brightness": 200, "supported_color_modes": ["brightness"]})
+    add_entity(
+        page,
+        "light.lamp",
+        "on",
+        {"friendly_name": "Lampa", "brightness": 200, "supported_color_modes": ["brightness"]},
+    )
     mount_admin(page, {"favorites": ["light.lamp"], "appearance": look})
     page.locator("home-dashboard-page [data-entity='light.lamp'] .text").click()
     page.wait_for_selector(f"{SHEET} .panel")
@@ -55,7 +82,9 @@ def test_the_look_sheet_shows_the_windows_before_saving(phone):
     phone.locator(f"{SHEET} [data-look='sheet-opacity'] input").fill("60")
     phone.locator(f"{SHEET} [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
+    saved = phone.evaluate(
+        "window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance"
+    )
     assert saved == {"sheets": {"opacity": 60, "blur": 24}}
 
 

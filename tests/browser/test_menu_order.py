@@ -34,7 +34,9 @@ def test_in_a_room_the_three_dots_go_access_background_view_edit(phone):
 def test_the_look_sits_in_the_side_menu_above_the_settings(phone):
     mount_admin(phone, {})
     phone.locator("home-dashboard-page [data-menu]").click()
-    order = phone.locator("[data-drawer] button").evaluate_all("(buttons) => buttons.map((b) => Object.keys(b.dataset)[0])")
+    order = phone.locator("[data-drawer] button").evaluate_all(
+        "(buttons) => buttons.map((b) => Object.keys(b.dataset)[0])"
+    )
     assert order.index("look") + 1 == order.index("settings")
     phone.locator("[data-drawer] [data-look]").click()
     phone.wait_for_selector(f"{SHEET} [data-tab='themes'], {SHEET} [data-look-everyone]")
@@ -69,7 +71,9 @@ def test_any_camera_is_linked_to_a_camera_of_another_integration(phone):
     phone.locator(f"{SETTINGS} [data-link-camera]").select_option("camera.hall_nvr")
     offered = options(phone, "[data-link-other]")[1:]
     assert "camera.hall" in offered
-    platforms = phone.evaluate("(ids) => ids.map((id) => window.dashboard.snapshot.entities[id].platform)", offered)
+    platforms = phone.evaluate(
+        "(ids) => ids.map((id) => window.dashboard.snapshot.entities[id].platform)", offered
+    )
     assert "frigate" not in platforms
     assert phone.locator(f"{SETTINGS} [data-link-add]").is_disabled()
     phone.locator(f"{SETTINGS} [data-link-other]").select_option("camera.hall")
@@ -79,7 +83,9 @@ def test_any_camera_is_linked_to_a_camera_of_another_integration(phone):
     assert "camera.hall_nvr" not in options(phone, "[data-link-camera]")
     phone.locator(f"{SETTINGS} [data-save]").click()
     phone.wait_for_function("window.saved.some((message) => message.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.filter((message) => message.type === 'lovelace/config/save').at(-1).config")
+    saved = phone.evaluate(
+        "window.saved.filter((message) => message.type === 'lovelace/config/save').at(-1).config"
+    )
     assert saved["strategy"]["cameras"]["controls"] == {"camera.hall_nvr": "camera.hall"}
 
 
@@ -88,5 +94,7 @@ def test_a_link_is_listed_and_taken_away(phone):
     assert phone.locator(f"{SETTINGS} [data-camera-link]").count() == 1
     phone.locator(f"{SETTINGS} [data-camera-link='camera.hall_nvr'] [data-link-remove]").click()
     assert phone.locator(f"{SETTINGS} [data-camera-link]").count() == 0
-    draft = phone.evaluate("() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-settings')._draft")
+    draft = phone.evaluate(
+        "() => document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-settings')._draft"
+    )
     assert draft["cameras"]["controls"] == {}

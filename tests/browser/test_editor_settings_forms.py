@@ -12,7 +12,10 @@ STRATEGY = {
     "type": "custom:home-dashboard",
     "shortcuts": [{"kind": "panel", "name": "Pralka", "entity": "sensor.washer"}],
     "appearance": {"tiles": {"radius": 16}},
-    "status_panel": {"doors": ["binary_sensor.front"], "now": [{"entity": "sensor.washer", "block": "Pralka"}]},
+    "status_panel": {
+        "doors": ["binary_sensor.front"],
+        "now": [{"entity": "sensor.washer", "block": "Pralka"}],
+    },
 }
 
 
@@ -95,7 +98,11 @@ def test_entities_not_counted(editor) -> None:
 
 def test_an_entry_of_now_opens_a_block_chosen_by_name(editor) -> None:
     editor.locator(f"{APP} [data-schema-entry='.now.0'] > summary").click()
-    options = field(editor, "facts", ".now.0.block").locator("option").evaluate_all("(items) => items.map((o) => o.value)")
+    options = (
+        field(editor, "facts", ".now.0.block")
+        .locator("option")
+        .evaluate_all("(items) => items.map((o) => o.value)")
+    )
     assert options == ["", "Pralka"]
     change(editor, "facts", ".now.0.resting", "off, Gotowe")
     assert draft(editor)["status_panel"]["now"][0]["resting"] == ["off", "Gotowe"]
@@ -141,8 +148,21 @@ def look(desktop):  # noqa: F811
 
 def test_the_look_has_a_part_for_each_of_its_groups(look) -> None:
     keys = look.locator(f"{APP} [data-settings-section]").evaluate_all(
-        "(items) => items.map((item) => [item.dataset.settingsSection, item.open])")
-    assert [key for key, _ in keys] == ["general", "page", "tiles", "text", "chips", "buttons", "badges", "sheets", "map", "player", "themes"]
+        "(items) => items.map((item) => [item.dataset.settingsSection, item.open])"
+    )
+    assert [key for key, _ in keys] == [
+        "general",
+        "page",
+        "tiles",
+        "text",
+        "chips",
+        "buttons",
+        "badges",
+        "sheets",
+        "map",
+        "player",
+        "themes",
+    ]
     # a long form starts folded but for its first part
     assert [key for key, opened in keys if opened] == ["general"]
 
@@ -169,7 +189,9 @@ def test_a_choice_of_numbers_is_saved_as_a_number(look) -> None:
 
 
 def test_the_theme_is_chosen_from_the_library(look) -> None:
-    options = field(look, "themes", ".theme").locator("option").evaluate_all("(items) => items.map((o) => o.value)")
+    options = (
+        field(look, "themes", ".theme").locator("option").evaluate_all("(items) => items.map((o) => o.value)")
+    )
     assert options == ["", "apple", "glass"]
     field(look, "themes", ".theme").locator("select").select_option("glass")
     assert draft(look)["theme"] == "glass"
@@ -194,7 +216,12 @@ def test_a_background_of_a_page_has_a_field_per_look(look) -> None:
     add = field(look, "themes", ".backgrounds").locator("[data-schema-add='.backgrounds']")
     add.fill("energy")
     add.dispatch_event("change")
-    assert field(look, "themes", ".backgrounds").locator("[data-schema-entry='.backgrounds.energy']").get_attribute("open") is not None
+    assert (
+        field(look, "themes", ".backgrounds")
+        .locator("[data-schema-entry='.backgrounds.energy']")
+        .get_attribute("open")
+        is not None
+    )
     set_background(field(look, "themes", ".backgrounds.energy.light"), "linear-gradient(#fff, #eee)")
     assert draft(look)["backgrounds"]["energy"] == {"light": "linear-gradient(#fff, #eee)"}
 
@@ -256,7 +283,9 @@ def side(desktop):  # noqa: F811
 
 
 def test_the_menu_and_the_bar_of_pages_are_in_the_tree(side) -> None:
-    keys = side.locator(f"{APP} [data-node]").evaluate_all("(nodes) => nodes.map((node) => node.dataset.node)")
+    keys = side.locator(f"{APP} [data-node]").evaluate_all(
+        "(nodes) => nodes.map((node) => node.dataset.node)"
+    )
     assert "menu" in keys and "nav" in keys
 
 
@@ -276,7 +305,9 @@ def test_the_menu_gets_a_group_with_an_entry_for_some_people(side) -> None:
 
 
 def test_choosing_the_menu_opens_it_in_the_preview(side) -> None:
-    side.evaluate("""() => { window.commands = []; window.editor.app._source.commands.add((command) => command.type !== "highlight" && window.commands.push(command.type)); }""")
+    side.evaluate(
+        """() => { window.commands = []; window.editor.app._source.commands.add((command) => command.type !== "highlight" && window.commands.push(command.type)); }"""
+    )
     select(side, "menu")
     select(side, "shortcuts/0")
     assert side.evaluate("window.commands") == ["open-menu", "open-shortcut"]
@@ -288,7 +319,12 @@ def test_the_bar_of_pages_starts_with_its_pages_and_takes_a_room(side) -> None:
     side.locator(f"{APP} [data-form='setting-nav'] [data-schema-form]").first.wait_for()
     rows = field(side, "nav", ".items").locator("[data-schema-option]")
     rows.first.wait_for()
-    assert rows.evaluate_all("(items) => items.map((item) => item.dataset.schemaOption)") == ["home", "media", "energy", "map"]
+    assert rows.evaluate_all("(items) => items.map((item) => item.dataset.schemaOption)") == [
+        "home",
+        "media",
+        "energy",
+        "map",
+    ]
     field(side, "nav", ".items").locator("[data-schema-option-add='room:kitchen']").click()
     assert draft(side)["appearance"]["nav"]["items"] == ["home", "media", "energy", "map", "room:kitchen"]
     # five is the most the bar takes
@@ -362,7 +398,9 @@ def test_a_private_rule_for_some_people(home) -> None:
     add = field(home, "privacy", ".private.0.hide").locator("[data-schema-add]")
     add.fill("camera.bedroom")
     add.dispatch_event("change")
-    assert draft(home)["cameras"]["private"] == [{"entity": "switch.bedroom_privacy", "hide": ["camera.bedroom"]}]
+    assert draft(home)["cameras"]["private"] == [
+        {"entity": "switch.bedroom_privacy", "hide": ["camera.bedroom"]}
+    ]
 
 
 def test_turning_of_a_single_camera(home) -> None:
@@ -370,7 +408,11 @@ def test_turning_of_a_single_camera(home) -> None:
     home.locator(f"{APP} [data-schema-entry='.ptz.camera.hall'] > summary").click()
     field(home, "single", ".ptz.camera.hall.mode").locator("select").select_option("manual")
     change(home, "single", ".ptz.camera.hall.left", "button.hall_left")
-    assert draft(home)["cameras"]["ptz"]["camera.hall"] == {"mode": "manual", "presets": ["door"], "left": "button.hall_left"}
+    assert draft(home)["cameras"]["ptz"]["camera.hall"] == {
+        "mode": "manual",
+        "presets": ["door"],
+        "left": "button.hall_left",
+    }
     add = field(home, "single", ".quick").locator("[data-schema-add]")
     add.fill("camera.garden")
     add.dispatch_event("change")
@@ -403,7 +445,10 @@ def test_energy_storage_opens_a_block(home) -> None:
     field(home, "energy", ".storage").locator("[data-schema-add='.storage']").click()
     field(home, "energy", ".storage.0.block").locator("select").select_option("Stacja")
     change(home, "energy", ".storage.0.battery", "sensor.station_battery")
-    assert draft(home)["energy"] == {"voltage_range": [210, 250], "storage": [{"block": "Stacja", "battery": "sensor.station_battery"}]}
+    assert draft(home)["energy"] == {
+        "voltage_range": [210, 250],
+        "storage": [{"block": "Stacja", "battery": "sensor.station_battery"}],
+    }
 
 
 def test_every_field_of_the_settings_has_a_name(desktop) -> None:  # noqa: F811
@@ -467,13 +512,20 @@ def test_a_person_loses_a_section_and_gets_it_back(people) -> None:
     form.locator("[data-access-user]").select_option("u_ola")
     form.locator("[data-access-kind='sections'] summary").click()
     form.locator("[data-access-item='garage|title:Brama'] button").click()
-    assert draft(people)["access"] == {"u_kuba": {"rooms": ["garage"]}, "u_ola": {"sections": ["garage|title:Brama"]}}
+    assert draft(people)["access"] == {
+        "u_kuba": {"rooms": ["garage"]},
+        "u_ola": {"sections": ["garage|title:Brama"]},
+    }
     form.locator("[data-access-item='garage|title:Brama'] button").click()
     assert draft(people)["access"] == {"u_kuba": {"rooms": ["garage"]}}
 
 
 def test_the_owner_is_not_offered_and_a_rule_is_marked(people) -> None:
-    options = access_form(people).locator("[data-access-user] option").evaluate_all("(items) => items.map((o) => o.value)")
+    options = (
+        access_form(people)
+        .locator("[data-access-user] option")
+        .evaluate_all("(items) => items.map((o) => o.value)")
+    )
     assert options == ["u_ola", "u_kuba"]
     access_form(people).locator("[data-access-user]").select_option("u_kuba")
     assert access_form(people).locator("[data-access-kind='rooms']").evaluate("(d) => d.open")
@@ -493,7 +545,10 @@ def test_a_block_is_seen_only_by_some(people) -> None:
 
 REST = {
     "type": "custom:home-dashboard",
-    "layout": [{"id": "garage", "name": "Garaż", "sections": []}, {"id": "hall", "name": "Korytarz", "sections": []}],
+    "layout": [
+        {"id": "garage", "name": "Garaż", "sections": []},
+        {"id": "hall", "name": "Korytarz", "sections": []},
+    ],
     "lights": {"prefer_groups": True},
 }
 
@@ -524,7 +579,10 @@ def test_an_entity_added_to_a_room_and_one_of_its_own(rest) -> None:
     own.fill("light.desk")
     own.dispatch_event("change")
     change(rest, "entities", ".overrides.light.desk.name", "Biurko")
-    assert draft(rest)["entities"] == {"include": {"hall": ["sensor.hall_temperature"]}, "overrides": {"light.desk": {"name": "Biurko"}}}
+    assert draft(rest)["entities"] == {
+        "include": {"hall": ["sensor.hall_temperature"]},
+        "overrides": {"light.desk": {"name": "Biurko"}},
+    }
 
 
 def test_lights_on_by_default_are_written_only_when_off(rest) -> None:
@@ -575,7 +633,10 @@ def test_patterns_of_speakers_are_lines_and_a_tile_turns_on_with_a_service(rest)
     rest.locator(f"{APP} [data-schema-add='.sections.0.tiles']").click()
     change(rest, "media", ".sections.0.tiles.0.on.service", "script.tv_on")
     change(rest, "media", ".sections.0.tiles.0.on.target", "media_player.tv")
-    assert draft(rest)["media"]["sections"][0]["tiles"][0]["on"] == {"service": "script.tv_on", "target": "media_player.tv"}
+    assert draft(rest)["media"]["sections"][0]["tiles"][0]["on"] == {
+        "service": "script.tv_on",
+        "target": "media_player.tv",
+    }
     change(rest, "media", ".sections.0.tiles.0.on.service", "")
     change(rest, "media", ".sections.0.tiles.0.on.target", "")
     assert "on" not in draft(rest)["media"]["sections"][0]["tiles"][0]
@@ -585,8 +646,14 @@ def test_patterns_of_speakers_are_lines_and_a_tile_turns_on_with_a_service(rest)
 
 
 def test_every_setting_of_the_tree_has_a_form(rest) -> None:
-    keys = rest.locator(f"{APP} [data-node]").evaluate_all("(nodes) => nodes.map((node) => node.dataset.node)")
-    settings = [key for key in keys if "/" not in key and key not in ("favorites", "scenes") and not key.startswith("layout")]
+    keys = rest.locator(f"{APP} [data-node]").evaluate_all(
+        "(nodes) => nodes.map((node) => node.dataset.node)"
+    )
+    settings = [
+        key
+        for key in keys
+        if "/" not in key and key not in ("favorites", "scenes") and not key.startswith("layout")
+    ]
     without = []
     for key in settings:
         select(rest, key)
@@ -607,4 +674,8 @@ def test_the_calendars_of_the_home_and_how_they_show(editor) -> None:
     change(editor, "calendar", ".calendar_limit", "2")
     field(editor, "calendar", ".calendar_hide").locator("select").select_option("start")
     panel = draft(editor)["status_panel"]
-    assert (panel["calendars"], panel["calendar_limit"], panel["calendar_hide"]) == (["calendar.family"], 2, "start")
+    assert (panel["calendars"], panel["calendar_limit"], panel["calendar_hide"]) == (
+        ["calendar.family"],
+        2,
+        "start",
+    )

@@ -44,7 +44,10 @@ def layout_dashboard(page) -> dict:
                 "areas": ["area_a", "area_b"],
                 "home": [{"entity": switch, "name": "Lodówka"}, {"entity": light, "name": "Główne"}],
                 "sections": [
-                    {"title": "Oświetlenie", "tiles": [{"entity": light, "name": "Główne"}, {"entity": second}]},
+                    {
+                        "title": "Oświetlenie",
+                        "tiles": [{"entity": light, "name": "Główne"}, {"entity": second}],
+                    },
                     {"title": "Pusta", "tiles": [{"entity": "light.missing"}]},
                 ],
             }
@@ -492,11 +495,14 @@ def test_recording_is_a_valid_wav(phone):
 
 
 def test_plain_http_page_cannot_record(phone):
-    assert phone.evaluate("""async () => {
+    assert (
+        phone.evaluate("""async () => {
         const { canRecord } = await import("/custom_components/home_dashboard/www/app/intercom.js");
         const { model } = window.dashboard;
         return canRecord({ user: { is_admin: false } }, model.normalizeConfig({ intercom: { media_folder: "x" } }));
-    }""") is False
+    }""")
+        is False
+    )
 
 
 # 7. Status row ----------------------------------------------------------------------------------
@@ -571,7 +577,10 @@ def test_status_shows_a_range_and_ignores_machines(phone):
 
 
 def test_status_grades_the_air(phone):
-    assert status_of(phone, {"sensor.a": ["570", {"device_class": "carbon_dioxide"}]})["air"][1] == "Doskonała · 570 ppm"
+    assert (
+        status_of(phone, {"sensor.a": ["570", {"device_class": "carbon_dioxide"}]})["air"][1]
+        == "Doskonała · 570 ppm"
+    )
     assert status_of(phone, {"sensor.a": ["1500", {"device_class": "carbon_dioxide"}]})["air"][2] == "climate"
 
 
@@ -579,8 +588,11 @@ def test_a_list_of_blinds_shows_its_rows(phone):
     """A row of a blind wears the tone "cover", which must not take the look of the sheet's backdrop."""
     mount(phone, None, "home")
     ids = ids_of(phone, "cover.", 2)
-    phone.evaluate("""(ids) => document.querySelector('home-dashboard-chrome')
-        .open({ type: 'sheet', sheet: { kind: 'group', title: 'Rolety', ids } })""", ids)
+    phone.evaluate(
+        """(ids) => document.querySelector('home-dashboard-chrome')
+        .open({ type: 'sheet', sheet: { kind: 'group', title: 'Rolety', ids } })""",
+        ids,
+    )
     rows = phone.locator(f"{SHEET} [data-row]")
     rows.first.wait_for()
     assert rows.count() == 2
@@ -595,7 +607,8 @@ def test_the_humidity_icon_is_named_in_full(phone):
 def test_status_counts_in_polish(phone):
     status = status_of(
         phone,
-        {f"cover.{index}": ["open", {}] for index in range(2)} | {f"light.{index}": ["on", {}] for index in range(5)},
+        {f"cover.{index}": ["open", {}] for index in range(2)}
+        | {f"light.{index}": ["on", {}] for index in range(5)},
     )
     assert status["covers"][0] == "2 rolety"
     assert status["lights"][0] == "5 świateł"
@@ -730,6 +743,7 @@ def test_turning_guest_mode_on_closes_an_open_camera(phone):
 
 # 8. Scenes of a room ------------------------------------------------------------------------------
 
+
 def scenes_room(page, dashboard: dict | None = None) -> str:
     area = first_area(page)
     page.evaluate(
@@ -769,7 +783,11 @@ def test_the_status_row_has_no_scenes_or_scripts(phone):
 def test_a_scene_of_a_room_runs_when_tapped(phone):
     scenes_room(phone)
     phone.locator("home-dashboard-page [data-room-scenes] [data-entity='scene.film']").click()
-    sent = [(call["domain"], call["service"]) for call in phone.evaluate("window.hass.calls") if call["type"] == "service"]
+    sent = [
+        (call["domain"], call["service"])
+        for call in phone.evaluate("window.hass.calls")
+        if call["type"] == "service"
+    ]
     assert ("scene", "turn_on") in sent
 
 

@@ -26,10 +26,10 @@ Gdzie przejdziesz każdą drogę:
 
 | Droga | Edytor na komputerze | Na tablecie lub telefonie |
 |---|---|---|
-| Kafelek w pokoju | pokój → sekcja → **Encja…** → **Dodaj** albo **Wybierz z listy…** | trzy kropki → **Edytuj ten ekran** → **Dodaj kafelek** |
-| Własna karta urządzenia | kafelek → **Okno urządzenia** → **Własna karta (YAML)** | tylko YAML (**Edytuj konfigurację**) |
-| Blok na stronie głównej | **Bloki** → **+** → **Blok** | **Odznaki podsumowania** → **Dodaj** → **Blok** |
-| Blok w pokoju | kafelek → **Zrób blok z tego kafelka** albo pole **Blok** kafelka | tylko YAML; potem edycja w formularzu |
+| Kafelek w pokoju | pokój → sekcja → <b class="ui">Encja…</b> → <b class="ui">Dodaj</b> albo <b class="ui">Wybierz z listy…</b> | trzy kropki → <b class="ui">Edytuj ten ekran</b> → <b class="ui">Dodaj kafelek</b> |
+| Własna karta urządzenia | kafelek → <b class="ui">Okno urządzenia</b> → <b class="ui">Własna karta (YAML)</b> | tylko YAML (<b class="ui">Edytuj konfigurację</b>) |
+| Blok na stronie głównej | <b class="ui">Bloki</b> → **+** → **Blok** | **Odznaki podsumowania** → **Dodaj** → **Blok** |
+| Blok w pokoju | kafelek → <b class="ui">Zrób blok z tego kafelka</b> albo pole <b class="ui">Blok</b> kafelka | tylko YAML; potem edycja w formularzu |
 
 ## 2. Kafelek w pokoju
 
@@ -38,16 +38,16 @@ urządzenie dodasz ręcznie.
 
 **W edytorze na komputerze:**
 
-1. W drzewie rozwiń pokój w **Pokoje** i wybierz sekcję (albo dodaj nową).
-2. Wpisz encję w polu **Encja…** pod właściwościami i kliknij **Dodaj** albo otwórz **Wybierz z listy…**, żeby
+1. W drzewie rozwiń pokój w <b class="ui">Pokoje</b> i wybierz sekcję (albo dodaj nową).
+2. Wpisz encję w polu <b class="ui">Encja…</b> pod właściwościami i kliknij <b class="ui">Dodaj</b> albo otwórz <b class="ui">Wybierz z listy…</b>, żeby
    zaznaczyć kilka naraz, z filtrem pokoju i rodzaju.
 3. Nowy kafelek od razu jest wybrany: nazwa, ikona, rozmiar i pozostałe opcje to pola jego formularza.
-4. **Opublikuj**, gdy szkic jest gotowy.
+4. <b class="ui">Opublikuj</b>, gdy szkic jest gotowy.
 
 **Na tablecie:**
 
-1. Otwórz pokój, trzy kropki → **Edytuj ten ekran**.
-2. **Dodaj kafelek** w wybranej sekcji, wyszukaj encję i zapisz.
+1. Otwórz pokój, trzy kropki → <b class="ui">Edytuj ten ekran</b>.
+2. <b class="ui">Dodaj kafelek</b> w wybranej sekcji, wyszukaj encję i zapisz.
 
 Po dotknięciu kafelka:
 
@@ -84,7 +84,7 @@ layout:
 | `name`, `icon` | własna nazwa i ikona (ikonę zmienisz też w **Wygląd → Ikony**) |
 | `tap_toggle: true` | jedno dotknięcie przełącza zamiast otwierać okno |
 | `calm: true` | bez koloru, gdy włączone; dla rzeczy prawie zawsze włączonych |
-| `size: tall` | wysoki kafelek na dwa wiersze, ikona u góry, nazwa i stan na dole; w edytorze: kafelek → **Rozmiar** |
+| `size: tall` | wysoki kafelek na dwa wiersze, ikona u góry, nazwa i stan na dole; w edytorze: kafelek → <b class="ui">Rozmiar</b> |
 | `action: script.x` | dotknięcie uruchamia skrypt |
 | `active_only: true` | kafelek widać tylko, gdy urządzenie coś robi |
 | `turn_on_only: true` | można tylko włączyć; wyłączenie przez PIN z `off_pin` |
@@ -98,7 +98,7 @@ dashboardu, na każdej stronie i w każdym filtrze.
 **W edytorze na komputerze:**
 
 1. Wybierz kafelek urządzenia w jego pokoju.
-2. Pod właściwościami, w **Okno urządzenia**, jest pole **Własna karta (YAML)**. Wpisz tam kartę tak jak w edytorze
+2. Pod właściwościami, w <b class="ui">Okno urządzenia</b>, jest pole <b class="ui">Własna karta (YAML)</b>. Wpisz tam kartę tak jak w edytorze
    kart Home Assistant, zaczynając od `type`:
 
    ```yaml
@@ -134,27 +134,27 @@ jako skrót na stronie głównej, w menu albo jako kafelek w pokoju.
 ### Krok po kroku w edytorze na komputerze
 
 1. W drzewie **+** obok **Bloki** → **Blok**. Nowy blok „Blok” zostaje dodany i wybrany (blok innego rodzaju, np.
-   **Status**, **Odjazdy** albo **Maszyny**, wybierasz z tej samej listy).
+   <b class="ui">Status</b>, <b class="ui">Odjazdy</b> albo <b class="ui">Maszyny</b>, wybierasz z tej samej listy).
 2. Uzupełnij **Nazwę**, **Ikonę** i **Encję**, czyli główną encję urządzenia.
-3. Rozwiń blok w drzewie: **Liczby na górze**, **Przyciski** i **Grupy** mają pole do dodania encji, a grupa swoje
+3. Rozwiń blok w drzewie: <b class="ui">Liczby na górze</b>, <b class="ui">Przyciski</b> i <b class="ui">Grupy</b> mają pole do dodania encji, a grupa swoje
    wiersze. Każda część wybrana w drzewie ma własny formularz.
 4. **Z urządzenia, jeszcze nie w bloku** wypisuje pozostałe encje urządzenia: jedno kliknięcie dodaje każdą jako
    wiersz.
 5. Podgląd otwiera okno bloku w trakcie pracy i obrysowuje na czerwono to, co jest wybrane.
-6. **Opublikuj**. Blok pojawia się wśród odznak strony głównej.
+6. <b class="ui">Opublikuj</b>. Blok pojawia się wśród odznak strony głównej.
 
 ### Krok po kroku na tablecie
 
-1. Trzy kropki na stronie głównej → **Odznaki podsumowania** (konto administratora) → **Dodaj** → **Blok**.
-2. **Nazwa**, **Ikona** i **Encja**: główna encja urządzenia, od której blok bierze stan.
-3. **Liczby u góry**: wartości, które widać od razu, np. pozostały czas prania, jakość powietrza, stan filtra. Każda
+1. Trzy kropki na stronie głównej → <b class="ui">Odznaki podsumowania</b> (konto administratora) → <b class="ui">Dodaj</b> → <b class="ui">Blok</b>.
+2. <b class="ui">Nazwa</b>, <b class="ui">Ikona</b> i <b class="ui">Encja</b>: główna encja urządzenia, od której blok bierze stan.
+3. <b class="ui">Liczby u góry</b>: wartości, które widać od razu, np. pozostały czas prania, jakość powietrza, stan filtra. Każda
    to encja, nazwa, jednostka i liczba miejsc po przecinku.
-4. **Przyciski**: akcje urządzenia, np. Start, Pauza, Do bazy. Każdy to nazwa, ikona, encja i usługa
+4. <b class="ui">Przyciski</b>: akcje urządzenia, np. Start, Pauza, Do bazy. Każdy to nazwa, ikona, encja i usługa
    (`vacuum.start`, `button.press`…). Przycisk z potwierdzeniem najpierw pyta.
-5. **Grupy** i **Wiersze**: encje urządzenia ułożone w grupy. Każdy wiersz sam dostaje właściwą kontrolkę (tabela
-   niżej). **Wygląd** grupy zmienia wiersze na duże przyciski i suwaki albo na jedną zwijaną linię.
-6. **Karta (YAML)**: opcjonalnie karta Home Assistant na przycisk w oknie, od razu albo pod grupami.
-7. **Zapisz**. Skrót pojawi się na stronie głównej. Jak postawić blok w pokoju, opisuje [blok w pokoju](#blok-w-pokoju).
+5. <b class="ui">Grupy</b> i <b class="ui">Wiersze</b>: encje urządzenia ułożone w grupy. Każdy wiersz sam dostaje właściwą kontrolkę (tabela
+   niżej). <b class="ui">Wygląd</b> grupy zmienia wiersze na duże przyciski i suwaki albo na jedną zwijaną linię.
+6. <b class="ui">Karta (YAML)</b>: opcjonalnie karta Home Assistant na przycisk w oknie, od razu albo pod grupami.
+7. <b class="ui">Zapisz</b>. Skrót pojawi się na stronie głównej. Jak postawić blok w pokoju, opisuje [blok w pokoju](#blok-w-pokoju).
 
 | Encja w wierszu | Kontrolka |
 |---|---|
@@ -229,11 +229,11 @@ shortcuts:
 
 Blok może stać w pokoju jak zwykły kafelek. W edytorze na komputerze są dwie drogi:
 
-- **Zrób blok z tego kafelka:** wybierz kafelek urządzenia w jego pokoju; przycisk w **Okno urządzenia** zamienia
-  kafelek na miejscu w blok, z jego nazwą, ikoną i rozmiarem. Kafelek rozwija się w drzewie w **Liczby na górze**,
-  **Przyciski** i **Grupy**, a pozostałe encje urządzenia dodasz jednym kliknięciem. Taki blok należy tylko do
+- **Zrób blok z tego kafelka:** wybierz kafelek urządzenia w jego pokoju; przycisk w <b class="ui">Okno urządzenia</b> zamienia
+  kafelek na miejscu w blok, z jego nazwą, ikoną i rozmiarem. Kafelek rozwija się w drzewie w <b class="ui">Liczby na górze</b>,
+  <b class="ui">Przyciski</b> i <b class="ui">Grupy</b>, a pozostałe encje urządzenia dodasz jednym kliknięciem. Taki blok należy tylko do
   pokoju i nie pokazuje się na stronie głównej.
-- **Pole Blok kafelka:** kafelek wybiera blok z **Bloki** w polu **Blok** (`shortcut`). Kafelek otwiera wtedy ten
+- **Pole Blok kafelka:** kafelek wybiera blok z <b class="ui">Bloki</b> w polu <b class="ui">Blok</b> (`shortcut`). Kafelek otwiera wtedy ten
   blok; jeden blok może stać w kilku pokojach i na stronie głównej naraz.
 
 Na tablecie, w **Ustawienia dashboardu → Edytuj konfigurację**, wstaw całą definicję bloku (z `kind: panel`) do
@@ -254,7 +254,7 @@ layout:
             stats: [{name: PM2.5, entity: sensor.air_purifier_pm25, unit: "µg/m³", digits: 0}]
 ```
 
-Dotknięcie otwiera okno bloku. Dalej zmieniasz go już w formularzu: edycja pokoju, kafelek bloku → **Edytuj blok**.
+Dotknięcie otwiera okno bloku. Dalej zmieniasz go już w formularzu: edycja pokoju, kafelek bloku → <b class="ui">Edytuj blok</b>.
 
 ## 5. Inne gotowe okna
 
@@ -263,20 +263,20 @@ Poza blokiem edytor ma gotowe rodzaje okien na często spotykane rzeczy. Wszystk
 
 | Rodzaj | Do czego |
 |---|---|
-| **Status** (`overview`) | ekran stanu domu: tylko to, co teraz ważne, np. otwarte okna, słabe baterie, pracująca pralka |
-| **Odjazdy** (`departures`) | najbliższe odjazdy tramwajów i autobusów z encji z listą odjazdów |
-| **Maszyny** (`host`) | serwery i komputery: procesor, pamięć, dyski, wersje |
-| **Strona** (`page`) | inna strona dashboardu w oknie |
-| **Aplikacja** | dodatek Home Assistant albo strona WWW na cały ekran |
-| **Szkoła** | plan lekcji, oceny, terminarz i obiady z własnych danych |
+| <b class="ui">Status</b> (`overview`) | ekran stanu domu: tylko to, co teraz ważne, np. otwarte okna, słabe baterie, pracująca pralka |
+| <b class="ui">Odjazdy</b> (`departures`) | najbliższe odjazdy tramwajów i autobusów z encji z listą odjazdów |
+| <b class="ui">Maszyny</b> (`host`) | serwery i komputery: procesor, pamięć, dyski, wersje |
+| <b class="ui">Strona</b> (`page`) | inna strona dashboardu w oknie |
+| <b class="ui">Aplikacja</b> | dodatek Home Assistant albo strona WWW na cały ekran |
+| <b class="ui">Szkoła</b> | plan lekcji, oceny, terminarz i obiady z własnych danych |
 | telewizor (`tv`) | pilot: włączanie, źródła, strzałki i klawisze |
 
 ## 6. Kto widzi okno
 
-- **Wygląd**: każde okno bierze kolory, przezroczystość i rozmycie z **Wygląd → Okna**, także okna bloków.
-- **Dostęp**: trzy kropki → **Dostęp użytkowników** ukrywa blok wybranym osobom, a pole **Tylko administratorzy** w
+- <b class="ui">Wygląd</b>: każde okno bierze kolory, przezroczystość i rozmycie z **Wygląd → Okna**, także okna bloków.
+- **Dostęp**: trzy kropki → <b class="ui">Dostęp użytkowników</b> ukrywa blok wybranym osobom, a pole <b class="ui">Tylko administratorzy</b> w
   edytorze bloku chowa go przed resztą domowników.
-- **Kolejność**: każdy ułoży i ukryje skróty dla siebie w **Mój układ**.
+- **Kolejność**: każdy ułoży i ukryje skróty dla siebie w <b class="ui">Mój układ</b>.
 
 ## 7. Gdy żadna droga nie wystarcza
 

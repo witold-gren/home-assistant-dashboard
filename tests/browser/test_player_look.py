@@ -13,8 +13,12 @@ NOW = datetime(2026, 11, 8, 17, 0, tzinfo=UTC)
 
 def state(entity_id: str, value: str, title: str | None, minutes_ago: int = 1) -> dict:
     changed = (NOW - timedelta(minutes=minutes_ago)).isoformat()
-    return {"entity_id": entity_id, "state": value, "last_changed": changed,
-            "attributes": {"media_title": title, "friendly_name": entity_id}}
+    return {
+        "entity_id": entity_id,
+        "state": value,
+        "last_changed": changed,
+        "attributes": {"media_title": title, "friendly_name": entity_id},
+    }
 
 
 def pick(page, states: list, **options) -> str | None:
@@ -46,7 +50,10 @@ def test_something_paused_stays_only_for_a_while(phone):
 def test_a_closed_player_comes_back_for_something_new(phone):
     paused = state("media_player.a", "paused", "A")
     assert pick(phone, [paused], dismissed="media_player.a|paused|A") is None
-    assert pick(phone, [state("media_player.a", "playing", "A")], dismissed="media_player.a|paused|A") == "media_player.a"
+    assert (
+        pick(phone, [state("media_player.a", "playing", "A")], dismissed="media_player.a|paused|A")
+        == "media_player.a"
+    )
 
 
 def mini(page) -> dict | None:
@@ -73,7 +80,12 @@ def test_a_paused_player_can_be_closed(phone):
     phone.wait_for_function(f"{CHROME}.shadowRoot.querySelector('[data-mini]')")
     shown = mini(phone)
     assert shown["close"] is True
-    for expected in ("--hd-player-bg: #2a2f6a", "--hd-player-opacity: 60%", "--hd-player-blur: 20px", "--hd-player-radius: 22px"):
+    for expected in (
+        "--hd-player-bg: #2a2f6a",
+        "--hd-player-opacity: 60%",
+        "--hd-player-blur: 20px",
+        "--hd-player-radius: 22px",
+    ):
         assert expected in shown["style"]
     phone.locator("home-dashboard-chrome [data-mini-close]").click()
     phone.wait_for_function(f"!{CHROME}.shadowRoot.querySelector('[data-mini]')")
@@ -97,5 +109,7 @@ def test_the_player_settings_are_in_the_bar_tab(phone):
     phone.locator("home-dashboard-sheet [data-look='player-radius'] input").fill("22")
     phone.locator("home-dashboard-sheet [data-look-save]").click()
     phone.wait_for_function("window.saved.some((m) => m.type === 'lovelace/config/save')")
-    saved = phone.evaluate("window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance")
+    saved = phone.evaluate(
+        "window.saved.find((m) => m.type === 'lovelace/config/save').config.strategy.appearance"
+    )
     assert saved == {"player": {"radius": 22, "paused_minutes": 0}}

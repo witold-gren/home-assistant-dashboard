@@ -6,10 +6,24 @@ from .test_page import mount
 from .test_panels import add_entity
 
 SCREEN = "home-dashboard-news"
-ARTICLE = {"title": "Tytuł", "text": "Treść", "rating": 4.44, "votes": 108, "source": "Gazeta", "source_url": "https://a.test/", "url": "https://b.test/"}
-SHORTCUT = {"kind": "news", "name": "Wiadomości", "icon": "mdi:newspaper", "sections": [
-    {"title": "Polska", "entity": "sensor.home"}, {"title": "Świat", "entity": "sensor.world"},
-]}
+ARTICLE = {
+    "title": "Tytuł",
+    "text": "Treść",
+    "rating": 4.44,
+    "votes": 108,
+    "source": "Gazeta",
+    "source_url": "https://a.test/",
+    "url": "https://b.test/",
+}
+SHORTCUT = {
+    "kind": "news",
+    "name": "Wiadomości",
+    "icon": "mdi:newspaper",
+    "sections": [
+        {"title": "Polska", "entity": "sensor.home"},
+        {"title": "Świat", "entity": "sensor.world"},
+    ],
+}
 
 
 def open_news(page, home: list, world: list | None = None) -> None:

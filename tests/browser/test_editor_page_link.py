@@ -11,7 +11,11 @@ STRATEGY = {
         {"name": "Źródła", "icon": "mdi:play-box-multiple-outline", "page": "media"},
         {"name": "Host", "icon": "mdi:server"},
     ],
-    "media": {"sections": [{"title": "Głośniki", "tiles": [{"entity": "media_player.entity_0001", "name": "Salon"}]}]},
+    "media": {
+        "sections": [
+            {"title": "Głośniki", "tiles": [{"entity": "media_player.entity_0001", "name": "Salon"}]}
+        ]
+    },
     "layout": [],
 }
 
@@ -33,7 +37,9 @@ def test_a_block_without_a_page_has_no_link(desktop) -> None:  # noqa: F811
 
 def test_home_and_tablet_settings_have_a_known_icon(desktop) -> None:  # noqa: F811
     open_editor(desktop, STRATEGY)
-    icon = desktop.locator(f"{APP} [data-node='home_settings'] ha-icon").first.get_attribute("icon") or desktop.evaluate(
+    icon = desktop.locator(f"{APP} [data-node='home_settings'] ha-icon").first.get_attribute(
+        "icon"
+    ) or desktop.evaluate(
         "window.editor.app.renderRoot.querySelector(\"[data-node='home_settings'] ha-icon\").icon"
     )
     assert icon == "mdi:tablet-dashboard"

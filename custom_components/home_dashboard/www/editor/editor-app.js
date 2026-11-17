@@ -3,6 +3,7 @@
 // home until it is published.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
+import { PanelMenu } from "../app/ha-menu.js";
 import { translate } from "../app/i18n.js";
 import { renameBlockEverywhere } from "../app/model.js";
 import { buildTree, dropPlan, filterTree, flatten, getAt, insertAt, isRoomSection, movedPath, moveItem, removeAt, setAt } from "./tree.js";
@@ -12,14 +13,8 @@ import { SETTINGS_FORMS } from "./settings-form.js";
 import "./publish.js";
 import "./generate-dialog.js";
 
-// The documentation site (GitHub Pages): the guide to this editor, in Polish under /pl/.
-export const DOCS_SITE = "https://witold-gren.github.io/home-assistant-dashboard/";
-
-/** The page of the editor's guide on the documentation site, in the language of Home Assistant. */
-export function editorDocsUrl(language) {
-  const polish = String(language ?? "").split("-")[0] === "pl";
-  return `${DOCS_SITE}${polish ? "pl/" : ""}editor/`;
-}
+// The documentation site and the guide's address live in docs-anchors.js (the dialogs need them too).
+export { DOCS_SITE, editorDocsUrl } from "./docs-anchors.js";
 import { withGeneratedRooms } from "./generate.js";
 import { roomAreas } from "./picker-model.js";
 import {
@@ -36,6 +31,12 @@ import { highlightSpec } from "./highlight.js";
 import { deviceCatalog, deviceList, readDevicePrefs, shownModel, writeDevicePrefs } from "./devices.js";
 import "./devices.js";
 import { mediaQuery } from "../app/media.js";
+import { readStored, writeStored } from "../app/stored.js";
+import { escapeInside, isEscape } from "../app/escape.js";
+import { addressKey, writeAddress } from "./address.js";
+import { RAIL, foldShortcut, readFolded, writeFolded } from "./columns.js";
+import { DOCS_ANCHORS, docsAnchorFor, editorDocsUrl } from "./docs-anchors.js";
+import { callWS } from "./ws.js";
 
 // How long the window of a block gets to open and settle in a frame before it is measured.
 const FIT_MEASURE_MS = 700;
@@ -115,6 +116,7 @@ export function deviceSize(key, model = undefined, zoom = 100, catalog = null) {
   };
 }
 const WIDTHS_KEY = "home-dashboard-editor-widths";
+const FOLDED_KEY = "home-dashboard-editor-folded";
 // The page a block opens and the settings that hold what is on it.
 const PAGE_SETTINGS = { media: "media", music: "music", map: "map", energy: "energy" };
 // The side columns: their width when nothing was chosen, and how narrow and wide a drag can make them.
@@ -218,6 +220,14 @@ export function mountEditor(host, hass, panel, options = {}) {
   return app;
 }
 
+// The dialogs of the editor: each closes on its own "dialog-close", as with its ✕.
+const EDITOR_DIALOGS = [
+  "home-dashboard-editor-devices",
+  "home-dashboard-editor-publish",
+  "home-dashboard-editor-generate",
+  "home-dashboard-editor-history",
+].join(", ");
+
 export class HomeDashboardEditorApp extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -246,6 +256,7 @@ export class HomeDashboardEditorApp extends LitElement {
     _users: { state: true },
     _scale: { state: true },
     _widths: { state: true },
+    _folded: { state: true },
     _tab: { state: true },
     _past: { state: true },
     _future: { state: true },
@@ -254,6 +265,7 @@ export class HomeDashboardEditorApp extends LitElement {
     _picker: { state: true },
     _fit: { state: true },
     _dialog: { state: true },
+    _help: { state: true },
     _blockMenu: { state: true },
     _cardError: { state: true },
   };
@@ -263,14 +275,17 @@ export class HomeDashboardEditorApp extends LitElement {
     this._dashboards = null;
     this._search = "";
     this._selected = null;
+    this._folded = readFolded(FOLDED_KEY);
+    // The node named by the address (#/...), chosen once the dashboard has loaded.
+    this._wanted = addressKey();
     this._whole = false;
     this._users = [];
-    this._theme = THEMES.includes(localStorage.getItem(THEME_KEY)) ? localStorage.getItem(THEME_KEY) : "auto";
+    this._theme = THEMES.includes(readStored(THEME_KEY)) ? readStored(THEME_KEY) : "auto";
     this._tab = "form";
     this._past = [];
     this._future = [];
     try {
-      const saved = JSON.parse(localStorage.getItem(WIDTHS_KEY) ?? "{}");
+      const saved = JSON.parse(readStored(WIDTHS_KEY) ?? "{}");
       this._widths = {
         left: columnWidth("left", saved.left ?? COLUMNS.left.start),
         right: columnWidth("right", saved.right ?? COLUMNS.right.start),
@@ -281,7 +296,7 @@ export class HomeDashboardEditorApp extends LitElement {
     this._scale = 0.5;
     this._devicePrefs = readDevicePrefs();
     try {
-      const saved = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? "{}");
+      const saved = JSON.parse(readStored(PREVIEW_KEY) ?? "{}");
       this._preview = { devices: ["phone", "tablet"], color: "auto", as: "", tablet: "air", phone: "16pro", ...saved, zoom: { phone: 100, tablet: 100, ...saved.zoom } };
     } catch {
       this._preview = { devices: ["phone", "tablet"], color: "auto", as: "", tablet: "air", phone: "16pro", zoom: { phone: 100, tablet: 100 } };
@@ -290,7 +305,7 @@ export class HomeDashboardEditorApp extends LitElement {
     this._source = { strategy: null, listeners: new Set(), commands: new Set(), select: (target) => this._selectTarget(target) };
     this._fit = {};
     try {
-      this._collapsed = new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]"));
+      this._collapsed = new Set(JSON.parse(readStored(COLLAPSED_KEY) ?? "[]"));
     } catch {
       this._collapsed = new Set();
     }
@@ -304,6 +319,7 @@ export class HomeDashboardEditorApp extends LitElement {
     super.connectedCallback();
     window.homeDashboardPreview = this._source;
     window.addEventListener("keydown", this._onKey);
+    this._menu.connect();
   }
 
   disconnectedCallback() {
@@ -311,19 +327,19 @@ export class HomeDashboardEditorApp extends LitElement {
     clearTimeout(this._statesTimer);
     this._statesTimer = null;
     window.removeEventListener("keydown", this._onKey);
+    this._menu.disconnect();
     this._stageWatch?.disconnect();
     if (window.homeDashboardPreview === this._source) delete window.homeDashboardPreview;
   }
 
   async firstUpdated() {
     this._yaml = await import("../vendor/js-yaml.js");
-    this.hass
-      .callWS({ type: "config/auth/list" })
+    callWS(this.hass, { type: "config/auth/list" })
       .then((users) => {
         this._users = (users ?? []).filter((user) => user.is_active !== false && !user.system_generated);
       })
       .catch(() => {});
-    const { dashboards } = await this.hass.callWS({ type: `${DOMAIN}/editor/dashboards` });
+    const { dashboards } = await callWS(this.hass, { type: `${DOMAIN}/editor/dashboards` });
     this._dashboards = dashboards;
     const wanted = new URLSearchParams(window.location.search).get("dashboard");
     const first = dashboards.find((item) => item.url_path === wanted) ?? dashboards[0];
@@ -331,7 +347,7 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   async _load(urlPath) {
-    const loaded = await this.hass.callWS({ type: `${DOMAIN}/editor/load`, url_path: urlPath });
+    const loaded = await callWS(this.hass, { type: `${DOMAIN}/editor/load`, url_path: urlPath });
     this._urlPath = urlPath;
     this._live = loaded.live;
     this._liveHash = loaded.live_hash;
@@ -342,6 +358,19 @@ export class HomeDashboardEditorApp extends LitElement {
     this._history = loaded.history;
     this._select(null);
     this._publishDraft();
+    this._followAddress();
+  }
+
+  /** Choose the node the address named when the editor opened, now that its state is here. */
+  _followAddress() {
+    const key = this._wanted;
+    this._wanted = null;
+    if (!key) return;
+    const node = flatten(buildTree(this._strategy, this.hass, this.hass.language)).find((item) => item.key === key);
+    // A node that is gone: the address names nothing any more.
+    if (!node) return writeAddress(this._selected?.key ?? null);
+    if (node.path) this._unfoldTo(node.path);
+    this._select(node);
   }
 
   /**
@@ -352,10 +381,10 @@ export class HomeDashboardEditorApp extends LitElement {
     this._creating = true;
     this.requestUpdate();
     try {
-      const taken = new Set((await this.hass.callWS({ type: "lovelace/dashboards/list" }).catch(() => [])).map((item) => item.url_path));
+      const taken = new Set((await callWS(this.hass, { type: "lovelace/dashboards/list" }).catch(() => [])).map((item) => item.url_path));
       let urlPath = "home-dashboard";
       for (let n = 2; taken.has(urlPath); n += 1) urlPath = `home-dashboard-${n}`;
-      await this.hass.callWS({
+      await callWS(this.hass, {
         type: "lovelace/dashboards/create",
         url_path: urlPath,
         title: "Home Dashboard",
@@ -364,8 +393,8 @@ export class HomeDashboardEditorApp extends LitElement {
         show_in_sidebar: true,
         require_admin: false,
       });
-      await this.hass.callWS({ type: "lovelace/config/save", url_path: urlPath, config: { strategy: { type: "custom:home-dashboard" } } });
-      const { dashboards } = await this.hass.callWS({ type: `${DOMAIN}/editor/dashboards` });
+      await callWS(this.hass, { type: "lovelace/config/save", url_path: urlPath, config: { strategy: { type: "custom:home-dashboard" } } });
+      const { dashboards } = await callWS(this.hass, { type: `${DOMAIN}/editor/dashboards` });
       this._dashboards = dashboards;
       await this._load(urlPath);
       this._dialog = "generate";
@@ -443,6 +472,21 @@ export class HomeDashboardEditorApp extends LitElement {
 
   // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Y redoes; inside a field the field keeps its own undo.
   _onKey = (event) => {
+    if (event.key === "Escape" && this._help) {
+      this._help = null;
+      return;
+    }
+    if (isEscape(event) && this._escape()) {
+      event.preventDefault();
+      return;
+    }
+    // Ctrl/⌘+B folds the left column, Ctrl/⌘+Alt+B the right one, also while typing in a field.
+    const column = foldShortcut(event);
+    if (column) {
+      event.preventDefault();
+      this._toggleColumn(column);
+      return;
+    }
     const field = event.composedPath()[0];
     if (field?.matches?.("input, textarea, select")) return;
     if (!(event.metaKey || event.ctrlKey)) return;
@@ -452,6 +496,19 @@ export class HomeDashboardEditorApp extends LitElement {
     else return;
     event.preventDefault();
   };
+
+  /** Esc closes one thing, the innermost first: a picture shown big, the block picker, an open dialog (as its ✕). */
+  _escape() {
+    if (escapeInside(this.renderRoot)) return true;
+    if (this._picker) {
+      this._closePicker();
+      return true;
+    }
+    const dialog = this.renderRoot.querySelector(EDITOR_DIALOGS);
+    if (!dialog) return false;
+    dialog.dispatchEvent(new CustomEvent("dialog-close"));
+    return true;
+  }
 
   // Structure ---------------------------------------------------------------------------------------
 
@@ -670,24 +727,44 @@ export class HomeDashboardEditorApp extends LitElement {
     this._dropMode = null;
   }
 
+  /**
+   * Save the draft on the server: one save at a time (a slow Home Assistant gets fewer saves, not a queue of them);
+   * changes made while one is on its way are saved right after it. A failed save says so and is tried again with
+   * the next change.
+   */
   async _saveDraft() {
     clearTimeout(this._saveTimer);
     if (!this._draft) return;
-    const saved = await this.hass.callWS({
-      type: `${DOMAIN}/editor/save_draft`,
-      url_path: this._urlPath,
-      config: this._draft,
-      base: this._base,
-    });
-    this._saved = saved.updated_at;
-    this._base = saved.base;
-    this._saving = false;
+    if (this._draftInFlight) {
+      this._draftAgain = true;
+      return;
+    }
+    this._draftInFlight = true;
+    try {
+      const saved = await callWS(this.hass, {
+        type: `${DOMAIN}/editor/save_draft`,
+        url_path: this._urlPath,
+        config: this._draft,
+        base: this._base,
+      });
+      this._saved = saved.updated_at;
+      this._base = saved.base;
+    } catch (error) {
+      this._notice = { kind: "error", text: this._t("editor_draft_not_saved", { error: error.message ?? String(error) }) };
+    } finally {
+      this._draftInFlight = false;
+      this._saving = false;
+      if (this._draftAgain) {
+        this._draftAgain = false;
+        this._saveDraft();
+      }
+    }
   }
 
   async _discard() {
     if (!window.confirm(this._t("editor_discard_ask"))) return;
     clearTimeout(this._saveTimer);
-    await this.hass.callWS({ type: `${DOMAIN}/editor/discard`, url_path: this._urlPath });
+    await callWS(this.hass, { type: `${DOMAIN}/editor/discard`, url_path: this._urlPath });
     await this._load(this._urlPath);
   }
 
@@ -697,7 +774,7 @@ export class HomeDashboardEditorApp extends LitElement {
     this._publishing = true;
     this._note = note;
     try {
-      await this.hass.callWS({ type: `${DOMAIN}/editor/publish`, url_path: this._urlPath, base: this._base, force, note });
+      await callWS(this.hass, { type: `${DOMAIN}/editor/publish`, url_path: this._urlPath, base: this._base, force, note });
       this._notice = { kind: "ok", text: this._t("editor_published") };
       this._dialog = null;
       this._note = "";
@@ -718,7 +795,7 @@ export class HomeDashboardEditorApp extends LitElement {
     await this._saveDraft();
     this._publishing = true;
     try {
-      await this.hass.callWS({ type: `${DOMAIN}/editor/publish_review`, url_path: this._urlPath, user_id: userId });
+      await callWS(this.hass, { type: `${DOMAIN}/editor/publish_review`, url_path: this._urlPath, user_id: userId });
       this._dialog = null;
       this._notice = { kind: "ok", text: this._t("editor_review_sent", { name: this._userName(userId) }) };
       await this._reloadKeepingSelection();
@@ -730,13 +807,13 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   async _endReview() {
-    await this.hass.callWS({ type: `${DOMAIN}/editor/end_review`, url_path: this._urlPath });
+    await callWS(this.hass, { type: `${DOMAIN}/editor/end_review`, url_path: this._urlPath });
     this._notice = { kind: "ok", text: this._t("editor_review_ended") };
     await this._reloadKeepingSelection();
   }
 
   async _restore(version) {
-    const restored = await this.hass.callWS({ type: `${DOMAIN}/editor/restore`, url_path: this._urlPath, version });
+    const restored = await callWS(this.hass, { type: `${DOMAIN}/editor/restore`, url_path: this._urlPath, version });
     this._dialog = null;
     this._past = [...this._past, this._strategy];
     this._future = [];
@@ -813,16 +890,45 @@ export class HomeDashboardEditorApp extends LitElement {
       .filter((node) => node.kind !== "group" && node.children?.length)
       .map((node) => node.key);
     this._collapsed = new Set(fold ? keys : []);
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...this._collapsed]));
+    writeStored(COLLAPSED_KEY, JSON.stringify([...this._collapsed]));
   }
 
-  // The sidebar of Home Assistant, as the menu button of its own panels opens and folds it.
+  // The menu of Home Assistant: hidden while the editor is open, the menu button shows and hides it (ha-menu.js).
+  _menu = new PanelMenu(this);
+
   _toggleMenu() {
-    this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true }));
+    this._menu.toggle();
   }
 
   /** A bar between columns: dragged, it sets the width of its side column; a double click gives the first back. */
+  /** Fold or unfold a column; its width stays as it was, for when it unfolds. */
+  _toggleColumn(side) {
+    this._folded = { ...this._folded, [side]: !this._folded[side] };
+    writeFolded(FOLDED_KEY, this._folded);
+  }
+
+  /** The button that folds a column, at its top. */
+  _foldButton(side) {
+    const label = this._t(`editor_fold_${side}`);
+    return html`<button class="ghost fold-column" data-fold-column=${side} title=${label} aria-label=${label}
+      @click=${() => this._toggleColumn(side)}>
+      <ha-icon icon=${side === "left" ? "mdi:chevron-left" : "mdi:chevron-right"}></ha-icon>
+    </button>`;
+  }
+
+  /** A folded column: a narrow rail with the button that unfolds it. */
+  _renderRail(side) {
+    const label = this._t(`editor_unfold_${side}`);
+    return html`<aside class="rail" data-rail=${side}>
+      <button class="ghost" data-unfold-column=${side} title=${label} aria-label=${label} @click=${() => this._toggleColumn(side)}>
+        <ha-icon icon=${side === "left" ? "mdi:chevron-right" : "mdi:chevron-left"}></ha-icon>
+      </button>
+    </aside>`;
+  }
+
   _renderSplitter(side) {
+    // The bar beside a folded column does not drag.
+    if (this._folded[side]) return html`<div class="splitter off" data-splitter=${side}></div>`;
     const move = (event) => {
       const box = this.getBoundingClientRect();
       const width = side === "left" ? event.clientX - box.left : box.right - event.clientX;
@@ -838,7 +944,7 @@ export class HomeDashboardEditorApp extends LitElement {
         bar.removeEventListener("pointermove", move);
         bar.removeEventListener("pointerup", stop);
         bar.removeEventListener("pointercancel", stop);
-        localStorage.setItem(WIDTHS_KEY, JSON.stringify(this._widths));
+        writeStored(WIDTHS_KEY, JSON.stringify(this._widths));
       };
       bar.addEventListener("pointermove", move);
       bar.addEventListener("pointerup", stop);
@@ -846,7 +952,7 @@ export class HomeDashboardEditorApp extends LitElement {
     };
     const reset = () => {
       this._widths = { ...this._widths, [side]: COLUMNS[side].start };
-      localStorage.setItem(WIDTHS_KEY, JSON.stringify(this._widths));
+      writeStored(WIDTHS_KEY, JSON.stringify(this._widths));
     };
     return html`<div
       class="splitter"
@@ -863,7 +969,7 @@ export class HomeDashboardEditorApp extends LitElement {
     // A new colour or person loads the frames again, on the page of what is chosen now.
     if ("color" in change || "as" in change) this._frameStart = null;
     this._preview = { ...this._preview, ...change };
-    localStorage.setItem(PREVIEW_KEY, JSON.stringify(this._preview));
+    writeStored(PREVIEW_KEY, JSON.stringify(this._preview));
   }
 
   /**
@@ -885,7 +991,7 @@ export class HomeDashboardEditorApp extends LitElement {
     if (open) keys.forEach((key) => next.add(key));
     else [...keys, group.key].forEach((key) => next.delete(key));
     this._collapsed = next;
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+    writeStored(COLLAPSED_KEY, JSON.stringify([...next]));
   }
 
   _toggle(node) {
@@ -893,7 +999,7 @@ export class HomeDashboardEditorApp extends LitElement {
     if (next.has(node.key)) next.delete(node.key);
     else next.add(node.key);
     this._collapsed = next;
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+    writeStored(COLLAPSED_KEY, JSON.stringify([...next]));
   }
 
   // Rendering ---------------------------------------------------------------------------------------
@@ -986,11 +1092,68 @@ export class HomeDashboardEditorApp extends LitElement {
             @picker-add=${(event) => this._addPicked(event.detail.tiles)}
           ></home-dashboard-editor-picker>`
         : nothing}
-      <div class="cols" style="--left: ${this._widths.left}px; --right: ${this._widths.right}px">
-        ${this._renderTree()} ${this._renderSplitter("left")} ${this._renderStage()} ${this._renderSplitter("right")}
-        ${this._renderProps()}
+      <div
+        class="cols"
+        style="--left: ${this._folded.left ? RAIL : this._widths.left}px; --right: ${this._folded.right ? RAIL : this._widths.right}px"
+      >
+        ${this._folded.left ? this._renderRail("left") : this._renderTree()} ${this._renderSplitter("left")}
+        ${this._renderStage()} ${this._renderSplitter("right")}
+        ${this._folded.right ? this._renderRail("right") : this._renderProps()}
       </div>
+      ${this._renderHelp()}
     `;
+  }
+
+  /** The "?" of a part of the editor: what the part is for, and the chapter of the guide about it in a new tab. */
+  _helpButton(part, anchor) {
+    const label = `${this._t("editor_help_what")} ${this._t(`editor_help_${part}_title`)}`;
+    return html`<button
+      class="ghost help ${this._help?.part === part ? "on" : ""}"
+      data-help=${part}
+      data-anchor=${anchor}
+      title=${label}
+      aria-label=${label}
+      aria-expanded=${this._help?.part === part ? "true" : "false"}
+      @click=${(event) => this._toggleHelp(part, anchor, event.currentTarget)}
+    >
+      <ha-icon icon="mdi:help-circle-outline"></ha-icon>
+    </button>`;
+  }
+
+  /** The window of a part's "?": opens under its button (inside the screen), a second click or Esc closes it. */
+  _toggleHelp(part, anchor, button) {
+    if (this._help?.part === part) {
+      this._help = null;
+      return;
+    }
+    const box = button.getBoundingClientRect();
+    const width = Math.min(340, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(box.left, window.innerWidth - width - 8));
+    this._help = { part, anchor, top: box.bottom + 6, left, width };
+  }
+
+  _renderHelp() {
+    const help = this._help;
+    if (!help) return nothing;
+    return html`<div class="help-shade" data-help-shade @click=${() => (this._help = null)}></div>
+      <div
+        class="help-pop"
+        role="dialog"
+        aria-label=${this._t(`editor_help_${help.part}_title`)}
+        data-help-pop=${help.part}
+        style="top: ${help.top}px; left: ${help.left}px; width: ${help.width}px"
+      >
+        <div class="help-head">
+          <b>${this._t(`editor_help_${help.part}_title`)}</b>
+          <button class="ghost" data-help-close aria-label=${this._t("close")} @click=${() => (this._help = null)}>
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
+        </div>
+        <p>${this._t(`editor_help_${help.part}`)}</p>
+        <a data-help-more href=${editorDocsUrl(this.hass?.language, help.anchor)} target="_blank" rel="noopener"
+          >${this._t("editor_help_more")} <ha-icon icon="mdi:open-in-new"></ha-icon
+        ></a>
+      </div>`;
   }
 
   _renderTop() {
@@ -1005,6 +1168,7 @@ export class HomeDashboardEditorApp extends LitElement {
           @click=${this._toggleMenu}>
           <ha-icon icon="mdi:menu"></ha-icon>
         </button>
+        <ha-icon class="app-icon" icon="mdi:pencil-ruler" data-app-icon></ha-icon>
         <h1>${this._t("editor_title")}</h1>
         ${this._dashboards.length > 1
           ? html`<select data-dashboard @change=${(event) => this._load(event.target.value)}>
@@ -1171,6 +1335,8 @@ export class HomeDashboardEditorApp extends LitElement {
           <button class="ghost" data-unfold-all title=${this._t("editor_unfold_all")} @click=${() => this._foldAll(false)}>
             <ha-icon icon="mdi:unfold-more-horizontal"></ha-icon>${this._t("editor_unfold_all")}
           </button>
+          <span class="grow"></span>
+          ${this._helpButton("tree", DOCS_ANCHORS.screen)} ${this._foldButton("left")}
         </div>
         <label class="search">
           <ha-icon icon="mdi:magnify"></ha-icon>
@@ -1198,7 +1364,7 @@ export class HomeDashboardEditorApp extends LitElement {
 
   _nextTheme() {
     this._theme = THEMES[(THEMES.indexOf(this._theme) + 1) % THEMES.length];
-    localStorage.setItem(THEME_KEY, this._theme);
+    writeStored(THEME_KEY, this._theme);
   }
 
   shouldUpdate(changed) {
@@ -1214,7 +1380,9 @@ export class HomeDashboardEditorApp extends LitElement {
     return false;
   }
 
-  updated() {
+  updated(changed) {
+    // The address follows the chosen node; it is left alone while the node it names waits for the first state.
+    if (changed.has("_selected") && this._wanted === null) writeAddress(this._selected?.key ?? null);
     this._drawnAt = Date.now();
     clearTimeout(this._statesTimer);
     this._statesTimer = null;
@@ -1336,6 +1504,7 @@ export class HomeDashboardEditorApp extends LitElement {
     return html`
       <main class="stage" data-stage>
         <div class="stage-tools">
+          ${this._helpButton("preview", DOCS_ANCHORS.preview)}
           <div class="seg">
             ${deviceButton("phone", "mdi:cellphone", this._t("editor_device_phone"))} ${deviceButton("tablet", "mdi:tablet", this._t("editor_device_tablet"))}
             <button class=${devices.length === 2 ? "on" : ""} data-device="both" @click=${() => this._setPreview({ devices: ["phone", "tablet"] })}>
@@ -1433,6 +1602,8 @@ export class HomeDashboardEditorApp extends LitElement {
             <b data-props-title>${whole ? this._t("editor_whole") : node.label}</b>
             <small>${whole ? "strategy" : node.path.join(" › ")}</small>
           </div>
+          <span class="grow"></span>
+          ${this._helpButton("props", whole ? DOCS_ANCHORS.screen : docsAnchorFor(node))} ${this._foldButton("right")}
         </div>
         ${whole ? nothing : this._renderActions(node)}
         ${problems.map((key) => html`<div class="problem" data-problem=${key}>${this._t(key)}</div>`)}
@@ -1753,6 +1924,11 @@ entity: ${entity}`}
     button.menu {
       padding: 6px;
       --mdc-icon-size: 22px;
+    }
+    .app-icon {
+      --mdc-icon-size: 22px;
+      color: var(--accent);
+      flex: none;
     }
     h1 {
       margin: 0 8px 0 0;
@@ -2223,6 +2399,76 @@ entity: ${entity}`}
       font: inherit;
       color: var(--text);
       background: var(--panel2);
+    }
+    .help {
+      flex: none;
+      padding: 4px;
+      color: var(--muted);
+    }
+    .help ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    .help.on {
+      color: var(--accent);
+    }
+    .fold-column {
+      flex: none;
+      padding: 4px;
+    }
+    .rail {
+      display: flex;
+      justify-content: center;
+      padding-top: 8px;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--panel);
+    }
+    .rail button {
+      padding: 4px 2px;
+    }
+    .splitter.off {
+      cursor: default;
+      pointer-events: none;
+    }
+    .help-shade {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+    }
+    .help-pop {
+      position: fixed;
+      z-index: 21;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .help-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .help-head button {
+      padding: 2px;
+    }
+    .help-pop p {
+      margin: 6px 0 10px;
+    }
+    .help-pop a {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .help-pop a ha-icon {
+      --mdc-icon-size: 14px;
     }
     .tree-tools {
       display: flex;

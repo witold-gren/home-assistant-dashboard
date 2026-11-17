@@ -142,6 +142,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     clearTimeout(this._soundHold);
     this._stopVolume();
     this.removeEventListener("touchstart", this._touchStart);
+    this.removeEventListener("pointerdown", this._onTouched);
     window.removeEventListener("resize", this._onResize);
     this.removeEventListener("touchmove", this._touchMove);
     this.removeEventListener("touchend", this._touchEnd);
@@ -152,11 +153,15 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     super.connectedCallback();
     document.addEventListener("visibilitychange", this._onTabShown);
     this.addEventListener("touchstart", this._touchStart, { passive: true });
+    this.addEventListener("pointerdown", this._onTouched);
     window.addEventListener("resize", this._onResize);
     this.addEventListener("touchmove", this._touchMove, { passive: false });
     this.addEventListener("touchend", this._touchEnd);
     this.addEventListener("touchcancel", this._touchEnd);
   }
+
+  // A touch in a camera window opened by an automation keeps it open (sheet-camera.js).
+  _onTouched = () => this._engaged?.(false);
 
   // A tab nobody looks at streams no camera: the live view stops when the tab is hidden, and the wall of cameras
   // starts its big camera again when it is shown (a single camera waits for a tap, as after its time limit).
@@ -369,6 +374,11 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       else this._close();
     }
     if (changed.has("sheet") && this.sheet?.kind === "camera" && this.sheet.at) this._seekWhenLoaded(this.sheet.at);
+    // A tap on a notification asked for the live view at once.
+    if (changed.has("sheet") && this.sheet?.kind === "camera" && this.sheet.startLive) {
+      const cameraId = liveCameraFor(this.hass, this.sheet.entityId, this.config);
+      if (cameraId) this._timelineLive(cameraId);
+    }
     if (changed.has("sheet") && this.sheet?.kind === "camera") {
       this._centreThumb();
       // A ready-made way of turning finds its buttons by translation keys, read from the registry once.
@@ -389,6 +399,39 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
 
   _call(domain, service, data = {}) {
     return this.hass.callService(domain, service, { entity_id: this.sheet.entityId, ...data });
+  }
+
+  // Esc ------------------------------------------------------------------------------------------
+
+  /** Esc closes a small window inside this one first: a question, a menu, a slid-in list, the background maker. */
+  hdEscape() {
+    const open = [
+      ["_pending", null],
+      ["_sirenAsk", false],
+      ["_deleting", null],
+      ["_quickMenu", null],
+      ["_volumeOpen", false],
+      ["_ptzOpen", false],
+      ["_daysOpen", false],
+      ["_lineOpen", false],
+      ["_camerasOpen", false],
+      ["_bgMaker", false],
+    ].find(([key]) => Boolean(this[key]));
+    if (!open) return false;
+    const [key, closed] = open;
+    this[key] = closed;
+    return true;
+  }
+
+  /** Whether the corner of the header steps back to the window this one came from, instead of closing. */
+  get _headerGoesBack() {
+    return ["camera", "sd", "disk"].includes(this.sheet?.kind) && Boolean(this.sheet.back);
+  }
+
+  /** Esc on the window itself does what the corner of its header does. */
+  hdLeave() {
+    if (this._headerGoesBack) this._change(this.sheet.back);
+    else this._close();
   }
 
   // The sheet slides away first; the chrome removes it afterwards.
@@ -523,7 +566,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     const editable = details ? this._editTarget() : null;
     return html`
       <header class=${dark ? "dark" : ""}>
-        ${["camera", "sd", "disk"].includes(this.sheet?.kind) && this.sheet.back
+        ${this._headerGoesBack
           ? html`<button aria-label=${this._t("back")} data-back @click=${() => this._change(this.sheet.back)}>
               <ha-icon icon="mdi:arrow-left"></ha-icon>
             </button>`
@@ -653,6 +696,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       news: this._renderNews,
       history: this._renderHistory,
       logbook: this._renderLogbook,
+      household: this._renderHousehold,
       notifications: this._renderNotifications,
       blocks: this._renderBlocks,
       cameras: this._renderCameraCards,
@@ -685,7 +729,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     const wideWeather =
       (this.sheet.kind === "weather" && mediaQuery(WIDE_WEATHER).matches) ||
       (this.sheet.kind === "departures" && mediaQuery(WIDE_DEPARTURES).matches);
-    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "calendar", "history", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "calendar", "history", "household", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     // A block of several groups without a card of its own: on a tablet a wider window with its groups in two columns,
     // so it fits without scrolling (a phone scrolls it).
     const roomy = this.sheet.kind === "panel" && !whole && !item?.card && !item?.tabs && (item?.groups?.length ?? 0) >= 2;

@@ -10,7 +10,9 @@ APP = Path(__file__).resolve().parents[2] / "custom_components" / "home_dashboar
 
 
 def test_the_list_of_files_is_the_whole_app(phone):
-    listed = phone.evaluate("async () => (await import('/custom_components/home_dashboard/www/app/reload.js')).APP_FILES")
+    listed = phone.evaluate(
+        "async () => (await import('/custom_components/home_dashboard/www/app/reload.js')).APP_FILES"
+    )
     assert sorted(listed) == sorted(path.name for path in APP.glob("*.js"))
 
 
@@ -36,7 +38,9 @@ def test_reloading_empties_the_caches_fetches_every_file_afresh_and_opens_the_pa
 
 def test_the_dashboard_settings_offer_it_and_the_look_does_not(phone):
     mount_admin(phone, {})
-    phone.evaluate("() => document.querySelector('home-dashboard-chrome').open({ type: 'sheet', sheet: { kind: 'look' } })")
+    phone.evaluate(
+        "() => document.querySelector('home-dashboard-chrome').open({ type: 'sheet', sheet: { kind: 'look' } })"
+    )
     phone.wait_for_selector("home-dashboard-sheet [data-tab]")
     assert phone.locator("home-dashboard-sheet [data-reload-app]").count() == 0
     phone.evaluate("() => document.querySelector('home-dashboard-chrome').open({ type: 'settings' })")

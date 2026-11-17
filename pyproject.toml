@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["docker: builds and runs the demo image of Docker (skipped without Docker)"]
 
 [tool.ruff]
 line-length = 110

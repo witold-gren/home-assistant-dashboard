@@ -272,6 +272,8 @@ export const cameraSections = () => [
       { key: "controls", type: "map", valueList: "entities", labelKey: "editor_cameras_controls", helpKey: "editor_cameras_controls_hint", placeholder: "camera.…" },
       { key: "talk", type: "select", options: ["intercom", "camera"], optionKey: "editor_cameras_talk", labelKey: "editor_cameras_talk", emptyKey: "editor_look_default" },
       { key: "talk_with", type: "map", labelKey: "editor_cameras_talk_with", helpKey: "editor_cameras_talk_with_hint", placeholder: "auto, go2rtc, intercom, none" },
+      { key: "clip_picker", type: "select", options: ["bar", "zoom"], optionKey: "editor_cameras_clip_picker", labelKey: "editor_cameras_clip_picker", emptyKey: "editor_look_default" },
+      { key: "clip_picker_with", type: "map", labelKey: "editor_cameras_clip_picker_with", helpKey: "editor_cameras_clip_picker_with_hint", placeholder: "bar, zoom" },
       {
         key: "quick",
         type: "keyed",

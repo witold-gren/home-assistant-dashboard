@@ -6,14 +6,36 @@ from .test_panels import add_entity
 from .test_shortcuts import SHEET, mount_admin
 
 EDITOR = "home-dashboard-block-editor"
-STATUS = {"kind": "overview", "name": "Status", "icon": "mdi:check", "extra_option": 7, "sections": [
-    {"title": "Uwaga", "alert": True, "items": [
-        {"name": "Zimno", "icon": "mdi:snowflake", "below": 19, "unit": "°", "entities": [{"entity": "climate.a", "name": "Salon"}]},
-    ]},
-]}
+STATUS = {
+    "kind": "overview",
+    "name": "Status",
+    "icon": "mdi:check",
+    "extra_option": 7,
+    "sections": [
+        {
+            "title": "Uwaga",
+            "alert": True,
+            "items": [
+                {
+                    "name": "Zimno",
+                    "icon": "mdi:snowflake",
+                    "below": 19,
+                    "unit": "°",
+                    "entities": [{"entity": "climate.a", "name": "Salon"}],
+                },
+            ],
+        },
+    ],
+}
 TRAMS = {"kind": "departures", "name": "Tramwaje", "icon": "mdi:tram", "entities": ["sensor.tram_4"]}
-BOX = {"kind": "panel", "name": "Auto", "icon": "mdi:car", "stats": [{"name": "Paliwo", "entity": "sensor.fuel", "unit": "%"}],
-       "groups": [{"rows": [{"entity": "lock.a", "labels": {"on": "Tak"}}]}], "card": {"type": "markdown", "content": "x"}}
+BOX = {
+    "kind": "panel",
+    "name": "Auto",
+    "icon": "mdi:car",
+    "stats": [{"name": "Paliwo", "entity": "sensor.fuel", "unit": "%"}],
+    "groups": [{"rows": [{"entity": "lock.a", "labels": {"on": "Tak"}}]}],
+    "card": {"type": "markdown", "content": "x"},
+}
 
 
 def open_blocks(page, shortcuts: list, admin: bool = True) -> None:
@@ -52,7 +74,9 @@ def test_only_an_administrator_has_blocks(phone):
 
 def test_blocks_stay_out_of_the_menu_of_a_room(phone):
     phone.evaluate("window.history.replaceState(null, '', '?room=r')")
-    mount_admin(phone, {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": []}]}, "room")
+    mount_admin(
+        phone, {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": []}]}, "room"
+    )
     phone.locator("home-dashboard-page [data-rooms]").click()
     phone.wait_for_selector(f"{SHEET} [data-sheet-access]")
     assert phone.locator(f"{SHEET} [data-sheet-blocks]").count() == 0
@@ -111,14 +135,19 @@ def test_a_block_is_removed_only_after_a_second_tap(phone):
     assert phone.evaluate("window.saved.length") == 0
     remove.click()
     phone.wait_for_function("window.saved.length > 0")
-    assert [item["name"] for item in phone.evaluate("window.saved.at(-1).config.strategy.shortcuts")] == ["Status"]
+    assert [item["name"] for item in phone.evaluate("window.saved.at(-1).config.strategy.shortcuts")] == [
+        "Status"
+    ]
 
 
 def test_the_order_of_blocks_changes_with_the_arrows(phone):
     open_blocks(phone, [TRAMS, STATUS])
     phone.locator(f"{SHEET} [data-block='Status'] button").nth(1).click()
     phone.wait_for_function("window.saved.length > 0")
-    assert [item["name"] for item in phone.evaluate("window.saved.at(-1).config.strategy.shortcuts")] == ["Status", "Tramwaje"]
+    assert [item["name"] for item in phone.evaluate("window.saved.at(-1).config.strategy.shortcuts")] == [
+        "Status",
+        "Tramwaje",
+    ]
 
 
 def test_a_status_item_changes_its_kind_and_keeps_its_name(phone):
@@ -176,7 +205,11 @@ def test_empty_options_are_not_saved(phone):
 
 def test_a_block_in_a_room_opens_from_its_tile_and_saves_with_the_room(phone):
     phone.evaluate("window.history.replaceState(null, '', '?room=r')")
-    mount_admin(phone, {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": [{"tiles": [BOX]}]}]}, "room")
+    mount_admin(
+        phone,
+        {"layout": [{"id": "r", "name": "R", "areas": [], "home": [], "sections": [{"tiles": [BOX]}]}]},
+        "room",
+    )
     phone.locator("home-dashboard-page [data-rooms]").click()
     phone.locator(f"{SHEET} [data-sheet-edit]").click()
     phone.wait_for_selector("[data-edit-save]")
@@ -232,7 +265,10 @@ def test_media_categories_are_edited_and_the_rest_of_media_stays(phone):
     media = saved_media(phone)
     assert media["group_patterns"] == ["x"]
     assert media["sections"][0]["tiles"] == [tv]
-    assert media["sections"][1] == {"title": "Inne", "tiles": [{"entity": "media_player.apple", "name": "Apple TV"}]}
+    assert media["sections"][1] == {
+        "title": "Inne",
+        "tiles": [{"entity": "media_player.apple", "name": "Apple TV"}],
+    }
 
 
 def test_media_categories_save_without_a_name(phone):
@@ -280,7 +316,9 @@ def test_a_host_column_gets_power_and_machines_on_the_tablet(phone):
     phone.locator(f"{EDITOR} [data-block-field='columns'] summary").first.click()
     phone.locator(f"{EDITOR} [data-block-add='machines']").click()
     phone.locator(f"{EDITOR} [data-block-field='machines'] [data-block-field='name'] input").fill("HA")
-    phone.locator(f"{EDITOR} [data-block-field='power'] [data-block-field='entity'] input").fill("sensor.nuc_power")
+    phone.locator(f"{EDITOR} [data-block-field='power'] [data-block-field='entity'] input").fill(
+        "sensor.nuc_power"
+    )
     column = saved(phone)["shortcuts"][0]["columns"][0]
     assert column["machines"] == [{"name": "HA"}]
     assert column["power"] == {"entity": "sensor.nuc_power"}
@@ -306,6 +344,10 @@ def test_a_status_entry_can_be_an_alarm_on_the_tablet(phone):
 def test_a_tv_turns_off_with_its_own_service_on_the_tablet(phone):
     tv = {"kind": "tv", "name": "TV", "entity": "media_player.tv"}
     open_block(phone, [tv], "TV")
-    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='service'] input").fill("script.tv_off")
-    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='target'] input").fill("media_player.tv")
+    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='service'] input").fill(
+        "script.tv_off"
+    )
+    phone.locator(f"{EDITOR} [data-block-field='off'] [data-block-field='target'] input").fill(
+        "media_player.tv"
+    )
     assert saved(phone)["shortcuts"][0]["off"] == {"service": "script.tv_off", "target": "media_player.tv"}

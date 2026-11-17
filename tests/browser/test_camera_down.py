@@ -11,7 +11,9 @@ SHEET_JS = "document.querySelector('home-dashboard-chrome').shadowRoot.querySele
 
 
 # A 1x1 PNG: the pictures of cameras load, as they do in Home Assistant.
-PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==")
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg=="
+)
 
 
 def open_camera(page) -> None:
@@ -21,13 +23,16 @@ def open_camera(page) -> None:
 
 
 def set_state(page, entity_id: str, state: str) -> None:
-    page.evaluate(f"""async ([id, state]) => {{
+    page.evaluate(
+        f"""async ([id, state]) => {{
         const chrome = document.querySelector('home-dashboard-chrome');
         const hass = {{ ...chrome.hass, states: {{ ...chrome.hass.states, [id]: {{ ...chrome.hass.states[id], state,
             attributes: state === 'unavailable' ? {{ friendly_name: 'Słup' }} : chrome.hass.states[id].attributes }} }} }};
         window.dashboard.snapshot.states[id] = hass.states[id];
         chrome.hass = hass;
-        const sheet = {SHEET_JS}; sheet.hass = hass; await sheet.updateComplete; }}""", [entity_id, state])
+        const sheet = {SHEET_JS}; sheet.hass = hass; await sheet.updateComplete; }}""",
+        [entity_id, state],
+    )
 
 
 def test_a_camera_that_goes_away_keeps_its_last_picture_and_says_so(phone):
@@ -47,7 +52,9 @@ def test_a_camera_that_goes_away_keeps_its_last_picture_and_says_so(phone):
 
 def test_a_live_camera_that_goes_away_ends_the_live_view(phone):
     open_camera(phone)
-    phone.evaluate(f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; }}")
+    phone.evaluate(
+        f"async () => {{ const sheet = {SHEET_JS}; sheet._live = true; await sheet.updateComplete; }}"
+    )
     set_state(phone, "camera.slup", "unavailable")
     phone.wait_for_selector(f"{SHEET} [data-camera-down]")
     assert phone.evaluate(f"{SHEET_JS}._live") is False

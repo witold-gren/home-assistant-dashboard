@@ -26,10 +26,10 @@ Where each way is done:
 
 | Way | Editor on a computer | On the tablet or phone |
 |---|---|---|
-| Tile in a room | room → section → **Entity…** → **Add**, or **Choose from the list…** | three dots → **Edit this screen** → **Add a tile** |
-| Own card of a device | the tile → **Window of the device** → **Own card (YAML)** | YAML only (**Edit configuration**) |
-| Block on Home | **Blocks** → **+** → **Block** | **Summary badges** → **Add** → **Block** |
-| Block in a room | the tile → **Make a block of this tile**, or the tile's **Block** field | YAML only; then edited in its form |
+| Tile in a room | room → section → <b class="ui">Entity…</b> → <b class="ui">Add</b>, or <b class="ui">Choose from the list…</b> | three dots → <b class="ui">Edit this screen</b> → <b class="ui">Add a tile</b> |
+| Own card of a device | the tile → <b class="ui">Window of the device</b> → <b class="ui">Own card (YAML)</b> | YAML only (<b class="ui">Edit configuration</b>) |
+| Block on Home | <b class="ui">Blocks</b> → **+** → **Block** | **Summary badges** → **Add** → **Block** |
+| Block in a room | the tile → <b class="ui">Make a block of this tile</b>, or the tile's <b class="ui">Block</b> field | YAML only; then edited in its form |
 
 ## 2. Tile in a room
 
@@ -38,16 +38,16 @@ Any other device is added by hand.
 
 **In the editor on a computer:**
 
-1. In the tree, unfold the room under **Rooms** and choose a section (or add one).
-2. Type the entity in **Entity…** under the properties and press **Add**, or open **Choose from the list…** to pick
+1. In the tree, unfold the room under <b class="ui">Rooms</b> and choose a section (or add one).
+2. Type the entity in <b class="ui">Entity…</b> under the properties and press <b class="ui">Add</b>, or open <b class="ui">Choose from the list…</b> to pick
    several at once, filtered by room and kind.
 3. The new tile is chosen at once: name, icon, size and the other options are fields of its form.
-4. **Publish** when the draft is ready.
+4. <b class="ui">Publish</b> when the draft is ready.
 
 **On the tablet:**
 
-1. Open the room, three dots → **Edit this screen**.
-2. **Add a tile** in a section, search for the entity and save.
+1. Open the room, three dots → <b class="ui">Edit this screen</b>.
+2. <b class="ui">Add a tile</b> in a section, search for the entity and save.
 
 A tap on the tile opens:
 
@@ -84,7 +84,7 @@ layout:
 | `name`, `icon` | own name and icon (the icon also changes in **Look → Icons**) |
 | `tap_toggle: true` | one tap toggles instead of opening a window |
 | `calm: true` | no colour while on; for things that are on nearly all the time |
-| `size: tall` | a tall tile over two rows, the icon at the top, the name and state at the bottom; in the editor: tile → **Size** |
+| `size: tall` | a tall tile over two rows, the icon at the top, the name and state at the bottom; in the editor: tile → <b class="ui">Size</b> |
 | `action: script.x` | a tap runs a script |
 | `active_only: true` | the tile shows only while the device is doing something |
 | `turn_on_only: true` | can only be turned on; turning off with a PIN through `off_pin` |
@@ -98,7 +98,7 @@ dashboard, on every page and in every filter.
 **In the editor on a computer:**
 
 1. Choose the tile of the device in its room.
-2. Under its properties, **Window of the device** has the field **Own card (YAML)**. Type the card there, as in the
+2. Under its properties, <b class="ui">Window of the device</b> has the field <b class="ui">Own card (YAML)</b>. Type the card there, as in the
    card editor of Home Assistant, starting with its `type`:
 
    ```yaml
@@ -135,26 +135,26 @@ shows as a shortcut on Home, in the menu, or as a tile in a room.
 ### Step by step in the editor on a computer
 
 1. In the tree, **+** beside **Blocks** → **Block**. A new block "Block" is added and chosen (a block of another kind,
-   such as **Status**, **Departures** or **Machines**, is chosen in the same list).
-2. Fill in **Name**, **Icon** and **Entity**, the main entity of the device.
-3. Unfold the block in the tree: **Numbers at the top**, **Buttons** and **Groups** each have a field to add an
+   such as <b class="ui">Status</b>, <b class="ui">Departures</b> or <b class="ui">Machines</b>, is chosen in the same list).
+2. Fill in <b class="ui">Name</b>, <b class="ui">Icon</b> and <b class="ui">Entity</b>, the main entity of the device.
+3. Unfold the block in the tree: <b class="ui">Numbers at the top</b>, <b class="ui">Buttons</b> and <b class="ui">Groups</b> each have a field to add an
    entity, and a group has its rows. Each part chosen in the tree has its own form.
 4. **From the device, not in the block yet** lists the other entities of the device: one click adds each as a row.
 5. The preview opens the block's window while you work on it, and outlines in red what is chosen.
-6. **Publish**. The block shows among the badges of Home.
+6. <b class="ui">Publish</b>. The block shows among the badges of Home.
 
 ### Step by step on the tablet
 
-1. Three dots on Home → **Summary badges** (administrator account) → **Add** → **Block**.
-2. **Name**, **Icon** and **Entity**: the main entity of the device, which gives the block its state.
-3. **Numbers at the top**: values seen at once, e.g. the time left of a wash, air quality, the life of a filter. Each
+1. Three dots on Home → <b class="ui">Summary badges</b> (administrator account) → <b class="ui">Add</b> → <b class="ui">Block</b>.
+2. <b class="ui">Name</b>, <b class="ui">Icon</b> and <b class="ui">Entity</b>: the main entity of the device, which gives the block its state.
+3. <b class="ui">Numbers at the top</b>: values seen at once, e.g. the time left of a wash, air quality, the life of a filter. Each
    is an entity, a name, a unit and the number of decimals.
-4. **Buttons**: actions of the device, e.g. Start, Pause, Back to base. Each is a name, an icon, an entity and a
+4. <b class="ui">Buttons</b>: actions of the device, e.g. Start, Pause, Back to base. Each is a name, an icon, an entity and a
    service (`vacuum.start`, `button.press`…). A button with a confirmation asks first.
-5. **Groups** and **Rows**: the entities of the device in groups. Each row gets the right control by itself (table
-   below). The **Look** of a group turns its rows into big buttons and sliders, or into one folding line.
-6. **Card (YAML)**: optionally a card of Home Assistant, behind a button in the window, at once, or under the groups.
-7. **Save**. The shortcut shows on Home. How to place the block in a room is in [block in a room](#block-in-a-room).
+5. <b class="ui">Groups</b> and <b class="ui">Rows</b>: the entities of the device in groups. Each row gets the right control by itself (table
+   below). The <b class="ui">Look</b> of a group turns its rows into big buttons and sliders, or into one folding line.
+6. <b class="ui">Card (YAML)</b>: optionally a card of Home Assistant, behind a button in the window, at once, or under the groups.
+7. <b class="ui">Save</b>. The shortcut shows on Home. How to place the block in a room is in [block in a room](#block-in-a-room).
 
 | Entity in a row | Control |
 |---|---|
@@ -229,11 +229,11 @@ shortcuts:
 
 A block can stand in a room like a tile. In the editor on a computer there are two ways:
 
-- **Make a block of this tile:** choose the device's tile in its room; under **Window of the device** the button
+- **Make a block of this tile:** choose the device's tile in its room; under <b class="ui">Window of the device</b> the button
   turns the tile into a block in its place, with its name, icon and size. The tile unfolds in the tree into
-  **Numbers at the top**, **Buttons** and **Groups**, and the device's other entities are offered one click each.
+  <b class="ui">Numbers at the top</b>, <b class="ui">Buttons</b> and <b class="ui">Groups</b>, and the device's other entities are offered one click each.
   The block belongs to the room only and does not show on Home.
-- **The Block field of a tile:** a tile chooses a block from **Blocks** in its **Block** field (`shortcut`). The tile
+- **The Block field of a tile:** a tile chooses a block from <b class="ui">Blocks</b> in its <b class="ui">Block</b> field (`shortcut`). The tile
   then opens that block; one block can stand in several rooms and on Home at once.
 
 On the tablet, in **Dashboard settings → Edit configuration**, put the whole definition of the block (with
@@ -255,7 +255,7 @@ layout:
 ```
 
 A tap opens the window of the block. From then on you change it in the form: editing the room, the tile of the block
-→ **Edit the block**.
+→ <b class="ui">Edit the block</b>.
 
 ## 5. Other ready windows
 
@@ -264,20 +264,20 @@ Besides the block, the editor has ready kinds of windows for common things. All 
 
 | Kind | For |
 |---|---|
-| **Status** (`overview`) | a screen of the state of the home: only what matters now, e.g. open windows, weak batteries, a running washer |
-| **Departures** (`departures`) | the next trams and buses from entities with a list of departures |
-| **Machines** (`host`) | servers and computers: processor, memory, disks, versions |
-| **Page** (`page`) | another page of the dashboard in a window |
-| **App** | an add-on of Home Assistant or a web page on the whole screen |
-| **School** | timetable, grades, planner and meals from your own data |
+| <b class="ui">Status</b> (`overview`) | a screen of the state of the home: only what matters now, e.g. open windows, weak batteries, a running washer |
+| <b class="ui">Departures</b> (`departures`) | the next trams and buses from entities with a list of departures |
+| <b class="ui">Machines</b> (`host`) | servers and computers: processor, memory, disks, versions |
+| <b class="ui">Page</b> (`page`) | another page of the dashboard in a window |
+| <b class="ui">App</b> | an add-on of Home Assistant or a web page on the whole screen |
+| <b class="ui">School</b> | timetable, grades, planner and meals from your own data |
 | TV (`tv`) | a remote: power, sources, arrows and keys |
 
 ## 6. Who sees a window
 
-- **Look**: every window takes its colours, see-through and blur from **Look → Windows**, the windows of blocks too.
-- **Access**: three dots → **User access** hides a block from chosen people, and **Administrators only** in the block
+- <b class="ui">Look</b>: every window takes its colours, see-through and blur from **Look → Windows**, the windows of blocks too.
+- **Access**: three dots → <b class="ui">User access</b> hides a block from chosen people, and <b class="ui">Administrators only</b> in the block
   editor hides it from the rest of the household.
-- **Order**: everyone arranges and hides shortcuts for themselves in **My layout**.
+- **Order**: everyone arranges and hides shortcuts for themselves in <b class="ui">My layout</b>.
 
 ## 7. When no way is enough
 

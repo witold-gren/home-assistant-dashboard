@@ -56,7 +56,9 @@ def updates(page) -> list[dict]:
 def test_the_gear_opens_the_settings_of_the_device(phone):
     open_sheet(phone)
     phone.locator(f"{SHEET} header [data-details]").click()
-    phone.wait_for_function("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'panel'")
+    phone.wait_for_function(
+        "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'panel'"
+    )
     item = sheet_state(phone, "return sheet.sheet.item;")
     groups = {group["title"]: [row["entity"] for row in group["rows"]] for group in item["groups"]}
     assert groups == {
@@ -66,7 +68,9 @@ def test_the_gear_opens_the_settings_of_the_device(phone):
     }
     assert item["name"] == "Lampa: ustawienia"
     # The window of Home Assistant is still one tap away.
-    phone.evaluate("window.moreInfo = []; window.addEventListener('hass-more-info', (e) => window.moreInfo.push(e.detail.entityId))")
+    phone.evaluate(
+        "window.moreInfo = []; window.addEventListener('hass-more-info', (e) => window.moreInfo.push(e.detail.entityId))"
+    )
     phone.locator(f"{SHEET} header [data-details]").click()
     phone.wait_for_function("window.moreInfo.length === 1")
     assert phone.evaluate("window.moreInfo") == ["light.lamp"]
@@ -99,7 +103,12 @@ def test_activity_shows_what_the_device_did(phone):
     phone.wait_for_function("window.asked.some((m) => m.type === 'logbook/get_events')")
     asked = phone.evaluate("window.asked.find((m) => m.type === 'logbook/get_events')")
     assert asked["entity_ids"][0] == "light.lamp"
-    assert set(asked["entity_ids"]) == {"light.lamp", "select.lamp_power_on", "sensor.lamp_power", "button.lamp_identify"}
+    assert set(asked["entity_ids"]) == {
+        "light.lamp",
+        "select.lamp_power_on",
+        "sensor.lamp_power",
+        "button.lamp_identify",
+    }
 
 
 def test_an_entity_without_a_device_gets_the_same_window_with_its_activity(phone):
@@ -114,7 +123,11 @@ def test_a_group_shows_its_members_with_switches(phone):
     phone.locator(f"{SHEET} [data-toggle='light.lonely']").click()
     phone.wait_for_function("window.hass.calls.some((c) => c.type === 'service')")
     call = phone.evaluate("window.hass.calls.find((c) => c.type === 'service')")
-    assert [call["domain"], call["service"], call["data"]] == ["homeassistant", "toggle", {"entity_id": "light.lonely"}]
+    assert [call["domain"], call["service"], call["data"]] == [
+        "homeassistant",
+        "toggle",
+        {"entity_id": "light.lonely"},
+    ]
 
 
 def test_the_pencil_is_only_for_administrators(phone):
@@ -135,10 +148,19 @@ def test_the_pencil_changes_name_area_and_labels_of_the_device(phone):
     phone.locator(f"{SHEET} [data-edit-label='evening']").click()
     phone.locator(f"{SHEET} [data-edit-save]").click()
     phone.wait_for_function("window.asked.some((m) => m.type.endsWith('/update'))")
-    assert updates(phone) == [{"type": "config/device_registry/update", "device_id": "lamp_device",
-                               "name_by_user": "Lampa przy kanapie", "area_id": area, "labels": ["kids"]}]
+    assert updates(phone) == [
+        {
+            "type": "config/device_registry/update",
+            "device_id": "lamp_device",
+            "name_by_user": "Lampa przy kanapie",
+            "area_id": area,
+            "labels": ["kids"],
+        }
+    ]
     # Saved, the window of the lamp comes back.
-    phone.wait_for_function("document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'light'")
+    phone.wait_for_function(
+        "document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet').sheet.kind === 'light'"
+    )
 
 
 def test_switching_a_device_off_warns_and_closes_its_window(phone):
@@ -150,7 +172,9 @@ def test_switching_a_device_off_warns_and_closes_its_window(phone):
     phone.locator(f"{SHEET} [data-edit-save]").click()
     phone.wait_for_function("window.asked.some((m) => m.type.endsWith('/update'))")
     assert updates(phone)[0]["disabled_by"] == "user"
-    phone.wait_for_function("!document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')")
+    phone.wait_for_function(
+        "!document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('home-dashboard-sheet')"
+    )
 
 
 def test_an_entity_without_a_device_is_changed_itself(phone):
@@ -160,8 +184,15 @@ def test_an_entity_without_a_device_is_changed_itself(phone):
     phone.locator(f"{SHEET} [data-edit-name]").fill("Kinkiet")
     phone.locator(f"{SHEET} [data-edit-save]").click()
     phone.wait_for_function("window.asked.some((m) => m.type.endsWith('/update'))")
-    assert updates(phone) == [{"type": "config/entity_registry/update", "entity_id": "light.lonely", "name": "Kinkiet",
-                               "area_id": None, "labels": []}]
+    assert updates(phone) == [
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": "light.lonely",
+            "name": "Kinkiet",
+            "area_id": None,
+            "labels": [],
+        }
+    ]
 
 
 def test_a_refused_change_says_why_and_keeps_the_form(phone):
@@ -203,7 +234,9 @@ def open_lamp(page, entity_id: str, raw: dict | None = None) -> None:
     page.evaluate(SETUP)
     page.evaluate(LAMPS)
     mount_admin(page, raw or {}, admin=True)
-    page.evaluate("() => { document.querySelector('home-dashboard-chrome')._reload = () => { window.reloaded = true; }; }")
+    page.evaluate(
+        "() => { document.querySelector('home-dashboard-chrome')._reload = () => { window.reloaded = true; }; }"
+    )
     page.evaluate(f"""() => document.querySelector('home-dashboard-chrome')
         .open({{ type: 'sheet', sheet: {{ kind: 'light', entityId: '{entity_id}' }} }})""")
     page.wait_for_selector(f"{SHEET} header [data-edit-device]")
@@ -212,7 +245,9 @@ def open_lamp(page, entity_id: str, raw: dict | None = None) -> None:
 
 
 def saved(page) -> list[dict]:
-    return page.evaluate("window.asked.filter((m) => m.type === 'lovelace/config/save').map((m) => m.config.strategy)")
+    return page.evaluate(
+        "window.asked.filter((m) => m.type === 'lovelace/config/save').map((m) => m.config.strategy)"
+    )
 
 
 def test_a_switch_shows_whether_it_is_a_light_and_a_lamp_is_one_by_its_icon(phone):

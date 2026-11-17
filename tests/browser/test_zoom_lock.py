@@ -35,12 +35,18 @@ def test_more_unlocks_than_locks_change_nothing(phone):
 
 
 def test_a_lock_left_by_an_older_version_is_not_taken_as_free(phone):
-    phone.evaluate("""(locked) => { let meta = document.querySelector('meta[name="viewport"]');
-        if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; document.head.append(meta); } }""", LOCKED)
-    seen = phone.evaluate("""async ({ module, locked }) => {
+    phone.evaluate(
+        """(locked) => { let meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; document.head.append(meta); } }""",
+        LOCKED,
+    )
+    seen = phone.evaluate(
+        """async ({ module, locked }) => {
         const meta = document.querySelector('meta[name="viewport"]');
         meta.setAttribute('content', locked);
         const chrome = await import(module);
         chrome.lockZoom(); chrome.unlockZoom();
-        return meta.getAttribute('content'); }""", {"module": MODULE, "locked": LOCKED})
+        return meta.getAttribute('content'); }""",
+        {"module": MODULE, "locked": LOCKED},
+    )
     assert seen == FREE
