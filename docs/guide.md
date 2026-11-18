@@ -116,6 +116,41 @@ From the top: the greeting, the weather, the chips, your shortcuts, cameras, sce
 - <b class="ui">Favorites</b> go above the rooms: `favorites: [climate.living_room, lock.front_door]`, or My layout → Favorites → <b class="ui">For everyone</b>.
 - **Shortcuts** sit in the row of chips, see [Shortcuts and blocks](#7-shortcuts-and-blocks).
 
+### Sections side by side {#sections-side-by-side}
+
+Home and the room pages can lay out their parts in sections side by side instead of one under another: the headings
+over the background and the sections in as many columns as fit. A tablet on its side has two, also with the status
+bar open at a zoom of 85 % in the app; a phone has one. The sections keep their order, each one going to the column
+that is shortest so far.
+
+- At the top, in place of the greeting (on a room page in place of the arrow and its name), tabs of Home and the
+  rooms take you to each page; the chips, the warnings and the buttons on the right stay.
+- A section longer than four rows scrolls inside. Its heading then says how many tiles it has, and its foot fades
+  while there is more below.
+- The cameras come two at a time; more of them are swiped to sideways, two by two.
+- A heading with an arrow opens its page: <b class="ui">Cameras</b> all the cameras, a room its own page, <b class="ui">Scenes</b> the Scenes page.
+- Over a background a tile that is on is white with its colour in the circle; a tile that is off keeps the look.
+- The side menu, the status bar of a tablet and the bar of pages stay as they are. A page in a window and a room
+  being edited keep the classic layout.
+
+Choose it in Menu → <b class="ui">Dashboard settings</b> → <b class="ui">Layout of the pages</b>: <b class="ui">Every page</b>, <b class="ui">Home</b> on its own and
+<b class="ui">Rows of a section before it scrolls</b> (all of them, without scrolling, too). A room gets its own layout in its editor: three dots →
+<b class="ui">Edit this screen</b> → <b class="ui">Layout of this page</b>. In the editor on a computer the same is under *Settings → Home page and
+tablet → Layout of the pages*, and a room has the field *Layout of the page*. The classic layout stays the default.
+The keys: [`page_layout`](configuration.md#page_layout).
+
+### Variants of a page {#variants-of-a-page}
+
+Home and every room can have variants: other versions of the page, each with its own layout and background, for one
+device (as the tablet in the hall) or one person, while everyone else keeps the published page. They are made in the
+editor on a computer ([Page variants](editor.md#page-variants)). On a page that has some, an administrator finds
+three dots → <b class="ui">Variant of this page</b>: <b class="ui">Show on this device</b>, <b class="ui">Just look</b> (a banner *Looking at: …* with
+<b class="ui">Back</b>) and <b class="ui">Publish for everyone…</b>, which keeps the replaced page as a variant. A variant shared with the
+household can be chosen there by anyone: <b class="ui">Choose for me</b> works on all their devices.
+
+Without the dashboard settings (they are for administrators), the side menu has <b class="ui">Load the app afresh</b>: it fetches
+the newest files and opens the page again.
+
 ### Weather
 
 The first chip shows the temperature and opens a screen with the current readings and the forecast for
@@ -1668,5 +1703,8 @@ differs from the version now; *Take back as a draft* makes it the draft, to look
 | I cannot edit | Editing needs an administrator account. |
 | A new device does not appear in a room | The room is in `layout`: add it with <b class="ui">Add a tile</b>. |
 | Talking through the camera does nothing, the microphone is crossed out | Talking needs HTTPS: open Home Assistant over `https://` (in the app: Settings → Companion app → Servers → internal URL), then start the live view. |
+| A tablet no longer shows its variant | Signing in again keeps the device; clearing the app's data (or reinstalling it) makes it a new one: in the editor, *Variants* → *Who sees it*, choose the variant for it again (it appears once it has opened the dashboard), and *Forget* the old one under *Devices*. |
+| After a restart of Home Assistant today's events are missing from the status bar | Fixed: the dashboard reads them again once Home Assistant is back, and every 15 s while a calendar is still starting. If they stay missing, check that the calendar works in Home Assistant (Calendar in the sidebar). |
+| The editor shows `not a valid option at 'shared'` (or another field) | The dashboard was updated but Home Assistant still runs the old code, which does not know that field. Restart Home Assistant, then reload the editor. |
 
 The [FAQ in the README](../README.md#faq) has more, with exact messages.

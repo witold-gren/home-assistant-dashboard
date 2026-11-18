@@ -4,6 +4,7 @@ import { HomeDashboardChrome } from "./chrome.js";
 import { translate } from "./i18n.js";
 import { HomeDashboardHost } from "./host.js";
 import { previewMode } from "./preview.js";
+import { browserModName, dashboardDeviceId, deviceLabel } from "./usage.js";
 import { HomeDashboardIntercom } from "./intercom.js";
 import { HomeDashboardPage } from "./page.js";
 import { HomeDashboardScale } from "./scale.js";
@@ -75,8 +76,31 @@ export async function generateForPerson(config, hass) {
     } catch {
       // An older integration without the editor, or no connection yet: the published version.
     }
+    const variants = await variantsOfDevice(hass);
+    if (variants) return generateDashboard({ ...config, _variants: variants }, hass);
   }
   return generateDashboard(config, hass);
+}
+
+/**
+ * The variants of pages this device sees (and, for an administrator, all there are to choose from); the device
+ * says what it is, so that the editor can tell the phones and tablets apart. Nothing without any variants.
+ */
+export async function variantsOfDevice(hass) {
+  try {
+    const mine = await hass.callWS({
+      type: "home_dashboard/variants/mine",
+      url_path: dashboardUrlPath(),
+      device_label: deviceLabel(),
+      device_id: dashboardDeviceId(),
+      browser_mod: browserModName(),
+    });
+    const any = Object.keys(mine?.pages ?? {}).length || Object.keys(mine?.choices ?? {}).length;
+    return any ? mine : null;
+  } catch {
+    // An older integration without variants: the published pages.
+    return null;
+  }
 }
 
 export function generateDashboard(config, hass) {

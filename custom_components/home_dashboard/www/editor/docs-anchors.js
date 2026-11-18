@@ -24,6 +24,7 @@ export const DOCS_ANCHORS = {
   other: "cameras-energy-intercom-and-the-other",
   saving: "saving-publishing-and-history",
   devices: "editor-settings-your-own-phones-and",
+  variants: "page-variants",
 };
 
 const SETTING_ANCHORS = {
@@ -37,6 +38,7 @@ const SETTING_ANCHORS = {
 
 /** The anchor of the chapter about a node of the tree (nothing chosen: the tour of the screen). */
 export function docsAnchorFor(node) {
+  if (node?.kind === "variants" || node?.kind === "devices") return DOCS_ANCHORS.variants;
   if (!node?.path) return DOCS_ANCHORS.screen;
   const [first] = node.path;
   if (node.kind === "setting") return DOCS_ANCHORS[SETTING_ANCHORS[node.key] ?? "other"];

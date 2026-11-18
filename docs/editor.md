@@ -117,7 +117,7 @@ wand ✨ beside *Rooms* and offers only the areas that have no room yet.
 | half sun | the look of the editor: Auto, Light, Dark |
 | **{} YAML** | the whole dashboard as YAML, to read or to paste |
 | ? | this guide on the documentation site, in a new tab (in English or Polish, as Home Assistant is) |
-| ⚙ | editor settings: the phones and tablets of the preview (chapter 16) |
+| ⚙ | a pop-up with the look (As HA, Light, Dark) and the language of the editor (As in HA, Polski, English), and the way to the phones and tablets of the preview (chapter 16) |
 | <b class="ui">History</b> | the published versions (chapter 15) |
 | <b class="ui">Publish</b> | publishes the draft (chapter 15) |
 
@@ -183,6 +183,8 @@ The preview and the tree work together:
   links and the rooms people hid, so pick it once) and <b class="ui">Areas</b>: the areas of Home Assistant that belong to the room.
   A room can have several areas (the kitchen and the dining room together); their cameras, status row and intercom
   belong to the room.
+  *Layout of the page* gives the room its own layout: as every page, one under another, or sections side by side
+  (see the guide: [Sections side by side](guide.md#sections-side-by-side)).
 - **Sections:** *Add a section* above the form. A section is a heading with tiles under it.
 - **Order:** *Up* and *Down*, or drag the room in the tree. **Settings → Rooms: order and hidden** sets the order of
   rooms on Home and in the menu, and hides rooms from everyone.
@@ -274,6 +276,8 @@ where it is on Home, on the phone and on the tablet.
 **Settings → Home page and tablet** holds the weather entity, the security summary, a tablet left alone going back
 to Home after some minutes, and the layout of the scenes. The chips at the top of Home (weather, climate, lights,
 security, media) come from the dashboard itself.
+*Layout of the pages* chooses sections side by side for every page or for Home alone, and how many rows a section
+shows before it scrolls.
 
 ## 9. Blocks: machines, appliances, screens of their own {#blocks-machines-appliances-screens-of-their}
 
@@ -401,7 +405,7 @@ Home, Music, Media, Energy, Map, Scenes, the menu or a room, in order, and the b
 | <b class="ui">Rooms: order and hidden</b> | the order of rooms and rooms hidden from everyone |
 | <b class="ui">Entities</b> | entities added to a room, never shown by themselves, and an entity's own name, icon, area or card |
 | <b class="ui">Lights</b> | a light group in place of its lamps |
-| <b class="ui">Home page and tablet</b> | weather, security, a tablet going back to Home, scenes |
+| <b class="ui">Home page and tablet</b> | weather, security, a tablet going back to Home, scenes, layout of the pages |
 | <b class="ui">Music</b>, <b class="ui">Media</b>, <b class="ui">Map</b> pages | the music app in a frame, the groups of speakers and media, the people and places of the map |
 
 A block that opens a page (such as <b class="ui">Sources</b> with `page: media`) has no groups of its own: the groups and tiles of
@@ -410,6 +414,12 @@ such a block an **Edit: Media page** button leads there.
 
 Each has a form; the YAML tab stays beside it for what you would rather type. The keys are described in the
 [configuration reference](configuration.md).
+
+A setting whose part Home Assistant does not have is shown greyed and does not open, with what it needs under its
+name: *Cameras* needs a camera, *Media page* a speaker, *Intercom* the Intercom integration or a script, *Music
+page* the Music Assistant integration. Install it and the setting opens. The dashboard itself keeps working without
+them: without the Intercom integration (or the script it names) no button offers to speak, and without Music
+Assistant the Music page says it cannot open it.
 
 ## 14. Who sees what {#who-sees-what}
 
@@ -451,9 +461,66 @@ it differs from the version now; <b class="ui">Take back as a draft</b> makes it
 
 ![History: a version and how it differs](screenshots/en/editor-history.png)
 
+### Page variants {#page-variants}
+
+A variant is another version of one page, Home or a room, to try out without touching the published one. It holds
+only what belongs to its page, **its background included**: for Home the favourites, scenes, the strip of cameras, the
+order of the rooms and what each shows on Home, the layout of the page; for a room its card (sections, status,
+layout). Everything else (menu, look, the other pages) always comes from the published dashboard.
+
+In the tree, Home and every room have the node <b class="ui">Variants</b>. Its cards:
+
+- The published page (<b class="ui">Published</b>); the pencil gives it a name, as *Classic*.
+- Every variant, with who sees it. A touch shows it in the preview, as its devices would.
+- <b class="ui">New variant: a copy of the published page</b> (or of the chosen one).
+
+What a chosen variant offers:
+
+- <b class="ui">Edit</b>: the tree, the forms and the preview work on the variant; the top says *Variant: …*, changes of
+  its page are saved into it at once, and <b class="ui">Publish</b> waits. Anything else changed meanwhile (a new block, the
+  menu, another room) goes to the draft and is published as always, so a block made for the variant is not lost.
+  <b class="ui">Done</b> goes back to the draft.
+- <b class="ui">Share with the household</b>: the people of the home who are not administrators can choose it for themselves on
+  their phone (three dots → <b class="ui">Variant of this page</b> → <b class="ui">Choose for me</b>), on all their devices. <b class="ui">Stop sharing</b>
+  gives them the published page again.
+- <b class="ui">Copy</b>: a new variant from this one.
+- <b class="ui">Who sees it</b>: for each device and each person, which variant of this page it shows. A device appears there once
+  it has opened the dashboard (named after its Browser Mod name, or its kind and its person; give it a name, as *Hall
+  iPad*). The dashboard keeps an id of its own on each device, so signing in again keeps it the same device, with its
+  name and variants; only clearing the app's data (or private browsing) makes it a new one. A device's own
+  choice wins over its person's; everyone else sees the published page. It takes effect at once.
+- <b class="ui">Make it the published page</b>: its part goes into the dashboard for everyone. The version it replaces goes to the
+  history, and the page it replaced stays among the variants, so going back is the same button on that card. A draft
+  takes the new page too.
+
+<b class="ui">Devices</b> in the settings lists every phone and tablet that opened the dashboard: its name (type one you
+recognise), its kind and person, when it was last opened and which variant of which page it shows. <b class="ui">Forget</b> takes
+off a device that was signed out or given away; it comes back as a new one when it opens the dashboard again.
+
+The magnifier next to the title of the variants opens <b class="ui">Where the variants run</b>: for every page, each variant with
+the devices (and when they last opened the dashboard) and the people that see it; *chose it* marks those who chose a
+shared variant themselves, and the published page says how many known devices have no variant of their own.
+
+A variant nobody sees changes nothing in the home. The variants are kept by the editor on the server
+(`.storage/home_dashboard.editor`), not in the dashboard's configuration.
+
+On a phone or a tablet, an administrator finds the same choice under the three dots → <b class="ui">Variant of this page</b> (only on
+a page that has variants): <b class="ui">Show on this device</b>, <b class="ui">Just look</b> (for this visit, with a banner *Looking at: …* and
+<b class="ui">Back</b>) and <b class="ui">Publish for everyone…</b>. Changes made on a page that shows a variant (its room's edit, its background)
+go into that variant.
+
 ## 16. Editor settings: your own phones and tablets {#editor-settings-your-own-phones-and}
 
-The ⚙ in the top bar opens the settings of the editor:
+The ⚙ in the top bar opens a small pop-up under it, without leaving what you edit:
+
+- **Theme**: As HA, Light or Dark – the same choice as the half sun on the bar.
+- **Language**: As in HA (your profile), Polski or English – the editor is drawn again in it at once and keeps it in
+  this browser. Parts drawn by Home Assistant itself (e.g. its pickers of entities) stay in the language of your
+  profile.
+- <b class="ui">Preview devices</b> opens the settings of the phones and tablets below.
+
+A choice works at once and the pop-up stays open; Esc, a click beside it, ⚙ again or ☰ close it.
+
 
 ![Editor settings: phones and tablets](screenshots/en/editor-settings.png)
 

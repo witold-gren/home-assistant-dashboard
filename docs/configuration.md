@@ -53,6 +53,7 @@ The per person and per device settings are not part of the YAML.
 | `favorites` | list of entity ids | `[]` | tiles above the rooms on Home | [4](#favorites) |
 | `scenes` | list of tiles | `[]` | the Scenes row on Home | [4](#scenes-and-scenes_layout) |
 | `scenes_layout` | `row` or none | none | scenes in one row that scrolls sideways | [4](#scenes-and-scenes_layout) |
+| `page_layout` | mapping | `style: classic`, `rows: 4` | one under another, or sections side by side, for every page, Home or a room | [4](#page_layout) |
 | `weather` | mapping or `false` | found by itself | the weather chip and its window | [4](#weather) |
 | `security` | mapping | see section | unlocking on a tablet, group in the Security filter | [4](#security) |
 | `idle` | mapping | `return_after: 180` | return to Home on a tablet | [4](#idle) |
@@ -94,6 +95,7 @@ A list of rooms. Rooms keep this order, and areas that no room covers follow the
 | `scenes` | list of [tiles](#tiles) | scenes and scripts of the areas | the Scenes row under the cameras |
 | `status` | list of [status groups](#room-status-row-status) | `[]` | own circles in the status row |
 | `background` | text or mapping | none | older room background; use [`backgrounds`](#backgrounds-and-background) |
+| `page_layout` | `classic` or `sections` | as `page_layout.style` | this room's own layout, see [`page_layout`](#page_layout) |
 
 ```yaml
 layout:
@@ -282,6 +284,36 @@ scenes:
   - {entity: scene.movie_night, name: Movie}
   - {entity: script.good_night}
 scenes_layout: row
+```
+
+### `page_layout`
+
+How Home and the room pages lay out their parts. `classic` is the layout as always, the parts one under another.
+`sections` puts the headings over the background and the sections side by side, in as many columns as fit (at least
+440 px each): two on a tablet on its side, one on a phone. The sections keep their order, each one going to the column
+that is shortest so far. Tabs of Home and the rooms take the place of the greeting, and of the arrow and the name on a room page.
+A section higher than `rows` rows scrolls inside and its heading says how many tiles it has.
+The cameras come two at a time, more of them are swiped to sideways. A heading with an arrow opens its page: Cameras
+all the cameras, a room its page, Scenes the Scenes page. Over a background a tile that is on is white.
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `style` | `classic` or `sections` | `classic` | every page |
+| `home` | `classic`, `sections` or none | none: as `style` | Home on its own |
+| `rows` | number | `4` | rows of a section before it scrolls; `0` shows every tile |
+
+A room chooses its own with `page_layout` in [`layout`](#layout). A page in a window and a room being edited keep the
+classic layout. See the guide: [Sections side by side](guide.md#sections-side-by-side).
+
+```yaml
+page_layout:
+  style: classic
+  home: sections
+  rows: 4
+layout:
+  - id: living_room
+    name: Living room
+    page_layout: sections
 ```
 
 ### `weather`
@@ -987,6 +1019,9 @@ configuration saves the whole `strategy:` block at once.
 | <b class="ui">Warnings on Home</b> → Mute for a week / Show again | your user data |
 | <b class="ui">Talking in a camera window</b> | `cameras.talk` |
 | <b class="ui">Picking a moment in a recording</b> | `cameras.clip_picker` |
+| <b class="ui">Layout of the pages</b> → <b class="ui">Every page</b> | `page_layout.style` |
+| → <b class="ui">Home</b> | `page_layout.home` |
+| → <b class="ui">Rows of a section before it scrolls</b> | `page_layout.rows` |
 | <b class="ui">Columns of all cameras on a tablet</b> | `cameras.columns` |
 | <b class="ui">Layout of all cameras on a tablet</b> | `cameras.layout` |
 | <b class="ui">The same camera in another integration</b> | `cameras.controls` |
@@ -1030,6 +1065,8 @@ the editor has one list (`scenes`) and the arrows button sets `scenes_layout: ro
 together, into `visibility` and `access`.
 
 A green tile is seen only by chosen people; a red one is hidden from someone.
+
+Above the sections of the <b class="ui">Room page</b> tab, <b class="ui">Layout of this page</b> chooses the room's own layout (`layout[].page_layout`): as every page, one under another, or sections side by side.
 
 ### Add a tile
 

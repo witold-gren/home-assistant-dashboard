@@ -3,7 +3,7 @@
 import { html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { createRecorder } from "./intercom.js";
-import { effectiveArea, intercomAreas, liveCameraFor, scaledPicture, TILE_PICTURE } from "./model.js";
+import { effectiveArea, intercomAreas, intercomReady, liveCameraFor, scaledPicture, TILE_PICTURE } from "./model.js";
 import { localDay, recordingSource } from "./recordings.js";
 import {
   LANDSCAPE_PHONE,
@@ -141,7 +141,7 @@ export const CameraSheets = (Base) =>
     }
 
     _cameraRoom() {
-      if (!this.config.intercom.script) return null;
+      if (!intercomReady(this.hass, this.config)) return null;
       const area = effectiveArea(this.hass, this.sheet.entityId, this.config);
       return intercomAreas(this.hass, this.config).find((room) => room.id === area) ?? null;
     }

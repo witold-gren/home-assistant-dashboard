@@ -43,6 +43,59 @@ const KINDS = ["page", "window", "change"];
 const MOMENT_DOMAINS = new Set(["button", "input_button", "scene", "event"]);
 const PAGE_NAMES = { home: "page_home", room: "page_room", media: "page_media", music: "page_music", energy: "page_energy", map: "page_map" };
 
+// The windows of the dashboard by the kind it tells (usage.js windowName): an icon and a name a person reads.
+const WINDOWS = {
+  menu: ["mdi:menu", "Side menu", "Menu boczne"],
+  settings: ["mdi:cog-outline", "Dashboard settings", "Ustawienia dashboardu"],
+  household: ["mdi:account-clock-outline", "Household activity", "Aktywność domowników"],
+  notifications: ["mdi:bell-outline", "Notifications", "Powiadomienia"],
+  rooms: ["mdi:floor-plan", "Rooms", "Wybór pokoju"],
+  cameras: ["mdi:cctv", "All cameras", "Wszystkie kamery"],
+  camera: ["mdi:cctv", "Camera", "Kamera"],
+  sd: ["mdi:sd", "Recordings on the camera's card", "Nagrania z karty kamery"],
+  disk: ["mdi:harddisk", "Recordings on the disk", "Nagrania z dysku"],
+  intercom: ["mdi:account-voice", "Intercom", "Interkom"],
+  light: ["mdi:lightbulb-outline", "Light", "Światło"],
+  switch: ["mdi:toggle-switch-outline", "Switch", "Przełącznik"],
+  cover: ["mdi:blinds", "Blind", "Roleta"],
+  climate: ["mdi:thermostat", "Heating and cooling", "Ogrzewanie i klimatyzacja"],
+  lock: ["mdi:lock-outline", "Lock", "Zamek"],
+  alarm: ["mdi:shield-home-outline", "Alarm", "Alarm"],
+  player: ["mdi:play-circle-outline", "Player", "Odtwarzacz"],
+  tv: ["mdi:television", "TV", "Telewizor"],
+  binary: ["mdi:checkbox-blank-circle-outline", "Sensor", "Czujnik"],
+  sensor: ["mdi:gauge", "Sensor", "Czujnik"],
+  select: ["mdi:form-select", "Choice", "Wybór"],
+  group: ["mdi:group", "Group", "Grupa"],
+  chart: ["mdi:chart-line", "Chart", "Wykres"],
+  panel: ["mdi:view-grid-outline", "Panel", "Panel"],
+  pin: ["mdi:dialpad", "PIN code", "Kod PIN"],
+  scale: ["mdi:scale-bathroom", "Scale", "Waga"],
+  school: ["mdi:school-outline", "School", "Szkoła"],
+  weather: ["mdi:weather-partly-cloudy", "Weather", "Pogoda"],
+  departures: ["mdi:bus-clock", "Departures", "Odjazdy"],
+  news: ["mdi:newspaper-variant-outline", "News", "Wiadomości"],
+  calendar: ["mdi:calendar", "Calendar", "Kalendarz"],
+  app: ["mdi:application-outline", "App", "Aplikacja"],
+  page: ["mdi:web", "Page", "Strona"],
+  overview: ["mdi:view-dashboard-outline", "Overview", "Podsumowanie"],
+  host: ["mdi:server", "Server", "Serwer"],
+  history: ["mdi:chart-timeline-variant", "History", "Historia"],
+  logbook: ["mdi:format-list-bulleted", "Logbook", "Dziennik"],
+  blocks: ["mdi:shape-outline", "Summary badges", "Odznaki podsumowania"],
+  "status-on": ["mdi:power", "On now", "Włączone teraz"],
+  personal: ["mdi:account-cog-outline", "My layout", "Mój układ"],
+  "room-view": ["mdi:account-cog-outline", "My view", "Mój widok"],
+  variants: ["mdi:layers-triple-outline", "Variant of the page", "Wariant strony"],
+  look: ["mdi:palette-outline", "Look", "Wygląd"],
+  background: ["mdi:image-outline", "Background of the screen", "Tło ekranu"],
+  access: ["mdi:account-key-outline", "User access", "Dostęp użytkowników"],
+  "device-edit": ["mdi:pencil-outline", "Editing a device", "Edycja urządzenia"],
+  "tile-edit": ["mdi:pencil-outline", "Editing a tile", "Edycja kafelka"],
+  "tile-picker": ["mdi:plus-box-outline", "Adding a tile", "Dodawanie kafelka"],
+  "block-edit": ["mdi:pencil-outline", "Editing a block", "Edycja bloku"],
+};
+
 const TEXTS = {
   en: {
     title: "Household activity",
@@ -259,11 +312,14 @@ function dayHeading(day, now, texts, locale) {
   return day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-/** For a datetime-local field: 2026-11-17T16:00 in the computer's time. */
-const localInput = (date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(
-    date.getHours(),
-  ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+const pad2 = (number) => String(number).padStart(2, "0");
+// A day as 2026-11-17 and a time as 09:05, in the browser's own time.
+function dayKey(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+function clock(date) {
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
 
 class HomeDashboardActivity extends LitElement {
   static properties = {
@@ -501,13 +557,20 @@ class HomeDashboardActivity extends LitElement {
     return entry.state;
   }
 
+  /** A window: "camera: Iwiny Słup" reads "Iwiny Słup" as a Camera, "menu" reads "Side menu" as a Window. */
+  _describeWindow(name) {
+    const [kind, title] = String(name ?? "").split(/:\s(.+)/);
+    const known = WINDOWS[kind];
+    const kindName = known ? known[this._language === "pl" ? 2 : 1] : null;
+    const icon = known?.[0] ?? "mdi:card-text-outline";
+    if (title) return [kindName ?? this._t("opened_window"), onceName(title), icon];
+    return [this._t("opened_window"), kindName ?? kind, icon];
+  }
+
   /** The line of an entry: [kind label, what, icon]. */
   _describe(entry) {
     if (entry.kind === "page") return [this._t("opened_page"), this._pageName(entry.name), "mdi:view-dashboard-outline"];
-    if (entry.kind === "window") {
-      const [, title] = String(entry.name ?? "").split(/:\s(.+)/);
-      return [this._t("opened_window"), onceName(title ?? entry.name), "mdi:card-text-outline"];
-    }
+    if (entry.kind === "window") return this._describeWindow(entry.name);
     const icon = this.hass?.states?.[entry.entity_id]?.attributes?.icon ?? "mdi:toggle-switch-outline";
     return [this._t("switched"), `${this._entityName(entry.entity_id)} → ${this._stateText(entry)}`, icon];
   }
@@ -531,7 +594,7 @@ class HomeDashboardActivity extends LitElement {
       <button class="arrow" aria-label=${this._t("earlier")} data-earlier @click=${() => this._shift(-1)}>
         <ha-icon icon="mdi:chevron-left"></ha-icon>
       </button>
-      <button class="when" data-range @click=${() => (this._picking = this._picking ? null : { start: this._start, end: this._end })}>
+      <button class="when" data-range @click=${() => this._openPicker()}>
         <ha-icon icon="mdi:calendar"></ha-icon><span>${this._rangeText()}</span>
       </button>
       <button class="arrow" aria-label=${this._t("later")} data-later @click=${() => this._shift(1)}>
@@ -541,9 +604,97 @@ class HomeDashboardActivity extends LitElement {
     </div>`;
   }
 
+  // The picker of the range: ready ranges on the left, a month on the right. The first tap on a day starts the range,
+  // the second ends it (a whole day by default), and the hours fine-tune both ends.
+  _openPicker() {
+    if (this._picking) {
+      this._picking = null;
+      return;
+    }
+    const midnight = this._end.getHours() === 0 && this._end.getMinutes() === 0;
+    const last = midnight ? new Date(this._end.getTime() - 60 * 1000) : this._end;
+    this._picking = {
+      fromDay: dayKey(this._start),
+      toDay: dayKey(last),
+      fromTime: clock(this._start),
+      toTime: midnight ? "23:59" : clock(this._end),
+      month: dayKey(new Date(this._start.getFullYear(), this._start.getMonth(), 1)),
+      second: false,
+    };
+  }
+
+  _pickedRange() {
+    const { fromDay, toDay, fromTime, toTime } = this._picking;
+    const start = new Date(`${fromDay}T${fromTime || "00:00"}`);
+    const end = new Date(`${toDay}T${toTime || "23:59"}`);
+    // 23:59 means to the end of that day.
+    if ((toTime || "23:59") === "23:59") end.setMinutes(end.getMinutes() + 1);
+    return { start, end };
+  }
+
+  _tapDay(key) {
+    const picking = this._picking;
+    if (!picking.second) {
+      this._picking = { ...picking, fromDay: key, toDay: key, second: true };
+      return;
+    }
+    const [fromDay, toDay] = key < picking.fromDay ? [key, picking.fromDay] : [picking.fromDay, key];
+    this._picking = { ...picking, fromDay, toDay, second: false };
+  }
+
+  _shiftMonth(step) {
+    const month = new Date(`${this._picking.month}T00:00`);
+    month.setMonth(month.getMonth() + step);
+    this._picking = { ...this._picking, month: dayKey(month) };
+  }
+
+  _renderMonth() {
+    const { fromDay, toDay, month } = this._picking;
+    const first = new Date(`${month}T00:00`);
+    // Weeks start on Monday.
+    const lead = (first.getDay() + 6) % 7;
+    const days = Array.from({ length: 42 }, (_, index) => new Date(first.getFullYear(), first.getMonth(), 1 - lead + index));
+    const weeks = days[35].getMonth() === first.getMonth() ? 6 : 5;
+    const today = dayKey(new Date());
+    const names = Array.from({ length: 7 }, (_, index) =>
+      new Date(2026, 10, 16 + index).toLocaleDateString(this._locale, { weekday: "narrow" }),
+    );
+    const title = first.toLocaleDateString(this._locale, { month: "long", year: "numeric" });
+    const thisMonth = dayKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    return html`<div class="month" data-month=${month}>
+      <div class="month-head">
+        <button class="round" aria-label=${this._t("earlier")} data-month-prev @click=${() => this._shiftMonth(-1)}>
+          <ha-icon icon="mdi:chevron-left"></ha-icon>
+        </button>
+        <strong>${title}</strong>
+        <button class="round" aria-label=${this._t("later")} data-month-next ?disabled=${month >= thisMonth}
+          @click=${() => this._shiftMonth(1)}>
+          <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </button>
+      </div>
+      <div class="days">
+        ${names.map((name) => html`<span class="weekday">${name}</span>`)}
+        ${days.slice(0, weeks * 7).map((date) => {
+          const key = dayKey(date);
+          const classes = [
+            date.getMonth() === first.getMonth() ? "" : "other",
+            key > fromDay && key < toDay ? "in" : "",
+            key === fromDay ? "from" : "",
+            key === toDay ? "to" : "",
+            key === today ? "today" : "",
+          ].join(" ");
+          return html`<button class="day-cell ${classes}" data-day=${key} ?disabled=${key > today} @click=${() => this._tapDay(key)}>
+            <span>${date.getDate()}</span>
+          </button>`;
+        })}
+      </div>
+    </div>`;
+  }
+
   _renderPicker() {
     const presets = ["today", "yesterday", "last_hour", "last_12", "last_24", "last_7", "last_30"];
-    const set = (key) => (event) => (this._picking = { ...this._picking, [key]: new Date(event.target.value) });
+    const time = (key) => (event) => (this._picking = { ...this._picking, [key]: event.target.value });
+    const { start, end } = this._pickedRange();
     return html`<div class="shade" @click=${() => (this._picking = null)}></div>
       <div class="picker" role="dialog" data-picker>
         <ul class="presets">
@@ -552,12 +703,14 @@ class HomeDashboardActivity extends LitElement {
           )}
         </ul>
         <div class="custom">
-          <label>${this._t("from")}<input type="datetime-local" data-from .value=${localInput(this._picking.start)} @change=${set("start")} /></label>
-          <label>${this._t("to")}<input type="datetime-local" data-to .value=${localInput(this._picking.end)} @change=${set("end")} /></label>
+          ${this._renderMonth()}
+          <div class="times">
+            <label>${this._t("from")}<input type="time" data-from-time .value=${this._picking.fromTime} @change=${time("fromTime")} /></label>
+            <label>${this._t("to")}<input type="time" data-to-time .value=${this._picking.toTime} @change=${time("toTime")} /></label>
+          </div>
           <div class="buttons">
             <button class="text" @click=${() => (this._picking = null)}>${this._t("cancel")}</button>
-            <button class="filled" data-pick ?disabled=${!(this._picking.end > this._picking.start)}
-              @click=${() => this._setRange(this._picking.start, this._picking.end)}>${this._t("pick")}</button>
+            <button class="filled" data-pick ?disabled=${!(end > start)} @click=${() => this._setRange(start, end)}>${this._t("pick")}</button>
           </div>
         </div>
       </div>`;
@@ -752,6 +905,19 @@ class HomeDashboardActivity extends LitElement {
     }
     :host([embedded]) .bar {
       display: none;
+    }
+    /* The cards are see-through in the window, the picker of the range lies over the timeline: it stays solid, white in
+       the light look and dark in the dark one, whatever glass the window has. */
+    :host([embedded]) .picker {
+      --act-text: var(--hd-plain-text, #e4e4ea);
+      --act-muted: var(--hd-plain-muted, #a3a6ae);
+      --act-soft: var(--hd-plain-off, #2b2d33);
+      --act-accent: var(--hd-plain-text, #e4e4ea);
+      --act-accent-ink: var(--hd-plain-surface, #1e1f24);
+      --line: var(--hd-plain-outline, #3a3c43);
+      color: var(--act-text);
+      color-scheme: var(--hd-plain-scheme, dark);
+      background: var(--hd-plain-surface, #1e1f24);
     }
     :host([embedded]) .layout {
       height: auto;
@@ -1035,7 +1201,7 @@ class HomeDashboardActivity extends LitElement {
       left: 0;
       z-index: 4;
       display: grid;
-      grid-template-columns: 200px 280px;
+      grid-template-columns: 200px 320px;
       border-radius: 24px;
       background: var(--act-card);
       box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
@@ -1065,6 +1231,97 @@ class HomeDashboardActivity extends LitElement {
       font-size: 13px;
       color: var(--act-muted);
     }
+    /* The month: round days, the range as one band, its ends filled. */
+    .month-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      text-transform: capitalize;
+    }
+    .month-head strong {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .round {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+    }
+    .round:hover {
+      background: var(--act-soft);
+    }
+    .round:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      row-gap: 2px;
+    }
+    .weekday {
+      padding: 4px 0 8px;
+      font-size: 12px;
+      text-align: center;
+      text-transform: uppercase;
+      color: var(--act-muted);
+    }
+    .day-cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      height: 38px;
+      padding: 0;
+    }
+    .day-cell span {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 14px;
+    }
+    .day-cell:hover span {
+      background: var(--act-soft);
+    }
+    .day-cell.other {
+      color: var(--act-muted);
+    }
+    .day-cell:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .day-cell.today span {
+      box-shadow: inset 0 0 0 1px var(--act-accent);
+    }
+    .day-cell.in::before,
+    .day-cell.from:not(.to)::before,
+    .day-cell.to:not(.from)::before {
+      content: "";
+      position: absolute;
+      inset: 2px 0;
+      background: color-mix(in srgb, var(--act-accent) 22%, transparent);
+    }
+    .day-cell.from:not(.to)::before {
+      left: 50%;
+    }
+    .day-cell.to:not(.from)::before {
+      right: 50%;
+    }
+    .day-cell:is(.from, .to) span {
+      color: var(--act-accent-ink, var(--text-primary-color, #fff));
+      background: var(--act-accent);
+    }
+    .times {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
     .custom input {
       font: inherit;
       padding: 10px;
@@ -1087,7 +1344,7 @@ class HomeDashboardActivity extends LitElement {
     .filled {
       padding: 10px 20px;
       border-radius: 20px;
-      color: var(--text-primary-color, #fff);
+      color: var(--act-accent-ink, var(--text-primary-color, #fff));
       background: var(--act-accent);
     }
     .filled:disabled {
@@ -1179,14 +1436,42 @@ class HomeDashboardActivity extends LitElement {
         flex-wrap: wrap;
         padding: 12px 16px;
       }
+      /* Under the left end of the range, inside the screen; the ready ranges are chips, so the month and the
+         buttons fit under them on a phone. */
       .picker {
         grid-template-columns: 1fr;
-        left: -44px;
-        width: min(92vw, 360px);
+        left: 0;
+        width: min(calc(100vw - 32px), 360px);
       }
       .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 12px 12px 10px;
         border-right: none;
         border-bottom: 1px solid var(--line);
+      }
+      .presets button {
+        width: auto;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        font-size: 13px;
+      }
+      .custom {
+        gap: 10px;
+        padding: 12px 16px 16px;
+      }
+      .day-cell {
+        height: 36px;
+      }
+      .day-cell span {
+        width: 34px;
+        height: 34px;
+      }
+      /* In the window nothing cuts the picker off: the window scrolls. */
+      :host([embedded]) .layout {
+        overflow: visible;
       }
       .timeline li {
         grid-template-columns: 64px 36px 1fr;

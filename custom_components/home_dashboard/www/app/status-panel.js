@@ -14,6 +14,7 @@ import {
   addDays,
   CALENDAR_LIMIT,
   CALENDAR_REFRESH_MS,
+  CALENDAR_RETRY_MS,
   cachedEvents,
   calendarColour,
   calendarName,
@@ -241,9 +242,12 @@ export class HomeDashboardStatusPanel extends LitElement {
     // Back on the page, the power is read again and its refresh starts anew
     this._powerKey = null;
     clearInterval(this._calendarTimer);
+    clearTimeout(this._calendarRetry);
     this._calendarTimer = null;
     this._calendarKey = null;
     window.removeEventListener(PREFS_EVENT, this._onPrefs);
+    this._watchedConnection?.removeEventListener?.("ready", this._onReconnect);
+    this._watchedConnection = null;
     this._powerTimer = null;
     this._forecastWatches?.forEach((watch) => watch.then((unsubscribe) => unsubscribe?.()).catch(() => {}));
     this._forecastWatches = null;
@@ -257,8 +261,21 @@ export class HomeDashboardStatusPanel extends LitElement {
     this._watchCalendar();
   }
 
-  // Today's events of the calendars a person sees, read again every few minutes and on a new day.
+  // Home Assistant is back (after a restart, or the connection was lost): today's events are read again.
+  _onReconnect = () => {
+    this._calendarKey = null;
+    this.requestUpdate();
+  };
+
+  // Today's events of the calendars a person sees, read again every few minutes, on a new day, after the connection
+  // comes back, and soon again when a calendar could not be read (Home Assistant still starting).
   _watchCalendar() {
+    const connection = this.hass.connection;
+    if (connection?.addEventListener && connection !== this._watchedConnection) {
+      this._watchedConnection?.removeEventListener?.("ready", this._onReconnect);
+      connection.addEventListener("ready", this._onReconnect);
+      this._watchedConnection = connection;
+    }
     const calendars = shownCalendars(this.hass, this.config, personalPrefs());
     const key = `${calendars.join(",")}|${startOfDay(this._now ?? new Date()).getTime()}`;
     if (key === this._calendarKey) return;
@@ -268,9 +285,14 @@ export class HomeDashboardStatusPanel extends LitElement {
       this._events = [];
       return;
     }
+    clearTimeout(this._calendarRetry);
     const load = async () => {
       const day = startOfDay(new Date());
-      this._events = await cachedEvents(this.hass, calendars, day, addDays(day, 1));
+      const events = await cachedEvents(this.hass, calendars, day, addDays(day, 1));
+      // What could be read is shown, and what could not is tried again soon; nothing read keeps what was shown.
+      if (events.length || !events.incomplete || !this._events?.length) this._events = events;
+      clearTimeout(this._calendarRetry);
+      if (events.incomplete && this.isConnected) this._calendarRetry = setTimeout(load, CALENDAR_RETRY_MS);
     };
     load();
     this._calendarTimer = setInterval(load, CALENDAR_REFRESH_MS);

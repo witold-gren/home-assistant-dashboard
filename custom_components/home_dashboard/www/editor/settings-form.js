@@ -470,6 +470,17 @@ export const entitySections = (strategy, language, hass) => {
 
 export const homeSections = () => [
   {
+    key: "page_layout",
+    titleKey: "editor_page_layout",
+    hintKey: "editor_page_layout_hint",
+    path: ["page_layout"],
+    fields: [
+      { key: "style", type: "select", options: ["classic", "sections"], optionKey: "editor_page_layout_style", labelKey: "editor_page_layout_style", emptyKey: "editor_look_default" },
+      { key: "home", type: "select", options: ["classic", "sections"], optionKey: "editor_page_layout_style", labelKey: "editor_page_layout_home", emptyKey: "editor_option_page_layout_default" },
+      { key: "rows", type: "number", min: 0, placeholder: "4", labelKey: "editor_page_layout_rows", helpKey: "editor_page_layout_rows_hint" },
+    ],
+  },
+  {
     key: "weather",
     titleKey: "editor_home_weather",
     path: ["weather"],

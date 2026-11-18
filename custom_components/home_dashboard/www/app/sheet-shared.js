@@ -174,6 +174,7 @@ export const ENTITY_FREE_KINDS = new Set([
   "pin",
   "room-view",
   "rooms",
+  "variants",
   "scale",
   "school",
   "overview",

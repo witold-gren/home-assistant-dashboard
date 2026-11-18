@@ -71,7 +71,9 @@ def test_the_page_of_an_own_device_in_the_preview(desktop) -> None:  # noqa: F81
 
 
 def gear(page):
+    """⚙ opens its pop-up; the preview's devices are one step on in it."""
     page.locator(f"{APP} [data-editor-settings]").click()
+    page.locator(f"{APP} [data-gear-devices]").click()
     return page.locator(DIALOG)
 
 

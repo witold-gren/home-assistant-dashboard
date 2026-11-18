@@ -268,3 +268,36 @@ def test_the_gear_stands_in_line_with_the_content(tablet, phone):
     gear = phone.locator(f"{SHEET} [data-cal-settings]").bounding_box()
     event = phone.locator(f"{SHEET} [data-cal-event]").first.bounding_box()
     assert abs((gear["x"] + gear["width"]) - (event["x"] + event["width"])) <= 1
+
+
+# After a restart of Home Assistant --------------------------------------------------------------------------
+
+
+def test_a_calendar_that_cannot_be_read_is_not_kept_as_empty(phone):
+    mount(phone)
+    add_calendars(phone)
+    result = run(
+        phone,
+        """const hass = { callApi: async () => { throw new Error('starting'); } };
+        const day = new Date(); day.setHours(0, 0, 0, 0); const next = new Date(day.getTime() + 86400000);
+        const first = await c.cachedEvents(hass, ['calendar.family'], day, next);
+        let asked = 0; const ready = { callApi: async () => { asked += 1; return []; } };
+        await c.cachedEvents(ready, ['calendar.family'], day, next);
+        return { incomplete: first.incomplete === true, asked };""",
+    )
+    assert result == {"incomplete": True, "asked": 1}
+
+
+def test_todays_events_come_back_when_home_assistant_is_back(tablet):
+    add_calendars(tablet)
+    tablet.evaluate("window.calendarFails = true")
+    mount_status(tablet, {"status_panel": {"calendars": HOME}})
+    tablet.wait_for_selector(PANEL)
+    tablet.wait_for_timeout(200)
+    assert tablet.locator(f"{PANEL} [data-calendar-event]").count() == 0
+    # Home Assistant is up again and the connection says it is ready: no reload of the page needed.
+    tablet.evaluate(
+        f"() => {{ window.calendarFails = false; document.querySelector('home-dashboard-chrome').shadowRoot.querySelector('{PANEL}')?._onReconnect?.() ?? document.querySelector('{PANEL}')?._onReconnect(); }}"
+    )
+    tablet.wait_for_selector(f"{PANEL} [data-calendar-event]")
+    assert [name for name, _ in badges(tablet)] == ["Rocznica ślubu", "Zakupy", "Planowanie"]

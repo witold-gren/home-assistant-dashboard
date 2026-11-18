@@ -116,7 +116,7 @@ obok *Pokoje* i proponuje tylko obszary, które nie mają jeszcze pokoju.
 | połowa słońca | wygląd edytora: Auto, Jasny, Ciemny |
 | **{} YAML** | cały dashboard jako YAML, do przeczytania albo wklejenia |
 | ? | ten przewodnik na stronie dokumentacji, w nowej karcie (po polsku albo po angielsku, jak Home Assistant) |
-| ⚙ | ustawienia edytora: telefony i tablety podglądu (rozdział 16) |
+| ⚙ | okienko z motywem (Jak HA, Jasny, Ciemny) i językiem edytora (Jak w HA, Polski, English) oraz przejściem do telefonów i tabletów podglądu (rozdział 16) |
 | <b class="ui">Historia</b> | opublikowane wersje (rozdział 15) |
 | <b class="ui">Opublikuj</b> | publikuje szkic (rozdział 15) |
 
@@ -179,6 +179,8 @@ Podgląd i drzewo działają razem:
 - **Formularz pokoju:** *Nazwa* (widoczna wszędzie), *Id* (adres pokoju w linkach; jego zmiana później psuje linki i
   pokoje ukryte przez osoby, więc wybierz go raz) i <b class="ui">Obszary</b>: obszary Home Assistanta należące do pokoju. Pokój może
   mieć kilka obszarów (kuchnia i jadalnia razem); ich kamery, rząd statusu i interkom należą do pokoju.
+  *Układ strony* daje pokojowi własny układ: jak wszystkie strony, jedna pod drugą albo sekcje obok siebie
+  (zobacz przewodnik: [Sekcje obok siebie](guide.pl.md#sections-side-by-side)).
 - **Sekcje:** *Dodaj sekcję* nad formularzem. Sekcja to nagłówek z kafelkami pod nim.
 - **Kolejność:** *W górę* i *W dół* albo przeciągnięcie pokoju w drzewie. **Ustawienia → Pokoje: kolejność i ukryte**
   ustawia kolejność pokoi na stronie głównej i w menu oraz ukrywa pokoje przed wszystkimi.
@@ -271,6 +273,8 @@ pokazuje, gdzie jest na stronie głównej, na telefonie i na tablecie.
 **Ustawienia → Strona główna i tablet** zawiera encję pogody, podsumowanie ochrony, powrót tabletu zostawionego bez
 dotyku na stronę główną po kilku minutach i układ scen. Plakietki na górze strony głównej (pogoda, klimat, światła,
 ochrona, media) tworzy sam dashboard.
+*Układ stron* wybiera sekcje obok siebie dla wszystkich stron albo samej strony głównej oraz ile rzędów sekcja
+pokazuje, zanim zacznie się przewijać.
 
 ## 9. Bloki: maszyny, urządzenia, własne ekrany {#blocks-machines-appliances-screens-of-their}
 
@@ -397,7 +401,7 @@ główna, Muzyka, Media, Energia, Mapa, Sceny, menu albo pokój, w kolejności, 
 | <b class="ui">Pokoje: kolejność i ukryte</b> | kolejność pokoi i pokoje ukryte przed wszystkimi |
 | <b class="ui">Encje: dodane, pominięte, własne</b> | encje dodane do pokoju, nigdy niepokazywane same, własna nazwa, ikona, obszar albo karta encji |
 | <b class="ui">Światła</b> | grupa świateł zamiast jej lamp |
-| <b class="ui">Strona główna i tablet</b> | pogoda, ochrona, powrót tabletu na stronę główną, sceny |
+| <b class="ui">Strona główna i tablet</b> | pogoda, ochrona, powrót tabletu na stronę główną, sceny, układ stron |
 | <b class="ui">Strona Muzyka</b>, <b class="ui">Strona Media</b>, <b class="ui">Strona Mapa</b> | aplikacja muzyczna w ramce, grupy głośników i mediów, osoby i miejsca na mapie |
 
 Blok otwierający stronę (np. <b class="ui">Źródła</b> z `page: media`) nie ma własnych grup: grupy i kafelki strony Media
@@ -406,6 +410,12 @@ przycisk **Edytuj: Strona Media**, który tam prowadzi.
 
 Każdy ma formularz; zakładka YAML zostaje obok dla tego, co wolisz wpisać. Klucze opisuje
 [opis konfiguracji](configuration.pl.md).
+
+Ustawienie, którego części Home Assistant nie ma, jest wyszarzone i się nie otwiera, a pod nazwą mówi, czego
+wymaga: *Kamery* kamery, *Strona Media* głośnika, *Interkom* integracji Intercom albo skryptu, *Strona Muzyka*
+integracji Music Assistant. Po instalacji ustawienie się otwiera. Sam dashboard działa bez nich: bez integracji
+Intercom (albo skryptu, który wskazuje) żaden przycisk nie proponuje mówienia, a bez Music Assistant strona Muzyka
+mówi, że nie może jej otworzyć.
 
 ## 14. Kto co widzi {#who-sees-what}
 
@@ -447,9 +457,66 @@ opublikowania jak każdy inny.
 
 ![Historia: wersja i jej różnice](screenshots/pl/editor-history.png)
 
+### Warianty stron {#page-variants}
+
+Wariant to inna wersja jednej strony, głównej albo pokoju, do wypróbowania bez ruszania obowiązującej. Zawiera tylko
+to, co należy do jego strony, **razem z tłem**: dla strony głównej ulubione, sceny, pasek kamer, kolejność pokoi i to,
+co każdy pokazuje na stronie głównej, oraz układ strony; dla pokoju jego kartę (sekcje, status, układ). Wszystko inne
+(menu, wygląd, pozostałe strony) zawsze pochodzi z obowiązującego dashboardu.
+
+W drzewie strona główna i każdy pokój mają węzeł <b class="ui">Warianty</b>. Jego karty:
+
+- Obowiązująca strona (<b class="ui">Obowiązuje</b>); ołówek nadaje jej nazwę, np. *Klasyczna*.
+- Każdy wariant z tym, kto go widzi. Dotknięcie pokazuje go w podglądzie tak, jak zobaczą go jego urządzenia.
+- <b class="ui">Nowy wariant jako kopia obowiązującej</b> (albo wybranego).
+
+Co oferuje wybrany wariant:
+
+- <b class="ui">Edytuj</b>: drzewo, formularze i podgląd pracują na wariancie; u góry jest *Wariant: …*, zmiany jego strony
+  zapisują się w nim od razu, a <b class="ui">Opublikuj</b> czeka. Wszystko inne zmienione w tym czasie (nowy blok, menu, inny
+  pokój) trafia do wersji roboczej i publikujesz to jak zawsze, więc blok zrobiony dla wariantu nie przepada.
+  <b class="ui">Gotowe</b> wraca do wersji roboczej.
+- <b class="ui">Udostępnij domownikom</b>: domownicy bez uprawnień administratora mogą go wybrać dla siebie na telefonie (trzy
+  kropki → <b class="ui">Wariant tej strony</b> → <b class="ui">Wybierz dla siebie</b>), na wszystkich swoich urządzeniach. <b class="ui">Przestań udostępniać</b>
+  przywraca im obowiązującą stronę.
+- <b class="ui">Kopiuj</b>: nowy wariant z tego.
+- <b class="ui">Kto widzi</b>: dla każdego urządzenia i każdej osoby, który wariant tej strony pokazuje. Urządzenie pojawia się tam,
+  gdy otworzy dashboard (opisane nazwą z Browser Mod albo rodzajem i osobą; nadaj mu nazwę, np. *iPad w korytarzu*).
+  Dashboard trzyma na każdym urządzeniu własny identyfikator, więc ponowne zalogowanie zostawia je tym samym
+  urządzeniem, z nazwą i wariantami; nowym staje się dopiero po wyczyszczeniu danych aplikacji (albo w trybie
+  prywatnym przeglądarki). Wybór dla urządzenia
+  wygrywa z wyborem dla osoby; pozostali widzą obowiązującą stronę. Działa od razu.
+- <b class="ui">Ustaw jako obowiązujący</b>: jego część trafia do dashboardu dla wszystkich. Zastępowana wersja idzie do historii,
+  a strona, którą zastąpił, zostaje wśród wariantów, więc powrót to ten sam przycisk na jej karcie. Wersja robocza też
+  dostaje nową stronę.
+
+<b class="ui">Urządzenia</b> w ustawieniach to lista telefonów i tabletów, które otworzyły dashboard: nazwa (wpisz taką,
+którą rozpoznasz), rodzaj i osoba, kiedy ostatnio otwierały dashboard i który wariant której strony pokazują.
+<b class="ui">Zapomnij</b> usuwa urządzenie wylogowane albo oddane; wróci jako nowe, gdy znowu otworzy dashboard.
+
+Lupa obok tytułu wariantów otwiera <b class="ui">Gdzie działają warianty</b>: dla każdej strony każdy wariant z urządzeniami
+(i tym, kiedy ostatnio otwierały dashboard) oraz osobami, które go widzą; *wybrał sam* oznacza tych, którzy sami wybrali
+udostępniony wariant, a obowiązująca strona mówi, ile znanych urządzeń nie ma własnego wariantu.
+
+Wariant, którego nikt nie widzi, niczego w domu nie zmienia. Warianty trzyma edytor na serwerze
+(`.storage/home_dashboard.editor`), nie w konfiguracji dashboardu.
+
+Na telefonie i tablecie administrator ma ten sam wybór pod trzema kropkami → <b class="ui">Wariant tej strony</b> (tylko na stronie,
+która ma warianty): <b class="ui">Pokaż na tym urządzeniu</b>, <b class="ui">Tylko zerknij</b> (na tę wizytę, z paskiem *Oglądasz: …* i
+<b class="ui">Wróć</b>) oraz <b class="ui">Wdróż dla wszystkich…</b>. Zmiany zrobione na stronie, która pokazuje wariant (edycja pokoju, jego tło),
+trafiają do tego wariantu.
+
 ## 16. Ustawienia edytora: własne telefony i tablety {#editor-settings-your-own-phones-and}
 
-⚙ na górnym pasku otwiera ustawienia edytora:
+⚙ na górnym pasku otwiera pod sobą małe okienko, bez wychodzenia z tego, co edytujesz:
+
+- **Motyw**: Jak HA, Jasny albo Ciemny – ten sam wybór co połowa słońca na pasku.
+- **Język**: Jak w HA (Twój profil), Polski albo English – edytor od razu rysuje się w nim od nowa i zapamiętuje go
+  w tej przeglądarce. Części rysowane przez sam Home Assistant (np. jego wybór encji) zostają w języku profilu.
+- <b class="ui">Urządzenia podglądu</b> otwiera ustawienia telefonów i tabletów opisane niżej.
+
+Wybór działa od razu, a okienko zostaje otwarte; zamykają je Esc, kliknięcie obok, ponowne ⚙ albo ☰.
+
 
 ![Ustawienia edytora: telefony i tablety](screenshots/pl/editor-settings.png)
 

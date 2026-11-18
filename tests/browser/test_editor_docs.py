@@ -119,6 +119,7 @@ def test_the_history_and_the_settings_have_their_own_question_mark(desktop) -> N
     assert desktop.locator(f"{APP} [data-history-dialog]").count() == 1
     desktop.locator(f"{APP} [data-history-dialog] [data-dialog-close]").click()
     desktop.locator(f"{APP} [data-editor-settings]").click()
+    desktop.locator(f"{APP} [data-gear-devices]").click()
     help_ = _dialog_help(desktop, "devices")
     assert help_["title"] == "Ustawienia edytora"
     assert help_["more"] == f"{guide}#editor-settings-your-own-phones-and"

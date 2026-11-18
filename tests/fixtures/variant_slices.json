@@ -1,0 +1,444 @@
+{
+  "live": {
+    "type": "custom:home-dashboard",
+    "favorites": [
+      "light.desk"
+    ],
+    "scenes": [
+      {
+        "entity": "scene.morning"
+      }
+    ],
+    "weather": false,
+    "cameras": {
+      "hero": "camera.door",
+      "private": [
+        "camera.kids"
+      ],
+      "talk": "intercom"
+    },
+    "rooms": {
+      "order": [
+        "living",
+        "bedroom"
+      ]
+    },
+    "page_layout": {
+      "style": "classic",
+      "rows": 4
+    },
+    "layout": [
+      {
+        "id": "living",
+        "name": "Living room",
+        "home": [
+          {
+            "entity": "light.sofa"
+          }
+        ],
+        "sections": [
+          {
+            "key": "a"
+          }
+        ]
+      },
+      {
+        "id": "bedroom",
+        "name": "Bedroom",
+        "page_layout": "sections",
+        "status": []
+      }
+    ],
+    "backgrounds": {
+      "home": {
+        "light": "/local/home.jpg"
+      },
+      "living": {
+        "dark": "/local/living.jpg"
+      }
+    },
+    "menu": [
+      {
+        "path": "/music"
+      }
+    ]
+  },
+  "slice_home": {
+    "favorites": [
+      "light.desk"
+    ],
+    "scenes": [
+      {
+        "entity": "scene.morning"
+      }
+    ],
+    "scenes_layout": null,
+    "weather": false,
+    "cameras": {
+      "hero": "camera.door",
+      "tiles": null,
+      "columns": null,
+      "layout": null,
+      "order": null
+    },
+    "rooms": {
+      "order": [
+        "living",
+        "bedroom"
+      ],
+      "hidden": null
+    },
+    "page_layout": {
+      "home": "classic",
+      "rows": 4
+    },
+    "room_home": {
+      "living": [
+        {
+          "entity": "light.sofa"
+        }
+      ],
+      "bedroom": null
+    },
+    "background": {
+      "light": "/local/home.jpg"
+    }
+  },
+  "slice_living": {
+    "room": {
+      "id": "living",
+      "name": "Living room",
+      "sections": [
+        {
+          "key": "a"
+        }
+      ],
+      "page_layout": "classic"
+    },
+    "background": {
+      "dark": "/local/living.jpg"
+    }
+  },
+  "slice_bedroom": {
+    "room": {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "page_layout": "sections",
+      "status": []
+    },
+    "background": null
+  },
+  "slice_gone": null,
+  "variant_home": {
+    "favorites": [
+      "light.lamp"
+    ],
+    "scenes": [],
+    "scenes_layout": null,
+    "weather": null,
+    "cameras": {
+      "hero": null,
+      "tiles": [
+        "camera.door"
+      ],
+      "columns": null,
+      "layout": "row",
+      "order": null
+    },
+    "rooms": {
+      "order": [
+        "bedroom",
+        "living"
+      ],
+      "hidden": null
+    },
+    "page_layout": {
+      "home": "sections",
+      "rows": 3
+    },
+    "room_home": {
+      "living": null,
+      "bedroom": [
+        {
+          "entity": "light.bed"
+        }
+      ],
+      "gone": [
+        {
+          "entity": "light.x"
+        }
+      ]
+    },
+    "background": {
+      "light": "/local/other.jpg"
+    }
+  },
+  "with_home": {
+    "type": "custom:home-dashboard",
+    "favorites": [
+      "light.lamp"
+    ],
+    "scenes": [],
+    "cameras": {
+      "private": [
+        "camera.kids"
+      ],
+      "talk": "intercom",
+      "tiles": [
+        "camera.door"
+      ],
+      "layout": "row"
+    },
+    "rooms": {
+      "order": [
+        "bedroom",
+        "living"
+      ]
+    },
+    "page_layout": {
+      "style": "classic",
+      "rows": 3,
+      "home": "sections"
+    },
+    "layout": [
+      {
+        "id": "living",
+        "name": "Living room",
+        "sections": [
+          {
+            "key": "a"
+          }
+        ]
+      },
+      {
+        "id": "bedroom",
+        "name": "Bedroom",
+        "page_layout": "sections",
+        "status": [],
+        "home": [
+          {
+            "entity": "light.bed"
+          }
+        ]
+      }
+    ],
+    "backgrounds": {
+      "home": {
+        "light": "/local/other.jpg"
+      },
+      "living": {
+        "dark": "/local/living.jpg"
+      }
+    },
+    "menu": [
+      {
+        "path": "/music"
+      }
+    ]
+  },
+  "variant_living": {
+    "room": {
+      "id": "living",
+      "name": "Salon",
+      "home": "ignored",
+      "sections": [
+        {
+          "key": "b"
+        }
+      ],
+      "page_layout": "sections"
+    },
+    "background": null
+  },
+  "with_living": {
+    "type": "custom:home-dashboard",
+    "favorites": [
+      "light.desk"
+    ],
+    "scenes": [
+      {
+        "entity": "scene.morning"
+      }
+    ],
+    "weather": false,
+    "cameras": {
+      "hero": "camera.door",
+      "private": [
+        "camera.kids"
+      ],
+      "talk": "intercom"
+    },
+    "rooms": {
+      "order": [
+        "living",
+        "bedroom"
+      ]
+    },
+    "page_layout": {
+      "style": "classic",
+      "rows": 4
+    },
+    "layout": [
+      {
+        "id": "living",
+        "name": "Salon",
+        "sections": [
+          {
+            "key": "b"
+          }
+        ],
+        "page_layout": "sections",
+        "home": [
+          {
+            "entity": "light.sofa"
+          }
+        ]
+      },
+      {
+        "id": "bedroom",
+        "name": "Bedroom",
+        "page_layout": "sections",
+        "status": []
+      }
+    ],
+    "backgrounds": {
+      "home": {
+        "light": "/local/home.jpg"
+      }
+    },
+    "menu": [
+      {
+        "path": "/music"
+      }
+    ]
+  },
+  "with_gone": {
+    "type": "custom:home-dashboard",
+    "favorites": [
+      "light.desk"
+    ],
+    "scenes": [
+      {
+        "entity": "scene.morning"
+      }
+    ],
+    "weather": false,
+    "cameras": {
+      "hero": "camera.door",
+      "private": [
+        "camera.kids"
+      ],
+      "talk": "intercom"
+    },
+    "rooms": {
+      "order": [
+        "living",
+        "bedroom"
+      ]
+    },
+    "page_layout": {
+      "style": "classic",
+      "rows": 4
+    },
+    "layout": [
+      {
+        "id": "living",
+        "name": "Living room",
+        "home": [
+          {
+            "entity": "light.sofa"
+          }
+        ],
+        "sections": [
+          {
+            "key": "a"
+          }
+        ]
+      },
+      {
+        "id": "bedroom",
+        "name": "Bedroom",
+        "page_layout": "sections",
+        "status": []
+      }
+    ],
+    "backgrounds": {
+      "home": {
+        "light": "/local/home.jpg"
+      },
+      "living": {
+        "dark": "/local/living.jpg"
+      }
+    },
+    "menu": [
+      {
+        "path": "/music"
+      }
+    ]
+  },
+  "round_trip_home": {
+    "type": "custom:home-dashboard",
+    "favorites": [
+      "light.desk"
+    ],
+    "scenes": [
+      {
+        "entity": "scene.morning"
+      }
+    ],
+    "weather": false,
+    "cameras": {
+      "hero": "camera.door",
+      "private": [
+        "camera.kids"
+      ],
+      "talk": "intercom"
+    },
+    "rooms": {
+      "order": [
+        "living",
+        "bedroom"
+      ]
+    },
+    "page_layout": {
+      "style": "classic",
+      "rows": 4,
+      "home": "classic"
+    },
+    "layout": [
+      {
+        "id": "living",
+        "name": "Living room",
+        "home": [
+          {
+            "entity": "light.sofa"
+          }
+        ],
+        "sections": [
+          {
+            "key": "a"
+          }
+        ]
+      },
+      {
+        "id": "bedroom",
+        "name": "Bedroom",
+        "page_layout": "sections",
+        "status": []
+      }
+    ],
+    "backgrounds": {
+      "home": {
+        "light": "/local/home.jpg"
+      },
+      "living": {
+        "dark": "/local/living.jpg"
+      }
+    },
+    "menu": [
+      {
+        "path": "/music"
+      }
+    ]
+  }
+}

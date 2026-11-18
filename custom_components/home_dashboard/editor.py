@@ -26,6 +26,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 import voluptuous as vol
 
+from . import variants
 from .const import DOMAIN, STATIC_URL
 
 STORAGE_KEY = f"{DOMAIN}.editor"
@@ -101,7 +102,7 @@ async def async_setup_editor(hass: HomeAssistant, in_sidebar: bool = True) -> No
         store = EditorStore(hass)
         await store.async_load()
         hass.data[DATA_EDITOR] = store
-        for command in COMMANDS:
+        for command in [*COMMANDS, *variants.COMMANDS]:
             websocket_api.async_register_command(hass, command)
     integration = await async_get_integration(hass, DOMAIN)
     await panel_custom.async_register_panel(
@@ -126,12 +127,18 @@ def _store(hass: HomeAssistant) -> EditorStore:
     return hass.data[DATA_EDITOR]
 
 
+store_of = _store
+
+
 async def _live_or_error(hass, connection, msg) -> dict[str, Any] | None:
     try:
         return await live_config(hass, msg["url_path"])
     except HomeAssistantError:
         connection.send_error(msg["id"], ERROR_NOT_FOUND, "No stored dashboard at this path")
         return None
+
+
+live_or_error = _live_or_error
 
 
 def _user(connection: websocket_api.ActiveConnection) -> str | None:

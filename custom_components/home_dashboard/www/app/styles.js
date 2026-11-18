@@ -15,6 +15,13 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
 // whatever shadow root it lives in, picks them up through the --hd-ov-* properties it inherits.
 const LIGHT = `
     --hd-background: #fbfaff;
+    /* A window of its own over a window (a picker): plain white or dark as the look, whatever glass the window has. */
+    --hd-plain-surface: #ffffff;
+    --hd-plain-text: #1b1b1f;
+    --hd-plain-muted: #5b5e66;
+    --hd-plain-outline: #dfe2eb;
+    --hd-plain-off: #ebebed;
+    --hd-plain-scheme: light;
     --hd-surface: var(--hd-ov-surface, #ffffff);
     --hd-outline: var(--hd-ov-outline, #dfe2eb);
     --hd-text: var(--hd-ov-text, #1b1b1f);
@@ -67,6 +74,12 @@ const LIGHT = `
 
 const DARK = `
     --hd-background: #121316;
+    --hd-plain-surface: #1e1f24;
+    --hd-plain-text: #e4e4ea;
+    --hd-plain-muted: #a3a6ae;
+    --hd-plain-outline: #3a3c43;
+    --hd-plain-off: #2b2d33;
+    --hd-plain-scheme: dark;
     --hd-surface: var(--hd-ov-surface, #1e1f24);
     --hd-outline: var(--hd-ov-outline, #3a3c43);
     --hd-text: var(--hd-ov-text, #e4e4ea);

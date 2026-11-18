@@ -37,6 +37,9 @@ import { addressKey, writeAddress } from "./address.js";
 import { RAIL, foldShortcut, readFolded, writeFolded } from "./columns.js";
 import { DOCS_ANCHORS, docsAnchorFor, editorDocsUrl } from "./docs-anchors.js";
 import { callWS } from "./ws.js";
+import "./variants-panel.js";
+import { ASK_EVENT } from "./ask-dialog.js";
+import { sliceOf, withSlice } from "../app/variants.js";
 
 // How long the window of a block gets to open and settle in a frame before it is measured.
 const FIT_MEASURE_MS = 700;
@@ -59,6 +62,16 @@ const THEME_KEY = "home-dashboard-editor-theme";
 // The look of the editor (not of the preview, which has its own Light and Dark): as Home Assistant, or chosen here.
 export const THEMES = ["auto", "light", "dark"];
 const THEME_ICONS = { auto: "mdi:theme-light-dark", light: "mdi:weather-sunny", dark: "mdi:weather-night" };
+const LANGUAGE_KEY = "home-dashboard-editor-language";
+// The language of the editor: as Home Assistant (the person's profile), or chosen under ⚙ for this browser.
+export const EDITOR_LANGUAGES = ["auto", "pl", "en"];
+const LANGUAGE_NAMES = { pl: "Polski", en: "English" };
+
+/** Home Assistant's hass with the editor's own language, when one is chosen; the same object otherwise. */
+export function withLanguage(hass, language) {
+  if (!hass || !language || language === "auto" || hass.language === language) return hass;
+  return { ...hass, language };
+}
 
 /** The look to show: the chosen one, or Home Assistant's (its dark mode, else the system's). */
 export function editorTheme(chosen, hass, prefersDark = mediaQuery("(prefers-color-scheme: dark)").matches) {
@@ -226,11 +239,17 @@ const EDITOR_DIALOGS = [
   "home-dashboard-editor-publish",
   "home-dashboard-editor-generate",
   "home-dashboard-editor-history",
+  "home-dashboard-editor-variant-access",
+  "home-dashboard-editor-ask",
+  "home-dashboard-editor-variant-overview",
 ].join(", ");
 
 export class HomeDashboardEditorApp extends LitElement {
   static properties = {
-    hass: { attribute: false },
+    // Its own accessor below: the editor sees hass with the language chosen under ⚙.
+    hass: { attribute: false, noAccessor: true },
+    _gear: { state: true },
+    _language: { state: true },
     panel: { attribute: false },
     _dashboards: { state: true },
     _theme: { state: true },
@@ -268,6 +287,12 @@ export class HomeDashboardEditorApp extends LitElement {
     _help: { state: true },
     _blockMenu: { state: true },
     _cardError: { state: true },
+    // A variant of a page being edited: its page, id, name and slice; the draft waits meanwhile.
+    _variantEdit: { state: true },
+    _variantAccess: { state: true },
+    // A question of a part of the editor (ask-dialog.js), shown in the editor's look.
+    _ask: { state: true },
+    _overview: { state: true },
   };
 
   constructor() {
@@ -281,6 +306,8 @@ export class HomeDashboardEditorApp extends LitElement {
     this._whole = false;
     this._users = [];
     this._theme = THEMES.includes(readStored(THEME_KEY)) ? readStored(THEME_KEY) : "auto";
+    this._language = EDITOR_LANGUAGES.includes(readStored(LANGUAGE_KEY)) ? readStored(LANGUAGE_KEY) : "auto";
+    this._gear = false;
     this._tab = "form";
     this._past = [];
     this._future = [];
@@ -311,6 +338,17 @@ export class HomeDashboardEditorApp extends LitElement {
     }
   }
 
+  set hass(value) {
+    const old = this._shownHass;
+    this._hassFromHa = value;
+    this._shownHass = withLanguage(value, this._language);
+    this.requestUpdate("hass", old);
+  }
+
+  get hass() {
+    return this._shownHass;
+  }
+
   _t(key, values) {
     return translate(this.hass?.language, key, values);
   }
@@ -319,7 +357,20 @@ export class HomeDashboardEditorApp extends LitElement {
     super.connectedCallback();
     window.homeDashboardPreview = this._source;
     window.addEventListener("keydown", this._onKey);
+    window.addEventListener("click", this._onOutside);
+    this.addEventListener(ASK_EVENT, this._onAsk);
     this._menu.connect();
+  }
+
+  _onAsk = (event) => {
+    event.preventDefault();
+    this._ask?.resolve(null);
+    this._ask = event.detail;
+  };
+
+  _closeAsk() {
+    this._ask?.resolve(null);
+    this._ask = null;
   }
 
   disconnectedCallback() {
@@ -327,6 +378,7 @@ export class HomeDashboardEditorApp extends LitElement {
     clearTimeout(this._statesTimer);
     this._statesTimer = null;
     window.removeEventListener("keydown", this._onKey);
+    window.removeEventListener("click", this._onOutside);
     this._menu.disconnect();
     this._stageWatch?.disconnect();
     if (window.homeDashboardPreview === this._source) delete window.homeDashboardPreview;
@@ -356,6 +408,7 @@ export class HomeDashboardEditorApp extends LitElement {
     this._saved = loaded.draft?.updated_at ?? null;
     this._review = loaded.review;
     this._history = loaded.history;
+    this._variantEdit = null;
     this._select(null);
     this._publishDraft();
     this._followAddress();
@@ -414,6 +467,12 @@ export class HomeDashboardEditorApp extends LitElement {
 
   /** What is edited: the draft, or the live configuration until the first change. */
   get _config() {
+    // A variant is the published configuration with its page's part from the variant: what its devices show.
+    if (this._variantEdit) {
+      const { page, slice } = this._variantEdit;
+      const base = this._draft ?? this._live ?? {};
+      return { ...base, strategy: withSlice(base.strategy ?? {}, page, slice) };
+    }
     return this._draft ?? this._live ?? {};
   }
 
@@ -437,6 +496,7 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   _apply(strategy) {
+    if (this._variantEdit) return this._applyVariant(strategy);
     this._draft = { ...this._config, strategy };
     this._publishDraft();
     this._saving = true;
@@ -472,6 +532,10 @@ export class HomeDashboardEditorApp extends LitElement {
 
   // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Y redoes; inside a field the field keeps its own undo.
   _onKey = (event) => {
+    if (event.key === "Escape" && this._gear) {
+      this._gear = false;
+      return;
+    }
     if (event.key === "Escape" && this._help) {
       this._help = null;
       return;
@@ -727,6 +791,136 @@ export class HomeDashboardEditorApp extends LitElement {
     this._dropMode = null;
   }
 
+  // Variants ------------------------------------------------------------------------------------------
+
+  /** A change while a variant is edited: only its page's part is kept, in the variant, a moment after the last. */
+  _applyVariant(strategy) {
+    const { page } = this._variantEdit;
+    this._variantEdit = { ...this._variantEdit, slice: sliceOf(strategy, page) };
+    // What is not of this page (a block, the menu, another room) goes to the draft, published as always.
+    const base = this._draft ?? this._live ?? {};
+    const outside = withSlice(strategy, page, sliceOf(base.strategy ?? {}, page));
+    if (JSON.stringify(outside) !== JSON.stringify(base.strategy ?? {})) {
+      this._draft = { ...base, strategy: outside };
+      this._draftChanged = true;
+    }
+    this._publishDraft();
+    this._saving = true;
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => this._saveVariant(), DRAFT_SAVE_MS);
+  }
+
+  async _saveVariant() {
+    clearTimeout(this._saveTimer);
+    const edit = this._variantEdit;
+    if (!edit) return;
+    try {
+      await callWS(this.hass, { type: `${DOMAIN}/variants/update`, url_path: this._urlPath, page: edit.page, variant: edit.id, slice: edit.slice });
+      if (this._draftChanged) {
+        this._draftChanged = false;
+        await this._saveDraft();
+      }
+      this._saved = new Date().toISOString();
+    } catch (error) {
+      this._notice = { kind: "error", text: this._t("editor_draft_not_saved", { error: error.message ?? String(error) }) };
+    } finally {
+      this._saving = false;
+    }
+  }
+
+  /** Edit a variant in the tree and the forms as the page itself; the preview shows it. */
+  async _editVariant(page, item) {
+    await this._saveDraft();
+    this._variantEdit = { page, id: item.id, name: item.name, slice: item.slice };
+    this._past = [];
+    this._future = [];
+    this._publishDraft();
+    this._notice = { kind: "ok", text: this._t("editor_variant_editing_notice", { name: item.name || this._t("variant_unnamed") }) };
+  }
+
+  async _endVariant() {
+    if (this._saving) await this._saveVariant();
+    this._variantEdit = null;
+    this._past = [];
+    this._future = [];
+    this._publishDraft();
+    this.renderRoot.querySelector("home-dashboard-editor-variants")?.reload();
+  }
+
+  /** A card chosen among the variants: the preview shows that page as its devices would. */
+  _previewVariant(page, slice) {
+    this._previewingVariant = Boolean(slice);
+    if (!slice) return this._publishDraft();
+    this._previewStrategy(withSlice(this._live?.strategy ?? {}, page, slice));
+  }
+
+  _renderKnownDevices() {
+    return html`
+      <aside class="props" data-props data-known-devices-panel>
+        <div class="phead">
+          <ha-icon icon="mdi:tablet-cellphone"></ha-icon>
+          <div>
+            <b data-props-title>${this._t("editor_tree_known_devices")}</b>
+            <small>${this._t("editor_devices_sub")}</small>
+          </div>
+          <span class="grow"></span>
+          ${this._helpButton("props", DOCS_ANCHORS.variants)} ${this._foldButton("right")}
+        </div>
+        <home-dashboard-editor-known-devices .hass=${this.hass} .urlPath=${this._urlPath} .rooms=${this._strategy.layout ?? []}></home-dashboard-editor-known-devices>
+      </aside>
+    `;
+  }
+
+  _openOverview = async () => {
+    try {
+      this._overview = await callWS(this.hass, { type: `${DOMAIN}/variants/list`, url_path: this._urlPath });
+      this._dialog = "variant-overview";
+    } catch (error) {
+      this._notice = { kind: "error", text: error?.message ?? String(error) };
+    }
+  };
+
+  _renderVariants(node) {
+    const room = node.variantPage === "home" ? null : (this._strategy.layout ?? []).find((item) => `room:${item.id}` === node.variantPage);
+    const title = room ? this._t("editor_variants_of_room", { name: room.name ?? room.id }) : this._t("editor_variants_of_home");
+    return html`
+      <aside class="props" data-props data-variants-panel=${node.variantPage}>
+        <div class="phead">
+          <ha-icon icon="mdi:layers-triple-outline"></ha-icon>
+          <div>
+            <b data-props-title>${title}</b>
+            <small>${this._t("editor_variants_sub")}</small>
+          </div>
+          <span class="grow"></span>
+          <button class="ghost" data-variants-overview title=${this._t("editor_variants_overview")} aria-label=${this._t("editor_variants_overview")}
+            @click=${this._openOverview}>
+            <ha-icon icon="mdi:magnify"></ha-icon>
+          </button>
+          ${this._helpButton("props", DOCS_ANCHORS.variants)} ${this._foldButton("right")}
+        </div>
+        <home-dashboard-editor-variants
+          .hass=${this.hass}
+          .urlPath=${this._urlPath}
+          .page=${node.variantPage}
+          .editing=${this._variantEdit?.page === node.variantPage ? this._variantEdit.id : null}
+          .users=${this._users}
+          @variant-preview=${(event) => this._previewVariant(event.detail.page, event.detail.slice)}
+          @variant-edit=${(event) => this._editVariant(event.detail.page, event.detail.item)}
+          @variant-access=${(event) => {
+            this._variantAccess = event.detail;
+            this._dialog = "variant-access";
+          }}
+          @variant-deployed=${async (event) => {
+            this._notice = { kind: "ok", text: this._t("editor_variant_deployed", { name: event.detail.name }) };
+            const selected = this._selected;
+            await this._load(this._urlPath);
+            this._select(selected);
+          }}
+        ></home-dashboard-editor-variants>
+      </aside>
+    `;
+  }
+
   /**
    * Save the draft on the server: one save at a time (a slow Home Assistant gets fewer saves, not a queue of them);
    * changes made while one is on its way are saved right after it. A failed save says so and is tried again with
@@ -839,6 +1033,12 @@ export class HomeDashboardEditorApp extends LitElement {
   // Selection and YAML ------------------------------------------------------------------------------
 
   _select(node) {
+    // An address or a touch in the preview may still name a setting Home Assistant cannot have now.
+    if (node?.unavailable) node = null;
+    if (this._previewingVariant && node?.kind !== "variants") {
+      this._previewingVariant = false;
+      this._publishDraft();
+    }
     this._selected = node;
     this._yamlError = null;
     // The text of the YAML follows the value until someone types in it.
@@ -897,8 +1097,16 @@ export class HomeDashboardEditorApp extends LitElement {
   _menu = new PanelMenu(this);
 
   _toggleMenu() {
+    this._gear = false;
     this._menu.toggle();
   }
+
+  /** A click outside ⚙ and its pop-up closes the pop-up. */
+  _onOutside = (event) => {
+    if (!this._gear) return;
+    if (event.composedPath().some((node) => node.classList?.contains("menu-wrap"))) return;
+    this._gear = false;
+  };
 
   /** A bar between columns: dragged, it sets the width of its side column; a double click gives the first back. */
   /** Fold or unfold a column; its width stays as it was, for when it unfolds. */
@@ -1070,6 +1278,33 @@ export class HomeDashboardEditorApp extends LitElement {
             }}
           ></home-dashboard-editor-generate>`
         : nothing}
+      ${this._ask
+        ? html`<home-dashboard-editor-ask .hass=${this.hass} .question=${this._ask} @dialog-close=${() => this._closeAsk()}></home-dashboard-editor-ask>`
+        : nothing}
+      ${this._dialog === "variant-overview" && this._overview
+        ? html`<home-dashboard-editor-variant-overview
+            .hass=${this.hass}
+            .data=${this._overview}
+            .rooms=${this._strategy.layout ?? []}
+            .users=${this._users}
+            @dialog-close=${() => (this._dialog = null)}
+          ></home-dashboard-editor-variant-overview>`
+        : nothing}
+      ${this._dialog === "variant-access" && this._variantAccess
+        ? html`<home-dashboard-editor-variant-access
+            .hass=${this.hass}
+            .urlPath=${this._urlPath}
+            .page=${this._variantAccess.page}
+            .item=${this._variantAccess.item}
+            .data=${this._variantAccess.data}
+            @dialog-close=${() => (this._dialog = null)}
+            @variant-access-saved=${() => {
+              this._dialog = null;
+              this._notice = { kind: "ok", text: this._t("editor_variant_access_saved") };
+              this.renderRoot.querySelector("home-dashboard-editor-variants")?.reload();
+            }}
+          ></home-dashboard-editor-variant-access>`
+        : nothing}
       ${this._dialog === "history"
         ? html`<home-dashboard-editor-history
             .hass=${this.hass}
@@ -1178,16 +1413,24 @@ export class HomeDashboardEditorApp extends LitElement {
             </select>`
           : html`<span class="board">${this._dashboards[0].title}</span>`}
         <span class="grow"></span>
-        <span class="pill ${this._draft ? "draft" : ""}" data-draft-state=${this._draft ? "draft" : "live"}>
-          <ha-icon .icon=${this._draft ? "mdi:pencil" : "mdi:check"}></ha-icon>${state}
-        </span>
+        ${this._variantEdit
+          ? html`<span class="pill variant" data-variant-state>
+              <ha-icon icon="mdi:layers-triple-outline"></ha-icon>${this._t("editor_variant_editing_pill", {
+                name: this._variantEdit.name || this._t("variant_unnamed"),
+              })}
+              <span class="sub">${this._saving ? this._t("editor_saving") : this._t("editor_variant_saved")}</span>
+              <button class="ghost" data-variant-end @click=${this._endVariant}>${this._t("editor_variant_end")}</button>
+            </span>`
+          : html`<span class="pill ${this._draft ? "draft" : ""}" data-draft-state=${this._draft ? "draft" : "live"}>
+              <ha-icon .icon=${this._draft ? "mdi:pencil" : "mdi:check"}></ha-icon>${state}
+            </span>`}
         <button class="ghost" data-undo title=${this._t("editor_undo")} ?disabled=${!this._past.length} @click=${this._undo}>
           <ha-icon icon="mdi:undo"></ha-icon>
         </button>
         <button class="ghost" data-redo title=${this._t("editor_redo")} ?disabled=${!this._future.length} @click=${this._redo}>
           <ha-icon icon="mdi:redo"></ha-icon>
         </button>
-        ${this._draft
+        ${this._draft && !this._variantEdit
           ? html`<button class="ghost" data-discard @click=${this._discard}>${this._t("editor_discard")}</button>`
           : nothing}
         <button
@@ -1220,14 +1463,11 @@ export class HomeDashboardEditorApp extends LitElement {
           @click=${() => window.open(editorDocsUrl(this.hass?.language), "_blank", "noopener")}>
           <ha-icon icon="mdi:help-circle-outline"></ha-icon>
         </button>
-        <button class="ghost" data-editor-settings title=${this._t("editor_settings")} aria-label=${this._t("editor_settings")}
-          @click=${() => (this._dialog = "settings")}>
-          <ha-icon icon="mdi:cog-outline"></ha-icon>
-        </button>
+        ${this._renderGear()}
         <button class="ghost" data-history title=${this._t("editor_history_title")} @click=${() => (this._dialog = "history")}>
           <ha-icon icon="mdi:history"></ha-icon>${this._t("editor_history_title")}
         </button>
-        <button class="primary" data-publish ?disabled=${!this._draft || this._publishing} @click=${async () => {
+        <button class="primary" data-publish ?disabled=${!this._draft || this._publishing || this._variantEdit} @click=${async () => {
           await this._saveDraft();
           this._dialog = "publish";
         }}>
@@ -1299,6 +1539,18 @@ export class HomeDashboardEditorApp extends LitElement {
       }
       const draggable = ["tile", "favorite", "room", "stat", "action", "panel-group", "row"].includes(item.kind) || isRoomSection(item);
       const drop = this._dropKey === item.key ? `drop-${this._dropMode}` : "";
+      // A setting whose part Home Assistant lacks: shown greyed with what to install, not opened.
+      if (item.unavailable) {
+        return html`
+          <div class="node unavailable" style="padding-left: ${8 + depth * 16}px" data-node=${item.key} data-unavailable=${item.unavailable}
+            aria-disabled="true" title=${this._t(item.unavailable)}>
+            <span class="fold"></span>
+            <ha-icon class="icon" .icon=${item.icon}></ha-icon>
+            <span class="label">${item.label}<small>${this._t(item.unavailable)}</small></span>
+            <ha-icon class="needs" icon="mdi:puzzle-plus-outline"></ha-icon>
+          </div>
+        `;
+      }
       return html`
         <div
           class="node ${selected ? "sel" : ""} ${item.problems?.length ? "warn" : ""} ${drop}"
@@ -1363,8 +1615,61 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   _nextTheme() {
-    this._theme = THEMES[(THEMES.indexOf(this._theme) + 1) % THEMES.length];
-    writeStored(THEME_KEY, this._theme);
+    this._setTheme(THEMES[(THEMES.indexOf(this._theme) + 1) % THEMES.length]);
+  }
+
+  _setTheme(theme) {
+    this._theme = theme;
+    writeStored(THEME_KEY, theme);
+  }
+
+  /** The editor's language: kept in this browser, the editor is drawn again in it at once. */
+  _setLanguage(language) {
+    this._language = language;
+    writeStored(LANGUAGE_KEY, language);
+    this.hass = this._hassFromHa;
+  }
+
+  /** ⚙: a pop-up under the button with the quick settings (look and language); the preview's devices one step on. */
+  _renderGear() {
+    return html`<span class="menu-wrap gear-wrap">
+      <button class="ghost ${this._gear ? "on" : ""}" data-editor-settings title=${this._t("editor_settings")}
+        aria-label=${this._t("editor_settings")} aria-expanded=${this._gear ? "true" : "false"}
+        @click=${() => (this._gear = !this._gear)}>
+        <ha-icon icon="mdi:cog-outline"></ha-icon>
+      </button>
+      ${this._gear
+        ? html`<div class="gear-pop" data-gear-pop>
+            <strong class="pop-title">${this._t("editor_gear_title")}</strong>
+            <span class="pop-label">${this._t("editor_theme_label")}</span>
+            <div class="seg" data-theme-seg>
+              ${THEMES.map(
+                (theme) =>
+                  html`<button class=${theme === this._theme ? "on" : ""} data-theme-choice=${theme}
+                    aria-pressed=${theme === this._theme ? "true" : "false"} @click=${() => this._setTheme(theme)}>
+                    ${this._t(`editor_theme_choice_${theme}`)}
+                  </button>`,
+              )}
+            </div>
+            <span class="pop-label">${this._t("editor_language_label")}</span>
+            <div class="seg" data-language-seg>
+              ${EDITOR_LANGUAGES.map(
+                (code) =>
+                  html`<button class=${code === this._language ? "on" : ""} data-language-choice=${code}
+                    aria-pressed=${code === this._language ? "true" : "false"} @click=${() => this._setLanguage(code)}>
+                    ${LANGUAGE_NAMES[code] ?? this._t("editor_language_auto")}
+                  </button>`,
+              )}
+            </div>
+            <button class="pop-link" data-gear-devices @click=${() => {
+              this._gear = false;
+              this._dialog = "settings";
+            }}>
+              <ha-icon icon="mdi:cellphone-link"></ha-icon>${this._t("editor_gear_devices")}
+            </button>
+          </div>`
+        : nothing}
+    </span>`;
   }
 
   shouldUpdate(changed) {
@@ -1585,6 +1890,8 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   _renderProps() {
+    if (!this._whole && this._selected?.kind === "variants") return this._renderVariants(this._selected);
+    if (!this._whole && this._selected?.kind === "devices") return this._renderKnownDevices();
     // The node as the tree is now: a renamed tile shows its new name.
     const node = this._selected
       ? (flatten(buildTree(this._strategy, this.hass, this.hass.language)).find((item) => item.key === this._selected.key) ??
@@ -1925,6 +2232,47 @@ entity: ${entity}`}
       padding: 6px;
       --mdc-icon-size: 22px;
     }
+    /* ⚙: the pop-up under the button, its right edge at the button's. */
+    .gear-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .gear-pop {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 30;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+    .gear-pop .pop-title {
+      font-size: 14px;
+      padding: 2px 4px 4px;
+    }
+    .gear-pop .pop-label {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 0 4px;
+    }
+    .gear-pop .seg button {
+      flex: 1;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .gear-pop .pop-link {
+      justify-content: flex-start;
+      margin-top: 4px;
+      background: transparent;
+      border-top: 1px solid var(--line);
+      border-radius: 0 0 8px 8px;
+    }
     .app-icon {
       --mdc-icon-size: 22px;
       color: var(--accent);
@@ -1961,6 +2309,33 @@ entity: ${entity}`}
     .pill.draft {
       color: var(--amber);
       background: rgba(255, 179, 64, 0.15);
+    }
+    .node.unavailable {
+      cursor: default;
+      opacity: 0.5;
+    }
+    .node.unavailable .label small {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: normal;
+    }
+    .node.unavailable .needs {
+      --mdc-icon-size: 16px;
+      color: var(--muted);
+    }
+    .pill.variant {
+      color: var(--accent-text);
+      background: rgba(79, 140, 255, 0.18);
+      font-weight: 600;
+    }
+    .pill.variant .sub {
+      font-weight: 400;
+      opacity: 0.8;
+    }
+    .pill.variant button {
+      padding: 0 6px;
+      font-size: 12px;
     }
     .notice {
       display: flex;

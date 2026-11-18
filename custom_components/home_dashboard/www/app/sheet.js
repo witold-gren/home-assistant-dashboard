@@ -685,6 +685,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       "device-edit": this._renderDeviceEdit,
       tv: this._renderTv,
       rooms: this._renderRooms,
+      variants: this._renderVariants,
       "tile-edit": this._renderTileEdit,
       "tile-picker": this._renderTilePicker,
       background: this._renderBackground,

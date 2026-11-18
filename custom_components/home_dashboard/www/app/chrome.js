@@ -31,6 +31,8 @@ import { mediaQuery } from "./media.js";
 import { escapeInside, isEscape } from "./escape.js";
 import { addressWithoutCamera, browserModId, cameraFromAddress, cameraTileFor, missingReason } from "./camera-window.js";
 import { createUsageReporter, windowName } from "./usage.js";
+import { splitSave, writePeek } from "./variants.js";
+import { reloadApp } from "./reload.js";
 
 // The same key as main.js: chrome.js must not import main.js, which defines every element.
 const SKIP_REVIEW_KEY = "home-dashboard-skip-review";
@@ -265,6 +267,11 @@ export const chromeOf = (card) => existingChrome(card) ?? null;
 /** Closes at once, without a step back in the history: the editor's preview moves its frame to another page first. */
 export function dropSheet(card) {
   existingChrome(card)?.drop();
+}
+
+// What the dashboard was loaded with but never saves: the variants this device sees, a version to check.
+export function withoutLoadedOnly(dashboard) {
+  return Object.fromEntries(Object.entries(dashboard ?? {}).filter(([key]) => !key.startsWith("_")));
 }
 
 export function saveDashboard(card, dashboard) {
@@ -1287,7 +1294,14 @@ export class HomeDashboardChrome extends LitElement {
     }
     const urlPath = dashboardPath(window.location.pathname).slice(1);
     const current = await this.hass.callWS({ type: "lovelace/config", url_path: urlPath });
-    const strategy = { ...event.detail.dashboard, type: current.strategy.type };
+    let strategy = { ...withoutLoadedOnly(event.detail.dashboard), type: current.strategy.type };
+    // A page showing a variant keeps its own changes in the variant; the published page stays as it was.
+    const variant = this.raw?._variant;
+    if (variant) {
+      const { live, part } = splitSave(strategy, current.strategy, variant.key);
+      await this.hass.callWS({ type: "home_dashboard/variants/update", url_path: urlPath, page: variant.key, variant: variant.id, slice: part });
+      strategy = { ...live, type: current.strategy.type };
+    }
     await this.hass.callWS({ type: "lovelace/config/save", url_path: urlPath, config: { ...current, strategy } });
     await this.close();
     this._reload();
@@ -1296,6 +1310,13 @@ export class HomeDashboardChrome extends LitElement {
   _reload() {
     window.location.reload();
   }
+
+  // Without the settings (for administrators only) everyone else still needs a way to fetch a new version.
+  _reloadApp = async () => {
+    this._reloadingApp = true;
+    this.requestUpdate();
+    await (this.reloadApp ?? reloadApp)();
+  };
 
   _fire(type, detail) {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
@@ -1441,7 +1462,11 @@ export class HomeDashboardChrome extends LitElement {
                   <ha-icon icon="mdi:cog-outline"></ha-icon>${translate(language, "settings")}
                 </button>
               </li>`
-            : nothing}
+            : html`<li>
+                <button data-menu-reload-app ?disabled=${this._reloadingApp} title=${translate(language, "reload_app_hint")} @click=${this._reloadApp}>
+                  <ha-icon icon="mdi:refresh"></ha-icon>${translate(language, this._reloadingApp ? "reload_app_busy" : "reload_app")}
+                </button>
+              </li>`}
         </ul>
         ${admin
           ? html`
@@ -1498,6 +1523,7 @@ export class HomeDashboardChrome extends LitElement {
       @sheet-appearance=${this._saveAppearance}
       @sheet-theme=${this._saveSettings}
       @sheet-dashboard=${this._saveSettings}
+      @sheet-reload=${() => this._reload()}
       @sheet-shortcuts=${this._saveShortcuts}
       @sheet-media=${this._saveMedia}
       @sheet-link=${(event) => this._pickLink(event.detail.path)}
@@ -1507,7 +1533,19 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   // A version sent from the editor to this person to check: said at the top, with a way back to the usual one.
+  // A variant only looked at for this visit says so too, with the way back to what this device shows.
   _renderReviewBanner(language) {
+    const peek = this.raw?._variant?.peek ? this.raw._variant : null;
+    if (peek) {
+      return html`<div class="review-banner peek" data-variant-peek>
+        <ha-icon icon="mdi:eye-outline"></ha-icon>
+        <span>${translate(language, "variant_peek_banner", { name: peek.name })}</span>
+        <button data-variant-peek-leave @click=${() => {
+          writePeek(peek.key, null);
+          this._reload();
+        }}>${translate(language, "variant_peek_leave")}</button>
+      </div>`;
+    }
     const review = this.raw?._review;
     if (!review) return nothing;
     const when = new Intl.DateTimeFormat(language, { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(review.published_at));
@@ -1587,6 +1625,9 @@ export class HomeDashboardChrome extends LitElement {
         background: rgba(79, 140, 255, 0.92);
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
         --mdc-icon-size: 18px;
+      }
+      .review-banner.peek {
+        background: rgba(20, 20, 26, 0.86);
       }
       .review-banner button {
         padding: 4px 10px;

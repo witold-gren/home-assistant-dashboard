@@ -15,6 +15,8 @@ import { personalPrefs, savePrefs } from "./prefs.js";
 import { dashboardStart, setDashboardStart } from "./settings.js";
 import { BACKGROUNDS, EVERYONE_ELSE } from "./sheet-shared.js";
 import { roomActions } from "./status.js";
+import { deviceLabel } from "./usage.js";
+import { pageChoices, writePeek } from "./variants.js";
 import { backgroundStyle, currentColorMode, isDark, screenShape } from "./styles.js";
 
 export const SettingsSheets = (Base) =>
@@ -25,6 +27,7 @@ export const SettingsSheets = (Base) =>
       return html`
         ${this._renderHeader(this._t("rooms_pick"), false, false)}
         <div class="rows">
+          ${this._renderVariantLink()}
           <button class="row off" data-home-link @click=${() => this.dispatchEvent(new CustomEvent("sheet-home"))}>
             <span class="row-icon"><ha-icon icon="mdi:home"></ha-icon></span>
             <span class="row-text"><strong>${this._t("home_page")}</strong></span>
@@ -93,6 +96,136 @@ export const SettingsSheets = (Base) =>
             : nothing}
         </div>
       `;
+    }
+
+    // Variants of this page ------------------------------------------------------------------
+
+    // For an administrator on a page with variants: which one this device shows, at the top of the menu.
+    _renderVariantLink() {
+      const key = this.sheet.variantPage;
+      const choices = key ? pageChoices(this.raw, key) : null;
+      // Anyone but an administrator chooses only among the variants shared with the household.
+      if (!choices || (!this.hass.user?.is_admin && !choices.items.some((item) => item.shared))) return nothing;
+      const shown = this.raw?._variant;
+      const name = shown ? shown.name || this._t("variant_unnamed") : choices.liveName || this._t("variant_live");
+      return html`
+        <button class="row off variant-link" data-sheet-variants @click=${() => {
+          this._variantPick = null;
+          this._variantConfirm = null;
+          this._change({ kind: "variants", variantPage: key, variantTitle: this.sheet.variantTitle });
+        }}>
+          <span class="row-icon"><ha-icon icon="mdi:layers-triple-outline"></ha-icon></span>
+          <span class="row-text"><strong>${this._t("variant_title")}</strong><small>${this._t("variant_now", { name })}</small></span>
+        </button>
+      `;
+    }
+
+    _renderVariants() {
+      const key = this.sheet.variantPage;
+      const choices = pageChoices(this.raw, key);
+      if (!choices) return nothing;
+      const admin = Boolean(this.hass.user?.is_admin);
+      const device = this.raw?._variants?.device;
+      const deviceName = this.raw?._variants?.device_name || deviceLabel();
+      // An administrator chooses for this device; anyone else for themselves, among the shared variants.
+      const current = admin ? (this.raw?._variant && !this.raw._variant.peek ? this.raw._variant.id : "live") : (choices.own ?? "live");
+      const picked = this._variantPick ?? current;
+      const option = (id, name, note) => html`
+        <button class="row off ${picked === id ? "on" : ""}" data-variant-option=${id} @click=${() => {
+          this._variantPick = id;
+          this._variantConfirm = null;
+          this.requestUpdate();
+        }}>
+          <span class="row-icon"><ha-icon .icon=${picked === id ? "mdi:radiobox-marked" : "mdi:radiobox-blank"}></ha-icon></span>
+          <span class="row-text"><strong>${name}</strong><small>${note}</small></span>
+        </button>
+      `;
+      const seen = (item) => {
+        if (!admin) return this._t("variant_shared");
+        const count = item.devices.length + item.people.length;
+        const shared = item.shared ? ` · ${this._t("variant_shared")}` : "";
+        return (count ? this._t("variant_seen", { count }) : this._t("variant_unseen")) + shared;
+      };
+      const title = key === "home" ? this._t("variant_title_home") : this._t("variant_title_room", { name: this.sheet.variantTitle ?? "" });
+      const pickedItem = choices.items.find((item) => item.id === picked);
+      return html`
+        ${this._renderHeader(title, false, false)}
+        <div class="rows">
+          <small class="variant-note">${admin ? this._t("variant_device", { name: deviceName }) : this._t("variant_self_note")}</small>
+          ${option("live", choices.liveName || this._t("variant_live"), this._t("variant_live_note"))}
+          ${choices.items.map((item) => option(item.id, item.name || this._t("variant_unnamed"), seen(item)))}
+          ${admin
+            ? html`<button class="block-action on" data-variant-device ?disabled=${!device || picked === current || this._variantBusy} @click=${() => this._variantForDevice(key, device, picked)}>
+                <ha-icon icon="mdi:cellphone-check"></ha-icon><span>${this._t("variant_for_device")}</span>
+              </button>`
+            : html`<button class="block-action on" data-variant-self ?disabled=${picked === current || this._variantBusy} @click=${() => this._variantForMe(key, picked)}>
+                <ha-icon icon="mdi:account-check-outline"></ha-icon><span>${this._t("variant_for_me")}</span>
+              </button>`}
+          <button class="block-action" data-variant-peek ?disabled=${picked === current} @click=${() => this._variantPeek(key, picked)}>
+            <ha-icon icon="mdi:eye-outline"></ha-icon><span>${this._t("variant_peek")}</span>
+          </button>
+          ${!admin
+            ? nothing
+            : this._variantConfirm && pickedItem?.id === this._variantConfirm
+            ? html`<div class="variant-confirm" data-variant-confirm>
+                <strong>${this._t("variant_deploy_title", { name: pickedItem.name || this._t("variant_unnamed") })}</strong>
+                <small>${this._t("variant_deploy_text", { live: choices.liveName || this._t("variant_live") })}</small>
+                <div class="variant-confirm-buttons">
+                  <button class="block-action" data-variant-deploy-cancel @click=${() => {
+                    this._variantConfirm = null;
+                    this.requestUpdate();
+                  }}><span>${this._t("cancel")}</span></button>
+                  <button class="block-action on" data-variant-deploy-ok ?disabled=${this._variantBusy} @click=${() => this._variantDeploy(key, pickedItem)}>
+                    <ha-icon icon="mdi:earth"></ha-icon><span>${this._t("variant_deploy_ok")}</span>
+                  </button>
+                </div>
+              </div>`
+            : html`<button class="block-action" data-variant-deploy ?disabled=${!pickedItem || this._variantBusy} @click=${() => {
+                this._variantConfirm = pickedItem.id;
+                this.requestUpdate();
+              }}>
+                <ha-icon icon="mdi:earth"></ha-icon><span>${this._t("variant_deploy")}</span>
+              </button>`}
+        </div>
+      `;
+    }
+
+    get _dashboardUrl() {
+      return window.location.pathname.split("/").filter(Boolean)[0] ?? "";
+    }
+
+    async _variantCall(message) {
+      this._variantBusy = true;
+      this.requestUpdate();
+      try {
+        await this.hass.callWS({ ...message, url_path: this._dashboardUrl });
+        this.dispatchEvent(new CustomEvent("sheet-reload", { bubbles: true, composed: true }));
+      } catch (error) {
+        this._variantBusy = false;
+        this.requestUpdate();
+        window.alert(error?.message ?? String(error));
+      }
+    }
+
+    _variantForDevice(key, device, picked) {
+      writePeek(key, null);
+      return this._variantCall({ type: "home_dashboard/variants/assign", page: key, devices: { [device]: picked === "live" ? null : picked } });
+    }
+
+    _variantForMe(key, picked) {
+      writePeek(key, null);
+      return this._variantCall({ type: "home_dashboard/variants/choose", page: key, variant: picked === "live" ? null : picked });
+    }
+
+    _variantPeek(key, picked) {
+      writePeek(key, picked);
+      this.dispatchEvent(new CustomEvent("sheet-reload", { bubbles: true, composed: true }));
+    }
+
+    _variantDeploy(key, item) {
+      this._variantConfirm = null;
+      writePeek(key, null);
+      return this._variantCall({ type: "home_dashboard/variants/deploy", page: key, variant: item.id });
     }
 
     // My layout -------------------------------------------------------------------------------

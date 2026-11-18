@@ -312,6 +312,25 @@ export const baseStyles = css`
     grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
     gap: 6px;
   }
+  .variant-confirm {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 14px;
+    border-radius: 16px;
+    background: var(--hd-card-off, rgba(127, 127, 127, 0.14));
+  }
+  .variant-confirm small,
+  .variant-note {
+    color: var(--hd-muted);
+    line-height: 1.4;
+  }
+  .variant-confirm-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
   .block-action {
     display: flex;
     flex-direction: column;

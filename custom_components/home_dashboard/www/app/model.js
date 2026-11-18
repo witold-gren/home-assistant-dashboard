@@ -133,6 +133,8 @@ export function normalizeConfig(config = {}) {
     shortcuts: config.shortcuts ?? [],
     scenes: config.scenes ?? [],
     scenes_layout: config.scenes_layout ?? null,
+    // How Home and the rooms lay out their parts: as today, or in sections side by side (`page_layout`).
+    page_layout: { style: "classic", home: null, rows: DEFAULT_SECTION_ROWS, ...config.page_layout },
     music: config.music ?? null,
     map: { track: [], ...config.map },
     weather: config.weather === false ? null : { entity: null, forecast: null, ...config.weather },
@@ -451,6 +453,46 @@ export function clipPicker(config, entityId, cameraId) {
   return CLIP_PICKERS.includes(cameras.clip_picker) ? cameras.clip_picker : "bar";
 }
 
+// How a page lays out its parts: "classic" one under another as always, or "sections", the headings over the background
+// and the sections side by side in as many columns as fit, each at most `rows` rows high (more scroll inside it).
+// `page_layout.style` for every page, `page_layout.home` for Home, a room's own `page_layout` for that room.
+export const PAGE_LAYOUTS = ["classic", "sections"];
+export const DEFAULT_SECTION_ROWS = 4;
+export function pageLayout(config, page, roomId = null) {
+  const settings = config?.page_layout ?? {};
+  const own = page === "home" ? settings.home : page === "room" ? (config?.layout ?? []).find((room) => room.id === roomId)?.page_layout : null;
+  if (PAGE_LAYOUTS.includes(own)) return own;
+  return PAGE_LAYOUTS.includes(settings.style) ? settings.style : "classic";
+}
+
+/** How many rows a section shows before it scrolls inside; 0 shows all of it. */
+export function sectionRows(config) {
+  const rows = Number(config?.page_layout?.rows ?? DEFAULT_SECTION_ROWS);
+  return Number.isInteger(rows) && rows >= 0 ? rows : DEFAULT_SECTION_ROWS;
+}
+
+/** The narrowest a column of sections gets; the page takes as many columns as fit (one on a phone). */
+export const SECTION_COLUMN_MIN = 440;
+export const SECTION_COLUMN_GAP = 32;
+export function sectionColumns(width) {
+  return Math.max(1, Math.floor((width + SECTION_COLUMN_GAP) / (SECTION_COLUMN_MIN + SECTION_COLUMN_GAP)));
+}
+
+/**
+ * The sections in columns: each one, in order, goes to the column that is shortest so far, as the sections view of
+ * Home Assistant does. `heights` are the sections' heights, estimated or measured; the result lists indexes.
+ */
+export function sectionsInColumns(heights, count) {
+  const columns = Array.from({ length: Math.max(1, count) }, () => []);
+  const filled = columns.map(() => 0);
+  heights.forEach((height, index) => {
+    const shortest = filled.indexOf(Math.min(...filled));
+    columns[shortest].push(index);
+    filled[shortest] += height;
+  });
+  return columns;
+}
+
 // A tile from the imported layout. `turn_on_only` is for what may be switched off elsewhere only,
 // such as a guest mode that needs a PIN: the regular dialog would offer the switch, so it stays shut.
 /**
@@ -556,6 +598,19 @@ export function editableTile(hass, item, roomName, config, layout) {
       available: false,
     }
   );
+}
+
+/**
+ * Whether the intercom can speak: a script or service is named, and Home Assistant has it (the Intercom integration
+ * removed, or a script deleted, takes the buttons away instead of leaving ones that fail). A hass that does not list
+ * its services at all is taken at its word.
+ */
+export function intercomReady(hass, config) {
+  const name = config.intercom?.script;
+  if (!name) return false;
+  if (!hass?.services) return true;
+  const [domain, service] = String(name).split(".");
+  return Boolean(hass.services[domain]?.[service]);
 }
 
 // The rooms that have something to speak through.
@@ -1513,7 +1568,7 @@ export function buildHomeModel(hass, config, selection, layout = "phone", now = 
     // A layout lists what the user wants at a glance; a filter answers for the whole house.
     filterRooms: filterRooms(hass, config, selection, layout),
     securityGroup: config.security.group,
-    intercom: config.intercom.script ? intercomAreas(hass, config) : [],
+    intercom: intercomReady(hass, config) ? intercomAreas(hass, config) : [],
   };
 }
 

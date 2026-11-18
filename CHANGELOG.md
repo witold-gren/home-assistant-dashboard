@@ -1,6 +1,73 @@
 # Changelog
 
-## [Unreleased]
+## 1.2.0 (2026-11-18)
+
+Variants of a page that a tablet, a person or the household chooses, sections side by side as a second layout, a
+home without cameras, speakers or intercom that works the same, and today's events back after a restart.
+
+- Devices keep an id of their own (in their browser): signing in to Home Assistant again keeps a phone or tablet the
+  same device, with its name and variants. A Browser Mod name is its name until one is given; a device known by its
+  sign-in moves to its id by itself. Without storage (private browsing) the sign-in still tells it apart.
+- Fixed: after a restart of Home Assistant today's events of the status bar stayed empty until the page was
+  reloaded (a calendar not ready yet was kept as empty for 5 minutes). A list that could not be read whole is not
+  kept, is tried again after 15 s, and is read again when the connection comes back. FAQ row (PL+EN). Tests in
+  `test_calendar.py`.
+- Sections side by side: the tabs scroll only as
+  far as the current one needs (Home stays when it fits), stop at the start of a tab instead of cutting one, and
+  their edges fade where more tabs are. Tests in `test_sections_layout.py`.
+- Variants shared with the household: *Share with the household* on a card lets anyone choose it for themselves
+  (three dots → Variant of this page → Choose for me, on all their devices; `home_dashboard/variants/choose`).
+  The magnifier in the editor opens *Where the variants run*: every page, its variants, the devices and people that
+  see them, who chose it themselves. While a variant is edited, changes outside its page (a block, the menu, another
+  room) go to the draft instead of being dropped. People who are not administrators get *Load the app afresh* in
+  the side menu. Docs: editor, guide (PL+EN).
+- Variants: the editor asks in its own dialogs (new name, rename, delete, make published) instead of the browser's,
+  and the phone confirms *Publish for everyone* inside its window. New setting **Devices** in the editor: every
+  phone and tablet that opened the dashboard, with a name to type, its kind, person, last opening, the variant of
+  each page it shows, and *Forget* (`home_dashboard/variants/forget_device`). Tests in `test_editor_variants.py`,
+  `test_page_variants.py`, `test_variants.py`.
+- A home without some parts: the editor shows *Cameras*, *Media page*, *Intercom* and *Music page* greyed, with what
+  to install (a camera, a speaker, the Intercom integration or a script, Music Assistant), and does not open them.
+  The intercom buttons (Home, a room, a camera's talk) show only when the service or script the dashboard names
+  exists, so removing the Intercom integration leaves no button that fails. Checked without any camera, speaker,
+  Intercom or Music Assistant: every page, window and setting opens. Docs: editor (PL+EN). Tests:
+  `tests/browser/test_missing_parts.py`.
+- **Variants of a page**: other versions of Home or of a room, each with its own layout and background, to try out
+  without touching the published page. A variant holds only its page's part of the configuration (the rest always
+  comes from the published dashboard) and is kept by the editor on the server. In the editor: the node Variants of
+  Home and of every room, with cards to preview, edit (changes go into the variant, the draft waits), copy, rename,
+  delete, *Who sees it* (a device, as the hall tablet, or a person; a device wins over its person) and *Make it the
+  published page* (the replaced version goes to the history and its page stays as a variant). On a phone or tablet
+  an administrator picks under the three dots → Variant of this page: show on this device, just look (a banner with
+  Back) or publish for everyone. Changes made on a page that shows a variant go into it. Server: `variants.py`
+  (`home_dashboard/variants/*`); devices keep an id of their own and say what they are.
+  Docs: editor (Page variants), guide, FAQ row (PL+EN). Tests: `tests/test_variants.py`,
+  `tests/browser/test_page_variants.py`, `tests/browser/test_editor_variants.py`, shared slices in
+  `tests/fixtures/variant_slices.json`. Needs a restart of Home Assistant (new server commands).
+- **Sections side by side** (`page_layout`), a second layout of Home and the room pages: the headings over the
+  background, tabs of Home and the rooms in place of the greeting (and of a room's name), and the sections in as many columns as fit (two on a tablet on its side, also with the status bar open
+  at 85 % zoom; one on a phone), each going in order to the shortest column. A section longer than four rows
+  (`page_layout.rows`) scrolls inside, fades at its foot and says how many tiles it has; the cameras come two at a
+  time and more are swiped to; a heading opens its page (Cameras, a room, Scenes); over a background a tile that is
+  on is white. Chosen for every page, for Home alone or for one room: Dashboard settings → Layout of the pages, the
+  room editor → Layout of this page, and the editor on a computer (Home page and tablet → Layout of the pages, the
+  room's field Layout of the page). The classic layout stays the default. Docs: guide, configuration, editor (PL+EN).
+  Tests: `tests/browser/test_sections_layout.py`.
+- Editor: ⚙ in the top bar opens a pop-up under it instead of the dialog of the preview's devices: the theme
+  (As HA / Light / Dark, the half sun on the bar stays), the language of the editor (As in HA / Polski / English,
+  kept in the browser) and a button to the preview devices. A choice works at once and the pop-up stays open; Esc, a
+  click beside it, ⚙ again or ☰ close it. Tests: `tests/browser/test_editor_gear.py`.
+- Household activity in a window of the dashboard: the picker of the range was see-through and the timeline showed
+  through it (cards and controls of glass). It is now a plain window of the look, white in the light one and dark in
+  the dark one, whatever glass the window has, with its own writing and a readable Choose button.
+- Household activity: windows read by their names instead of the kinds the dashboard tells ("Side menu",
+  "Dashboard settings", "Household activity" instead of menu, settings, household; a camera window reads its camera
+  with "Camera" in place of "Window"), each kind with its own icon. Entries kept before read the same way.
+- Household activity on a phone: the picker of the range stuck out of the left edge of the screen and the window cut
+  off its month; it starts under the range, the ready ranges are chips in a few rows, and all of it fits the screen.
+- Household activity: a range of its own is picked on a month of the dashboard instead of the browser's small
+  calendar: the first tap starts it, the second ends it (the end before the start swaps them), the band between
+  them is lit, days after today cannot be chosen; the hours of both ends below (23:59 = to the end of the day).
 
 ## 1.1.0 (2026-11-17)
 

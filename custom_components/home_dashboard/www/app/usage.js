@@ -6,6 +6,31 @@ import { browserModId } from "./camera-window.js";
 
 const SAME_WITHIN_MS = 5000;
 
+const DEVICE_ID_KEY = "home-dashboard-device-id";
+
+/**
+ * The dashboard's own id of this device, kept in its browser: a new sign-in to Home Assistant keeps it the same device
+ * (its name, its variants). Null where the browser keeps nothing (private browsing); then the sign-in tells.
+ */
+export function dashboardDeviceId(storage = globalThis.localStorage) {
+  try {
+    let id = storage?.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 14)}`;
+      storage.setItem(DEVICE_ID_KEY, id);
+    }
+    return storage.getItem(DEVICE_ID_KEY) === id ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The name Browser Mod has for this device, when someone gave it one (not the id it made up by itself). */
+export function browserModName() {
+  const named = browserModId();
+  return named && !/^browser_mod_[0-9a-f_]+$/i.test(named) ? named : null;
+}
+
 /** What device this is, in a few words: the Browser Mod id, or the kind of device and app or browser. */
 export function deviceLabel(agent = globalThis.navigator?.userAgent ?? "", touch = globalThis.navigator?.maxTouchPoints ?? 0) {
   const named = browserModId();

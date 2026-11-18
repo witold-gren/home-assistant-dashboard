@@ -116,6 +116,41 @@ Od góry: powitanie, pogoda, chipy, Twoje skróty, kamery, sceny, ulubione i pok
 - <b class="ui">Ulubione</b> są nad pokojami: `favorites: [climate.living_room, lock.front_door]` albo Mój układ → Ulubione → <b class="ui">Dla wszystkich</b>.
 - **Skróty** są w rzędzie chipów, patrz [Skróty i bloki](#7-skróty-i-bloki).
 
+### Sekcje obok siebie {#sections-side-by-side}
+
+Strona główna i strony pokoi mogą układać swoje części w sekcje obok siebie zamiast jedna pod drugą: nagłówki na tle,
+a sekcje w tylu kolumnach, ile się zmieści. Tablet poziomo ma dwie, także z otwartym paskiem stanu przy powiększeniu
+85 % w aplikacji; telefon ma jedną. Sekcje zachowują kolejność, każda trafia do kolumny, która jest na razie
+najkrótsza.
+
+- U góry, zamiast powitania (na stronie pokoju zamiast strzałki i nazwy), zakładki strony głównej i pokoi prowadzą
+  do każdej strony; plakietki, ostrzeżenia i przyciski po prawej zostają.
+- Sekcja dłuższa niż cztery rzędy przewija się w środku. Jej nagłówek mówi wtedy, ile ma kafelków, a jej dół zanika,
+  dopóki niżej jest coś jeszcze.
+- Kamery są po dwie; więcej przesuwa się w bok, parami.
+- Nagłówek ze strzałką otwiera swoją stronę: <b class="ui">Kamery</b> wszystkie kamery, pokój jego stronę, <b class="ui">Sceny</b> stronę scen.
+- Na tle włączony kafelek jest biały, z kolorem w kółku; wyłączony zachowuje wygląd.
+- Menu boczne, pasek stanu tabletu i pasek stron zostają bez zmian. Strona w oknie i pokój w trakcie edycji mają
+  układ klasyczny.
+
+Wybierz go w Menu → <b class="ui">Ustawienia dashboardu</b> → <b class="ui">Układ stron</b>: <b class="ui">Wszystkie strony</b>, osobno <b class="ui">Strona główna</b> oraz
+<b class="ui">Rzędy sekcji, zanim zacznie się przewijać</b> (także wszystkie, bez przewijania). Pokój dostaje własny układ w swojej edycji: trzy kropki →
+<b class="ui">Edytuj ten ekran</b> → <b class="ui">Układ tej strony</b>. W edytorze na komputerze to samo jest w *Ustawienia → Strona główna i
+tablet → Układ stron*, a pokój ma pole *Układ strony*. Domyślnie zostaje układ klasyczny. Klucze:
+[`page_layout`](configuration.pl.md#page_layout).
+
+### Warianty strony {#variants-of-a-page}
+
+Strona główna i każdy pokój mogą mieć warianty: inne wersje strony, każda z własnym układem i tłem, dla jednego
+urządzenia (np. tabletu w korytarzu) albo jednej osoby, podczas gdy reszta domu widzi obowiązującą stronę. Powstają w
+edytorze na komputerze ([Warianty stron](editor.pl.md#page-variants)). Na stronie, która je ma, administrator znajdzie
+trzy kropki → <b class="ui">Wariant tej strony</b>: <b class="ui">Pokaż na tym urządzeniu</b>, <b class="ui">Tylko zerknij</b> (pasek *Oglądasz: …* z
+<b class="ui">Wróć</b>) i <b class="ui">Wdróż dla wszystkich…</b>, które zostawia zastąpioną stronę jako wariant. Wariant udostępniony
+domownikom może tam wybrać każdy: <b class="ui">Wybierz dla siebie</b> działa na wszystkich jego urządzeniach.
+
+Kto nie ma ustawień dashboardu (są dla administratorów), ma w menu bocznym <b class="ui">Wczytaj aplikację od nowa</b>: pobiera
+najnowsze pliki i otwiera stronę od nowa.
+
 ### Pogoda
 
 Pierwszy chip pokazuje temperaturę i otwiera ekran z bieżącymi odczytami oraz prognozą na najbliższe godziny
@@ -1666,5 +1701,8 @@ się od obecnej; *Przywróć jako szkic* robi z niej szkic do obejrzenia i opubl
 | Nie mogę edytować | Edycja wymaga konta administratora. |
 | Nowe urządzenie nie pojawia się w pokoju | Pokój jest w `layout`: dodaj je przez <b class="ui">Dodaj kafelek</b>. |
 | Mówienie przez kamerę nic nie robi, mikrofon jest przekreślony | Mówienie wymaga HTTPS: otwórz Home Assistant przez `https://` (w aplikacji: Ustawienia → Aplikacja towarzysząca → Serwery → adres wewnętrzny), potem włącz podgląd na żywo. |
+| Tablet przestał pokazywać swój wariant | Ponowne zalogowanie zostawia urządzenie; wyczyszczenie danych aplikacji (albo jej przeinstalowanie) robi z niego nowe: w edytorze *Warianty* → *Kto widzi* wybierz mu wariant jeszcze raz (pojawi się, gdy otworzy dashboard), a stary wpis *Zapomnij* w *Urządzeniach*. |
+| Po restarcie Home Assistant z paska stanu znikają dzisiejsze wydarzenia | Naprawione: dashboard czyta je ponownie, gdy Home Assistant wróci, i co 15 s, dopóki kalendarz się uruchamia. Jeśli nadal ich brak, sprawdź, czy kalendarz działa w Home Assistant (Kalendarz w panelu bocznym). |
+| Edytor pokazuje `not a valid option at 'shared'` (albo inne pole) | Dashboard został zaktualizowany, ale Home Assistant nadal działa na starym kodzie, który tego pola nie zna. Uruchom ponownie Home Assistant, potem wczytaj edytor od nowa. |
 
 Więcej, z dokładnymi komunikatami, jest w [FAQ w README](../README.pl.md#faq).

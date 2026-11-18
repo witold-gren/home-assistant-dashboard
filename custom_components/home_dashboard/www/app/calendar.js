@@ -10,6 +10,8 @@ export const CALENDAR_LIMIT = 3;
 export const LIST_DAYS = 14;
 // How long fetched events are kept before asking Home Assistant again.
 export const CALENDAR_REFRESH_MS = 5 * 60 * 1000;
+// A calendar that could not be read (Home Assistant starting) is tried again this soon.
+export const CALENDAR_RETRY_MS = 15 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const domainOf = (entityId) => String(entityId).split(".")[0];
@@ -82,19 +84,28 @@ export function readEvent(raw, calendar) {
   };
 }
 
-/** The events of the calendars between two times, all-day ones first and then by their start. */
+/**
+ * The events of the calendars between two times, all-day ones first and then by their start. A calendar that could
+ * not be read (Home Assistant still starting, a connection lost) leaves the list `incomplete`, to be read again.
+ */
 export async function fetchEvents(hass, calendars, from, to) {
   if (!hass?.callApi || !calendars.length) return [];
   const range = `start=${encodeURIComponent(from.toISOString())}&end=${encodeURIComponent(to.toISOString())}`;
+  let incomplete = false;
   const lists = await Promise.all(
     calendars.map((id) =>
       hass
         .callApi("GET", `calendars/${id}?${range}`)
         .then((events) => (Array.isArray(events) ? events.map((raw) => readEvent(raw, id)).filter((event) => event.start) : []))
-        .catch(() => []),
+        .catch(() => {
+          incomplete = true;
+          return [];
+        }),
     ),
   );
-  return sortEvents(lists.flat());
+  const events = sortEvents(lists.flat());
+  if (incomplete) events.incomplete = true;
+  return events;
 }
 
 export const sortEvents = (events) =>
@@ -169,6 +180,10 @@ export function cachedEvents(hass, calendars, from, to, now = Date.now()) {
   if (kept && now - kept.at < CALENDAR_REFRESH_MS) return kept.events;
   const events = fetchEvents(hass, calendars, from, to);
   cache.set(key, { at: now, events });
+  // A list that could not be read whole is not kept: the next look reads it again.
+  events.then((list) => {
+    if (list.incomplete && cache.get(key)?.events === events) cache.delete(key);
+  });
   return events;
 }
 

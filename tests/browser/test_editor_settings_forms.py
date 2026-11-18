@@ -652,7 +652,10 @@ def test_every_setting_of_the_tree_has_a_form(rest) -> None:
     settings = [
         key
         for key in keys
-        if "/" not in key and key not in ("favorites", "scenes") and not key.startswith("layout")
+        # The devices of the home have a panel of their own (test_editor_variants.py), not a form of the configuration.
+        if "/" not in key
+        and key not in ("favorites", "scenes", "known_devices")
+        and not key.startswith("layout")
     ]
     without = []
     for key in settings:

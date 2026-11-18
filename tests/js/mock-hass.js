@@ -46,6 +46,8 @@ export function createHass(snapshot, overrides = {}) {
     callApi: async (method, path) => {
       calls.push({ type: "api", method, path });
       const calendar = /^calendars\/([^?]+)/.exec(path)?.[1];
+      // Home Assistant still starting: a test sets `window.calendarFails` and reading a calendar fails.
+      if (calendar && globalThis.calendarFails) throw new Error("Calendar not ready");
       return calendar ? structuredClone(globalThis.calendarEvents?.[calendar] ?? []) : null;
     },
     connection: {

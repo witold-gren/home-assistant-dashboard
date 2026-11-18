@@ -41,6 +41,7 @@ import {
   cameraColumns,
   editableTile,
   intercomAreas,
+  intercomReady,
   normalizeConfig,
   personalize,
   tileKey,
@@ -61,6 +62,11 @@ import {
   watchedEntityIds,
   scaledPicture,
   TILE_PICTURE,
+  pageLayout,
+  PAGE_LAYOUTS,
+  sectionColumns,
+  sectionRows,
+  sectionsInColumns,
 } from "./model.js";
 import {
   addSection,
@@ -97,6 +103,7 @@ import {
   touchedTarget,
 } from "./preview.js";
 import { createHighlighter } from "./preview-highlight.js";
+import { pageKey, pageStrategy } from "./variants.js";
 import { runAction } from "./panel.js";
 import { backgroundStyle, isDark, screenShape, tokens, viewBackgroundFor, WIDE_QUERY } from "./styles.js";
 
@@ -145,6 +152,31 @@ const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const FILTER_RISE_MS = 520;
 const FILTER_FADE_MS = 280;
 
+/**
+ * Where a row of tabs scrolls to show one: not at all when it is in sight from the start, else just far enough to
+ * show it whole at the end, moved on to the start of the first tab not cut by the left edge.
+ */
+export function tabsScroll(row, tab) {
+  const tabs = [...row.children];
+  const at = (element) => tabPosition(row, element);
+  const needed = at(tab) + tab.offsetWidth - row.clientWidth;
+  if (needed <= 0) return 0;
+  const first = tabs.find((each) => at(each) >= needed) ?? tab;
+  return Math.min(at(first), at(tab));
+}
+
+/** Where a tab starts in its row, from the row's start, whatever the row is scrolled to. */
+export function tabPosition(row, tab) {
+  const start = row.children[0] ?? tab;
+  return tab.getBoundingClientRect().left - start.getBoundingClientRect().left;
+}
+
+/** Whether a tab is whole in the visible part of its row. */
+export function tabInSight(row, tab) {
+  const left = tab.getBoundingClientRect().left - row.getBoundingClientRect().left;
+  return left >= -1 && left + tab.offsetWidth <= row.clientWidth + 1;
+}
+
 export class HomeDashboardPage extends LitElement {
   static properties = {
     _model: { state: true },
@@ -158,12 +190,16 @@ export class HomeDashboardPage extends LitElement {
     _mapDrag: { state: true },
     _leavingModel: { state: true },
     _ran: { state: true },
+    _width: { state: true },
   };
 
   setConfig(config) {
     this._page = config.page ?? "home";
     // In the editor's preview the draft stands in for the saved configuration.
-    this._raw = previewStrategy(config.dashboard ?? {});
+    this._published = previewStrategy(config.dashboard ?? {});
+    this._room ??= new URLSearchParams(window.location.search).get("room");
+    // A page with a variant for this device or person shows that variant's part, background included.
+    this._raw = pageStrategy(this._published, this._page, this._room);
     this._config = normalizeConfig(this._raw);
     // Inside a sheet the page is only content: the navigation and the scrolling belong to the view.
     this._embedded = Boolean(config.embedded);
@@ -191,6 +227,12 @@ export class HomeDashboardPage extends LitElement {
     if (this._hass && !this._embedded) attachChrome(this, this._hass, this._page, this._raw);
     window.addEventListener(PREFS_EVENT, this._onPrefs);
     document.addEventListener("visibilitychange", this._onPageShown);
+    // The sections side by side take as many columns as the width of the page has room for.
+    this._resize ??= new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      if (width !== this._width) this._width = width;
+    });
+    this._resize.observe(this);
     // Put back on the page with a hass that came while it was away.
     if (this._nextHass) this._takeHass();
     // A page shown again, as Home after a room, puts its own background back on the view.
@@ -215,6 +257,7 @@ export class HomeDashboardPage extends LitElement {
     this._stopCommands?.();
     this.removeEventListener("click", this._onPreviewTouch, true);
     clearInterval(this._pictureTimer);
+    this._resize?.disconnect();
     clearTimeout(this._leavingTimer);
     clearInterval(this._musicWatch);
     this._highlighter?.stop();
@@ -281,6 +324,7 @@ export class HomeDashboardPage extends LitElement {
 
   // The editor changed its draft: the page shows it at once.
   _onDraft = (strategy) => {
+    this._published = strategy;
     this._raw = strategy;
     this._config = normalizeConfig(strategy);
     this._selection = null;
@@ -314,6 +358,16 @@ export class HomeDashboardPage extends LitElement {
     this._room = room;
     this._edit = null;
     pageScroller(this).scrollTo(0, 0);
+    // Another room may have a variant of its own, or the last one had and this one has not.
+    const raw = pageStrategy(this._published, this._page, room);
+    if (raw !== this._raw) {
+      this._raw = raw;
+      this._config = normalizeConfig(raw);
+      this._selection = null;
+      if (!this._embedded && this._hass) attachChrome(this, this._hass, this._page, this._raw);
+      this._reapplyHass();
+      return;
+    }
     if (this._selection) {
       this._refresh();
       this._watchEntities();
@@ -588,7 +642,7 @@ export class HomeDashboardPage extends LitElement {
 
   // The speakers of this room and no other, also when the room joins several areas.
   _roomSpeakers(areas) {
-    if (!this._config.intercom.script) return [];
+    if (!intercomReady(this._hass, this._config)) return [];
     return intercomAreas(this._hass, this._config)
       .map((area) => area.id)
       .filter((id) => areas.includes(id));
@@ -771,6 +825,8 @@ export class HomeDashboardPage extends LitElement {
             rooms,
             personal: this._page === "home",
             roomView: this._page === "room" && this._room !== SCENES_ROOM ? this._room : null,
+            variantPage: pageKey(this._page, this._room),
+            variantTitle: rooms.find((room) => room.id === this._room)?.name ?? null,
             onEdit: this._screenEditor,
             onBackground: this._backgroundEditor,
           })}
@@ -997,6 +1053,14 @@ export class HomeDashboardPage extends LitElement {
   _renderHome() {
     const { title } = this._model;
     const old = this._leavingModel;
+    if (this._sectionsView) {
+      return html`
+        <div class="home-title">${this._renderPageTabs()} ${this._renderHomeActions()}</div>
+        <div class="chips">${this._renderChips(this._model)}</div>
+        ${this._model.filter ? nothing : this._renderAlerts()}
+        ${this._renderHomeContent(this._model)}
+      `;
+    }
     return html`
       <div class="home-title">
         <h1><span class="title-now">${title}</span>${old
@@ -1013,7 +1077,9 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
-  _renderHomeContent({ cameras, cameraList, favorites, rooms, filter, scenes }) {
+  _renderHomeContent(model) {
+    if (this._sectionsView) return this._renderSections(this._homeSections(model));
+    const { cameras, cameraList, favorites, rooms, filter, scenes } = model;
     const language = this._hass.language;
     return html`
       ${this._renderCameras(cameras)}
@@ -1310,6 +1376,7 @@ export class HomeDashboardPage extends LitElement {
           `,
         )}
       </div>
+      ${tab === "room" && !scenes ? this._renderEditLayout(room) : nothing}
       ${lists.map((section, list) => this._renderEditList(section, list, lists.length))}
       ${tab === "room"
         ? html`<button
@@ -1326,11 +1393,54 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
+  // This room's own layout, or the one of every page (`page_layout` of the room).
+  _renderEditLayout(room) {
+    const language = this._hass.language;
+    const every = pageLayout({ page_layout: this._config.page_layout }, "room");
+    const chosen = PAGE_LAYOUTS.includes(room.page_layout) ? room.page_layout : "auto";
+    const choose = (value) => {
+      const { page_layout: previous, ...rest } = this._edit.room;
+      this._updateRoom(value === "auto" ? rest : { ...rest, page_layout: value });
+    };
+    return html`<label class="edit-layout">
+      <span>${translate(language, "edit_page_layout")}</span>
+      <select data-edit-page-layout @change=${(event) => choose(event.target.value)}>
+        ${["auto", ...PAGE_LAYOUTS].map(
+          (mode) => html`<option value=${mode} ?selected=${mode === chosen}>
+            ${mode === "auto"
+              ? translate(language, "page_layout_auto", { mode: translate(language, `page_layout_${every}`) })
+              : translate(language, `page_layout_${mode}`)}
+          </option>`,
+        )}
+      </select>
+    </label>`;
+  }
+
   _renderRoom() {
     if (this._edit) return this._renderRoomEditor();
-    const { title, areas, cameras, sections, status, actions = [] } = this._model;
+    const { title, areas, status } = this._model;
     const language = this._hass.language;
     const speakers = this._roomSpeakers(areas);
+    if (this._sectionsView) {
+      return html`
+        <div class="room-title with-tabs">
+          ${this._renderPageTabs()}
+          <div class="intercom">
+            ${speakers.length
+              ? html`<button
+                  aria-label=${translate(language, "intercom_to", { room: title })}
+                  data-intercom-here
+                  @click=${() => this._openIntercom(speakers, title)}
+                >
+                  <ha-icon icon="mdi:waveform"></ha-icon>
+                </button>`
+              : nothing}
+            ${this._renderRoomsButton()}
+          </div>
+        </div>
+        ${this._renderStatus(status)} ${this._renderRoomSections(this._model)}
+      `;
+    }
     return html`
       <div class="room-title">
         <button
@@ -1355,6 +1465,13 @@ export class HomeDashboardPage extends LitElement {
         </div>
       </div>
       ${this._renderStatus(status)}
+      ${this._sectionsView ? this._renderRoomSections(this._model) : this._renderRoomParts(this._model)}
+    `;
+  }
+
+  _renderRoomParts({ cameras, sections, actions = [] }) {
+    const language = this._hass.language;
+    return html`
       ${this._renderCameras(cameras)}
       ${actions.length
         ? html`
@@ -1379,6 +1496,178 @@ export class HomeDashboardPage extends LitElement {
       ${sections.length || actions.length ? nothing : html`<p class="soon">${translate(language, "room_empty")}</p>`}
     `;
   }
+
+  // Sections side by side -----------------------------------------------------------------------
+
+  /** Home and the rooms in sections side by side (`page_layout: sections`); a page in a window stays as it is. */
+  get _sectionsView() {
+    if (this._embedded || this._edit || !["home", "room"].includes(this._page)) return false;
+    return pageLayout(this._config, this._page, this._room) === "sections";
+  }
+
+  /** Home and the rooms as tabs at the top, in place of the greeting or of the room's name. */
+  _renderPageTabs() {
+    const language = this._hass.language;
+    const current = this._page === "home" ? "home" : this._room;
+    const tabs = [{ id: "home", name: translate(language, "nav_home") }, ...buildRoomList(this._hass, this._config, this._selection)];
+    const open = (id) => (id === "home" ? navigateTo(`${dashboardPath(window.location.pathname)}/home`) : this._openRoom(id));
+    return html`<nav class="page-tabs" data-page-tabs aria-label=${translate(language, "rooms_pick")} @scroll=${this._tabsScrolled}
+      @pointerdown=${() => (this._tabsTouched = true)} @wheel=${() => (this._tabsTouched = true)}>
+      ${tabs.map(
+        (tab) => html`<button
+          class="page-tab ${tab.id === current ? "on" : ""}"
+          data-page-tab=${tab.id}
+          aria-current=${tab.id === current ? "page" : nothing}
+          @click=${() => tab.id !== current && open(tab.id)}
+        >${tab.name}</button>`,
+      )}
+    </nav>`;
+  }
+
+  // The tab of the page shown stays in sight with as little scrolling as it needs, so Home stays when it fits; the
+  // row stops at the start of a tab, never half through one.
+  _showCurrentTab() {
+    const row = this.renderRoot?.querySelector("[data-page-tabs]");
+    const tab = row?.querySelector(".page-tab.on");
+    if (!tab) return;
+    const key = `${this._page}|${this._room}`;
+    if (this._tabShown !== key) this._tabsTouched = false;
+    // Also later, when the row got narrower (the buttons beside it, the status bar opened), unless moved by hand.
+    if (this._tabShown !== key || (!this._tabsTouched && row.clientWidth && !tabInSight(row, tab))) {
+      const target = tabsScroll(row, tab);
+      // A row cannot scroll past its end: a little room after the last tab lets it stop at the start of a tab.
+      const end = row.scrollWidth - row.clientWidth - (this._tabsEnd ?? 0);
+      const extra = Math.max(0, Math.ceil(target - end));
+      if (extra !== (this._tabsEnd ?? 0)) {
+        this._tabsEnd = extra;
+        row.style.setProperty("--tabs-end", `${extra}px`);
+      }
+      row.scrollLeft = target;
+      // Shown only once it really is: before the row is laid out (its fonts, its width) it is tried again.
+      this._tabTries = this._tabTried === key ? (this._tabTries ?? 0) + 1 : 0;
+      this._tabTried = key;
+      const settled = row.clientWidth && (tabInSight(row, tab) || tab.offsetWidth >= row.clientWidth);
+      if (settled || this._tabTries >= 30) this._tabShown = key;
+      else requestAnimationFrame(() => this.isConnected && this._showCurrentTab());
+    }
+    this._tabsScrolled({ currentTarget: row });
+  }
+
+  // The edges fade where more tabs are beyond them.
+  _tabsScrolled = (event) => {
+    const row = event.currentTarget;
+    row.classList.toggle("more-start", row.scrollLeft > 2);
+    row.classList.toggle("more-end", row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
+  };
+
+  _homeSections({ cameras, cameraList, favorites, rooms, filter, scenes }) {
+    const language = this._hass.language;
+    const sections = [];
+    if (cameras.length) {
+      sections.push({
+        key: "cameras",
+        title: translate(language, "section_cameras"),
+        cameras,
+        open: () => openSheet(this, { kind: "cameras", cameras: cameras.map((camera) => camera.entityId) }),
+      });
+    }
+    if (!filter && (scenes.length || this._hass.user?.is_admin)) {
+      sections.push({ key: "scenes", room: SCENES_ROOM, title: translate(language, "section_scenes"), tiles: scenes, open: () => this._openRoom(SCENES_ROOM) });
+    }
+    if (favorites.length) sections.push({ key: "favorites", title: translate(language, "section_favorites"), tiles: favorites, showRoom: true });
+    for (const room of rooms) {
+      sections.push({ key: `room-${room.id}`, room: room.plain ? null : room.id, title: room.name, tiles: room.tiles, open: room.plain ? null : () => this._openRoom(room.id) });
+    }
+    if (cameraList?.length) sections.push({ key: "camera-list", title: translate(language, "section_cameras"), cameras: cameraList });
+    return sections;
+  }
+
+  _renderRoomSections({ cameras, sections, actions = [] }) {
+    const language = this._hass.language;
+    const parts = [];
+    if (cameras.length) {
+      parts.push({
+        key: "cameras",
+        title: translate(language, "section_cameras"),
+        cameras,
+        open: () => openSheet(this, { kind: "cameras", cameras: cameras.map((camera) => camera.entityId) }),
+      });
+    }
+    if (actions.length) parts.push({ key: "scenes", title: translate(language, "section_scenes"), tiles: actions });
+    for (const section of sections) parts.push({ key: `section-${section.key}`, title: section.title, tiles: section.tiles });
+    if (!parts.length) return html`<p class="soon">${translate(language, "room_empty")}</p>`;
+    return this._renderSections(parts);
+  }
+
+  /** How high a section is, roughly: its heading and its rows of tiles, at most as many as it shows. */
+  _sectionHeight(section, rows) {
+    if (section.cameras) return 56 + 180;
+    const slots = section.tiles.reduce((count, tile) => count + (tile.stats?.length ? 2 : 1), 0);
+    const needed = Math.ceil(slots / 2);
+    return 56 + (rows ? Math.min(needed, rows) : needed) * 72;
+  }
+
+  _renderSections(sections) {
+    const rows = sectionRows(this._config);
+    const padding = (this._width ?? 0) >= 800 ? 48 : 32;
+    const count = sectionColumns((this._width ?? 0) - padding);
+    const columns = sectionsInColumns(sections.map((section) => this._sectionHeight(section, rows)), count);
+    return html`
+      <div class="section-columns" style="--section-columns: ${count}" data-section-columns=${count}>
+        ${columns.map((column) => html`<div class="section-column">${column.map((index) => this._renderSection(sections[index], rows))}</div>`)}
+      </div>
+    `;
+  }
+
+  _renderSectionHead(section, more) {
+    const title = section.open
+      ? html`<button
+          class="section-link"
+          data-section-link=${section.key}
+          data-room-link=${section.room ?? nothing}
+          @click=${section.open}
+        >${section.title}<ha-icon icon="mdi:chevron-right"></ha-icon></button>`
+      : section.title;
+    return html`<h2 class="section-head">${title}${more}</h2>`;
+  }
+
+  _renderSection(section, rows) {
+    const language = this._hass.language;
+    if (section.cameras) {
+      const pairs = [];
+      for (let index = 0; index < section.cameras.length; index += 2) pairs.push(section.cameras.slice(index, index + 2));
+      const more = pairs.length > 1
+        ? html`<span class="section-more" data-section-more>
+            ${translate(language, "section_swipe", { count: section.cameras.length })}<ha-icon icon="mdi:chevron-right"></ha-icon>
+          </span>`
+        : nothing;
+      return html`<section class="part" data-part=${section.key}>
+        ${this._renderSectionHead(section, more)}
+        <div class="camera-pairs" data-camera-pairs>
+          ${pairs.map((pair) => html`<div class="camera-pair">${pair.map((camera) => this._renderCamera(camera, true, TILE_PICTURE.small))}</div>`)}
+        </div>
+      </section>`;
+    }
+    const slots = section.tiles.reduce((count, tile) => count + (tile.stats?.length ? 2 : 1), 0);
+    const limited = rows > 0 && Math.ceil(slots / 2) > rows;
+    const more = limited
+      ? html`<span class="section-more" data-section-more>
+          ${translate(language, "section_scroll", { count: section.tiles.length })}<ha-icon icon="mdi:chevron-down"></ha-icon>
+        </span>`
+      : nothing;
+    return html`<section class="part" data-part=${section.key}>
+      ${this._renderSectionHead(section, more)}
+      <div class="tiles compact ${limited ? "limited" : ""}" style="--section-rows: ${rows}" @scroll=${this._partScrolled}>
+        ${section.tiles.map((tile) => this._renderTile(tile, Boolean(section.showRoom)))}
+      </div>
+    </section>`;
+  }
+
+  // The fading edge says there is more below; at the end there is nothing more to say.
+  _partScrolled = (event) => {
+    const list = event.currentTarget;
+    list.classList.toggle("end", list.scrollTop + list.clientHeight >= list.scrollHeight - 2);
+  };
 
   _renderMedia() {
     const language = this._hass.language;
@@ -1673,6 +1962,7 @@ export class HomeDashboardPage extends LitElement {
   }
 
   updated() {
+    if (this._sectionsView) this._showCurrentTab();
     if (!this._embedded) {
       setPageBackground(this, this._background);
       const onView = this._onView;
@@ -1713,7 +2003,7 @@ export class HomeDashboardPage extends LitElement {
       <div
         style="${tileVariables(appearance)}; --hd-veil: ${backgroundVeil(appearance)}"
         class="page ${appearance.tiles.fill === "icon" ? "fill-icon" : ""} ${background ? "with-background" : ""} ${this._page === "music" ? "whole" : ""} ${this._page === "music" && this._config.music?.fullscreen ? "music-full" : ""} ${this._page === "music" && this._musicUnderClock ? "under-clock" : ""} ${this._page === "map" ? "whole map-view" : ""}
-          ${this._embedded ? "embedded" : ""}"
+          ${this._embedded ? "embedded" : ""} ${this._sectionsView ? "sections-view" : ""}"
       >
         ${background && !this._onView && !this._embedded
           ? html`<div class="backdrop-rail"><div class="backdrop" style=${backgroundStyle(background, this._backgroundPosition)}></div></div>`
@@ -2266,6 +2556,22 @@ export class HomeDashboardPage extends LitElement {
         white-space: nowrap;
         text-overflow: ellipsis;
       }
+      .edit-layout {
+        display: grid;
+        gap: 6px;
+        margin-top: 16px;
+        font-size: 14px;
+      }
+      .edit-layout select {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--hd-outline);
+        border-radius: 12px;
+        font: inherit;
+        color: var(--hd-text);
+        background: var(--hd-surface);
+      }
       section[data-edit-list] {
         margin-top: 16px;
       }
@@ -2480,6 +2786,179 @@ export class HomeDashboardPage extends LitElement {
         font-size: 13px;
         line-height: 18px;
         color: var(--hd-text-muted);
+      }
+      .page-tabs {
+        display: flex;
+        flex: 1;
+        gap: 22px;
+        min-width: 0;
+        margin: 8px 0 12px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+      }
+      .page-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .page-tabs::after {
+        content: "";
+        flex: none;
+        width: var(--tabs-end, 0px);
+      }
+      .page-tabs.more-end {
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+        mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+      }
+      .page-tabs.more-start {
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 36px);
+        mask-image: linear-gradient(to right, transparent, #000 36px);
+      }
+      .page-tabs.more-start.more-end {
+        -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+        mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+      }
+      .page-tabs .page-tab {
+        display: block;
+        flex: none;
+        width: auto;
+        height: auto;
+        padding: 6px 0 5px;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        font-size: 18px;
+        line-height: 24px;
+        font-weight: 700;
+        white-space: nowrap;
+        color: var(--hd-look-title, inherit);
+        opacity: 0.55;
+      }
+      .page-tabs .page-tab.on {
+        border-bottom-color: currentColor;
+        opacity: 1;
+      }
+      .with-background .page-tab {
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+      }
+      .room-title.with-tabs {
+        flex-wrap: nowrap;
+        gap: 8px;
+        margin-left: 0;
+      }
+      /* Sections side by side: the headings over the background, the sections in columns, each at most so many rows
+         high; a longer one scrolls inside and fades at its foot while there is more. */
+      .section-columns {
+        display: grid;
+        grid-template-columns: repeat(var(--section-columns, 1), minmax(0, 1fr));
+        align-items: start;
+        gap: 0 32px;
+        margin-top: 12px;
+      }
+      .section-column {
+        display: grid;
+        align-content: start;
+        gap: 22px;
+        min-width: 0;
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 0 0 10px;
+        font-size: 26px;
+        line-height: 32px;
+        font-weight: 700;
+      }
+      .with-background .section-head {
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+      }
+      .section-head .section-link {
+        --mdc-icon-size: 24px;
+      }
+      .section-more {
+        display: inline-flex;
+        align-items: center;
+        font-size: 13px;
+        line-height: 18px;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0.75;
+        --mdc-icon-size: 16px;
+      }
+      .tiles.compact {
+        grid-auto-flow: row;
+      }
+      .tiles.compact > .tile {
+        min-height: 64px;
+        padding: 0 12px;
+      }
+      .tiles.compact > .tile.wide {
+        padding: 10px 12px;
+      }
+      .tiles.compact > .tile.tall {
+        grid-row: auto;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 0 12px;
+      }
+      .tiles.compact > .tile.tall .icon {
+        width: 40px;
+        height: 40px;
+        --mdc-icon-size: 22px;
+      }
+      .tiles.compact .text strong {
+        -webkit-line-clamp: 1;
+      }
+      .tiles.limited {
+        max-height: calc(var(--section-rows) * 64px + (var(--section-rows) - 1) * 8px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: none;
+        -webkit-mask-image: linear-gradient(#000 80%, transparent);
+        mask-image: linear-gradient(#000 80%, transparent);
+      }
+      .tiles.limited::-webkit-scrollbar {
+        display: none;
+      }
+      .tiles.limited.end {
+        -webkit-mask-image: none;
+        mask-image: none;
+      }
+      /* Over a background, what is on stands out white with its colour in the circle; what is off keeps the look of
+         the page. Without a background the tiles keep their colours: white would not stand out on a light page. */
+      .page.sections-view.with-background .tiles.compact > .tile:not(.off):not(.unavailable):not(.ran):not(.dormant) {
+        --tile-fill: #ffffff;
+        --hd-tile-opacity: 96%;
+        color: #1b1b1f;
+      }
+      .page.sections-view.with-background .tiles.compact > .tile:not(.off):not(.unavailable):not(.ran):not(.dormant) small {
+        color: #5b5e66;
+      }
+      /* Cameras two at a time; more of them are swiped to, two by two. */
+      .camera-pairs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+      .camera-pairs::-webkit-scrollbar {
+        display: none;
+      }
+      .camera-pair {
+        display: grid;
+        flex: 0 0 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        scroll-snap-align: start;
+      }
+      .camera-pair .camera {
+        aspect-ratio: 16 / 10;
+        --camera-tl: 16px;
+        --camera-tr: 16px;
+        --camera-br: 16px;
+        --camera-bl: 16px;
       }
       .cameras {
         display: flex;

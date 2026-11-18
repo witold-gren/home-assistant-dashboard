@@ -3,7 +3,7 @@
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
-import { CLIP_PICKERS, clipPicker,
+import { CLIP_PICKERS, clipPicker, PAGE_LAYOUTS, sectionRows,
   buildCameras,
   CAMERA_COLUMNS,
   CAMERA_LAYOUTS,
@@ -24,6 +24,7 @@ import { personalPrefs, savePrefs } from "./prefs.js";
 import { tokens } from "./styles.js";
 
 const IDLE_MINUTES = [0, 1, 3, 5, 10];
+const SECTION_ROWS = [0, 2, 3, 4, 5, 6];
 const PREVIOUS_CONFIG_KEY = "home_dashboard_previous_config";
 const MAPPINGS = ["rooms", "cameras", "intercom", "entities", "media", "menu", "lights", "security", "idle"];
 const LISTS = ["favorites", "layout", "scenes", "shortcuts"];
@@ -495,6 +496,47 @@ export class HomeDashboardSettings extends LitElement {
         </button>`;
   }
 
+  // How Home and the rooms lay out their parts (`page_layout`); a room chooses its own in its editor.
+  _renderPageLayout() {
+    const config = normalizeConfig(this._draft);
+    const set = (change) => this._update({ page_layout: { ...(this._draft.page_layout ?? {}), ...change } });
+    const every = PAGE_LAYOUTS.includes(config.page_layout.style) ? config.page_layout.style : "classic";
+    const home = PAGE_LAYOUTS.includes(config.page_layout.home) ? config.page_layout.home : "auto";
+    const rows = sectionRows(config);
+    return html`
+      <h3>${this._t("page_layout_title")}</h3>
+      <p class="hint">${this._t("page_layout_hint")}</p>
+      <label class="field-row">
+        <span>${this._t("page_layout_all")}</span>
+        <select data-page-layout @change=${(event) => set({ style: event.target.value })}>
+          ${PAGE_LAYOUTS.map((mode) => html`<option value=${mode} ?selected=${mode === every}>${this._t(`page_layout_${mode}`)}</option>`)}
+        </select>
+      </label>
+      <label class="field-row">
+        <span>${this._t("page_layout_home")}</span>
+        <select data-page-layout-home @change=${(event) => set({ home: event.target.value === "auto" ? null : event.target.value })}>
+          ${["auto", ...PAGE_LAYOUTS].map(
+            (mode) => html`<option value=${mode} ?selected=${mode === home}>
+              ${mode === "auto"
+                ? translate(this.hass.language, "page_layout_auto", { mode: this._t(`page_layout_${every}`) })
+                : this._t(`page_layout_${mode}`)}
+            </option>`,
+          )}
+        </select>
+      </label>
+      <label class="field-row">
+        <span>${this._t("page_layout_rows")}</span>
+        <select data-section-rows @change=${(event) => set({ rows: Number(event.target.value) })}>
+          ${SECTION_ROWS.map(
+            (count) => html`<option value=${count} ?selected=${count === rows}>
+              ${count ? translate(this.hass.language, "page_layout_rows_count", { rows: count }) : this._t("page_layout_rows_all")}
+            </option>`,
+          )}
+        </select>
+      </label>
+    `;
+  }
+
   _reloadApp = async () => {
     this._reloading = true;
     await reloadApp();
@@ -574,6 +616,7 @@ export class HomeDashboardSettings extends LitElement {
               </option>`,
             )}
           </select>
+          ${this._renderPageLayout()}
           <h3>${this._t("camera_columns_title")}</h3>
           <select
             data-camera-columns
@@ -756,6 +799,9 @@ export class HomeDashboardSettings extends LitElement {
         display: grid;
         gap: 4px;
         font-size: 14px;
+      }
+      .field-row + .field-row {
+        margin-top: 10px;
       }
       .link-new {
         display: grid;

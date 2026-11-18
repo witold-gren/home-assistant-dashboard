@@ -125,6 +125,7 @@ export const ROOM_FIELDS = [
   { key: "name", type: "text" },
   { key: "id", type: "text" },
   { key: "areas", type: "areas" },
+  { key: "page_layout", type: "choice", options: ["", "classic", "sections"] },
 ];
 
 export const SECTION_FIELDS = [

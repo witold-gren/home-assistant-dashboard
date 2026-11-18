@@ -78,6 +78,42 @@ export function moveItem(value, from, toList, toIndex) {
 
 const pathKey = (path) => path.join("/");
 
+const SCRIPT_COMMANDS = new Set(["reload", "turn_on", "turn_off", "toggle"]);
+
+/**
+ * What a setting needs from Home Assistant that it does not have (the text key of it), or null: cameras need a camera,
+ * the Media page a speaker, the intercom the Intercom integration or a script, the Music page Music Assistant. Such
+ * a row stays in the tree, greyed, so the possibility is seen and what to install is said. A hass that does not list
+ * its services is taken at its word for those that depend on a service.
+ */
+export function settingNeeds(hass, key) {
+  const ids = Object.keys(hass?.states ?? {});
+  const any = (...prefixes) => ids.some((id) => prefixes.some((prefix) => id.startsWith(prefix)));
+  if (key === "cameras") return any("camera.", "image.") ? null : "editor_needs_cameras";
+  if (key === "media") return any("media_player.") ? null : "editor_needs_speakers";
+  const services = hass?.services;
+  if (!services) return null;
+  if (key === "intercom") {
+    const scripts = Object.keys(services.script ?? {}).filter((name) => !SCRIPT_COMMANDS.has(name));
+    return services.intercom || scripts.length ? null : "editor_needs_intercom";
+  }
+  if (key === "music") return services.music_assistant ? null : "editor_needs_music_assistant";
+  return null;
+}
+
+// The variants of a page (Home or a room): its own node, with the path of its page so the preview follows it.
+function variantsNode(variantPage, path, language) {
+  return {
+    key: `variants/${variantPage}`,
+    kind: "variants",
+    variantPage,
+    path,
+    label: translate(language, "editor_tree_variants"),
+    icon: "mdi:layers-triple-outline",
+    children: [],
+  };
+}
+
 function entityName(hass, entity) {
   return hass?.states?.[entity]?.attributes?.friendly_name ?? entity;
 }
@@ -187,6 +223,7 @@ export function buildTree(strategy, hass, language = "en") {
     kind: "group",
     label: t("editor_tree_home"),
     children: [
+      variantsNode("home", [], language),
       {
         key: "favorites",
         kind: "list",
@@ -236,7 +273,7 @@ export function buildTree(strategy, hass, language = "en") {
         icon: room.icon ?? "mdi:door",
         count: sections.reduce((sum, section) => sum + section.count, 0),
         problems: tiles.some((section) => section.children.some((tile) => tile.problems.length)) ? ["editor_problem_inside"] : [],
-        children: tiles,
+        children: room.id ? [variantsNode(`room:${room.id}`, path, language), ...tiles] : tiles,
       };
     }),
   };
@@ -273,8 +310,18 @@ export function buildTree(strategy, hass, language = "en") {
       ["map", "mdi:map-outline", "editor_tree_map"],
       ["nav", "mdi:dock-bottom", "editor_tree_nav", ["appearance", "nav"]],
       ["intercom", "mdi:waveform", "editor_tree_intercom"],
-    ].map(([key, icon, label, path = [key]]) => ({ key, kind: "setting", path, label: t(label), icon, children: [] })),
+    ].map(([key, icon, label, path = [key]]) => ({
+      key,
+      kind: "setting",
+      path,
+      label: t(label),
+      icon,
+      children: [],
+      unavailable: settingNeeds(hass, key),
+    })),
   };
+  // The phones and tablets of the home that opened a dashboard: their names and the variants they show.
+  rest.children.push({ key: "known_devices", kind: "devices", path: [], label: t("editor_tree_known_devices"), icon: "mdi:tablet-cellphone", children: [] });
   return [home, rooms, blocks, rest];
 }
 

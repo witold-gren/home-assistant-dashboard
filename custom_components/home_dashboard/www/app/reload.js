@@ -72,6 +72,7 @@ export const APP_FILES = [
   "talk.js",
   "theme.js",
   "usage.js",
+  "variants.js",
   "weather.js",
   "zoom.js",
 ];

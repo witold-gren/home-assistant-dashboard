@@ -54,6 +54,7 @@ Ustawienia osoby i urządzenia nie są częścią YAML. Wymienia je
 | `favorites` | lista encji | `[]` | kafelki nad pokojami na stronie głównej | [4](#favorites) |
 | `scenes` | lista kafelków | `[]` | rząd Sceny na stronie głównej | [4](#scenes-i-scenes_layout) |
 | `scenes_layout` | `row` albo brak | brak | sceny w jednym rzędzie przewijanym w bok | [4](#scenes-i-scenes_layout) |
+| `page_layout` | mapa | `style: classic`, `rows: 4` | jedna pod drugą albo sekcje obok siebie, dla wszystkich stron, strony głównej albo pokoju | [4](#page_layout) |
 | `weather` | mapa albo `false` | wykrywane samo | chip pogody i jego okno | [4](#weather) |
 | `security` | mapa | patrz sekcja | otwieranie na tablecie, grupa w filtrze Ochrona | [4](#security) |
 | `idle` | mapa | `return_after: 180` | powrót tabletu na stronę główną | [4](#idle) |
@@ -95,6 +96,7 @@ Lista pokoi. Pokoje stoją w tej kolejności, a obszary nieobjęte żadnym pokoj
 | `scenes` | lista [kafelków](#kafelki) | sceny i skrypty obszarów | rząd Sceny pod kamerami |
 | `status` | lista [grup statusu](#rząd-statusu-pokoju-status) | `[]` | własne kółka w rzędzie statusu |
 | `background` | tekst albo mapa | brak | starsze tło pokoju; użyj [`backgrounds`](#backgrounds-i-background) |
+| `page_layout` | `classic` albo `sections` | jak `page_layout.style` | własny układ tego pokoju, zobacz [`page_layout`](#page_layout) |
 
 ```yaml
 layout:
@@ -283,6 +285,36 @@ scenes:
   - {entity: scene.movie_night, name: Film}
   - {entity: script.good_night}
 scenes_layout: row
+```
+
+### `page_layout`
+
+Jak strona główna i strony pokoi układają swoje części. `classic` to układ jak dotąd, części jedna pod drugą.
+`sections` stawia nagłówki na tle, a sekcje obok siebie, w tylu kolumnach, ile się zmieści (każda co najmniej 440 px):
+dwie na tablecie poziomo, jedna na telefonie. Sekcje zachowują kolejność, każda trafia do kolumny, która jest na razie
+najkrótsza. Zakładki strony głównej i pokoi zastępują powitanie, a na stronie pokoju strzałkę i nazwę.
+Sekcja wyższa niż `rows` rzędów przewija się w środku, a jej nagłówek mówi, ile ma kafelków. Kamery są po
+dwie, więcej przesuwa się w bok. Nagłówek ze strzałką otwiera swoją stronę: Kamery wszystkie kamery, pokój jego stronę,
+Sceny stronę scen. Na tle włączony kafelek jest biały.
+
+| Klucz | Typ | Domyślnie | Znaczenie |
+|---|---|---|---|
+| `style` | `classic` albo `sections` | `classic` | wszystkie strony |
+| `home` | `classic`, `sections` albo brak | brak: jak `style` | sama strona główna |
+| `rows` | liczba | `4` | rzędy sekcji, zanim zacznie się przewijać; `0` pokazuje wszystkie kafelki |
+
+Pokój wybiera własny przez `page_layout` w [`layout`](#layout). Strona w oknie i pokój w trakcie edycji mają układ
+klasyczny. Zobacz przewodnik: [Sekcje obok siebie](guide.pl.md#sections-side-by-side).
+
+```yaml
+page_layout:
+  style: classic
+  home: sections
+  rows: 4
+layout:
+  - id: living_room
+    name: Salon
+    page_layout: sections
 ```
 
 ### `weather`
@@ -987,6 +1019,9 @@ konfigurację, zapisuje od razu cały blok `strategy:`.
 | <b class="ui">Ostrzeżenia na stronie głównej</b> → Wycisz na tydzień / Pokaż znowu | Twoje dane użytkownika |
 | <b class="ui">Mówienie w oknie kamery</b> | `cameras.talk` |
 | <b class="ui">Wybór chwili w nagraniu</b> | `cameras.clip_picker` |
+| <b class="ui">Układ stron</b> → <b class="ui">Wszystkie strony</b> | `page_layout.style` |
+| → <b class="ui">Strona główna</b> | `page_layout.home` |
+| → <b class="ui">Rzędy sekcji, zanim zacznie się przewijać</b> | `page_layout.rows` |
 | <b class="ui">Kolumny wszystkich kamer na tablecie</b> | `cameras.columns` |
 | <b class="ui">Układ wszystkich kamer na tablecie</b> | `cameras.layout` |
 | <b class="ui">Ta sama kamera w innej integracji</b> | `cameras.controls` |
@@ -1029,6 +1064,8 @@ edycja ma jedną listę (`scenes`), a przycisk ze strzałkami ustawia `scenes_la
 zapisują się razem z resztą, do `visibility` i `access`.
 
 Zielony kafelek widzą tylko wybrane osoby; czerwony jest przed kimś ukryty.
+
+Nad sekcjami zakładki <b class="ui">Karta pokoju</b> pole <b class="ui">Układ tej strony</b> wybiera własny układ pokoju (`layout[].page_layout`): jak wszystkie strony, jedna pod drugą albo sekcje obok siebie.
 
 ### Dodaj kafelek
 
