@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -40,7 +41,13 @@ GROUPS = [
     ("3. Development", "3. Rozwój"),
 ]
 START = ["help", "demo", "demo-clean", "docs", "docs-serve", "doctor"]
-NO_TOOLS = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home())}
+# Without uv, and with a docker that never runs: on Linux docker lives in /usr/bin, so leaving it out of
+# PATH is not enough there, and a `make demo` that finds it starts the demo for good (CI hung six hours).
+STUB_DIR = Path(tempfile.mkdtemp(prefix="no-docker-"))
+(STUB_DIR / "docker").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+(STUB_DIR / "docker").chmod(0o755)
+NO_TOOLS = {"PATH": f"{STUB_DIR}:/usr/bin:/bin", "HOME": str(Path.home())}
+MAKE_TIMEOUT = 120
 
 
 def targets() -> dict[str, list[str]]:
@@ -164,7 +171,12 @@ def test_the_ports_are_the_ones_of_the_standard() -> None:
 @pytest.mark.parametrize(("lang", "index"), [("en", 0), ("pl", 1)])
 def test_make_help_shows_the_groups(lang: str, index: int) -> None:
     result = subprocess.run(
-        ["make", "-s", "help", f"HELP_LANG={lang}"], cwd=ROOT, capture_output=True, text=True, check=True
+        ["make", "-s", "help", f"HELP_LANG={lang}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=MAKE_TIMEOUT,
     )
     shown = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
     places = [shown.index(group[index]) for group in GROUPS]
@@ -176,7 +188,13 @@ def test_make_help_shows_the_groups(lang: str, index: int) -> None:
 @pytest.mark.parametrize("target", ["demo", "docs-build", "docs-serve"])
 def test_without_docker_a_clear_message(target: str) -> None:
     result = subprocess.run(
-        ["make", "-s", target], cwd=ROOT, capture_output=True, text=True, env=NO_TOOLS, check=False
+        ["make", "-s", target],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=NO_TOOLS,
+        check=False,
+        timeout=MAKE_TIMEOUT,
     )
     assert result.returncode != 0
     assert "Docker Desktop" in result.stdout + result.stderr
@@ -186,7 +204,13 @@ def test_without_docker_a_clear_message(target: str) -> None:
 @pytest.mark.skipif(not shutil.which("make"), reason="make not installed")
 def test_without_uv_a_clear_message() -> None:
     result = subprocess.run(
-        ["make", "-s", "uv-check"], cwd=ROOT, capture_output=True, text=True, env=NO_TOOLS, check=False
+        ["make", "-s", "uv-check"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=NO_TOOLS,
+        check=False,
+        timeout=MAKE_TIMEOUT,
     )
     assert result.returncode != 0
     assert "astral.sh/uv" in result.stdout + result.stderr
@@ -196,7 +220,13 @@ def test_without_uv_a_clear_message() -> None:
 def test_doctor_installs_nothing_and_needs_no_setup() -> None:
     assert targets()["doctor"] == []
     result = subprocess.run(
-        ["make", "-s", "doctor"], cwd=ROOT, capture_output=True, text=True, env=NO_TOOLS, check=False
+        ["make", "-s", "doctor"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=NO_TOOLS,
+        check=False,
+        timeout=MAKE_TIMEOUT,
     )
     assert "MISSING  Docker Desktop" in result.stdout
     assert "MISSING  uv" in result.stdout

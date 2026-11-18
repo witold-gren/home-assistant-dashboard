@@ -88,7 +88,17 @@ def test_the_demo_image_runs_logs_in_and_leaves_nothing(socket_enabled) -> None:
             assert page.status == 200
     finally:
         subprocess.run(["docker", "stop", "-t", "20", name], capture_output=True, check=False)
-    left = subprocess.run(
-        ["docker", "ps", "-aq", "--filter", f"name={name}"], capture_output=True, text=True, check=True
-    )
-    assert left.stdout.strip() == ""
+    assert gone(name), f"{name} is still there"
+
+
+def gone(name: str, seconds: int = 30) -> bool:
+    """A container started with --rm is removed a moment after it stops."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        left = subprocess.run(
+            ["docker", "ps", "-aq", "--filter", f"name={name}"], capture_output=True, text=True, check=True
+        )
+        if not left.stdout.strip():
+            return True
+        time.sleep(1)
+    return False
