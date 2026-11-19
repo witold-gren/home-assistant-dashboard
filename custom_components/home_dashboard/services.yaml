@@ -2,12 +2,12 @@ show_camera:
   fields:
     entity_id:
       required: true
-      example: camera.iwiny_slup
+      example: camera.garden
       selector:
         entity:
           domain: [camera, image]
     picture:
-      example: image.iwiny_slup_last_event
+      example: image.garden_last_event
       selector:
         entity:
           domain: image

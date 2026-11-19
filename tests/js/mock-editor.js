@@ -144,6 +144,12 @@ export function createEditorServer({ live, dashboards = [{ url_path: "home-dashb
         device.name = message.name || null;
         return null;
       }
+      case "home_dashboard/variants/battery_device": {
+        const device = state.devices.find((one) => one.id === message.device);
+        if (!device) throw failure("not_found", "No such device");
+        device.battery = message.battery || null;
+        return null;
+      }
       case "home_dashboard/variants/forget_device": {
         const index = state.devices.findIndex((one) => one.id === message.device);
         if (index < 0) throw failure("not_found", "No such device");

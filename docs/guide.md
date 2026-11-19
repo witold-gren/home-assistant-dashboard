@@ -577,6 +577,9 @@ view, or with ✕, Esc or a swipe.
   show this camera to this person: hidden, private or guest mode), `unknown_camera` or `replaced` (a camera with
   `interrupt` took its place). An automation waits for it
   with `wait_for_trigger` on that event.
+- `close_after` counts only while the screen shows the window: a tablet woken by a notification connects while its
+  screen is still dark, so the time starts when the page is visible (and again from the full time if the screen goes
+  dark before it ran out). For a live view that wakes a camera on a battery give it time, e.g. 45 s.
 - A second camera while one is on the screen is refused (`busy`), so nobody loses what they are watching, unless
   it comes first (`interrupt: true`, e.g. the doorbell with `live: true`): then it takes the place of the other
   camera. The settings and editing are never taken away.
@@ -1507,6 +1510,13 @@ what is going on, for a glance from across the room. The pages (Home, Music, Ene
   mailbox. A tap opens the helper; whoever took the letters turns it off.
 - An item of the Status screen of one entity in a state (an alarm going off, a UPS on battery) with `notify` is also a
   red card on Home, as a low battery is; with `alarm: true` it stays while the state lasts.
+- **The battery of the tablet itself:** one thin line at the foot of the bar, above the pages: the level in per cent
+  and a thin bar. The icon and the bar are green with a lightning bolt while it is plugged in (charging or full),
+  orange at 20% and less, red at 10% and less, otherwise the colour of the text; the number keeps the colour of
+  the text, readable on any background. A browser on iOS does not tell a page its battery, so it comes
+  from the Home Assistant app on the tablet: in the editor **Settings → Devices** → <b class="ui">Battery</b> of that
+  tablet, among the battery sensors of the app (`sensor.<device>_battery_level`). Whether it charges is read from
+  the app's battery state sensor of the same device. Without a chosen sensor there is no line.
 - <b class="ui">My calendars</b> (a phone): the list of areas has under its rooms <b class="ui">My calendars</b>, with today's titles and how
   many; a tap opens today and the next 14 days that hold something, each event with its hour, place and description.
   The gear chooses the person's own calendars and whether they see the home's, kept in their own settings, so they
@@ -1706,5 +1716,6 @@ differs from the version now; *Take back as a draft* makes it the draft, to look
 | A tablet no longer shows its variant | Signing in again keeps the device; clearing the app's data (or reinstalling it) makes it a new one: in the editor, *Variants* → *Who sees it*, choose the variant for it again (it appears once it has opened the dashboard), and *Forget* the old one under *Devices*. |
 | After a restart of Home Assistant today's events are missing from the status bar | Fixed: the dashboard reads them again once Home Assistant is back, and every 15 s while a calendar is still starting. If they stay missing, check that the calendar works in Home Assistant (Calendar in the sidebar). |
 | The editor shows `not a valid option at 'shared'` (or another field) | The dashboard was updated but Home Assistant still runs the old code, which does not know that field. Restart Home Assistant, then reload the editor. |
+| After a restart of Home Assistant the status bar on the left of a tablet covers the page, whose right part is cut off or under the bar | The app loaded the page in the background (screen dark or another size) and iOS did not tell the dashboard the shape of the screen changed: the bar was drawn for a tablet on its side, the page beside it for a narrower screen. Since 1.3.0 the dashboard checks it again at every resize, turn and return of the screen and puts the room of the page right by itself (and hides the menu of Home Assistant again when it comes back); it writes a warning `Layout of a page put right` to the log of Home Assistant with what it saw. On an older version load the app afresh. |
 
 The [FAQ in the README](../README.md#faq) has more, with exact messages.

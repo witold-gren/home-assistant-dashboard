@@ -84,7 +84,7 @@ export async function generateForPerson(config, hass) {
 
 /**
  * The variants of pages this device sees (and, for an administrator, all there are to choose from); the device
- * says what it is, so that the editor can tell the phones and tablets apart. Nothing without any variants.
+ * says what it is, so that the editor can tell the phones and tablets apart. Nothing without any variants or battery.
  */
 export async function variantsOfDevice(hass) {
   try {
@@ -95,7 +95,8 @@ export async function variantsOfDevice(hass) {
       device_id: dashboardDeviceId(),
       browser_mod: browserModName(),
     });
-    const any = Object.keys(mine?.pages ?? {}).length || Object.keys(mine?.choices ?? {}).length;
+    // The battery of a tablet comes with them, even without a variant.
+    const any = Object.keys(mine?.pages ?? {}).length || Object.keys(mine?.choices ?? {}).length || mine?.device_battery;
     return any ? mine : null;
   } catch {
     // An older integration without variants: the published pages.

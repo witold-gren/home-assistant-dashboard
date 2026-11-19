@@ -163,3 +163,14 @@ def test_only_modules_are_served(tmp_path: Path) -> None:
     assert resolve_static_file(tmp_path, "notes.txt") is None
     assert resolve_static_file(tmp_path, "ok.js") == (tmp_path / "ok.js").resolve()
     assert resolve_static_file(tmp_path, ".") is None
+
+
+async def test_a_device_whose_page_lost_its_room_tells_the_log(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_ws_client, caplog
+) -> None:
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": f"{DOMAIN}/layout/report", "report": '{"want":320,"have":88}'})
+    assert (await client.receive_json())["success"]
+    assert "Layout of a page put right on a device of" in caplog.text and '"have":88' in caplog.text
+    await client.send_json({"id": 2, "type": f"{DOMAIN}/layout/report", "report": "x" * 3000})
+    assert not (await client.receive_json())["success"]

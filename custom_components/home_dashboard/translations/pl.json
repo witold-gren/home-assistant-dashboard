@@ -57,7 +57,7 @@
         },
         "close_after": {
           "name": "Zamknij po",
-          "description": "Po ilu sekundach okno zamyka się samo; 0 zostawia je otwarte. Podgląd na żywo albo dotknięcie zatrzymuje zamykanie."
+          "description": "Po ilu sekundach okno zamyka się samo; 0 zostawia je otwarte; liczy się, gdy ekran je pokazuje. Podgląd na żywo albo dotknięcie zatrzymuje zamykanie."
         },
         "live_limit": {
           "name": "Podgląd na żywo najdłużej",

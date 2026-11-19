@@ -89,6 +89,42 @@ def test_the_window_closes_by_itself_and_says_so(phone):
     }
 
 
+def hide_page(page, hidden: bool) -> None:
+    page.evaluate(
+        """(hidden) => {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => hidden ? 'hidden' : 'visible' });
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""",
+        hidden,
+    )
+
+
+def test_a_window_on_a_dark_screen_counts_its_time_once_it_is_seen(phone):
+    setup(phone)
+    hide_page(phone, True)
+    show(phone, close_after=1)
+    phone.wait_for_selector(f"{SHEET} .panel")
+    phone.wait_for_timeout(1600)
+    assert sheet_open(phone) and closed(phone) == []
+    hide_page(phone, False)
+    phone.wait_for_timeout(400)
+    assert sheet_open(phone)
+    assert wait_closed(phone)["reason"] == "timeout"
+
+
+def test_a_screen_that_goes_dark_again_gives_the_window_its_full_time(phone):
+    setup(phone)
+    show(phone, close_after=1)
+    phone.wait_for_selector(f"{SHEET} .panel")
+    phone.wait_for_timeout(600)
+    hide_page(phone, True)
+    phone.wait_for_timeout(1000)
+    hide_page(phone, False)
+    phone.wait_for_timeout(600)
+    assert sheet_open(phone) and closed(phone) == []
+    assert wait_closed(phone)["reason"] == "timeout"
+
+
 def test_the_live_view_keeps_it_open_and_closing_says_it_was_watched(phone):
     setup(phone)
     show(phone, close_after=1)

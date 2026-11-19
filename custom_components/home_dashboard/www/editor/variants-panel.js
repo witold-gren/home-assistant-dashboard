@@ -644,6 +644,28 @@ export function variantsOfDevice(data, device, roomName, t) {
 }
 
 /**
+ * The battery sensors a tablet can show at the foot of its status bar: those of the Home Assistant app on a phone or
+ * tablet (any battery sensor when there is none of the app), with their level; the chosen one stays listed.
+ */
+export function batterySensors(hass, chosen = null) {
+  const battery = (id) => {
+    const state = hass.states[id];
+    return id.startsWith("sensor.") && state?.attributes?.device_class === "battery" && state.attributes.unit_of_measurement === "%";
+  };
+  const all = Object.keys(hass.states).filter(battery);
+  const app = all.filter((id) => hass.entities?.[id]?.platform === "mobile_app");
+  const ids = new Set(app.length ? app : all);
+  if (chosen) ids.add(chosen);
+  return [...ids]
+    .map((id) => {
+      const state = hass.states[id];
+      const name = state?.attributes?.friendly_name ?? id;
+      return [id, state ? `${name} · ${state.state}%` : id];
+    })
+    .sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+/**
  * The phones and tablets that opened a dashboard since the variants came: a name to recognise each, its kind and
  * person, when it was last opened, what variant of which page it shows, and a way to forget one (signed out, sold).
  */
@@ -679,6 +701,18 @@ export class HomeDashboardEditorKnownDevices extends LitElement {
     if (value === (device.name ?? null)) return;
     try {
       await callWS(this.hass, { type: `${DOMAIN}/variants/name_device`, device: device.id, name: value });
+      this._saved = device.id;
+      await this.reload();
+    } catch (error) {
+      this._error = error?.message ?? String(error);
+    }
+  }
+
+  async _battery(device, battery) {
+    const value = battery || null;
+    if (value === (device.battery ?? null)) return;
+    try {
+      await callWS(this.hass, { type: `${DOMAIN}/variants/battery_device`, device: device.id, battery: value });
       this._saved = device.id;
       await this.reload();
     } catch (error) {
@@ -736,6 +770,16 @@ export class HomeDashboardEditorKnownDevices extends LitElement {
                 <small>${[device.label, device.user_name, device.seen ? this._t("editor_variant_seen_at", { when: when.format(new Date(device.seen)) }) : null]
                   .filter(Boolean)
                   .join(" · ")}</small>
+                <label class="battery-pick">
+                  <ha-icon icon="mdi:battery-outline"></ha-icon>
+                  <span>${this._t("editor_known_devices_battery")}</span>
+                  <select data-known-device-battery=${device.id} @change=${(event) => this._battery(device, event.target.value)}>
+                    <option value="" ?selected=${!device.battery}>${this._t("editor_known_devices_battery_none")}</option>
+                    ${batterySensors(this.hass, device.battery).map(
+                      ([id, name]) => html`<option value=${id} ?selected=${device.battery === id}>${name}</option>`,
+                    )}
+                  </select>
+                </label>
                 <div class="badges">
                   ${shows.length
                     ? shows.map((one) => html`<span class="badge" data-shows=${one.page}><ha-icon icon="mdi:layers-outline"></ha-icon>${one.where}: ${one.name}</span>`)
@@ -767,6 +811,27 @@ export class HomeDashboardEditorKnownDevices extends LitElement {
       }
       .ok {
         color: #34c759;
+      }
+      .battery-pick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0 2px;
+        font-size: 13px;
+      }
+      .battery-pick ha-icon {
+        --mdc-icon-size: 18px;
+        opacity: 0.7;
+      }
+      .battery-pick select {
+        flex: 1;
+        min-width: 0;
+        padding: 4px 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font: inherit;
+        color: inherit;
+        background: var(--field, transparent);
       }
       .hint {
         margin: 0 0 10px;

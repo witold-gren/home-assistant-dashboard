@@ -581,6 +581,9 @@ Esc lub gest.
   kamery tej osobie: ukryta, tryb prywatny albo gość), `unknown_camera` lub `replaced` (jego miejsce zajęła
   kamera z `interrupt`). Automatyzacja czeka na nie przez
   `wait_for_trigger` na tym zdarzeniu.
+- `close_after` liczy się tylko wtedy, gdy ekran pokazuje okno: tablet obudzony powiadomieniem łączy się, zanim
+  jego ekran się rozjaśni, więc czas rusza, gdy strona jest widoczna (i od nowa w całości, jeśli ekran zgaśnie,
+  zanim minie). Przy podglądzie na żywo, który budzi kamerę na baterii, daj mu czas, np. 45 s.
 - Druga kamera, gdy jedna jest na ekranie, jest odrzucana (`busy`), więc nikt nie traci tego, co ogląda, chyba że
   ma pierwszeństwo (`interrupt: true`, np. dzwonek z `live: true`): wtedy zastępuje tamtą kamerę. Ustawień ani
   edycji nigdy nie zabiera.
@@ -1501,6 +1504,14 @@ szybkie spojrzenie z drugiego końca pokoju. Strony (Dom, Muzyka, Energia, Mapa)
   otworzył skrzynkę na listy. Dotknięcie otwiera pomocnika; kto odebrał listy, wyłącza go.
 - Pozycja ekranu Status z jedną encją w danym stanie (np. alarm wywołany, UPS na baterii) z `notify` jest też
   czerwonym paskiem na stronie głównej, jak słaba bateria; z `alarm: true` zostaje, dopóki stan trwa.
+- **Bateria samego tabletu:** jedna cienka linia na dole paska, nad stronami: poziom w procentach i cienki pasek.
+  Ikona i pasek są zielone z piorunem, gdy tablet jest podłączony (ładuje się albo jest pełny), pomarańczowe przy
+  20% i mniej, czerwone przy 10% i mniej, a poza tym w kolorze tekstu; liczba ma kolor tekstu, czytelny na każdym
+  tle. Przeglądarka na iOS nie podaje stronie stanu baterii, więc
+  bierze się on z aplikacji Home Assistant na tablecie: w edytorze **Ustawienia → Urządzenia** →
+  <b class="ui">Bateria</b> tego tabletu, spośród czujników baterii aplikacji (`sensor.<urządzenie>_battery_level`).
+  To, czy się ładuje, odczytuje z czujnika stanu baterii aplikacji na tym samym urządzeniu. Bez wybranego czujnika
+  linii nie ma.
 - <b class="ui">Moje kalendarze</b> (telefon): okno wyboru obszaru ma pod pokojami <b class="ui">Moje kalendarze</b> z dzisiejszymi tytułami i ich
   liczbą; dotknięcie otwiera dziś i kolejne 14 dni, w których coś jest, każde wydarzenie z godziną, miejscem i opisem.
   Trybik wybiera własne kalendarze osoby i to, czy widzi kalendarze domu; zapisuje się w jej ustawieniach, więc idzie
@@ -1704,5 +1715,6 @@ się od obecnej; *Przywróć jako szkic* robi z niej szkic do obejrzenia i opubl
 | Tablet przestał pokazywać swój wariant | Ponowne zalogowanie zostawia urządzenie; wyczyszczenie danych aplikacji (albo jej przeinstalowanie) robi z niego nowe: w edytorze *Warianty* → *Kto widzi* wybierz mu wariant jeszcze raz (pojawi się, gdy otworzy dashboard), a stary wpis *Zapomnij* w *Urządzeniach*. |
 | Po restarcie Home Assistant z paska stanu znikają dzisiejsze wydarzenia | Naprawione: dashboard czyta je ponownie, gdy Home Assistant wróci, i co 15 s, dopóki kalendarz się uruchamia. Jeśli nadal ich brak, sprawdź, czy kalendarz działa w Home Assistant (Kalendarz w panelu bocznym). |
 | Edytor pokazuje `not a valid option at 'shared'` (albo inne pole) | Dashboard został zaktualizowany, ale Home Assistant nadal działa na starym kodzie, który tego pola nie zna. Uruchom ponownie Home Assistant, potem wczytaj edytor od nowa. |
+| Po restarcie Home Assistant lewy panel stanu na tablecie zasłania stronę, a jej prawa część jest ucięta albo chowa się pod panelem | Aplikacja wczytała stronę w tle (przy zgaszonym ekranie albo innym rozmiarze okna) i iOS nie powiadomił dashboardu, że kształt ekranu się zmienił: panel był narysowany dla tabletu w poziomie, a strona obok niego dla węższego ekranu. Od wersji 1.3.0 dashboard sprawdza to ponownie przy każdej zmianie rozmiaru, obrocie i powrocie ekranu i sam przywraca stronie miejsce (i znów chowa menu Home Assistant, gdy wróci); zapisuje wtedy w logu Home Assistant ostrzeżenie `Layout of a page put right` z tym, co zobaczył. W starszej wersji wczytaj aplikację od nowa. |
 
 Więcej, z dokładnymi komunikatami, jest w [FAQ w README](../README.pl.md#faq).

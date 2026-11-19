@@ -12,13 +12,14 @@ from .camera_window import async_setup_camera_window, async_unload_camera_window
 from .const import CONF_EDITOR_IN_SIDEBAR, DEFAULT_EDITOR_IN_SIDEBAR, SIGNAL_SETTINGS_UPDATED
 from .editor import async_setup_editor, async_unload_editor
 from .frontend import async_register_frontend, async_unregister_frontend
-from .websocket import websocket_subscribe_settings
+from .websocket import websocket_layout_report, websocket_subscribe_settings
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Serve the dashboard strategy to every Home Assistant page."""
     await async_register_frontend(hass)
     websocket_api.async_register_command(hass, websocket_subscribe_settings)
+    websocket_api.async_register_command(hass, websocket_layout_report)
     async_setup_camera_window(hass)
     await async_setup_activity(hass)
     await async_setup_editor(hass, _in_sidebar(entry))

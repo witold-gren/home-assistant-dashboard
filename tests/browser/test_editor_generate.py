@@ -191,10 +191,11 @@ def test_an_empty_dashboard_offers_to_start_from_the_areas(desktop):  # noqa: F8
 # Right after the installation ------------------------------------------------------------------------------------
 
 
-def test_without_a_dashboard_one_is_made_and_its_rooms_come_from_the_areas(desktop):  # noqa: F811
+def test_without_a_dashboard_one_is_made_and_the_quick_start_makes_its_rooms(desktop):  # noqa: F811
     desktop.evaluate("async () => window.editor.open({}, { dashboards: [] })")
     desktop.locator(f"{APP} [data-create-dashboard]").click()
-    desktop.wait_for_selector(f"{APP} {DIALOG}")
+    quick = f"{APP} home-dashboard-editor-quick-start"
+    desktop.wait_for_selector(f"{quick} [data-quick-dialog]")
     sent = desktop.evaluate("window.editor.server.state.sent.map((message) => message.type)")
     assert "lovelace/dashboards/create" in sent
     create = desktop.evaluate(
@@ -208,5 +209,7 @@ def test_without_a_dashboard_one_is_made_and_its_rooms_come_from_the_areas(deskt
     assert desktop.evaluate("window.editor.server.state.live") == {
         "strategy": {"type": "custom:home-dashboard"}
     }
-    desktop.locator(f"{APP} {DIALOG} [data-generate-add]").click()
+    desktop.locator(f"{quick} [data-quick-step='summary']").click()
+    desktop.locator(f"{quick} [data-quick-switch='tour']").click()
+    desktop.locator(f"{quick} [data-quick-apply]").click()
     assert len(draft(desktop)["layout"]) == 3

@@ -21,6 +21,13 @@
         snapshot,
         // Opens the editor on a dashboard with this strategy; the server is kept for the test to look at.
         async open(strategy, options = {}) {
+          // The tour starts by itself only for the tests of the tour.
+          try {
+            if (options.tour) localStorage.removeItem("home-dashboard-editor-tour");
+            else localStorage.setItem("home-dashboard-editor-tour", "done");
+          } catch {
+            // A test without the storage of the browser: the tour does not start by itself then.
+          }
           const server = createEditorServer({ live: { strategy }, ...options });
           const hass = createHass(snapshot, { callWS: server.handle, language: options.language ?? "pl" });
           document.body.replaceChildren();

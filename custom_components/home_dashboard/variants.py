@@ -351,6 +351,7 @@ async def websocket_mine(hass, connection, msg) -> None:
         {
             "device": key,
             "device_name": (device or {}).get("name") or (device or {}).get("browser_mod"),
+            "device_battery": (device or {}).get("battery"),
             "admin": bool(connection.user and connection.user.is_admin),
             "pages": pages,
             "choices": choices or None,
@@ -383,6 +384,7 @@ async def websocket_list(hass, connection, msg) -> None:
                 "user_id": user.id,
                 "user_name": user.name,
                 "seen": device.get("seen"),
+                "battery": device.get("battery"),
             }
         )
     devices.sort(key=lambda item: item.get("seen") or "", reverse=True)
@@ -662,6 +664,31 @@ async def websocket_name_device(hass, connection, msg) -> None:
 
 
 @websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/variants/battery_device",
+        vol.Required("device"): str,
+        vol.Required("battery"): vol.Any(None, vol.All(str, vol.Match(r"^sensor\.[a-z0-9_]+$"))),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_battery_device(hass, connection, msg) -> None:
+    """The battery sensor of a tablet (from the Home Assistant app), shown at the foot of its status bar."""
+    editor = _editor()
+    store = editor.store_of(hass)
+    device = (store.data.get("devices") or {}).get(msg["device"])
+    if device is None:
+        connection.send_error(msg["id"], ERROR_NOT_FOUND, "No such device")
+        return
+    device["battery"] = msg["battery"]
+    await store.async_save()
+    # The tablet learns it when its pages load again
+    for url_path in store.data.get("dashboards") or {}:
+        _changed(hass, url_path)
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
     {vol.Required("type"): f"{DOMAIN}/variants/forget_device", vol.Required("device"): str}
 )
 @websocket_api.require_admin
@@ -732,6 +759,7 @@ COMMANDS = [
     websocket_deploy,
     websocket_name_live,
     websocket_name_device,
+    websocket_battery_device,
     websocket_forget_device,
     websocket_choose,
 ]

@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.3.0 (2026-11-19)
+
+A quick start and a tour of the editor, the battery of the tablet at the foot of its status bar, a camera window that
+stays up for its whole time on a tablet woken by the notification, a status bar that keeps its place after a
+restart, and defaults that name nothing of one home.
+
+- **Quick start** in the editor: a working dashboard from what is in Home Assistant in six steps (devices, rooms,
+  Home, safety, look, summary). Each step starts from what was found (areas, lights, leak and smoke sensors,
+  batteries, gateways and hubs, the alarm, scenes), counted beside it, and shows in the preview at once. Safety makes
+  items of the Status screen (alarm or warning, a battery threshold, hubs unavailable). It all goes to the draft as one
+  step; run again it only adds what is missing and keeps what was chosen. Opens for a new dashboard, from the empty
+  tree and from ⚙. `editor/quick-start.js`, `quick-start-dialog.js`. Tests in `test_editor_quick_start.py`.
+- **Tour of the editor:** the first time the editor opens in a browser, its parts are framed one at a time (tree,
+  preview, devices and person, properties, draft and history, publish, help) with a bubble that says what each is
+  and where it is set; arrows and Escape work, ⚙ opens it again. `editor/tour.js`. Tests in `test_editor_tour.py`.
+- A test keeps every text the code asks for (`this._t`, `translate`) in both languages.
+- The battery of the tablet itself at the foot of its status bar: one thin line with the level and a thin bar;
+  the icon and the bar are green with a lightning bolt while plugged in, orange at 20% and less, red at 10% and
+  less, the number keeps the colour of the text. The demo has one (`?status=1`). Its sensor (of the
+  Home Assistant app on the tablet) is chosen in the editor, **Settings → Devices** → *Battery*
+  (`home_dashboard/variants/battery_device`); whether it charges comes from the app's battery state sensor of the
+  same device. Docs: guide, editor (PL+EN). Tests in `test_status_panel.py`, `test_editor_variants.py`,
+  `test_variants.py`.
+- Fixed: after a restart of Home Assistant the status bar of a tablet could cover the page, its right part cut off
+  or under the bar. The app loads the page in the background (screen dark or another size) and iOS does not always
+  tell the media query of a tablet that changed, so the bar stayed drawn for a tablet on its side while the page,
+  laid out by CSS, kept no room for it. The bar checks the shape of the screen again at every resize, turn and
+  return of the page. The menu of Home Assistant, which Home Assistant can bring back when it builds its state
+  afresh, is hidden again too. FAQ row (PL+EN). Tests in `test_status_panel.py`, `test_landscape_home.py`.
+- The page keeps its room for the status bar however it was lost: the bar measures the room the view of the page
+  keeps (after every drawing, resize, turn and return of the screen, and every 5 s while states change) and puts it
+  right on the view. The first time in a load it tells the log of Home Assistant what it saw
+  (`home_dashboard/layout/report`, a warning of `custom_components.home_dashboard.websocket`), for the cause to be
+  found. Tests in `test_status_panel.py`, `test_integration.py`.
+- The default `media.group_patterns` is `^(.+)_homepod(_[a-z]+)?$` instead of one with a Polish word of one home
+  (`_muzyka`): a HomePod and its other players with one word after it (`kitchen_homepod_music`) are one speaker.
+  Docs: configuration, README (PL+EN). Test in `tests/browser/test_model.py`.
+- The examples of `home_dashboard.show_camera` name a made-up `camera.garden` instead of a camera of a real home.
+- Fixed: a camera window from an automation (`home_dashboard.show_camera`) counted its `close_after` from the
+  moment the tablet connected, while the screen of a tablet woken by a notification was still dark, so a 15 s window
+  was seen for a few seconds. The time now runs only while the page is visible, from the full time again when the
+  screen goes dark before it ran out. Docs: guide (PL+EN), the field's description. Tests in
+  `tests/browser/test_camera_window.py`.
+
 ## 1.2.0 (2026-11-18)
 
 Variants of a page that a tablet, a person or the household chooses, sections side by side as a second layout, a

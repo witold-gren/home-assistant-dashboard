@@ -746,7 +746,7 @@ music:
 | `group_patterns` | lista wyrażeń regularnych | patrz niżej | odtwarzacze z tą samą pierwszą grupą id to jeden |
 | `sections` | lista `{title, tiles}` | `[]` | strona Media we własnych grupach; kafelki jak w pokoju |
 
-Domyślne `group_patterns` to `["^(.+)_homepod(_muzyka)?$"]`.
+Domyślne `group_patterns` to `["^(.+)_homepod(_[a-z]+)?$"]`: HomePod i jego inne odtwarzacze z jednym słowem po nim (`kitchen_homepod_music`) to jeden głośnik.
 
 Kafelki z `media.sections`, które stoją też w pokoju z `areas`, trafiają do filtra Media na stronie głównej.
 

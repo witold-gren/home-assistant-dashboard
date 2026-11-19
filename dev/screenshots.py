@@ -671,6 +671,9 @@ def open_editor(browser, base: str, language: str, query: str = "") -> Page:
     page.wait_for_function("window.demoReady === true")
     page.evaluate("() => localStorage.clear()")
     page.wait_for_timeout(2500)
+    # The tour opens by itself the first time; the pictures of the guide show the editor under it.
+    page.evaluate("() => { document.querySelector('home-dashboard-editor-app')._tour = false; }")
+    page.wait_for_timeout(300)
     return page
 
 
@@ -715,6 +718,23 @@ def make_editor(browser, base: str, language: str, folder: Path) -> None:
     page = open_editor(browser, base, language)
     choose(page, "layout/0/home/0")
     take(page, folder, "editor-home")
+
+    # The tour of the editor, at its step on the tree.
+    page = open_editor(browser, base, language)
+    page.evaluate("() => { document.querySelector('home-dashboard-editor-app')._tour = true; }")
+    page.wait_for_selector(f"{APP} home-dashboard-editor-tour")
+    page.locator(f"{APP} home-dashboard-editor-tour [data-tour-next]").click()
+    page.wait_for_timeout(600)
+    take(page, folder, "editor-tour")
+
+    # The quick start, at its step on safety.
+    page = open_editor(browser, base, language)
+    page.locator(f"{APP} [data-editor-settings]").click()
+    page.locator(f"{APP} [data-gear-quick]").click()
+    page.wait_for_selector(f"{APP} [data-quick-dialog]")
+    page.locator(f"{APP} [data-quick-step='safety']").click()
+    page.wait_for_timeout(800)
+    take(page, folder, "editor-quick-start")
 
     page = open_editor(browser, base, language)
     choose(page, "layout/0")

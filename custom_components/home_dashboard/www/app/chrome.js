@@ -102,6 +102,8 @@ const STATUS_HOLD_MS = 550;
 const STATUS_HINT_TIMES = 3;
 const STATUS_HINT_MS = 6000;
 const RAIL_SPACE = "88px";
+// The room the page keeps for the bar is measured again at most this often while only states change.
+const ROOM_CHECK_MS = 5000;
 const DISMISSED_PLAYER_KEY = "home_dashboard_dismissed_player";
 const NO_PLAYER_SPACE = "16px";
 const APP_COLOURS = [
@@ -337,6 +339,11 @@ export class HomeDashboardChrome extends LitElement {
   };
 
   shouldUpdate(changed) {
+    // A hass built afresh by Home Assistant can bring its menu back (_hideSidebar), or take the room of the bar away.
+    if (changed.has("hass") && this.isConnected) {
+      this._followSidebar();
+      if (this.hasUpdated && performance.now() - (this._roomCheckedAt ?? 0) > ROOM_CHECK_MS) this._keepRoom();
+    }
     // hass changes on every state event: render only for what is visible from here.
     if (changed.size === 1 && changed.has("hass")) {
       const previous = changed.get("hass");
@@ -457,7 +464,74 @@ export class HomeDashboardChrome extends LitElement {
     });
     this._remote = remote;
     clearTimeout(this._remoteTimer);
-    if (message.close_after > 0) this._remoteTimer = setTimeout(() => this._closeRemote("timeout"), message.close_after * 1000);
+    this._remoteTimer = null;
+    this._countRemote();
+  }
+
+  // The time of a window from outside runs only while the screen shows it: a tablet woken by the automation's
+  // notification connects (and gets the window) while its screen is still dark, and the seconds spent there are
+  // not seen by anybody. Counting starts when the page is visible, from the full time.
+  get _railSpace() {
+    return this._navGone ? "0px" : this._statusOpen ? `${STATUS_WIDTH}px` : RAIL_SPACE;
+  }
+
+  // On an iPad the page went under the status bar now and then (after a restart of Home Assistant): the bar was
+  // drawn, but the view kept no room for it. Whatever took the room away, it is measured where it shows, in the view
+  // of the page, and put right there; the first time in a load what was seen goes to the log of Home Assistant.
+  _keepRoom() {
+    this._roomCheckedAt = performance.now();
+    const root = findRoot(this.card) ?? this.root;
+    const view = root?.shadowRoot?.getElementById("view");
+    if (!view) return;
+    const tablet = Boolean(this._tablet?.matches);
+    const want = tablet ? Number.parseFloat(this._railSpace) : 0;
+    const set = view.style.getPropertyValue("padding-left");
+    const have = Number.parseFloat(getComputedStyle(view).paddingLeft) || 0;
+    if (Math.abs(have - want) <= 1) return;
+    // Our own correction of before, now out of date (the bar folded): no report, only a new value.
+    if (!set) this._reportRoom(root, view, { want, have, tablet });
+    if (root !== this.root) {
+      this.root = root;
+      root.style.setProperty("--hd-rail-space", this._railSpace);
+    }
+    if (tablet) view.style.setProperty("padding-left", `${want}px`, "important");
+    else view.style.removeProperty("padding-left");
+  }
+
+  _reportRoom(root, view, { want, have, tablet }) {
+    if (this._roomReported) return;
+    this._roomReported = true;
+    const style = root.shadowRoot.getElementById(STYLE_ID);
+    const report = {
+      want,
+      have,
+      tablet,
+      css_tablet: mediaQuery(TABLET_MEDIA_QUERY).matches,
+      status_open: this._statusOpen,
+      drawn_tablet: this._drawnTablet,
+      var_on_root: getComputedStyle(root).getPropertyValue("--hd-rail-space").trim() || "unset",
+      var_on_view: getComputedStyle(view).getPropertyValue("--hd-rail-space").trim() || "unset",
+      same_root: root === this.root,
+      root_connected: Boolean(this.root?.isConnected),
+      style: style ? (style.textContent.includes("--hd-rail-space") ? "ok" : "old") : "missing",
+      chromes: document.querySelectorAll(CHROME_TAG).length + (root.shadowRoot.querySelectorAll(CHROME_TAG).length),
+      inner: `${window.innerWidth}x${window.innerHeight}`,
+      visible: document.visibilityState,
+      page: this.page,
+      since_load_s: Math.round(performance.now() / 1000),
+      agent: navigator.userAgent,
+    };
+    console.warn("Home Dashboard: the page had no room for the bar", report);
+    this.hass?.connection
+      ?.sendMessagePromise({ type: "home_dashboard/layout/report", report: JSON.stringify(report).slice(0, 2000) })
+      .catch(() => {});
+  }
+
+  _countRemote() {
+    const remote = this._remote;
+    if (!remote || remote.engaged || this._remoteTimer || !(remote.close_after > 0)) return;
+    if (document.visibilityState === "hidden") return;
+    this._remoteTimer = setTimeout(() => this._closeRemote("timeout"), remote.close_after * 1000);
   }
 
   // The live view, or a touch, keeps the window open; it still closes after the longest live view.
@@ -602,7 +676,15 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   _onVisible = () => {
-    if (document.visibilityState !== "visible") return;
+    if (document.visibilityState !== "visible") {
+      // Hidden again before its time ran out: the window waits for the screen with its full time.
+      if (this._remote && !this._remote.engaged) {
+        clearTimeout(this._remoteTimer);
+        this._remoteTimer = null;
+      }
+      return;
+    }
+    this._countRemote();
     this._paintBand();
     this._followRoot();
   };
@@ -689,11 +771,22 @@ export class HomeDashboardChrome extends LitElement {
     this._tablet.addEventListener("change", this._onLayout);
     // Turning the phone resizes the window; the sidebar of Home Assistant comes and goes with that width.
     window.addEventListener("resize", this._followRoot, { passive: true });
+    window.addEventListener("orientationchange", this._followRoot, { passive: true });
+    window.addEventListener("pageshow", this._followRoot, { passive: true });
+  }
+
+  // The app of Home Assistant on an iPad can load the page in the background (after a restart of Home Assistant),
+  // with the screen dark or another size, and iOS does not always tell the media query of a tablet that changed
+  // then: the status bar stayed drawn for a tablet on its side while the page beside it, laid out by the same query
+  // in CSS, had no room kept for it and went under it. Any resize, turn or return of the screen checks it again.
+  _checkLayout() {
+    if (this.hasUpdated && Boolean(this._tablet?.matches) !== this._drawnTablet) this.requestUpdate();
   }
 
   // The sidebar of Home Assistant slides, and the last resize can come before it stops, so the bars
   // keep up for a moment longer. A click counts too: it is what folds the sidebar.
   _followRoot = () => {
+    this._checkLayout();
     this._followUntil = performance.now() + FOLLOW_ROOT_MS;
     this._followFrames = 0;
     if (this._following) return;
@@ -703,7 +796,10 @@ export class HomeDashboardChrome extends LitElement {
       this._followFrames += 1;
       const more = performance.now() < this._followUntil || this._followFrames < FOLLOW_ROOT_FRAMES;
       if (this.isConnected && more) requestAnimationFrame(step);
-      else this._following = false;
+      else {
+        this._following = false;
+        this._keepRoom();
+      }
     };
     requestAnimationFrame(step);
   };
@@ -717,6 +813,8 @@ export class HomeDashboardChrome extends LitElement {
     this._observer?.disconnect();
     window.removeEventListener("click", this._followRoot, { capture: true });
     window.removeEventListener("resize", this._followRoot);
+    window.removeEventListener("orientationchange", this._followRoot);
+    window.removeEventListener("pageshow", this._followRoot);
     clearInterval(this._timer);
     clearTimeout(this._idleTimer);
     this._settingsWatch?.then((unsubscribe) => unsubscribe?.());
@@ -734,6 +832,7 @@ export class HomeDashboardChrome extends LitElement {
     clearTimeout(this._holdTimer);
     clearTimeout(this._hintTimer);
     (this.root ?? document.documentElement).style.removeProperty("--hd-rail-space");
+    this.root?.shadowRoot?.getElementById("view")?.style.removeProperty("padding-left");
     this._menuTarget?.removeEventListener("hass-toggle-menu", this._onMenuGesture, { capture: true });
     this._menuTarget = null;
     stopWatchingPresses();
@@ -746,9 +845,12 @@ export class HomeDashboardChrome extends LitElement {
   // it before Home Assistant does.
   // The menu of Home Assistant does not belong on this dashboard, which has its own; a wide phone or a tablet would keep
   // it docked at the side. It is hidden while the dashboard is open and comes back on any other page (ha-menu.js).
+  // Home Assistant builds its state afresh at times (after a restart of it, when the app reloads or reconnects), with
+  // its kiosk mode off again: the menu came back docked at the side and the dashboard was laid out as if it were not
+  // there. So the menu is hidden again whenever it shows; what to give back stays what it was the first time.
   _hideSidebar() {
-    if (this._sidebarHidden) return;
-    this._sidebarHidden = hideMenu() ?? undefined;
+    const hidden = hideMenu();
+    if (hidden) this._sidebarHidden ??= hidden;
   }
 
   _restoreSidebar() {
@@ -1076,6 +1178,7 @@ export class HomeDashboardChrome extends LitElement {
         .selection=${this._selection}
         .widgets=${this._appearance.status.widgets}
         ?colourful=${this._appearance.status.colourful}
+        .battery=${this.raw?._variants?.device_battery ?? null}
       >
         <div class="status-actions" slot="actions">
           ${this._renderFold(language, true)} ${this._renderVoice(language, "status-voice")}
@@ -1090,16 +1193,15 @@ export class HomeDashboardChrome extends LitElement {
   }
 
   updated(changed) {
+    this._drawnTablet = Boolean(this._tablet?.matches);
     this._applyBounce();
     // A floating bar leaves a gap under it, which the page and the player make room for.
     (this.root ?? document.documentElement).style.setProperty("--hd-nav-gap", this._appearance.nav.style === "floating" ? "8px" : "0px");
     if (changed.has("pageBackground") || changed.has("_overlay")) this._paintBand();
     if (changed.has("_overlay")) this._followRemote();
     this._tellUsage(changed);
-    (this.root ?? document.documentElement).style.setProperty(
-      "--hd-rail-space",
-      this._navGone ? "0px" : this._statusOpen ? `${STATUS_WIDTH}px` : RAIL_SPACE,
-    );
+    (this.root ?? document.documentElement).style.setProperty("--hd-rail-space", this._railSpace);
+    this._keepRoom();
     this._offerHint();
     const space = this._showsPlayer ? PLAYER_SPACE : NO_PLAYER_SPACE;
     (this.root ?? document.documentElement).style.setProperty("--hd-player-space", space);

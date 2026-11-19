@@ -134,6 +134,34 @@ export function statusNow(hass, items) {
  * The time for the big clock: hours and minutes, and on a 12-hour clock its AM or PM apart, small beside them, so
  * the time stays on one line.
  */
+// The battery of the tablet itself, from the Home Assistant app on it (Settings → Devices in the editor names the
+// sensor of each tablet): its level, and whether it is plugged in. The app has a sensor of the state of the battery
+// on the same device ("Charging", "Full", "Not Charging"); without it the icon of the level tells charging.
+const PLUGGED = new Set(["charging", "full"]);
+export const BATTERY_LOW = 20;
+export const BATTERY_EMPTY = 10;
+
+export function deviceBattery(hass, entityId) {
+  const level = entityId ? hass?.states?.[entityId] : null;
+  const value = Number.parseFloat(level?.state);
+  if (!level || !Number.isFinite(value)) return null;
+  const device = hass.entities?.[entityId]?.device_id;
+  const stateId = device
+    ? Object.values(hass.entities).find((entry) => entry.device_id === device && /battery_state/.test(entry.entity_id))?.entity_id
+    : null;
+  const state = stateId ? hass.states[stateId]?.state : null;
+  const charging = state ? PLUGGED.has(String(state).toLowerCase()) : /charging/.test(level.attributes?.icon ?? "");
+  return { level: Math.max(0, Math.min(100, Math.round(value))), charging };
+}
+
+/** The colour of the battery: green while plugged in, orange when low, red when nearly empty, else the text's. */
+export function batteryTone({ level, charging }) {
+  if (charging) return "charging";
+  if (level <= BATTERY_EMPTY) return "empty";
+  if (level <= BATTERY_LOW) return "low";
+  return "normal";
+}
+
 export function clockParts(at, language) {
   const twelve = new Intl.DateTimeFormat(language, { hour: "numeric" }).resolvedOptions().hour12;
   const parts = new Intl.DateTimeFormat(language, { hour: twelve ? "numeric" : "2-digit", minute: "2-digit" }).formatToParts(at);
@@ -214,6 +242,7 @@ export class HomeDashboardStatusPanel extends LitElement {
     selection: { attribute: false },
     widgets: { attribute: false },
     colourful: { type: Boolean, reflect: true },
+    battery: { attribute: false },
     _now: { state: true },
     _daily: { state: true },
     _hourly: { state: true },
@@ -607,6 +636,28 @@ export class HomeDashboardStatusPanel extends LitElement {
       <div class="scroll" data-status-scroll>
         ${statusWidgets(this.widgets).map((key) => parts[key].call(this))}
       </div>
+      ${this._renderBattery()}
+    `;
+  }
+
+  // One thin line at the foot of the bar: the level and whether it charges, nothing more.
+  _renderBattery() {
+    const battery = deviceBattery(this.hass, this.battery);
+    if (!battery) return nothing;
+    const tone = batteryTone(battery);
+    const fill = Math.max(1.5, (18 * battery.level) / 100);
+    const label = translate(this.hass.language, battery.charging ? "tablet_battery_charging" : "tablet_battery", { level: battery.level });
+    return html`
+      <div class="battery ${tone}" data-status-battery=${tone} role="img" aria-label=${label} title=${label}>
+        <svg viewBox="0 0 27 14" aria-hidden="true">
+          <rect class="case" x=".75" y=".75" width="22.5" height="12.5" rx="3.6"></rect>
+          <rect class="cap" x="24.6" y="4.6" width="1.8" height="4.8" rx=".9"></rect>
+          <rect class="level" x="3" y="3" width=${fill} height="8" rx="1.8"></rect>
+          ${battery.charging ? svg`<path class="bolt" d="M13.6 2.2 9.4 7.6h3l-1.2 4.2 4.4-5.6h-3z"></path>` : nothing}
+        </svg>
+        <span>${battery.level}%</span>
+        <div class="bar"><i style="width: ${battery.level}%"></i></div>
+      </div>
     `;
   }
 
@@ -649,6 +700,70 @@ export class HomeDashboardStatusPanel extends LitElement {
         margin-top: 6px;
         font-size: 21px;
         opacity: 0.72;
+      }
+      .battery {
+        --battery: currentColor;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 16px;
+        padding: 7px 0 8px;
+        border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+      .battery.charging {
+        --battery: #34c759;
+      }
+      .battery.low {
+        --battery: #ff9f0a;
+      }
+      .battery.empty {
+        --battery: #ff453a;
+      }
+      .battery svg {
+        flex: none;
+        width: 22px;
+        height: 12px;
+      }
+      .battery .case {
+        fill: none;
+        stroke: currentColor;
+        stroke-opacity: 0.55;
+        stroke-width: 1.5;
+      }
+      .battery .cap {
+        fill: currentColor;
+        fill-opacity: 0.55;
+      }
+      .battery .level {
+        fill: var(--battery);
+      }
+      .battery .bolt {
+        fill: #fff;
+        stroke: rgba(0, 0, 0, 0.45);
+        stroke-width: 0.7;
+        stroke-linejoin: round;
+      }
+      /* The number keeps the colour of the text, readable on any background; the icon and the bar tell the state. */
+      .battery span {
+        min-width: 34px;
+      }
+      .battery .bar {
+        flex: 1;
+        height: 3px;
+        border-radius: 2px;
+        background: color-mix(in srgb, currentColor 18%, transparent);
+        overflow: hidden;
+      }
+      .battery .bar i {
+        display: block;
+        height: 100%;
+        border-radius: 2px;
+        background: var(--battery);
+        opacity: 0.9;
       }
       .scroll {
         flex: 1;

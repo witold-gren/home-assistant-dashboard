@@ -103,7 +103,7 @@ strategy:
     overrides:
       cover.window_3: {area: bedroom, name: Blind, icon: mdi:blinds}
   media:
-    group_patterns: ["^(.+)_homepod(_music)?$"]
+    group_patterns: ["^(.+)_homepod(_[a-z]+)?$"]
   lights:
     prefer_groups: true
   security:

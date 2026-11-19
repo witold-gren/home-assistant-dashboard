@@ -366,6 +366,25 @@ async def test_devices_are_listed_with_their_person_and_can_be_named(admin, hass
     assert (await mine(admin))["device_name"] == "iPad in the hall"
     answer = await call(admin, type=f"{DOMAIN}/variants/name_device", device="nope", name="x")
     assert answer["error"]["code"] == "not_found"
+    # The battery of a tablet: given in the editor, told to the device, kept, and taken away
+    assert (await mine(admin))["device_battery"] is None
+    await ok(
+        admin,
+        type=f"{DOMAIN}/variants/battery_device",
+        device=me["device"],
+        battery="sensor.ipad_battery_level",
+    )
+    assert (await mine(admin))["device_battery"] == "sensor.ipad_battery_level"
+    listed = await ok(admin, type=f"{DOMAIN}/variants/list", url_path=URL)
+    assert listed["devices"][0]["battery"] == "sensor.ipad_battery_level"
+    await ok(admin, type=f"{DOMAIN}/variants/battery_device", device=me["device"], battery=None)
+    assert (await mine(admin))["device_battery"] is None
+    answer = await call(
+        admin, type=f"{DOMAIN}/variants/battery_device", device=me["device"], battery="light.x"
+    )
+    assert answer["error"]["code"] == "invalid_format"
+    answer = await call(admin, type=f"{DOMAIN}/variants/battery_device", device="nope", battery=None)
+    assert answer["error"]["code"] == "not_found"
 
 
 async def test_only_administrators_get_the_choices(
@@ -398,6 +417,8 @@ async def test_people_who_are_not_administrators_cannot_change_variants(
         answer = await call(reader, url_path=URL, **message)
         assert answer["error"]["code"] == "unauthorized", message
     answer = await call(reader, type=f"{DOMAIN}/variants/name_device", device="x", name="y")
+    assert answer["error"]["code"] == "unauthorized"
+    answer = await call(reader, type=f"{DOMAIN}/variants/battery_device", device="x", battery=None)
     assert answer["error"]["code"] == "unauthorized"
     answer = await call(reader, type=f"{DOMAIN}/variants/forget_device", device="x")
     assert answer["error"]["code"] == "unauthorized"

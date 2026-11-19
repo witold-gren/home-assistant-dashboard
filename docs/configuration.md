@@ -747,7 +747,7 @@ music:
 | `group_patterns` | list of regular expressions | see below | players whose ids give the same first group are one |
 | `sections` | list of `{title, tiles}` | `[]` | the Media page in your own groups; tiles as in a room |
 
-The default of `group_patterns` is `["^(.+)_homepod(_muzyka)?$"]`.
+The default of `group_patterns` is `["^(.+)_homepod(_[a-z]+)?$"]`: a HomePod and its other players with one word after it (`kitchen_homepod_music`) are one speaker.
 
 Tiles of `media.sections` that also stand in a room with `areas` join the Media filter on Home.
 

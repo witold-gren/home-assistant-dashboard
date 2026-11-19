@@ -548,7 +548,7 @@ export const SETTINGS_FORMS = {
       titleKey: "editor_tree_media",
       path: ["media"],
       fields: [
-        { key: "group_patterns", type: "lines", placeholder: "^(.+)_homepod(_muzyka)?$", labelKey: "editor_media_group_patterns", helpKey: "editor_media_group_patterns_hint" },
+        { key: "group_patterns", type: "lines", placeholder: "^(.+)_homepod(_[a-z]+)?$", labelKey: "editor_media_group_patterns", helpKey: "editor_media_group_patterns_hint" },
         ...BLOCK_KINDS.media,
       ],
     },

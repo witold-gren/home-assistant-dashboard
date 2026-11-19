@@ -339,3 +339,16 @@ def test_thermostat_that_is_not_heating_shows_the_target(phone):
         """,
     )
     assert texts == ["Ustawione 20°", "Ustawione 20°"]
+
+
+def test_a_homepod_and_its_other_players_are_one_speaker(phone):
+    keys = run(
+        phone,
+        """
+        const patterns = model.normalizeConfig({}).media.group_patterns;
+        return ["media_player.kitchen_homepod", "media_player.kitchen_homepod_music",
+                "media_player.kitchen_homepod_2", "media_player.kitchen_tv"]
+          .map((id) => model.mediaGroupKey(id, patterns));
+        """,
+    )
+    assert keys == ["kitchen", "kitchen", None, None]

@@ -57,7 +57,7 @@
         },
         "close_after": {
           "name": "Close after",
-          "description": "Seconds before the window closes by itself; 0 keeps it open. The live view or a touch keeps it open."
+          "description": "Seconds before the window closes by itself; 0 keeps it open; counted while the screen shows it. The live view or a touch keeps it open."
         },
         "live_limit": {
           "name": "Live view at most",

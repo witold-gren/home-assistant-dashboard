@@ -18,3 +18,15 @@ def test_the_editor_works_without_the_storage_of_the_browser(desktop):  # noqa: 
     select(desktop, "layout/0/sections/0/tiles/0")
     assert desktop.locator(f"{APP} .node.sel").count() == 1
     assert errors == []
+
+
+def test_without_the_storage_the_tour_does_not_come_back_every_time(desktop):  # noqa: F811
+    desktop.evaluate(BLOCK)
+    open_editor(desktop, tour=True)
+    desktop.wait_for_timeout(300)
+    assert desktop.locator(f"{APP} home-dashboard-editor-tour").count() == 0
+    desktop.locator(f"{APP} [data-editor-settings]").click()
+    desktop.locator(f"{APP} [data-gear-tour]").click()
+    desktop.wait_for_selector(f"{APP} home-dashboard-editor-tour [data-tour-bubble='welcome']")
+    desktop.keyboard.press("Escape")
+    desktop.wait_for_selector(f"{APP} home-dashboard-editor-tour", state="detached")

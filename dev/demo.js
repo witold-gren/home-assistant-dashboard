@@ -217,6 +217,13 @@ function buildHass() {
   add("sensor.washer_program", null, say("Cottons", "Bawełna"), {});
   add("sensor.washer_phase", null, say("Spin", "Wirowanie"), {});
   add("sensor.washer_left", null, "25 min", {});
+  // The Home Assistant app on the tablet on the wall, for the battery at the foot of its status bar.
+  add("sensor.wall_tablet_battery_level", null, "60", {
+    friendly_name: say("Wall tablet Battery Level", "Tablet na ścianie Bateria"),
+    device_class: "battery",
+    unit_of_measurement: "%",
+    icon: "mdi:battery-charging-60",
+  }, "mobile_app");
   add("scene.morning", null, stamp(), { friendly_name: say("Good morning", "Dzień dobry"), icon: "mdi:weather-sunny" });
   add("scene.movie", null, stamp(), { friendly_name: say("Movie", "Film"), icon: "mdi:movie-open-outline" });
   add("scene.night", null, stamp(), { friendly_name: say("Good night", "Dobranoc"), icon: "mdi:weather-night" });
@@ -947,6 +954,8 @@ if (params.get("theme") === "apple") {
 if (params.get("status")) {
   DASHBOARD.appearance = { ...DASHBOARD.appearance, status: { shown: true } };
   localStorage.setItem("home-dashboard-status-hint", "3");
+  // The tablet has its battery chosen in Settings → Devices.
+  DASHBOARD._variants = { device: "demo-tablet", device_battery: "sensor.wall_tablet_battery_level", pages: {}, choices: null };
 }
 
 // dev/demo-editor.html takes the made-up home for the editor on a computer, without a page of its own.

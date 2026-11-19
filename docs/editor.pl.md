@@ -76,7 +76,40 @@ Przy pierwszym uruchomieniu edytor nie znajduje dashboardu korzystającego z Hom
 
 <b class="ui">Utwórz dashboard i jego pokoje</b> dodaje dashboard *Home Dashboard* w Ustawienia → Dashboardy i otwiera go w
 edytorze. (Można go też utworzyć ręcznie w Ustawienia → Dashboardy i wkleić `strategy: {type: custom:home-dashboard}`
-do jego surowej konfiguracji; edytor go wtedy znajdzie.)
+do jego surowej konfiguracji; edytor go wtedy znajdzie.) Nowy dashboard otwiera się z szybkim startem.
+
+### Szybki start {#quick-start}
+
+![Szybki start w kroku Bezpieczeństwo](screenshots/pl/editor-quick-start.png)
+
+<b class="ui">Szybki start</b> tworzy działający dashboard z tego, co jest w Home Assistant, w sześciu krótkich krokach. Otwiera
+się sam dla nowego dashboardu, z pustego drzewa (<b class="ui">Szybki start</b> pod Pokojami) i w każdej chwili z ⚙. Każdy krok
+zaczyna od tego, co znalazł (liczby po prawej stronie okna), a każdą odpowiedź od razu widać w podglądzie za oknem.
+
+1. **Urządzenia:** telefony zawsze; <b class="ui">Tablet na ścianie</b> włącza jego panel stanu (i, jeśli zaznaczone, powrót na
+   stronę główną po 3 minutach bezczynności).
+2. **Pokoje:** obszary Home Assistant według pięter; każdy zaznaczony staje się pokojem, jak w *Pokojach z obszarów*
+   niżej.
+3. **Strona główna:** proponowane ulubione (zamki, alarm, termostaty, kilka rolet i świateł) i sceny.
+4. **Bezpieczeństwo:** dla każdego znalezionego rodzaju (wyciek wody, dym lub gaz, słabe baterie z progiem, bramki i
+   huby, które nie odpowiadają, wyzwolony alarm) <b class="ui">Alarm</b>, <b class="ui">Ostrzeżenie</b> albo <b class="ui">Nie pokazuj</b>. Stają się
+   pozycjami ekranu Status z kartami na stronie głównej; otwarte drzwi i okna trafiają do „W domu” panelu stanu tabletu.
+5. **Wygląd:** jeden z motywów dołączonych do Home Dashboard.
+6. **Podsumowanie:** co zostanie dodane. <b class="ui">Utwórz dashboard</b> wstawia wszystko do szkicu jako jeden krok: jedno
+   Cofnij wycofuje całość, a urządzenia pokażą to po Opublikuj. Potem może otworzyć przewodnik po edytorze.
+
+Uruchomiony ponownie, szybki start dodaje tylko to, czego brakuje: pokoje dla obszarów bez pokoju, ulubione i sceny,
+których jeszcze nie ma, ostrzeżenia, których nie ma na ekranie Status, i wygląd tylko tam, gdzie nic nie wybrano. Nic,
+co zmieniłeś, nie zostaje nadpisane.
+
+### Przewodnik po edytorze {#tour-of-the-editor}
+
+![Przewodnik po edytorze w kroku Drzewo dashboardu](screenshots/pl/editor-tour.png)
+
+Przy pierwszym otwarciu edytora w danej przeglądarce krótki przewodnik pokazuje w ramce po kolei jego części: drzewo,
+podgląd, urządzenia i osobę podglądu, właściwości, szkic z Cofnij i Historią, Opublikuj oraz pomoc z ustawieniami.
+Dymek mówi, czym jest każda część i gdzie się ją ustawia. <b class="ui">Dalej</b> i <b class="ui">Wstecz</b> (albo strzałki) przechodzą przez
+kroki, <b class="ui">Pomiń</b> albo Escape go zamyka. Ponownie otwiera go ⚙ → <b class="ui">Przewodnik po edytorze</b>.
 
 ### Pokoje z obszarów {#rooms-from-areas}
 
@@ -493,6 +526,8 @@ Co oferuje wybrany wariant:
 <b class="ui">Urządzenia</b> w ustawieniach to lista telefonów i tabletów, które otworzyły dashboard: nazwa (wpisz taką,
 którą rozpoznasz), rodzaj i osoba, kiedy ostatnio otwierały dashboard i który wariant której strony pokazują.
 <b class="ui">Zapomnij</b> usuwa urządzenie wylogowane albo oddane; wróci jako nowe, gdy znowu otworzy dashboard.
+<b class="ui">Bateria</b> na karcie tabletu wybiera czujnik baterii aplikacji Home Assistant na nim; tablet pokazuje jej
+stan na dole panelu stanu (przewodnik, *Pasek statusu na tablecie*).
 
 Lupa obok tytułu wariantów otwiera <b class="ui">Gdzie działają warianty</b>: dla każdej strony każdy wariant z urządzeniami
 (i tym, kiedy ostatnio otwierały dashboard) oraz osobami, które go widzą; *wybrał sam* oznacza tych, którzy sami wybrali

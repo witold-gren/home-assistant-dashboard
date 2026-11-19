@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.components import websocket_api
@@ -18,6 +19,9 @@ from .const import (
     DOMAIN,
     SIGNAL_SETTINGS_UPDATED,
 )
+
+_LOGGER = logging.getLogger(__name__)
+REPORT_LIMIT = 2000
 
 
 def current_settings(hass: HomeAssistant) -> dict[str, Any]:
@@ -54,3 +58,19 @@ def websocket_subscribe_settings(
     connection.subscriptions[msg["id"]] = async_dispatcher_connect(hass, SIGNAL_SETTINGS_UPDATED, forward)
     connection.send_result(msg["id"])
     forward()
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/layout/report",
+        vol.Required("report"): vol.All(str, vol.Length(max=REPORT_LIMIT)),
+    }
+)
+@callback
+def websocket_layout_report(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """A tablet whose page went under its status bar says what it saw, so the cause shows in the log."""
+    user = connection.user.name if connection.user else None
+    _LOGGER.warning("Layout of a page put right on a device of %s: %s", user, msg["report"])
+    connection.send_result(msg["id"])

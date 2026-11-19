@@ -47,6 +47,32 @@ def test_another_page_of_home_assistant_has_its_menu_back_and_the_dashboard_hide
     phone.wait_for_function(f"{HASS}.kioskMode === false")
 
 
+def test_the_menu_hides_again_when_home_assistant_builds_its_state_afresh(phone):
+    phone.evaluate(FAKE_APP, ["docked", True])
+    mount(phone)
+    # After a restart Home Assistant builds its state again, with the kiosk mode off, and the panel gets the new hass
+    phone.evaluate(f"""() => {{ const app = document.querySelector('home-assistant');
+        app.hass = {{ ...{HASS}, kioskMode: false }};
+        const chrome = document.querySelector('home-dashboard-chrome'); chrome.hass = {{ ...chrome.hass }}; }}""")
+    phone.wait_for_function(f"{HASS}.kioskMode === true")
+    # Leaving still gives the menu back, and the user's own place of it is never touched
+    phone.evaluate("document.querySelector('home-dashboard-chrome').remove()")
+    assert phone.evaluate(f"{HASS}.kioskMode") is False
+    changes = phone.evaluate("document.querySelector('home-assistant').updates")
+    assert not any("dockedSidebar" in change for change in changes)
+
+
+def test_an_older_home_assistant_has_its_menu_hidden_again_after_a_fresh_state(phone):
+    phone.evaluate(FAKE_APP, ["docked", False])
+    mount(phone)
+    phone.evaluate(f"""() => {{ const app = document.querySelector('home-assistant');
+        app.hass = {{ ...{HASS}, dockedSidebar: 'docked' }};
+        const chrome = document.querySelector('home-dashboard-chrome'); chrome.hass = {{ ...chrome.hass }}; }}""")
+    phone.wait_for_function(f"{HASS}.dockedSidebar === 'always_hidden'")
+    go(phone, "/config/dashboard")
+    assert phone.evaluate(f"{HASS}.dockedSidebar") == "docked"
+
+
 def test_a_kiosk_mode_set_by_someone_else_is_left_alone(phone):
     phone.evaluate("""() => { const app = document.createElement('home-assistant');
         app.hass = { dockedSidebar: 'docked', kioskMode: true }; app.updates = [];

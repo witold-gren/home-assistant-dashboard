@@ -77,7 +77,38 @@ On the very first start the editor finds no dashboard that uses Home Dashboard a
 
 <b class="ui">Create a dashboard and make its rooms</b> adds a dashboard called *Home Dashboard* to Settings → Dashboards and opens it in
 the editor. (You can also make it by hand in Settings → Dashboards and paste `strategy: {type: custom:home-dashboard}`
-into its raw configuration; the editor then finds it.)
+into its raw configuration; the editor then finds it.) The new dashboard opens with the quick start.
+
+### Quick start {#quick-start}
+
+![The quick start at its step on safety](screenshots/en/editor-quick-start.png)
+
+<b class="ui">Quick start</b> makes a working dashboard from what is in Home Assistant, after six short steps. It opens by
+itself for a new dashboard, from the empty tree (<b class="ui">Quick start</b> under Rooms) and from ⚙ at any time. Each step
+starts from what was found, counted on the right of the window, and every answer shows at once in the preview behind it.
+
+1. **Devices:** phones always; <b class="ui">A tablet on the wall</b> turns on its status bar (and, if it is ticked, the return
+   to Home after 3 minutes alone).
+2. **Rooms:** the areas of Home Assistant, by floor; each ticked one becomes a room, as in *Rooms from areas* below.
+3. **Home:** suggested favourites (locks, the alarm, thermostats, a few blinds and lights) and the scenes.
+4. **Safety:** for each kind found (water leak, smoke or gas, low batteries with their threshold, hubs and gateways
+   not answering, the alarm going off) <b class="ui">Alarm</b>, <b class="ui">Warning</b> or <b class="ui">Not shown</b>. They become items of the Status
+   screen with cards on Home; open doors and windows go to *At home* of the tablet's status bar.
+5. **Look:** one of the themes that come with Home Dashboard.
+6. **Summary:** what will be added. <b class="ui">Make the dashboard</b> puts it all in the draft as one step: one Undo takes it
+   back, and the devices show it after Publish. It can open the tour of the editor next.
+
+Run again, the quick start only adds what is missing: rooms for areas without one, favourites and scenes not there
+yet, warnings the Status screen has not got, a look only where none was chosen. Nothing you changed is overwritten.
+
+### Tour of the editor {#tour-of-the-editor}
+
+![The tour of the editor at its step on the tree](screenshots/en/editor-tour.png)
+
+The first time the editor opens in a browser, a short tour frames its parts one at a time: the tree, the preview,
+the devices and the person of the preview, the properties, the draft with Undo and History, Publish, and help with
+settings. A bubble says what each part is and where it is set. <b class="ui">Next</b> and <b class="ui">Back</b> (or the arrow keys)
+move through it, <b class="ui">Skip</b> or Escape closes it. It is opened again from ⚙ → <b class="ui">Tour of the editor</b>.
 
 ### Rooms from areas {#rooms-from-areas}
 
@@ -496,6 +527,8 @@ What a chosen variant offers:
 <b class="ui">Devices</b> in the settings lists every phone and tablet that opened the dashboard: its name (type one you
 recognise), its kind and person, when it was last opened and which variant of which page it shows. <b class="ui">Forget</b> takes
 off a device that was signed out or given away; it comes back as a new one when it opens the dashboard again.
+<b class="ui">Battery</b> on a tablet's card chooses the battery sensor of the Home Assistant app on it; the tablet shows
+its level at the foot of its status bar (the guide, *The status bar of a tablet*).
 
 The magnifier next to the title of the variants opens <b class="ui">Where the variants run</b>: for every page, each variant with
 the devices (and when they last opened the dashboard) and the people that see it; *chose it* marks those who chose a

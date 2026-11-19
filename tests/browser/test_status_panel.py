@@ -114,6 +114,22 @@ def test_without_the_choice_and_on_a_phone_the_bar_is_as_it_was(tablet, phone):
     assert not nav(phone)["panel"] and not nav(phone)["fold"]
 
 
+def test_a_tablet_query_that_changed_unannounced_is_caught_by_a_resize_or_the_page_coming_back(tablet):
+    mount(tablet)
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')")
+    # iOS loaded the page in the background and never told the query that changed: no "change" event comes
+    tablet.evaluate(f"() => {{ {CHROME}._tablet = {{ matches: false, removeEventListener() {{}} }}; }}")
+    tablet.evaluate("() => window.dispatchEvent(new Event('pageshow'))")
+    tablet.wait_for_function(f"!{CHROME}.shadowRoot.querySelector('{PANEL}')")
+    space = tablet.evaluate("""() => { const root = document.querySelector('home-dashboard-chrome').root;
+        return getComputedStyle(root ?? document.documentElement).getPropertyValue('--hd-rail-space').trim(); }""")
+    assert space == "88px"
+    tablet.evaluate(
+        f"() => {{ {CHROME}._tablet.matches = true; window.dispatchEvent(new Event('resize')); }}"
+    )
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')")
+
+
 def test_a_tap_folds_it_to_the_narrow_bar_and_the_tablet_remembers(tablet):
     mount(tablet)
     tablet.locator("[data-status-fold]").click()
@@ -724,3 +740,130 @@ def test_a_line_of_power_with_a_switch_shows_only_while_it_is_on(tablet):
             'switch.charger': {{ ...chrome.hass.states['switch.charger'], state: 'on' }} }} }};
         await chrome.shadowRoot.querySelector('{PANEL}').updateComplete; }}""")
     assert shown() == ["sensor.charger_power", "sensor.server_power"]
+
+
+BATTERY = "sensor.ipad_battery_level"
+
+
+def add_battery(page, level: str, state: str | None, icon: str = "mdi:battery-70") -> None:
+    page.evaluate(
+        """({ id, level, state, icon }) => {
+            const { snapshot } = window.dashboard;
+            snapshot.states[id] = { entity_id: id, state: level,
+                attributes: { device_class: 'battery', unit_of_measurement: '%', icon, friendly_name: 'iPad Battery Level' } };
+            snapshot.entities[id] = { entity_id: id, platform: 'mobile_app', device_id: 'ipad', hidden: false };
+            if (state !== null) {
+                snapshot.states['sensor.ipad_battery_state'] = { entity_id: 'sensor.ipad_battery_state', state, attributes: {} };
+                snapshot.entities['sensor.ipad_battery_state'] = { entity_id: 'sensor.ipad_battery_state',
+                    platform: 'mobile_app', device_id: 'ipad', hidden: false };
+            }
+        }""",
+        {"id": BATTERY, "level": level, "state": state, "icon": icon},
+    )
+
+
+def battery(page) -> dict | None:
+    return page.evaluate(f"""() => {{
+        const el = {CHROME}.shadowRoot.querySelector('{PANEL}').shadowRoot.querySelector('[data-status-battery]');
+        if (!el) return null;
+        const box = el.getBoundingClientRect();
+        return {{ tone: el.dataset.statusBattery, text: el.textContent.trim(), label: el.getAttribute('aria-label'),
+                 height: Math.round(box.height), bolt: Boolean(el.querySelector('.bolt')),
+                 bar: el.querySelector('.bar i').style.width }}; }}""")
+
+
+def test_the_battery_of_the_tablet_is_a_thin_line_at_the_foot_of_the_bar(tablet):
+    add_battery(tablet, "20", "Charging")
+    mount(tablet, {"_variants": {"device": "d-1", "device_battery": BATTERY, "pages": {}, "choices": None}})
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')")
+    shown = battery(tablet)
+    assert shown["tone"] == "charging" and shown["bolt"] and shown["text"] == "20%" and shown["bar"] == "20%"
+    assert shown["label"] == "Bateria tego tabletu: 20%, ładuje się"
+    # As thin as it can be: one line of small text
+    assert shown["height"] <= 30
+    # Off the charger it is the colour of the text; low it is orange, nearly empty red
+    for level, state, tone in (
+        ("70", "Not Charging", "normal"),
+        ("18", "Not Charging", "low"),
+        ("8", "Not Charging", "empty"),
+        ("100", "Full", "charging"),
+    ):
+        add_battery(tablet, level, state)
+        tablet.evaluate(f"() => {{ const c = {CHROME}; c.hass = window.dashboard.hass(); }}")
+        tablet.wait_for_function(
+            f"""() => {CHROME}.shadowRoot.querySelector('{PANEL}').shadowRoot
+                .querySelector('[data-status-battery]')?.dataset.statusBattery === '{tone}'"""
+        )
+        assert battery(tablet)["bolt"] is (tone == "charging")
+
+
+def test_without_a_state_sensor_the_icon_tells_charging(tablet):
+    add_battery(tablet, "45", None, icon="mdi:battery-charging-40")
+    mount(tablet, {"_variants": {"device": "d-1", "device_battery": BATTERY, "pages": {}, "choices": None}})
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')")
+    assert battery(tablet)["tone"] == "charging"
+
+
+def test_no_battery_chosen_or_no_sensor_shows_nothing(tablet):
+    mount(tablet)
+    tablet.wait_for_function(f"{CHROME}.shadowRoot.querySelector('{PANEL}')")
+    assert battery(tablet) is None
+    tablet.evaluate(
+        f"() => {{ {CHROME}.raw = {{ ...{CHROME}.raw, _variants: {{ device_battery: 'sensor.gone' }} }}; }}"
+    )
+    tablet.wait_for_timeout(100)
+    assert battery(tablet) is None
+
+
+MOUNT_IN_ROOT = """async (dashboard) => {
+    localStorage.setItem('home-dashboard-status-open', '1');
+    localStorage.setItem('home-dashboard-status-hint', '3');
+    const root = document.createElement("hui-root");
+    const shadow = root.attachShadow({ mode: "open" });
+    shadow.innerHTML = '<div class="header">x</div><div id="view"></div>';
+    document.body.appendChild(root);
+    window.root = root;
+    window.view = shadow.querySelector("#view");
+    window.card = await window.dashboard.mount(window.dashboard.hass(), dashboard, "home", window.view);
+    await window.card.updateComplete;
+}"""
+ROOT_CHROME = "window.root.shadowRoot.querySelector('home-dashboard-chrome')"
+PADDING = "getComputedStyle(window.view).paddingLeft"
+
+
+def test_the_page_keeps_room_for_the_bar_when_something_takes_it_away(tablet):
+    add_home(tablet)
+    tablet.evaluate(MOUNT_IN_ROOT, SHOWN)
+    tablet.wait_for_function(f"{ROOT_CHROME}?.shadowRoot.querySelector('{PANEL}')")
+    tablet.wait_for_function(f"{PADDING} === '320px'")
+    tablet.evaluate(f"""() => {{ window.reports = [];
+        const chrome = {ROOT_CHROME};
+        chrome.hass = {{ ...chrome.hass, connection: {{ sendMessagePromise: async (m) => {{ window.reports.push(m); }} }} }}; }}""")
+    # What was seen on the iPad: the bar drawn, the room of the page gone (back to the narrow bar's)
+    tablet.evaluate("() => window.root.style.removeProperty('--hd-rail-space')")
+    assert tablet.evaluate(PADDING) == "88px"
+    tablet.evaluate(
+        f"() => {{ const chrome = {ROOT_CHROME}; chrome._roomCheckedAt = 0; chrome.hass = {{ ...chrome.hass }}; }}"
+    )
+    tablet.wait_for_function(f"{PADDING} === '320px'")
+    reports = tablet.evaluate("window.reports")
+    assert len(reports) == 1 and reports[0]["type"] == "home_dashboard/layout/report"
+    assert '"want":320' in reports[0]["report"] and '"have":88' in reports[0]["report"]
+    # Folding the bar moves the corrected room with it, without another report
+    tablet.evaluate(
+        f"() => {{ const chrome = {ROOT_CHROME}; chrome._foldStatus(true); chrome.requestUpdate(); }}"
+    )
+    tablet.wait_for_function(f"{PADDING} === '88px'")
+    assert len(tablet.evaluate("window.reports")) == 1
+
+
+def test_a_page_with_its_room_in_place_reports_nothing(tablet):
+    add_home(tablet)
+    tablet.evaluate(MOUNT_IN_ROOT, SHOWN)
+    tablet.wait_for_function(f"{PADDING} === '320px'")
+    tablet.evaluate(f"""() => {{ window.reports = []; const chrome = {ROOT_CHROME};
+        chrome.hass = {{ ...chrome.hass, connection: {{ sendMessagePromise: async (m) => {{ window.reports.push(m); }} }} }};
+        chrome._roomCheckedAt = 0; chrome.hass = {{ ...chrome.hass }}; }}""")
+    tablet.wait_for_timeout(200)
+    assert tablet.evaluate("window.reports") == []
+    assert tablet.evaluate("window.view.style.getPropertyValue('padding-left')") == ""

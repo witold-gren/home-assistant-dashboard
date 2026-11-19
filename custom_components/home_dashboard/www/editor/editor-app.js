@@ -12,6 +12,9 @@ import "./picker.js";
 import { SETTINGS_FORMS } from "./settings-form.js";
 import "./publish.js";
 import "./generate-dialog.js";
+import { tourSeen } from "./tour.js";
+import "./quick-start-dialog.js";
+import { withQuickStart } from "./quick-start.js";
 
 // The documentation site and the guide's address live in docs-anchors.js (the dialogs need them too).
 export { DOCS_SITE, editorDocsUrl } from "./docs-anchors.js";
@@ -293,6 +296,8 @@ export class HomeDashboardEditorApp extends LitElement {
     // A question of a part of the editor (ask-dialog.js), shown in the editor's look.
     _ask: { state: true },
     _overview: { state: true },
+    // The tour of the editor (tour.js) over everything.
+    _tour: { state: true },
   };
 
   constructor() {
@@ -396,6 +401,8 @@ export class HomeDashboardEditorApp extends LitElement {
     const wanted = new URLSearchParams(window.location.search).get("dashboard");
     const first = dashboards.find((item) => item.url_path === wanted) ?? dashboards[0];
     if (first) await this._load(first.url_path);
+    // The first time the editor opens in this browser it shows itself round, once there is a dashboard to show.
+    if (first && !tourSeen() && !this._dialog) this._tour = true;
   }
 
   async _load(urlPath) {
@@ -450,7 +457,7 @@ export class HomeDashboardEditorApp extends LitElement {
       const { dashboards } = await callWS(this.hass, { type: `${DOMAIN}/editor/dashboards` });
       this._dashboards = dashboards;
       await this._load(urlPath);
-      this._dialog = "generate";
+      this._dialog = "quick";
     } catch (error) {
       this._notice = { kind: "error", text: error?.message ?? String(error) };
     } finally {
@@ -1234,6 +1241,13 @@ export class HomeDashboardEditorApp extends LitElement {
             <button class="ghost" @click=${() => (this._notice = null)}><ha-icon icon="mdi:close"></ha-icon></button>
           </div>`
         : nothing}
+      ${this._tour
+        ? html`<home-dashboard-editor-tour
+            .root=${this.renderRoot}
+            .t=${(key, values) => this._t(key, values)}
+            @tour-close=${() => (this._tour = false)}
+          ></home-dashboard-editor-tour>`
+        : nothing}
       ${this._dialog === "settings"
         ? html`<home-dashboard-editor-devices
             .hass=${this.hass}
@@ -1259,6 +1273,26 @@ export class HomeDashboardEditorApp extends LitElement {
             @publish-all=${(event) => this._publish(false, event.detail.note)}
             @publish-review=${(event) => this._publishReview(event.detail.user_id)}
           ></home-dashboard-editor-publish>`
+        : nothing}
+      ${this._dialog === "quick"
+        ? html`<home-dashboard-editor-quick-start
+            .hass=${this.hass}
+            .strategy=${this._strategy}
+            @dialog-close=${() => {
+              this._dialog = null;
+              this._publishDraft();
+            }}
+            @quick-preview=${(event) => this._previewStrategy(withQuickStart(this.hass, this._strategy, event.detail.answers))}
+            @quick-apply=${(event) => {
+              const before = this._strategy;
+              const after = withQuickStart(this.hass, before, event.detail.answers);
+              this._dialog = null;
+              if (after !== before) this._change(after);
+              else this._publishDraft();
+              this._notice = { kind: "ok", text: this._t(after !== before ? "quick_done" : "quick_summary_nothing") };
+              if (event.detail.tour) this._tour = true;
+            }}
+          ></home-dashboard-editor-quick-start>`
         : nothing}
       ${this._dialog === "generate"
         ? html`<home-dashboard-editor-generate
@@ -1530,6 +1564,11 @@ export class HomeDashboardEditorApp extends LitElement {
               </div>`
             : nothing}
           ${item.key === "rooms" && !item.children.length && !searching
+            ? html`<button class="start" data-quick-start @click=${() => (this._dialog = "quick")}>
+                <ha-icon icon="mdi:rocket-launch-outline"></ha-icon>${this._t("quick_start_button")}
+              </button>`
+            : nothing}
+          ${item.key === "rooms" && !item.children.length && !searching
             ? html`<button class="start" data-generate-start @click=${() => (this._dialog = "generate")}>
                 <ha-icon icon="mdi:auto-fix"></ha-icon>${this._t("editor_generate_start")}
               </button>`
@@ -1661,6 +1700,18 @@ export class HomeDashboardEditorApp extends LitElement {
                   </button>`,
               )}
             </div>
+            <button class="pop-link" data-gear-quick ?disabled=${!this._urlPath} @click=${() => {
+              this._gear = false;
+              this._dialog = "quick";
+            }}>
+              <ha-icon icon="mdi:auto-fix"></ha-icon>${this._t("quick_title")}
+            </button>
+            <button class="pop-link" data-gear-tour @click=${() => {
+              this._gear = false;
+              this._tour = true;
+            }}>
+              <ha-icon icon="mdi:map-marker-path"></ha-icon>${this._t("editor_tour_open")}
+            </button>
             <button class="pop-link" data-gear-devices @click=${() => {
               this._gear = false;
               this._dialog = "settings";

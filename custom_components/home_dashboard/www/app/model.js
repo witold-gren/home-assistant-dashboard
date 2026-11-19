@@ -7,7 +7,8 @@ import { scalePeople, scaleTile } from "./scale.js";
 
 export const SCHEMA_VERSION = 1;
 export const DEFAULT_DOMAINS = ["light", "climate", "cover", "lock"];
-export const DEFAULT_MEDIA_PATTERNS = ["^(.+)_homepod(_muzyka)?$"];
+// A HomePod and its other players (one word after it: kitchen_homepod_music) are one speaker.
+export const DEFAULT_MEDIA_PATTERNS = ["^(.+)_homepod(_[a-z]+)?$"];
 export const OTHER_ROOM_ID = "__other__";
 
 const DEFAULT_IDLE_SECONDS = 180;

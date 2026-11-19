@@ -104,7 +104,7 @@ strategy:
     overrides:
       cover.roleta_3: {area: bedroom, name: Roleta, icon: mdi:blinds}
   media:
-    group_patterns: ["^(.+)_homepod(_muzyka)?$"]
+    group_patterns: ["^(.+)_homepod(_[a-z]+)?$"]
   lights:
     prefer_groups: true
   security:

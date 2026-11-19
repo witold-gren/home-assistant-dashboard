@@ -276,6 +276,31 @@ def test_a_device_is_named_and_forgotten(desktop):
     desktop.wait_for_selector(f"{DEVICES} [data-known-device='tok-phone']", state="detached")
 
 
+def test_a_tablet_is_given_the_battery_of_the_home_assistant_app(desktop):
+    desktop.evaluate(
+        """() => { const { snapshot } = window.editor;
+        const add = (id, level, platform) => {
+            snapshot.states[id] = { entity_id: id, state: level,
+                attributes: { device_class: 'battery', unit_of_measurement: '%', friendly_name: id.split('.')[1] } };
+            snapshot.entities[id] = { entity_id: id, platform, device_id: id, hidden: false };
+        };
+        add('sensor.ipad_battery_level', '20', 'mobile_app');
+        add('sensor.iphone_battery_level', '80', 'mobile_app');
+        add('sensor.door_battery', '90', 'zha'); }"""
+    )
+    open_editor(desktop, users=USERS)
+    add_devices(desktop)
+    select(desktop, "known_devices")
+    pick = desktop.locator(f"{DEVICES} [data-known-device-battery='tok-ipad']")
+    # Only the batteries of the app on phones and tablets, with their level; none chosen at first
+    options = pick.locator("option").all_inner_texts()
+    assert options == ["Nie pokazuj", "ipad_battery_level · 20%", "iphone_battery_level · 80%"]
+    pick.select_option("sensor.ipad_battery_level")
+    desktop.wait_for_function("window.editor.server.state.devices[0].battery === 'sensor.ipad_battery_level'")
+    pick.select_option("")
+    desktop.wait_for_function("window.editor.server.state.devices[0].battery === null")
+
+
 # Shared with the household, where the variants run ----------------------------------------------------
 
 
