@@ -1877,7 +1877,9 @@ export function shownMenu(hass, config, links) {
 export function shownShortcuts(hass, config) {
   return config.shortcuts
     .filter((item) => !config.denied?.includes(blockKey(item)))
-    .filter((item) => !item.hidden_when || hass.states[item.hidden_when]?.state !== "on");
+    .filter((item) => !item.hidden_when || hass.states[item.hidden_when]?.state !== "on")
+    // A block of text with none of its entities (an integration not installed, text-block.js) is not shown.
+    .filter((item) => item.kind !== "text" || (item.sections ?? []).some((section) => hass.states[section?.entity]));
 }
 
 export function buildRoomList(hass, config, selection) {

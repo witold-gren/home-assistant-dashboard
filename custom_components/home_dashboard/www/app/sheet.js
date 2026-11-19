@@ -695,6 +695,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
       departures: this._renderDepartures,
       app: this._renderApp,
       news: this._renderNews,
+      text: this._renderText,
       history: this._renderHistory,
       logbook: this._renderLogbook,
       household: this._renderHousehold,
@@ -730,7 +731,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     const wideWeather =
       (this.sheet.kind === "weather" && mediaQuery(WIDE_WEATHER).matches) ||
       (this.sheet.kind === "departures" && mediaQuery(WIDE_DEPARTURES).matches);
-    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "calendar", "history", "household", "host", "logbook", "news", "overview", "page", "school"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
+    const whole = dark || wideWeather || ["app", "block-edit", "blocks", "calendar", "history", "household", "host", "logbook", "news", "overview", "page", "school", "text"].includes(this.sheet.kind) || Boolean(item?.frame || item?.fullscreen);
     // A block of several groups without a card of its own: on a tablet a wider window with its groups in two columns,
     // so it fits without scrolling (a phone scrolls it).
     const roomy = this.sheet.kind === "panel" && !whole && !item?.card && !item?.tabs && (item?.groups?.length ?? 0) >= 2;

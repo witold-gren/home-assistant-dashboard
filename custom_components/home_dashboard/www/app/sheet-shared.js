@@ -173,6 +173,7 @@ export const ENTITY_FREE_KINDS = new Set([
   "look",
   "pin",
   "room-view",
+  "text",
   "rooms",
   "variants",
   "scale",

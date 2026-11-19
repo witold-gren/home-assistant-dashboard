@@ -110,6 +110,24 @@ the devices and the person of the preview, the properties, the draft with Undo a
 settings. A bubble says what each part is and where it is set. <b class="ui">Next</b> and <b class="ui">Back</b> (or the arrow keys)
 move through it, <b class="ui">Skip</b> or Escape closes it. It is opened again from ⚙ → <b class="ui">Tour of the editor</b>.
 
+### Lessons {#lessons}
+
+![The list of the lessons](screenshots/en/editor-lessons.png)
+
+⚙ → <b class="ui">Lessons</b> lists twenty tasks, each a short tour of the editor itself. *To start with*: add a device to a room,
+add a room, build the Home page, change the order, add a summary badge, lights in the badges, change a background, a
+warning on Home, the status bar of the tablet, publish and who sees what. *Next steps*: set up a tile, colours of
+tiles and texts, names, areas and hidden entities, variants of a page, cameras, speakers and the Media page, the
+Energy page, menu and the bar of pages, undo and history, YAML and search. *Set up once*: build a block of a device,
+the intercom, the Map page, the school block, departures of public transport, a block of text, the news block — a lesson on a block
+the dashboard has not got yet starts by making it. A lesson goes where its task is done (it chooses the node
+of the tree, opens the part of the settings) and frames one part at a time; where it says *Click the framed part*,
+it waits for that click and goes on by itself, so the task is done while it is learnt. × or Escape stops it at any
+time, and nothing changes unless you change it. The list marks the lessons gone through, and says what a lesson
+needs first (a room with a section, a Status block).
+
+The **?** of a form also offers the lesson of what is chosen: *Show me step by step* starts it there.
+
 ### Rooms from areas {#rooms-from-areas}
 
 A new dashboard has no rooms. The tree shows <b class="ui">Make the rooms from the areas</b>; it opens this window:

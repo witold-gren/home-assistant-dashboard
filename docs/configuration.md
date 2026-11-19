@@ -688,6 +688,21 @@ shortcuts:
 |---|---|---|
 | `sections` | list of `{title, entity}` | each a sensor with a `news` attribute; see the guide: [News](guide.md#news) |
 
+### `kind: text`
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `sections` | list of `{entity, name, read}` | none | each an entity: its state is the small line above the text, its attributes the text; `read: true` gives it its own button to read it aloud |
+| `heading` | entity id | none | its state heads the window, its `date` (or `data`) attribute in `YYYY-MM-DD` under it |
+| `label_entity` | entity id | none | its state is the small line of the badge (a fixed `label` wins) |
+| `speaker` | `media_player` | none | reads aloud through `tts.speak`; the stop button stops it |
+| `tts` | `tts` entity | the first | the text-to-speech for `speaker` |
+| `script`, `script_field`, `script_data` | script, text, mapping | none, `message`, none | reads aloud through a script instead: the text in `script_field`, `script_data` beside it |
+
+The text of a section comes from its attributes `paragraphs` (a list) or `text`, with `title`, `intro`, `refrain`,
+`refrain_alt` and `ending` (the Polish names `akapity`, `tekst`, `tytul`, `wstep`, `refren`, `refren_zamienny`,
+`zakonczenie` work too); an entity without them shows its state as the text. See the guide: [Text](guide.md#text).
+
 ### `kind: school`
 
 | Key | Type | Default | Meaning |

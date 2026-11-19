@@ -923,6 +923,34 @@ shortcuts:
 
 ![Wiadomości](screenshots/pl/news.png)
 
+### Tekst
+
+`kind: text` to blok do czytania: czytania mszalne na dziś, fragment książki na dziś, myśl dnia. Każda sekcja to encja:
+jej stan to mała linia nad tekstem (sigla, strona), a atrybuty to tekst; wersety psalmu zachowują swoje linie, a refren
+jest wyróżniony. Encja bez tekstu w atrybutach pokazuje swój stan jako tekst. Sekcja bez treści znika (drugie czytanie
+w dzień powszedni), a odznaka jest widoczna, gdy istnieje któraś z encji bloku. W **Blokach** to <b class="ui">Tekst</b>:
+
+```yaml
+shortcuts:
+  - kind: text
+    name: Słowo Boże
+    icon: mdi:book-cross
+    heading: sensor.readings_day          # nazwa dnia z datą
+    label_entity: sensor.readings_gospel  # mała linia odznaki
+    sections:
+      - {entity: sensor.readings_first, name: Pierwsze czytanie}
+      - {entity: sensor.readings_psalm, name: Psalm}
+      - {entity: sensor.readings_gospel, name: Ewangelia, read: true}
+    # Czytanie na głos na głośniku albo przez skrypt komunikatów (HomePod potrzebuje najpierw całego pliku)
+    script: script.announce
+    script_field: text
+    script_data: {areas: hall}
+    speaker: media_player.hall_homepod    # zatrzymuje czytanie
+```
+
+Z głośnikiem albo skryptem okno ma przycisk <b class="ui">Przeczytaj wszystko</b> i przycisk dla każdej sekcji z `read: true`;
+czytany jest wstęp, refren, tekst i zakończenie, bez znaków psalmu.
+
 ### Aplikacje w oknie
 
 Dodatek z interfejsem WWW, np. Frigate, otworzy się w oknie dashboardu. W menu wpisz w polu <b class="ui">Aplikacja</b> jego identyfikator,

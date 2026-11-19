@@ -688,6 +688,21 @@ shortcuts:
 |---|---|---|
 | `sections` | lista `{title, entity}` | sensor z atrybutem `news`; patrz [Wiadomości](guide.pl.md#wiadomości) |
 
+### `kind: text`
+
+| Klucz | Typ | Domyślnie | Znaczenie |
+|---|---|---|---|
+| `sections` | lista `{entity, name, read}` | brak | każda to encja: jej stan to mała linia nad tekstem, atrybuty to tekst; `read: true` daje sekcji własny przycisk czytania na głos |
+| `heading` | id encji | brak | jej stan jest nagłówkiem okna, a atrybut `date` (albo `data`) w formacie `RRRR-MM-DD` stoi pod nim |
+| `label_entity` | id encji | brak | jej stan to mała linia odznaki (stały `label` ma pierwszeństwo) |
+| `speaker` | `media_player` | brak | czyta na głos przez `tts.speak`; przycisk zatrzymania go zatrzymuje |
+| `tts` | encja `tts` | pierwsza | zamiana tekstu na mowę dla `speaker` |
+| `script`, `script_field`, `script_data` | skrypt, tekst, mapa | brak, `message`, brak | czyta na głos przez skrypt: tekst w polu `script_field`, obok pola z `script_data` |
+
+Tekst sekcji pochodzi z atrybutów `paragraphs` (lista) albo `text`, z `title`, `intro`, `refrain`, `refrain_alt` i
+`ending` (działają też polskie nazwy `akapity`, `tekst`, `tytul`, `wstep`, `refren`, `refren_zamienny`, `zakonczenie`);
+encja bez nich pokazuje swój stan jako tekst. Patrz przewodnik: [Tekst](guide.pl.md#tekst).
+
 ### `kind: school`
 
 | Klucz | Typ | Domyślnie | Znaczenie |

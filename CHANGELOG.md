@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.4.0 (2026-11-19)
+
+Lessons of the editor, step by step in the editor itself, and a block of text for the readings of the day, a page of
+a book or a thought of the day, read aloud too.
+
+- **Block of text** (`kind: text`, *Text* in the + menu of Blocks): sections of text from entities — the state the
+  small line above, the attributes the text (`paragraphs`/`text`, `title`, `intro`, `refrain`, `ending`; the Polish
+  names too), an entity without them its state as the text. A heading from an entity with its date, the small line
+  of the badge from another (`label_entity`). Read aloud on a speaker (`tts.speak`) or through a script that needs the
+  whole file first (a HomePod with a script of announcements: `script`, `script_field`, `script_data`); everything or
+  a section with `read: true`. A section with nothing to say is left out, a block with none of its entities not
+  shown. Lesson *A block of text*. Docs: configuration, guide (PL+EN). Tests in `test_text_block.py`.
+- The tour and the lessons scroll to a framed part below or above the window (the kind of a block at the end of a
+  long list) instead of waiting for a click that cannot reach it.
+- **Lessons** in the editor (⚙ → Lessons): twenty-seven tasks in three parts, each a short tour of the editor
+  itself that goes where the task is done (chooses the node, opens the part of the settings), frames one part at a
+  time and waits for the framed button where it says so; the list marks the ones gone through and says what one needs
+  first. To start with: add a device to a room, add a room, build Home, change the order, add a summary badge, lights
+  in the badges, change a background, a warning on Home, the status bar of the tablet, publish and who sees what. Next
+  steps: set up a tile, colours of tiles and texts, names, areas and hidden entities, variants, cameras, speakers and
+  Media, Energy, menu and the bar of pages, undo and history, YAML and search. Set up once: build a block of a device,
+  intercom, Map, the school block, departures, a block of text, the news block — a lesson on a block the dashboard has
+  not got starts by making it. A step whose button comes only after an earlier click frames the part it belongs to
+  until then. `editor/lessons.js`; the tour (`tour.js`) finds parts inside the forms. Docs: editor (PL+EN). Tests in
+  `test_editor_lessons.py`.
+- The **?** of a form offers the lesson of what is chosen (*Show me step by step*), found by the node of the tree.
+- The school block is in the + menu of Blocks too.
+
 ## 1.3.0 (2026-11-19)
 
 A quick start and a tour of the editor, the battery of the tablet at the foot of its status bar, a camera window that

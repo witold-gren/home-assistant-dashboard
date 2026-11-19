@@ -13,6 +13,7 @@ import { SETTINGS_FORMS } from "./settings-form.js";
 import "./publish.js";
 import "./generate-dialog.js";
 import { tourSeen } from "./tour.js";
+import { LESSONS, lessonFor, lessonReady } from "./lessons.js";
 import "./quick-start-dialog.js";
 import { withQuickStart } from "./quick-start.js";
 
@@ -296,8 +297,9 @@ export class HomeDashboardEditorApp extends LitElement {
     // A question of a part of the editor (ask-dialog.js), shown in the editor's look.
     _ask: { state: true },
     _overview: { state: true },
-    // The tour of the editor (tour.js) over everything.
+    // The tour of the editor (tour.js) over everything, or one of its lessons (lessons.js).
     _tour: { state: true },
+    _lesson: { state: true },
   };
 
   constructor() {
@@ -419,6 +421,18 @@ export class HomeDashboardEditorApp extends LitElement {
     this._select(null);
     this._publishDraft();
     this._followAddress();
+  }
+
+  /** Choose a node of the tree by its key (unfolded on the way and scrolled to); false when there is none. */
+  _selectKey(key) {
+    const node = flatten(buildTree(this._strategy, this.hass, this.hass.language)).find((item) => item.key === key);
+    if (!node) return false;
+    if (node.path) this._unfoldTo(node.path);
+    this._select(node);
+    this.updateComplete.then(() =>
+      this.renderRoot.querySelector(`[data-node="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "nearest" }),
+    );
+    return true;
   }
 
   /** Choose the node the address named when the editor opened, now that its state is here. */
@@ -1241,12 +1255,31 @@ export class HomeDashboardEditorApp extends LitElement {
             <button class="ghost" @click=${() => (this._notice = null)}><ha-icon icon="mdi:close"></ha-icon></button>
           </div>`
         : nothing}
-      ${this._tour
+      ${this._tour || this._lesson
         ? html`<home-dashboard-editor-tour
             .root=${this.renderRoot}
             .t=${(key, values) => this._t(key, values)}
-            @tour-close=${() => (this._tour = false)}
+            .lesson=${this._lesson}
+            .host=${this}
+            @tour-close=${() => {
+              // A list of tiles a lesson opened does not stay over the editor after it.
+              if (this._lesson && this._picker) this._closePicker();
+              this._tour = false;
+              this._lesson = null;
+            }}
           ></home-dashboard-editor-tour>`
+        : nothing}
+      ${this._dialog === "lessons"
+        ? html`<home-dashboard-editor-lessons
+            .hass=${this.hass}
+            .app=${this}
+            @dialog-close=${() => (this._dialog = null)}
+            @lesson-start=${(event) => {
+              this._dialog = null;
+              this._tour = false;
+              this._lesson = LESSONS.find((lesson) => lesson.key === event.detail.key) ?? null;
+            }}
+          ></home-dashboard-editor-lessons>`
         : nothing}
       ${this._dialog === "settings"
         ? html`<home-dashboard-editor-devices
@@ -1422,7 +1455,27 @@ export class HomeDashboardEditorApp extends LitElement {
         <a data-help-more href=${editorDocsUrl(this.hass?.language, help.anchor)} target="_blank" rel="noopener"
           >${this._t("editor_help_more")} <ha-icon icon="mdi:open-in-new"></ha-icon
         ></a>
+        ${this._renderHelpLesson(help)}
       </div>`;
+  }
+
+  // The lesson of what the "?" is about: the chosen part of the form, the tree (rooms) or the preview (who sees what).
+  _renderHelpLesson(help) {
+    const lesson =
+      help.part === "props"
+        ? lessonFor(this._selected?.key, this._strategy)
+        : LESSONS.find((item) => item.key === { tree: "add_room", preview: "publish" }[help.part]);
+    if (!lesson) return nothing;
+    const ready = lessonReady(lesson, this);
+    return html`<button class="help-lesson" data-help-lesson=${lesson.key} ?disabled=${!ready}
+      title=${ready ? "" : this._t(`lessons_needs_${lesson.needs}`)}
+      @click=${() => {
+        this._help = null;
+        this._tour = false;
+        this._lesson = lesson;
+      }}>
+      <ha-icon icon="mdi:school-outline"></ha-icon>${this._t("lessons_show", { name: this._t(`lesson_${lesson.key}_name`) })}
+    </button>`;
   }
 
   _renderTop() {
@@ -1708,9 +1761,16 @@ export class HomeDashboardEditorApp extends LitElement {
             </button>
             <button class="pop-link" data-gear-tour @click=${() => {
               this._gear = false;
+              this._lesson = null;
               this._tour = true;
             }}>
               <ha-icon icon="mdi:map-marker-path"></ha-icon>${this._t("editor_tour_open")}
+            </button>
+            <button class="pop-link" data-gear-lessons ?disabled=${!this._urlPath} @click=${() => {
+              this._gear = false;
+              this._dialog = "lessons";
+            }}>
+              <ha-icon icon="mdi:school-outline"></ha-icon>${this._t("lessons_title")}
             </button>
             <button class="pop-link" data-gear-devices @click=${() => {
               this._gear = false;
@@ -2895,6 +2955,29 @@ entity: ${entity}`}
     }
     .help-pop a ha-icon {
       --mdc-icon-size: 14px;
+    }
+    .help-pop .help-lesson {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+    }
+    .help-pop .help-lesson[disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .help-pop .help-lesson ha-icon {
+      --mdc-icon-size: 16px;
     }
     .tree-tools {
       display: flex;

@@ -67,6 +67,7 @@ export const APP_FILES = [
   "state-history.js",
   "status-panel.js",
   "status.js",
+  "text-block.js",
   "stored.js",
   "styles.js",
   "talk.js",

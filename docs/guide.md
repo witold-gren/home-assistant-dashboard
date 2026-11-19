@@ -920,6 +920,35 @@ shortcuts:
 
 ![News](screenshots/en/news.png)
 
+### Text
+
+`kind: text` is a block for reading: the readings of the day's Mass, a page of a book for today, a thought of the day.
+Each section is an entity: its state is the small line above the text (a reference, a page), its attributes the text,
+the paragraphs of a psalm keep their lines and its refrain stands out. An entity with no text in its attributes shows
+its state as the text. A section with nothing to say is left out (a second reading on a weekday), and the badge shows
+while one of its entities exists. In <b class="ui">Summary badges</b> it is <b class="ui">Text</b>:
+
+```yaml
+shortcuts:
+  - kind: text
+    name: Word of God
+    icon: mdi:book-cross
+    heading: sensor.readings_day          # the name of the day, with its date
+    label_entity: sensor.readings_gospel  # the small line of the badge
+    sections:
+      - {entity: sensor.readings_first, name: First reading}
+      - {entity: sensor.readings_psalm, name: Psalm}
+      - {entity: sensor.readings_gospel, name: Gospel, read: true}
+    # Read aloud on a speaker, or through a script of announcements (a HomePod needs the whole file first)
+    script: script.announce
+    script_field: text
+    script_data: {areas: hall}
+    speaker: media_player.hall_homepod    # stops it
+```
+
+With a speaker or a script the window has <b class="ui">Read everything</b> and a button for each section with `read: true`;
+the text read is the intro, the refrain, the text and the ending, without the marks of a psalm.
+
 ### Apps in a window
 
 An add-on with a web interface, such as Frigate, opens in a window of the dashboard. In the menu put its id in the <b class="ui">App</b>

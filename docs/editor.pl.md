@@ -111,6 +111,24 @@ podgląd, urządzenia i osobę podglądu, właściwości, szkic z Cofnij i Histo
 Dymek mówi, czym jest każda część i gdzie się ją ustawia. <b class="ui">Dalej</b> i <b class="ui">Wstecz</b> (albo strzałki) przechodzą przez
 kroki, <b class="ui">Pomiń</b> albo Escape go zamyka. Ponownie otwiera go ⚙ → <b class="ui">Przewodnik po edytorze</b>.
 
+### Samouczki {#lessons}
+
+![Lista samouczków](screenshots/pl/editor-lessons.png)
+
+⚙ → <b class="ui">Samouczki</b> to lista dwudziestu zadań, każde jako krótki przewodnik po samym edytorze. *Na początek*: dodaj
+urządzenie do pokoju, dodaj pokój, zbuduj stronę główną, zmień kolejność, dodaj odznakę na górze strony, światła w
+odznakach i plakietkach, zmień tło, ostrzeżenie na stronie głównej, panel stanu tabletu, opublikuj i kto co widzi.
+*Następne kroki*: ustaw kafelek, kolory kafelków i napisów, nazwy, obszary i ukryte encje, warianty strony, kamery,
+głośniki i strona Media, strona Energia, menu i pasek stron, cofanie i historia, YAML i szukanie. *Ustawiane raz*:
+zbuduj blok urządzenia, interkom, strona Mapa, blok szkoły, odjazdy komunikacji, blok tekstu, blok wiadomości — samouczek bloku,
+którego dashboard jeszcze nie ma, zaczyna od jego utworzenia. Samouczek sam
+przechodzi tam, gdzie zadanie się wykonuje (zaznacza węzeł drzewa, rozwija część ustawień), i pokazuje w ramce po
+jednej rzeczy; tam, gdzie mówi *Kliknij to, co w ramce*, czeka na to kliknięcie i sam idzie dalej, więc zadanie robi
+się w trakcie nauki. × albo Escape w każdej chwili go przerywa, a nic się nie zmienia, jeśli sam tego nie zmienisz.
+Lista oznacza przerobione samouczki i mówi, czego samouczek najpierw potrzebuje (pokoju z sekcją, bloku Status).
+
+**?** przy formularzu proponuje też samouczek tego, co zaznaczone: *Pokaż krok po kroku* uruchamia go od razu.
+
 ### Pokoje z obszarów {#rooms-from-areas}
 
 Nowy dashboard nie ma pokoi. W drzewie jest <b class="ui">Utwórz pokoje z obszarów</b>; otwiera to okno:

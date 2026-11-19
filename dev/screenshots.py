@@ -727,6 +727,14 @@ def make_editor(browser, base: str, language: str, folder: Path) -> None:
     page.wait_for_timeout(600)
     take(page, folder, "editor-tour")
 
+    # The list of the lessons (⚙ → Lessons).
+    page = open_editor(browser, base, language)
+    page.locator(f"{APP} [data-editor-settings]").click()
+    page.locator(f"{APP} [data-gear-lessons]").click()
+    page.wait_for_selector(f"{APP} [data-lessons-dialog]")
+    page.wait_for_timeout(600)
+    take(page, folder, "editor-lessons")
+
     # The quick start, at its step on safety.
     page = open_editor(browser, base, language)
     page.locator(f"{APP} [data-editor-settings]").click()

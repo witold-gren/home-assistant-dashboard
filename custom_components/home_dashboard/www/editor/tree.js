@@ -29,6 +29,7 @@ const KIND_ICONS = {
   departures: "mdi:tram",
   news: "mdi:newspaper-variant-outline",
   school: "mdi:school",
+  text: "mdi:text-box-outline",
   page: "mdi:play-box-multiple-outline",
   app: "mdi:application",
 };

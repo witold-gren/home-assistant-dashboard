@@ -75,6 +75,7 @@ const WINDOWS = {
   weather: ["mdi:weather-partly-cloudy", "Weather", "Pogoda"],
   departures: ["mdi:bus-clock", "Departures", "Odjazdy"],
   news: ["mdi:newspaper-variant-outline", "News", "Wiadomości"],
+  text: ["mdi:text-box-outline", "Text", "Tekst"],
   calendar: ["mdi:calendar", "Calendar", "Kalendarz"],
   app: ["mdi:application-outline", "App", "Aplikacja"],
   page: ["mdi:web", "Page", "Strona"],

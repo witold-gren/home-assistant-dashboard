@@ -890,6 +890,13 @@ export const LookSheets = (Base) =>
       `;
     }
 
+    _renderText() {
+      return html`
+        ${this._renderHeader(this.sheet.item.name, false, false)}
+        <home-dashboard-text-block .hass=${this.hass} .item=${this.sheet.item}></home-dashboard-text-block>
+      `;
+    }
+
     _renderNotifications() {
       return html`
         ${this._renderHeader(this._t("notifications_title"), false, false)}

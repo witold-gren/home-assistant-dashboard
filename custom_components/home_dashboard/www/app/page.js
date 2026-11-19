@@ -68,6 +68,7 @@ import {
   sectionRows,
   sectionsInColumns,
 } from "./model.js";
+import { textLabel } from "./text-block.js";
 import {
   addSection,
   addTile,
@@ -887,6 +888,12 @@ export class HomeDashboardPage extends LitElement {
     `;
   }
 
+  // A block's own small line, or for a block of text the state of its `label_entity` (the Gospel of the day).
+  _shortcutLabel(item) {
+    const label = item.kind === "text" ? textLabel(this._hass, item) : item.label;
+    return label ? html`<small data-shortcut-label>${label}</small>` : nothing;
+  }
+
   _renderShortcuts() {
     return shownShortcuts(this._hass, this._config).map((item, index) => ({
       id: blockKey(item),
@@ -897,7 +904,7 @@ export class HomeDashboardPage extends LitElement {
           @click=${() => this._openShortcut(item)}
         >
           <ha-icon class=${item.tone ?? SHORTCUT_TONES[index % SHORTCUT_TONES.length]} .icon=${item.icon}></ha-icon>
-          <span>${item.label ? html`<small>${item.label}</small>` : nothing}<strong>${item.name}</strong></span>
+          <span>${this._shortcutLabel(item)}<strong>${item.name}</strong></span>
         </button>
       `,
     }));
