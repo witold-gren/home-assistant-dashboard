@@ -439,7 +439,9 @@ The iPad of the preview shows the bar of the draft at once.
 
 **Settings → Menu** holds the groups of the left menu and their entries. An entry opens a **block**, an **add-on**,
 an **address** (a page of Home Assistant, another dashboard) or runs an **action**; it can be for administrators only,
-for chosen people, and hidden in guest mode. Choosing *Menu* opens the menu in the preview.
+for chosen people, and hidden in guest mode. Choosing *Menu* opens the menu in the preview. The arrows of an entry
+change its place in its group; its **Move to another group** button lists the other groups and puts it at the end of
+the chosen one, without writing it again.
 
 **Settings → Bar of pages** holds the places of the bottom bar of a phone and the side rail of a tablet: 2 to 5 of
 Home, Music, Media, Energy, Map, Scenes, the menu or a room, in order, and the bar's look.

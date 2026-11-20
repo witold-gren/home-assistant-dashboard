@@ -351,3 +351,26 @@ def test_a_tv_turns_off_with_its_own_service_on_the_tablet(phone):
         "media_player.tv"
     )
     assert saved(phone)["shortcuts"][0]["off"] == {"service": "script.tv_off", "target": "media_player.tv"}
+
+
+def test_a_block_of_text_chooses_a_voice_on_the_tablet(phone):
+    text = {
+        "kind": "text",
+        "name": "Słowo",
+        "icon": "mdi:book",
+        "tts": "tts.piper",
+        "sections": [{"entity": "sensor.a"}],
+    }
+    add_entity(phone, "sensor.a", "Tekst")
+    open_block(phone, [text], "Słowo")
+    voice = field(phone, "voice").locator("select")
+    voice.locator("option[value='pl_PL-gosia-medium']").wait_for(state="attached")
+    assert voice.locator("option").all_inner_texts() == [
+        "Domyślny silnika",
+        "gosia (medium)",
+        "jan wg glos (medium)",
+    ]
+    voice.select_option("pl_PL-gosia-medium")
+    fill(phone, "script_voice_field", "voice")
+    block = saved(phone)["shortcuts"][0]
+    assert block["voice"] == "pl_PL-gosia-medium" and block["script_voice_field"] == "voice"

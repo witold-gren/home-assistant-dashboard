@@ -130,6 +130,29 @@ def test_a_block_without_its_entity_is_left_out(phone):
     assert phone.locator("home-dashboard-page [data-tile='Machine']").count() == 0
 
 
+def test_a_block_whose_integration_has_not_given_a_state_yet_stays_greyed_out(phone):
+    # Its entity is in the registry of Home Assistant, but the integration waits for its add-on: no state at all
+    phone.evaluate(
+        """() => { window.dashboard.snapshot.entities['switch.robot_connection'] =
+            { entity_id: 'switch.robot_connection', platform: 'robot' }; }"""
+    )
+    mount(
+        phone,
+        room_with(
+            block(
+                entity="switch.robot_connection",
+                stats=[{"name": "Bateria", "entity": "sensor.robot_battery"}],
+            )
+        ),
+    )
+    tile = phone.locator("home-dashboard-page [data-tile='Machine']")
+    assert tile.count() == 1
+    assert "unavailable" in tile.get_attribute("class")
+    assert "Niedostępny" in tile.inner_text()
+    tile.click()
+    phone.wait_for_selector("home-dashboard-sheet section.panel")
+
+
 def test_a_block_can_hide_in_guest_mode(phone):
     add_entity(phone, "input_boolean.guest", "on")
     mount(

@@ -106,6 +106,16 @@ def test_the_window_shows_the_heading_and_each_section_with_its_text(phone):
     verses = phone.locator(f"{SCREEN} [data-text-section='{P}_psalm'] p:not(.refrain)").first.inner_text()
     assert verses == "Śpiewajcie Panu pieśń nową,\ngłoście Jego chwałę."
     assert "Źródło: test" in phone.locator(f"{SCREEN} .source").inner_text()
+    # Without a speaker only listening on this device is offered: the Gospel by itself and everything
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 0
+    assert phone.locator(f"{SCREEN} [data-text-read-here]").count() == 1
+    listen = phone.locator(f"{SCREEN} [data-text-listen]")
+    assert listen.evaluate_all("(all) => all.map((b) => b.dataset.textListen)") == [f"{P}_gospel", "all"]
+    assert [text.strip() for text in listen.all_inner_texts()] == ["Słuchaj: Ewangelia", "Słuchaj wszystko"]
+
+
+def test_listen_here_can_be_hidden(phone):
+    open_block(phone, {**BLOCK, "hide_read_here": True})
     assert phone.locator(f"{SCREEN} [data-text-actions]").count() == 0
 
 
@@ -184,3 +194,108 @@ def test_a_script_reads_it_for_a_speaker_that_needs_a_whole_file(phone):
     phone.wait_for_function(
         "window.hass.calls.some((c) => c.service === 'media_stop' && c.data.entity_id === 'media_player.hall_homepod')"
     )
+
+
+# Playing in the browser is recorded instead of heard: the sources it played, its pauses and the voice of the browser.
+FAKE_AUDIO = """
+window.played = []; window.spoken = [];
+HTMLMediaElement.prototype.play = function () { window.played.push(this.src); this.dataset.on = "1"; return Promise.resolve(); };
+HTMLMediaElement.prototype.pause = function () { window.played.push("pause"); };
+window.speechSynthesis.speak = (utterance) => window.spoken.push({ text: utterance.text, lang: utterance.lang });
+window.speechSynthesis.cancel = () => window.spoken.push("cancel");
+"""
+
+
+def test_listen_here_plays_a_recording_on_this_device(phone):
+    open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper"})
+    phone.evaluate(FAKE_AUDIO)
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_function("window.played.some((src) => src.endsWith('/api/tts_proxy/test.mp3'))")
+    call = phone.evaluate("window.hass.calls.find((call) => call.path === 'tts_get_url')")
+    assert call["method"] == "POST" and call["data"]["engine_id"] == "tts.piper"
+    assert call["data"]["message"].startswith("Czytanie z Apokalipsy")
+    assert "Słowa Ewangelii" in call["data"]["message"]
+    # The speaker is not used, and a tap first starts it silent for Safari
+    assert phone.evaluate("window.played[0]").startswith("data:audio/wav")
+    assert not phone.evaluate("window.hass.calls.some((call) => call.domain === 'tts')")
+    pause = phone.locator(f"{SCREEN} [data-text-pause]")
+    pause.click()
+    phone.wait_for_function("window.played.includes('pause')")
+    assert pause.inner_text().strip() == "Wznów"
+    phone.locator(f"{SCREEN} [data-text-stop]").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-pause]", state="detached")
+    # Stopping here leaves the speaker alone
+    assert not phone.evaluate("window.hass.calls.some((call) => call.service === 'media_stop')")
+
+
+def test_without_a_recording_the_browser_reads_it(phone):
+    open_block(phone, {**BLOCK, "tts": "tts.piper"})
+    phone.evaluate(FAKE_AUDIO + "window.ttsFails = true;")
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_function("window.spoken.some((each) => each.text)")
+    spoken = phone.evaluate("window.spoken.find((each) => each.text)")
+    assert spoken["lang"] == "pl" and spoken["text"].startswith("Czytanie z Apokalipsy")
+    phone.locator(f"{SCREEN} [data-text-stop]").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-stop]", state="detached")
+
+
+def test_a_chosen_voice_reads_on_the_speaker_here_and_through_a_script(phone):
+    voice = "pl_PL-gosia-medium"
+    open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper", "voice": voice})
+    phone.evaluate(FAKE_AUDIO)
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'tts')")
+    speak = phone.evaluate("window.hass.calls.find((call) => call.domain === 'tts')")
+    assert speak["data"]["options"] == {"voice": voice}
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.path === 'tts_get_url')")
+    url = phone.evaluate("window.hass.calls.find((call) => call.path === 'tts_get_url')")
+    assert url["data"]["options"] == {"voice": voice}
+
+
+def test_a_script_gets_the_voice_in_its_field(phone):
+    block = {**BLOCK, "script": "script.announce", "script_field": "text", "voice": "pl_PL-gosia-medium"}
+    open_block(phone, {**block, "script_voice_field": "voice"})
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'script')")
+    call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'script')")
+    assert call["data"]["variables"]["voice"] == "pl_PL-gosia-medium"
+
+
+def test_without_a_voice_nothing_is_said_about_it(phone):
+    open_block(phone, {**BLOCK, "script": "script.announce", "script_field": "text"})
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'script')")
+    call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'script')")
+    assert "voice" not in call["data"]["variables"]
+
+
+def test_listen_to_one_section_plays_only_its_text_and_another_button_takes_over(phone):
+    open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper"})
+    phone.evaluate(FAKE_AUDIO)
+    # Four buttons: read on the speaker (the Gospel, everything) and listen here (the Gospel, everything)
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    assert phone.locator(f"{SCREEN} [data-text-listen]").count() == 2
+    gospel = phone.locator(f"{SCREEN} [data-text-listen='{P}_gospel']")
+    gospel.click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.path === 'tts_get_url')")
+    message = phone.evaluate("window.hass.calls.find((call) => call.path === 'tts_get_url')")["data"][
+        "message"
+    ]
+    assert message.startswith("Słowa Ewangelii") and "Apokalipsy" not in message
+    phone.wait_for_selector(f"{SCREEN} [data-text-listen='{P}_gospel'].on")
+    assert "on" not in (phone.locator(f"{SCREEN} [data-text-read-here]").get_attribute("class") or "")
+    assert not phone.evaluate("window.hass.calls.some((call) => call.domain === 'tts')")
+    # Everything starts its own reading instead of the Gospel
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_function("window.hass.calls.filter((call) => call.path === 'tts_get_url').length === 2")
+    messages = phone.evaluate(
+        "window.hass.calls.filter((call) => call.path === 'tts_get_url').map((c) => c.data.message)"
+    )
+    assert messages[1].startswith("Czytanie z Apokalipsy")
+    phone.wait_for_selector(f"{SCREEN} [data-text-read-here].on")
+    assert "on" not in (gospel.get_attribute("class") or "")
+    # The same button stops it
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-stop]", state="detached")

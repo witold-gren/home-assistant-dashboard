@@ -682,3 +682,43 @@ def test_the_calendars_of_the_home_and_how_they_show(editor) -> None:
         2,
         "start",
     )
+
+
+TWO_GROUPS = {
+    "groups": [
+        {"items": [{"name": "Host"}, {"name": "Odkurzacz"}]},
+        {"title": "System", "items": [{"name": "Historia"}]},
+    ]
+}
+
+
+def test_an_entry_of_the_menu_moves_to_another_group_and_one_step_undoes_it(desktop) -> None:  # noqa: F811
+    desktop.evaluate("() => localStorage.clear()")
+    open_editor(desktop, {**SIDE, "menu": TWO_GROUPS})
+    select(desktop, "menu")
+    desktop.locator(f"{APP} [data-form='setting-menu'] [data-schema-form]").first.wait_for()
+    field(desktop, "menu", ".groups").first.wait_for()
+    section(desktop, "menu").locator("[data-schema-entry='.groups.0'] > summary strong").click()
+    entry = section(desktop, "menu").locator("[data-schema-entry='.groups.0.items.1']")
+    entry.locator("[data-schema-move]").first.click()
+    choice = section(desktop, "menu").locator("[data-schema-move-to='.groups.0.items.1']")
+    # The other groups only, by their title or what they hold
+    assert choice.locator("[data-schema-move-group]").all_inner_texts() == ["System"]
+    choice.locator("[data-schema-move-group='1']").click()
+    assert draft(desktop)["menu"]["groups"] == [
+        {"items": [{"name": "Host"}]},
+        {"title": "System", "items": [{"name": "Historia"}, {"name": "Odkurzacz"}]},
+    ]
+    assert choice.count() == 0
+    desktop.locator(f"{APP} [data-undo]").click()
+    assert draft(desktop)["menu"] == TWO_GROUPS
+
+
+def test_a_single_group_offers_no_move(desktop) -> None:  # noqa: F811
+    desktop.evaluate("() => localStorage.clear()")
+    open_editor(desktop, {**SIDE, "menu": {"groups": [TWO_GROUPS["groups"][0]]}})
+    select(desktop, "menu")
+    desktop.locator(f"{APP} [data-form='setting-menu'] [data-schema-form]").first.wait_for()
+    field(desktop, "menu", ".groups").first.wait_for()
+    assert section(desktop, "menu").locator("[data-schema-entry='.groups.0.items.0']").count() == 1
+    assert section(desktop, "menu").locator("[data-schema-move]").count() == 0

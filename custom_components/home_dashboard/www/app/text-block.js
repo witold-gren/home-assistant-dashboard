@@ -6,7 +6,10 @@
 // its state as the text. A section with nothing to say is left out, and a block with nothing at all is not shown.
 // With a speaker or a script chosen, the window reads everything or one section aloud: `tts.speak` on the speaker, or
 // the script with the text in `script_field` and `script_data` beside it — for a speaker that needs a whole file first
-// (a HomePod), where a script of announcements does that.
+// (a HomePod), where a script of announcements does that. „Listen to everything” (and „Listen: <section>” for a section
+// with its own button) plays it on the device it was tapped on (a phone, a tablet, a Mac): a recording of the same
+// text-to-speech in the browser, or the browser's own voice without one; `hide_read_here` hides them. `voice` chooses a voice of the text-to-speech for all of them; a script gets it in
+// `script_voice_field`.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
@@ -14,6 +17,8 @@ import { tokens } from "./styles.js";
 
 const EMPTY = new Set(["", "unavailable", "unknown", "none", "brak"]);
 const QUOTES = /[«»„”“"]/g;
+// A wav of no length: Safari on iOS plays sound only from a tap, so the tap starts this and the voice follows on it.
+const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 
 const pick = (attributes, ...names) => names.map((name) => attributes?.[name]).find((value) => value !== undefined && value !== null && value !== "");
 
@@ -87,15 +92,24 @@ export class HomeDashboardTextBlock extends LitElement {
     hass: { attribute: false },
     item: { attribute: false },
     _reading: { state: true },
+    _preparing: { state: true },
+    _paused: { state: true },
     _error: { state: true },
   };
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // A closed window does not go on talking with nothing left to stop it.
+    this._stopHere();
+  }
 
   _t(key, values) {
     return translate(this.hass.language, key, values);
   }
 
   async _read(key, sections) {
-    const { speaker, tts, script, script_field: field, script_data: data } = this.item;
+    this._stopHere();
+    const { speaker, script, script_field: field, script_data: data } = this.item;
     const message = speechOf(sections);
     this._error = null;
     if (!message) {
@@ -105,32 +119,167 @@ export class HomeDashboardTextBlock extends LitElement {
     this._reading = key;
     try {
       if (script) {
-        await this.hass.callService("script", "turn_on", { entity_id: script, variables: { ...(data ?? {}), [field || "message"]: message } });
+        const variables = { ...(data ?? {}), [field || "message"]: message };
+        if (this.item.voice && this.item.script_voice_field) variables[this.item.script_voice_field] = this.item.voice;
+        await this.hass.callService("script", "turn_on", { entity_id: script, variables });
         return;
       }
-      const engine = tts || Object.keys(this.hass.states).find((id) => id.startsWith("tts."));
-      await this.hass.callService("tts", "speak", { entity_id: engine, media_player_entity_id: speaker, message, cache: true });
+      await this.hass.callService("tts", "speak", {
+        entity_id: this._engine(),
+        media_player_entity_id: speaker,
+        message,
+        cache: true,
+        ...this._options(),
+      });
     } catch (error) {
       this._error = error?.message ?? String(error);
       this._reading = null;
     }
   }
 
+  /** The options of the text-to-speech: the chosen voice. */
+  _options() {
+    return this.item.voice ? { options: { voice: this.item.voice } } : {};
+  }
+
+  _engine() {
+    return this.item.tts || Object.keys(this.hass.states).find((id) => id.startsWith("tts."));
+  }
+
+  /** Whether this device is reading (any of its buttons). */
+  get _hereOn() {
+    return String(this._reading ?? "").startsWith("here:");
+  }
+
+  /**
+   * Reads the sections on this device: a recording of the text-to-speech, or the voice of the browser without one.
+   * `key` is the button that started it: "here:all" or "here:<entity>" of one section.
+   */
+  async _readHere(sections, key = "here:all") {
+    const message = speechOf(sections);
+    this._stopHere();
+    this._error = null;
+    if (!message) {
+      this._error = this._t("text_nothing");
+      return;
+    }
+    const engine = this._engine();
+    this._reading = key;
+    if (!engine) {
+      if (!this._speakHere(message, key)) this._failHere(this._t("text_here_none"));
+      return;
+    }
+    const audio = new Audio();
+    this._audio = audio;
+    audio.src = SILENCE;
+    audio.play().catch(() => {});
+    this._preparing = true;
+    try {
+      const { url, path } = await this.hass.callApi("POST", "tts_get_url", { engine_id: engine, message, cache: true, ...this._options() });
+      if (this._audio !== audio) return;
+      audio.onended = () => this._audio === audio && this._stopHere();
+      // The path, not the url: the url is the internal address of Home Assistant, out of reach over HTTPS or away from home.
+      audio.src = path ? (this.hass.hassUrl?.(path) ?? path) : url;
+      await audio.play();
+      if (this._audio === audio) this._preparing = false;
+    } catch (error) {
+      if (this._audio !== audio) return;
+      this._audio = null;
+      this._preparing = false;
+      // Without the recording the voice of the browser reads it, when it has one.
+      if (!this._speakHere(message, key)) this._failHere(error?.message ?? String(error));
+    }
+  }
+
+  _speakHere(message, key = "here:all") {
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined") return false;
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = this.hass.language;
+    utterance.onend = () => this._utterance === utterance && this._stopHere();
+    this._utterance = utterance;
+    this._reading = key;
+    synth.cancel();
+    synth.speak(utterance);
+    return true;
+  }
+
+  _failHere(message) {
+    this._error = message;
+    this._reading = null;
+  }
+
+  _pauseHere() {
+    this._paused = !this._paused;
+    if (this._audio) this._paused ? this._audio.pause() : this._audio.play().catch(() => {});
+    else if (this._utterance) this._paused ? window.speechSynthesis.pause() : window.speechSynthesis.resume();
+  }
+
+  _stopHere() {
+    if (this._audio) {
+      this._audio.onended = null;
+      this._audio.pause();
+      this._audio.removeAttribute("src");
+    }
+    if (this._utterance) window.speechSynthesis?.cancel();
+    const was = this._hereOn;
+    this._audio = null;
+    this._utterance = null;
+    this._preparing = false;
+    this._paused = false;
+    if (was) this._reading = null;
+  }
+
+  get _canReadHere() {
+    return !this.item.hide_read_here && (Boolean(this._engine()) || Boolean(window.speechSynthesis));
+  }
+
   _stop() {
+    if (this._hereOn) {
+      this._stopHere();
+      return;
+    }
     this._reading = null;
     if (this.item.speaker) this.hass.callService("media_player", "media_stop", { entity_id: this.item.speaker });
     else if (this.item.script) this.hass.callService("script", "turn_off", { entity_id: this.item.script });
   }
 
   _renderActions(sections) {
-    if (!this.item.speaker && !this.item.script) return nothing;
+    const speaker = Boolean(this.item.speaker || this.item.script);
+    const here = this._canReadHere;
+    if (!speaker && !here) return nothing;
     const button = (key, icon, label, chosen) => html`<button class=${this._reading === key ? "on" : ""} data-text-read=${key}
       @click=${() => this._read(key, chosen)}><ha-icon .icon=${icon}></ha-icon>${label}</button>`;
+    const hereOn = this._hereOn;
+    const own = sections.filter((section) => section.read);
+    // On this device: the same button stops what it started; another one starts its own text instead.
+    const listen = (key, icon, label, chosen, attributes) => {
+      const on = this._reading === key;
+      return html`<button
+        class=${on ? "on" : ""}
+        data-text-read-here=${attributes.all ? "" : nothing}
+        data-text-listen=${key.slice("here:".length)}
+        @click=${() => (on ? this._stopHere() : this._readHere(chosen, key))}
+      >
+        <ha-icon .icon=${icon}></ha-icon>${on && this._preparing ? this._t("text_here_preparing") : label}
+      </button>`;
+    };
     return html`<div class="actions" data-text-actions>
-      ${sections
-        .filter((section) => section.read)
-        .map((section) => button(section.entity, "mdi:account-voice", this._t("text_read_one", { name: section.name }), [section]))}
-      ${button("all", "mdi:book-open-variant", this._t("text_read_all"), sections)}
+      ${speaker
+        ? own.map((section) => button(section.entity, "mdi:account-voice", this._t("text_read_one", { name: section.name }), [section]))
+        : nothing}
+      ${speaker ? button("all", "mdi:book-open-variant", this._t("text_read_all"), sections) : nothing}
+      ${here
+        ? own.map((section) =>
+            listen(`here:${section.entity}`, "mdi:headphones", this._t("text_listen_one", { name: section.name }), [section], {}),
+          )
+        : nothing}
+      ${here ? listen("here:all", "mdi:headphones-box", this._t("text_read_here"), sections, { all: true }) : nothing}
+      ${hereOn && !this._preparing
+        ? html`<button data-text-pause @click=${this._pauseHere}>
+            <ha-icon .icon=${this._paused ? "mdi:play" : "mdi:pause"}></ha-icon>${this._t(this._paused ? "text_resume" : "text_pause")}
+          </button>`
+        : nothing}
       ${this._reading ? html`<button data-text-stop @click=${this._stop}><ha-icon icon="mdi:stop"></ha-icon>${this._t("text_stop")}</button>` : nothing}
     </div>
     ${this._error ? html`<p class="error" data-text-error>${this._error}</p>` : nothing}`;

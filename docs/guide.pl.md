@@ -951,6 +951,19 @@ shortcuts:
 Z głośnikiem albo skryptem okno ma przycisk <b class="ui">Przeczytaj wszystko</b> i przycisk dla każdej sekcji z `read: true`;
 czytany jest wstęp, refren, tekst i zakończenie, bez znaków psalmu.
 
+<b class="ui">Słuchaj wszystko</b> czyta wszystko na urządzeniu, na którym otwarte jest okno — telefonie, tablecie,
+Macu — a nie na głośniku; każda sekcja z `read: true` ma też własny przycisk <b class="ui">Słuchaj: {name}</b>
+(np. *Słuchaj: Ewangelia*). Przycisk, który czyta, jest podświetlony i zatrzymuje czytanie, a inny zaczyna swój tekst.
+Home Assistant robi nagranie tą samą zamianą tekstu na mowę (`tts`, inaczej pierwszą), a przeglądarka
+je odtwarza, z przyciskami <b class="ui">Wstrzymaj</b> i <b class="ui">Zatrzymaj</b>. Przygotowanie długiego tekstu trwa
+kilka sekund. Bez zamiany tekstu na mowę albo gdy zawiedzie, czyta przeglądarka własnym głosem. Zamknięcie okna kończy
+czytanie; `hide_read_here: true` ukrywa przyciski „Słuchaj”.
+
+**Głos** (`voice`) wybiera głos zamiany tekstu na mowę dla wszystkich przycisków: edytor podaje listę głosów wybranego
+silnika (`tts`, inaczej pierwszego) w Twoim języku. Skrypt czyta tym głosem, gdy jego pole na głos jest wpisane w
+`script_voice_field` — `script.announce` z przykładu dostałby `voice` obok `text`. Asystent głosowy zostaje przy
+swoim głosie.
+
 ### Aplikacje w oknie
 
 Dodatek z interfejsem WWW, np. Frigate, otworzy się w oknie dashboardu. W menu wpisz w polu <b class="ui">Aplikacja</b> jego identyfikator,

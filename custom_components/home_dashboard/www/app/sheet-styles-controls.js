@@ -78,25 +78,30 @@ export const controlStyles = css`
   .big-toggles {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 8px;
   }
+  /* A low switch: its icon beside its name and state, as small as the facts below it. */
   .big-toggle {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 16px;
-    border-radius: var(--hd-radius);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
     background: var(--hd-off);
+    text-align: start;
   }
   .big-toggle ha-icon {
-    margin-bottom: 8px;
+    grid-row: span 2;
+    --mdc-icon-size: 22px;
   }
   .big-toggle strong {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
+    line-height: 1.25;
   }
   .big-toggle small {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--hd-text-muted);
   }
   .big-toggle.on {

@@ -4,7 +4,17 @@
 // once (`schema-change`); a field left empty removes its key, and keys the schema does not know are kept.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
-import { ITEM_SEEDS, cleanBlock, emptied, itemFields as tabletItemFields, itemKind, withItemKind } from "../app/block-editor.js";
+import {
+  ITEM_SEEDS,
+  cleanBlock,
+  emptied,
+  engineVoices,
+  itemFields as tabletItemFields,
+  itemKind,
+  voiceEngine,
+  voiceName,
+  withItemKind,
+} from "../app/block-editor.js";
 import "../app/background-maker.js";
 import { isPicture } from "../app/background-field.js";
 import "../app/icon-picker.js";
@@ -54,6 +64,7 @@ export class HomeDashboardEditorSchema extends LitElement {
     _broken: { state: true },
     _yaml: { state: true },
     _makerAt: { state: true },
+    _moving: { state: true },
   };
 
   constructor() {
@@ -96,8 +107,9 @@ export class HomeDashboardEditorSchema extends LitElement {
     return html`<span class="label"><span>${this._name(field)}</span><code>${field.key}</code></span>${this._help(field)}`;
   }
 
-  _field(field, value, set, path) {
+  _field(field, value, set, path, values) {
     const renderers = {
+      voice: () => this._voice(field, value, set, path, values),
       number: () => this._input(field, value, set, path, "number"),
       colour: () => this._colour(field, value, set, path),
       background: () => this._background(field, value, set, path),
@@ -132,7 +144,7 @@ export class HomeDashboardEditorSchema extends LitElement {
 
   _fields(fields, values, set, path) {
     return fields.map((field) =>
-      this._field(field, values?.[field.key], (next) => set({ ...values, [field.key]: next }), `${path}.${field.key}`),
+      this._field(field, values?.[field.key], (next) => set({ ...values, [field.key]: next }), `${path}.${field.key}`, values),
     );
   }
 
@@ -397,6 +409,29 @@ export class HomeDashboardEditorSchema extends LitElement {
     </div>`;
   }
 
+  // The voices of the text-to-speech chosen beside it (or the first), in the language of the user.
+  _voice(field, value, set, path, values) {
+    const engine = voiceEngine(this.hass, values, field);
+    this._voices ??= {};
+    if (engine && !(engine in this._voices)) {
+      this._voices[engine] = null;
+      engineVoices(this.hass, engine).then((voices) => {
+        this._voices = { ...this._voices, [engine]: voices };
+        this.requestUpdate();
+      });
+    }
+    const voices = this._voices[engine] ?? [];
+    const known = voices.some((voice) => voice.voice_id === value);
+    return html`<label class="field" data-schema-field=${path}>
+      ${this._label(field)}
+      <select data-voice-select @change=${(event) => set(event.target.value)}>
+        <option value="" ?selected=${!value}>${this._t("block_voice_default")}</option>
+        ${value && !known ? html`<option value=${value} selected>${value}</option>` : nothing}
+        ${voices.map((voice) => html`<option value=${voice.voice_id} ?selected=${voice.voice_id === value}>${voiceName(voice)}</option>`)}
+      </select>
+    </label>`;
+  }
+
   _select(field, value, set, path) {
     return html`<label class="field" data-schema-field=${path}>
       ${this._label(field)}
@@ -433,7 +468,7 @@ export class HomeDashboardEditorSchema extends LitElement {
     </label>`;
   }
 
-  _tools(list, index, set) {
+  _tools(list, index, set, moveAt) {
     const move = (delta) => {
       const next = [...list];
       const [moved] = next.splice(index, 1);
@@ -443,6 +478,17 @@ export class HomeDashboardEditorSchema extends LitElement {
     return html`<span class="tools">
       <button class="mini" data-schema-up ?disabled=${index === 0} @click=${(event) => (event.preventDefault(), move(-1))}>↑</button>
       <button class="mini" data-schema-down ?disabled=${index === list.length - 1} @click=${(event) => (event.preventDefault(), move(1))}>↓</button>
+      ${moveAt
+        ? html`<button
+            class="mini ${this._moving === moveAt ? "on" : ""}"
+            data-schema-move
+            title=${this._t("editor_schema_move")}
+            aria-label=${this._t("editor_schema_move")}
+            @click=${(event) => (event.preventDefault(), (this._moving = this._moving === moveAt ? null : moveAt))}
+          >
+            <ha-icon icon="mdi:folder-move-outline"></ha-icon>
+          </button>`
+        : nothing}
       <button class="mini" data-schema-remove @click=${(event) => (event.preventDefault(), set(list.filter((_, at) => at !== index)))}>
         <ha-icon icon="mdi:delete-outline"></ha-icon>
       </button>
@@ -506,8 +552,46 @@ export class HomeDashboardEditorSchema extends LitElement {
     </div>`;
   }
 
+  /**
+   * Moves an entry of an inner list (an item of a group of the menu) to the end of the same list in another entry of
+   * the outer one (another group): one change, so one step undoes it.
+   */
+  _moveAcross(across, index, target) {
+    const { list: outer, index: from, key, set } = across;
+    const source = asList(outer[from]?.[key]);
+    const entry = source[index];
+    this._moving = null;
+    set(
+      outer.map((group, at) => {
+        if (at === from) return { ...group, [key]: source.filter((_, each) => each !== index) };
+        if (at === target) return { ...group, [key]: [...asList(group?.[key]), entry] };
+        return group;
+      }),
+    );
+  }
+
+  _moveChoice(across, index, at) {
+    if (this._moving !== at) return nothing;
+    const name = (group, position) => (group?.title ? group.title : entryTitle(group, position));
+    return html`<div class="move-to" data-schema-move-to=${at}>
+      <span>${this._t("editor_schema_move_to")}</span>
+      ${across.list.map((group, position) =>
+        position === across.index
+          ? nothing
+          : html`<button data-schema-move-group=${position} title=${name(group, position)} @click=${() => this._moveAcross(across, index, position)}>
+              ${name(group, position)}
+            </button>`,
+      )}
+      <button class="cancel" @click=${() => (this._moving = null)}>${this._t("editor_schema_move_cancel")}</button>
+    </div>`;
+  }
+
   _list(field, value, set, path) {
     const list = asList(value).map((item) => (typeof item === "string" && field.scalar ? { [field.scalar]: item } : item));
+    // An inner list of an entry of a list (the items of a group) can move its entries to another group.
+    const across = field.across?.list?.length > 1 ? field.across : null;
+    const inner = (fields, index) =>
+      fields.map((each) => (each.type === "list" && !field.item ? { ...each, across: { list, index, key: each.key, set } } : each));
     // An entry with nothing but its entity is written as the entity alone, as by hand.
     const plain = (entry) => {
       const kept = cleanBlock(entry);
@@ -529,11 +613,12 @@ export class HomeDashboardEditorSchema extends LitElement {
             else this._opened.delete(at);
           }}
         >
-          <summary><strong>${entryTitle(item, index)}</strong>${this._tools(list, index, set)}</summary>
+          <summary><strong>${entryTitle(item, index)}</strong>${this._tools(list, index, set, across ? at : null)}</summary>
           <div class="fields">
-            ${field.item ? this._item(item, (next) => change(index, next), at) : this._fields(field.fields, item, (next) => change(index, next), at)}
+            ${field.item ? this._item(item, (next) => change(index, next), at) : this._fields(inner(field.fields, index), item, (next) => change(index, next), at)}
           </div>
-        </details>`;
+        </details>
+        ${across ? this._moveChoice(across, index, at) : nothing}`;
       })}
       <button
         class="add"
@@ -766,6 +851,37 @@ export class HomeDashboardEditorSchema extends LitElement {
       cursor: pointer;
       color: var(--muted, #9aa0a6);
       background: var(--panel2, #23272e);
+    }
+    .mini.on {
+      color: #fff;
+      background: var(--accent, #4c8dff);
+    }
+    .move-to {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--panel2, #23272e);
+    }
+    .move-to button {
+      max-width: 260px;
+      overflow: hidden;
+      padding: 5px 10px;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+      color: var(--text, #e8eaed);
+      background: var(--panel, #1b1e23);
+    }
+    .move-to .cancel {
+      color: var(--muted, #9aa0a6);
+      background: transparent;
     }
     .mini:disabled {
       opacity: 0.3;

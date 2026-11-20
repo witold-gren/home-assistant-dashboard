@@ -20,6 +20,7 @@ ADMIN_MOUNT = """async ({ dashboard, page, admin }) => {
     window.saved = [];
     window.seen = [];
     window.uploads = [];
+    const { ttsAnswer } = await import("/tests/js/mock-hass.js");
     const hass = window.dashboard.hass({
         user: { name: "User", is_admin: admin },
         fetchWithAuth: async (url, options) => {
@@ -28,6 +29,9 @@ ADMIN_MOUNT = """async ({ dashboard, page, admin }) => {
             return { ok: true, json: async () => ({ id: "abc" }) };
         },
         callWS: async (message) => {
+            // The voices of text-to-speech for the form of a block of text.
+            const tts = ttsAnswer(message);
+            if (tts) return tts;
             if (message.type === "lovelace/config") {
                 return { strategy: { type: "custom:home-dashboard", ...dashboard } };
             }

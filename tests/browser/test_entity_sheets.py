@@ -276,6 +276,18 @@ def test_the_current_choice_is_marked_and_another_can_be_picked(phone):
     assert last_call(phone)["data"]["option"] == "music"
 
 
+def test_a_switch_is_a_low_button_with_its_icon_beside_its_name(phone):
+    open_controls(phone)
+    toggle = phone.locator(f"{SHEET} .big-toggle")
+    box = toggle.bounding_box()
+    icon = toggle.locator("ha-icon").bounding_box()
+    name = toggle.locator("strong").bounding_box()
+    # As low as a fact below it, not a tall card with the icon above the name
+    assert box["height"] < 70
+    assert icon["x"] + icon["width"] <= name["x"]
+    assert abs(phone.locator(f"{SHEET} .fact").bounding_box()["height"] - box["height"]) < 16
+
+
 def test_a_big_button_toggles(phone):
     open_controls(phone)
     phone.locator(f"{SHEET} .big-toggle").click()

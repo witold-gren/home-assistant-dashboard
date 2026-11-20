@@ -437,7 +437,9 @@ iPad w podglądzie od razu pokazuje pasek ze szkicu.
 
 **Ustawienia → Menu** zawiera grupy lewego menu i ich pozycje. Pozycja otwiera **blok**, **dodatek**, **adres**
 (stronę Home Assistanta, inny dashboard) albo uruchamia **akcję**; może być tylko dla administratorów, dla wybranych
-osób i ukryta w trybie gościa. Wybranie *Menu* otwiera menu w podglądzie.
+osób i ukryta w trybie gościa. Wybranie *Menu* otwiera menu w podglądzie. Strzałki pozycji zmieniają jej miejsce w
+grupie, a przycisk **Przenieś do innej grupy** podaje pozostałe grupy i przenosi ją na koniec wybranej, bez
+przepisywania.
 
 **Ustawienia → Pasek stron** zawiera miejsca dolnego paska telefonu i bocznego paska tabletu: od 2 do 5 z: strona
 główna, Muzyka, Media, Energia, Mapa, Sceny, menu albo pokój, w kolejności, oraz wygląd paska.

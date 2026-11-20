@@ -91,9 +91,16 @@ function isActive(hass, item) {
 export function panelTile(hass, item) {
   if (item.hidden_when && hass.states[item.hidden_when]?.state === "on") return null;
   const stateObj = item.entity ? hass.states[item.entity] : null;
-  if (item.entity && !stateObj) return null;
+  // An entity Home Assistant knows but has no state for yet (its integration waits for its add-on or the device) keeps
+  // the tile, greyed out like any unavailable one; only an entity gone from Home Assistant hides it.
+  const waiting = Boolean(item.entity && !stateObj && hass.entities?.[item.entity]);
+  if (item.entity && !stateObj && !waiting) return null;
   const status = panelValue(hass, { entity: item.status ?? item.entity, labels: item.labels });
-  const fallback = status === NO_VALUE && item.entity ? panelValue(hass, { entity: item.entity }) : status;
+  const fallback = waiting
+    ? translate(hass.language, "tv_unavailable")
+    : status === NO_VALUE && item.entity
+      ? panelValue(hass, { entity: item.entity })
+      : status;
   return {
     kind: "panel",
     entityId: item.entity ?? "",
@@ -103,7 +110,7 @@ export function panelTile(hass, item) {
     stateText: item.state_text ?? fallback,
     tone: isActive(hass, item) ? "appliance" : "off",
     icon: item.icon ?? "mdi:widgets-outline",
-    available: stateObj?.state !== "unavailable",
+    available: !waiting && stateObj?.state !== "unavailable",
     iconAction: null,
     tapAction: "panel",
     // A button on the tile while its device is on (a console: Turn off), asked first in the block's window.

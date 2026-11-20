@@ -15,6 +15,22 @@ function registryOf(entities) {
   return fresh;
 }
 
+/** An engine of text-to-speech with two Polish voices; null for a message about something else. */
+export function ttsAnswer(message) {
+  if (message.type === "tts/engine/get") {
+    return { provider: { engine_id: message.engine_id, supported_languages: ["en_US", "pl_PL"] } };
+  }
+  if (message.type === "tts/engine/voices") {
+    globalThis.voicesAsked = message;
+    const voices = [
+      { voice_id: "pl_PL-gosia-medium", name: "gosia (medium)" },
+      { voice_id: "pl_PL-jan_wg_glos-medium", name: "pl_PL-jan_wg_glos-medium (medium)" },
+    ];
+    return { voices: message.language === "pl_PL" ? voices : null };
+  }
+  return null;
+}
+
 export function createHass(snapshot, overrides = {}) {
   const calls = [];
   return {
@@ -35,6 +51,8 @@ export function createHass(snapshot, overrides = {}) {
     callWS: async (message) => {
       if (message.type === "frontend/get_user_data") return null;
       if (message.type === "config/entity_registry/get_entries") return {};
+      const tts = ttsAnswer(message);
+      if (tts) return tts;
       // What the household opens (usage.js) goes to a list of its own, so tests of calls see only theirs.
       if (message.type === "home_dashboard/activity/seen") {
         globalThis.seen = [...(globalThis.seen ?? []), message];
@@ -43,8 +61,13 @@ export function createHass(snapshot, overrides = {}) {
       return calls.push({ type: "ws", message });
     },
     // The calendars' events a test sets in `window.calendarEvents` (by calendar), as Home Assistant's REST API gives them.
-    callApi: async (method, path) => {
-      calls.push({ type: "api", method, path });
+    callApi: async (method, path, data) => {
+      calls.push({ type: "api", method, path, data });
+      // A recording of text-to-speech; a test sets `window.ttsFails` and the engine fails.
+      if (path === "tts_get_url") {
+        if (globalThis.ttsFails) throw new Error("TTS failed");
+        return { url: "http://10.0.0.2:8123/api/tts_proxy/internal.mp3", path: "/api/tts_proxy/test.mp3" };
+      }
       const calendar = /^calendars\/([^?]+)/.exec(path)?.[1];
       // Home Assistant still starting: a test sets `window.calendarFails` and reading a calendar fails.
       if (calendar && globalThis.calendarFails) throw new Error("Calendar not ready");

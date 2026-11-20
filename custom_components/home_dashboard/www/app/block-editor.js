@@ -292,9 +292,12 @@ export const BLOCK_KINDS = {
     },
     { key: "speaker", type: "entity" },
     { key: "tts", type: "entity" },
+    { key: "voice", type: "voice", engine: "tts" },
     { key: "script", type: "entity" },
     { key: "script_field", type: "text", placeholder: "message" },
+    { key: "script_voice_field", type: "text", placeholder: "voice" },
     { key: "script_data", type: "map", dropEmpty: true, keyList: "", keyPlaceholder: "field", placeholder: "value" },
+    { key: "hide_read_here", type: "boolean" },
   ],
   school: [
     ...BASE,
@@ -356,6 +359,40 @@ const asList = (value) => (Array.isArray(value) ? value : value === undefined ||
 const words = (text, parse = (word) => word) =>
   text.split(",").map((word) => word.trim()).filter(Boolean).map(parse);
 
+/** The language of an engine for the user's: the same, or its country variant (`pl` → `pl_PL`, else the first `pl_…`). */
+export function voiceLanguage(languages, language) {
+  const lang = String(language ?? "").toLowerCase();
+  const norm = (each) => each.toLowerCase().replace("-", "_");
+  return (
+    languages.find((each) => norm(each) === lang) ??
+    languages.find((each) => norm(each) === `${lang}_${lang}`) ??
+    languages.find((each) => norm(each).startsWith(`${lang}_`))
+  );
+}
+
+/** The engine whose voices a field of a voice offers: the one chosen beside it, else the first. */
+export const voiceEngine = (hass, values, field) =>
+  values?.[field.engine] || Object.keys(hass?.states ?? {}).find((id) => id.startsWith("tts."));
+
+/** The voices of an engine in the language of the user; none for an engine without voices to choose. */
+export async function engineVoices(hass, engine) {
+  try {
+    const { provider } = await hass.callWS({ type: "tts/engine/get", engine_id: engine });
+    const language = voiceLanguage(provider?.supported_languages ?? [], hass.language);
+    if (!language) return [];
+    return (await hass.callWS({ type: "tts/engine/voices", engine_id: engine, language }))?.voices ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** A name of a voice to read: without the language before it and the quality said twice (`pl_PL-jan-medium (medium)`). */
+export const voiceName = (voice) =>
+  String(voice.name || voice.voice_id)
+    .replace(/^[a-z]{2,3}_[A-Z]{2}-/, "")
+    .replace(/-(x_low|low|medium|high) \((x_low|low|medium|high)\)$/, " ($2)")
+    .replace(/_/g, " ");
+
 export class HomeDashboardBlockEditor extends LitElement {
   static properties = {
     hass: { attribute: false },
@@ -367,6 +404,7 @@ export class HomeDashboardBlockEditor extends LitElement {
     _yaml: { state: true },
     _broken: { state: true },
     _removing: { state: true },
+    _voices: { state: true },
   };
 
   async firstUpdated() {
@@ -605,6 +643,7 @@ export class HomeDashboardBlockEditor extends LitElement {
         html`<input type="checkbox" .checked=${Boolean(value)} @change=${(event) => set(event.target.checked || "")} />`,
       );
     }
+    if (field.type === "voice") return this._renderVoice(field, value, set);
     if (field.type === "select") {
       return this._wrap(
         field,
@@ -632,6 +671,29 @@ export class HomeDashboardBlockEditor extends LitElement {
       </section>`;
     }
     return this._input(field, value, set, "text", field.list ?? nothing);
+  }
+
+  // The voices of the text-to-speech chosen beside (or the first), in the language of the user.
+  _renderVoice(field, value, set) {
+    const engine = voiceEngine(this.hass, this._draft, field);
+    if (engine && this._voices?.[engine] === undefined) this._loadVoices(engine);
+    const voices = this._voices?.[engine] ?? [];
+    const known = voices.some((voice) => voice.voice_id === value);
+    return this._wrap(
+      field,
+      html`<select data-voice-select @change=${(event) => set(event.target.value)}>
+        <option value="" ?selected=${!value}>${this._t("voice_default")}</option>
+        ${value && !known ? html`<option value=${value} selected>${value}</option>` : nothing}
+        ${voices.map(
+          (voice) => html`<option value=${voice.voice_id} ?selected=${voice.voice_id === value}>${voiceName(voice)}</option>`,
+        )}
+      </select>`,
+    );
+  }
+
+  async _loadVoices(engine) {
+    this._voices = { ...this._voices, [engine]: null };
+    this._voices = { ...this._voices, [engine]: await engineVoices(this.hass, engine) };
   }
 
   _fields(fields, values, set, path) {

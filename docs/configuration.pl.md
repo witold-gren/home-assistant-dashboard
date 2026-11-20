@@ -696,7 +696,10 @@ shortcuts:
 | `heading` | id encji | brak | jej stan jest nagłówkiem okna, a atrybut `date` (albo `data`) w formacie `RRRR-MM-DD` stoi pod nim |
 | `label_entity` | id encji | brak | jej stan to mała linia odznaki (stały `label` ma pierwszeństwo) |
 | `speaker` | `media_player` | brak | czyta na głos przez `tts.speak`; przycisk zatrzymania go zatrzymuje |
-| `tts` | encja `tts` | pierwsza | zamiana tekstu na mowę dla `speaker` |
+| `tts` | encja `tts` | pierwsza | zamiana tekstu na mowę dla `speaker` i dla przycisków *Słuchaj* |
+| `voice` | id głosu | domyślny silnika | głos `tts` dla wszystkich przycisków; edytor podaje listę głosów silnika w Twoim języku |
+| `script_voice_field` | tekst | brak | pole skryptu `script`, które dostaje `voice` (skrypt bez głosu je pomija) |
+| `hide_read_here` | logiczny | `false` | ukrywa przyciski *Słuchaj*, które czytają na urządzeniu z otwartym oknem |
 | `script`, `script_field`, `script_data` | skrypt, tekst, mapa | brak, `message`, brak | czyta na głos przez skrypt: tekst w polu `script_field`, obok pola z `script_data` |
 
 Tekst sekcji pochodzi z atrybutów `paragraphs` (lista) albo `text`, z `title`, `intro`, `refrain`, `refrain_alt` i

@@ -949,6 +949,18 @@ shortcuts:
 With a speaker or a script the window has <b class="ui">Read everything</b> and a button for each section with `read: true`;
 the text read is the intro, the refrain, the text and the ending, without the marks of a psalm.
 
+<b class="ui">Listen to everything</b> reads everything on the device the window is open on — a phone, a tablet, a
+Mac — not on a speaker; each section with `read: true` also has its own <b class="ui">Listen: {name}</b> (e.g.
+*Listen: Gospel*). The button reading is lit and stops it; another one starts its own text instead. Home Assistant makes a recording with the same text-to-speech (`tts`, else the first) and the browser plays
+it, with <b class="ui">Pause</b> and <b class="ui">Stop</b>. A long text takes a few seconds to prepare. Without any
+text-to-speech, or when it fails, the browser reads it in its own voice. Closing the window stops it;
+`hide_read_here: true` hides the "Listen" buttons.
+
+**Voice** (`voice`) chooses a voice of the text-to-speech for every button: the editor lists the voices of the chosen
+engine (`tts`, else the first) in your language. A script reads in it when its field for a voice is named in
+`script_voice_field` — `script.announce` of the example would take `voice` beside `text`. The voice assistant keeps
+its own voice.
+
 ### Apps in a window
 
 An add-on with a web interface, such as Frigate, opens in a window of the dashboard. In the menu put its id in the <b class="ui">App</b>

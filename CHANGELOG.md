@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.5.0 (2026-11-20)
+
+A block of text listened to on the device it is open on, in a voice of your choice; entries moved between groups in
+the editor; lower switches and tiles of devices that wait for their integration.
+
+- **Listen on this device** in the window of a block of text: *Listen: <section>* for each section with
+  `read: true` (*Listen: Gospel*) and *Listen to everything*, beside *Read: …* / *Read everything* on the speaker. It
+  plays on the phone, tablet or Mac the window is open on: a recording of the same text-to-speech (`tts_get_url`, its
+  relative path, so it plays over HTTPS and away from home) played by the browser, started silent on the tap for
+  Safari on iOS, with Pause/Resume and Stop; without text-to-speech, or when it fails, the voice of the browser
+  (`speechSynthesis`). The button reading is lit and stops it, another one starts its own text; closing the window
+  stops it; `hide_read_here: true` hides them. Docs: configuration, guide (PL+EN). Tests in `test_text_block.py`.
+- **Voice** of a block of text (`voice`): one voice of the text-to-speech for every button — `options.voice` of
+  `tts.speak` and of the recording played here, and the field `script_voice_field` of a script. The editor (tablet
+  and computer) lists the voices of the engine (`tts/engine/voices`) in the language of the user (`pl` → `pl_PL`),
+  names tidied (`pl_PL-jan_wg_glos-medium (medium)` → `jan wg glos (medium)`), a voice no longer offered kept.
+  Tests in `test_text_block.py`, `test_block_editor.py`, `test_editor_block_forms.py`.
+- **Moving an entry to another group** in the editor: an entry of a group (an item of the menu, a row of a group of a
+  device window) has a button *Move to another group*; it lists the other groups by their title (or what they hold)
+  and puts the entry at the end of the chosen one — one step undoes it. Docs: editor (PL+EN). Tests in
+  `test_editor_settings_forms.py`.
+- **Switches of a device window are low buttons** (`layout: controls`): the icon beside the name and the state,
+  as small as the facts below them, instead of tall cards with the icon above (the layout a wide window of a tablet
+  already had). Test in `test_entity_sheets.py`.
+- A **device window tile whose entity has no state yet** (its integration waits for its add-on or the device, the
+  entity still in the registry of Home Assistant) stays on the page greyed out as *Unavailable* and opens as usual;
+  only an entity gone from Home Assistant leaves it out. Test in `test_panels.py`.
+
 ## 1.4.0 (2026-11-19)
 
 Lessons of the editor, step by step in the editor itself, and a block of text for the readings of the day, a page of

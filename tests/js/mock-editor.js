@@ -16,6 +16,7 @@ export const configHash = (config) => {
 };
 
 import { sliceOf, withSlice } from "../../custom_components/home_dashboard/www/app/variants.js";
+import { ttsAnswer } from "./mock-hass.js";
 
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
@@ -41,6 +42,8 @@ export function createEditorServer({ live, dashboards = [{ url_path: "home-dashb
   const stamp = () => new Date(Date.UTC(2026, 10, 13, 10, 0, clock++)).toISOString();
   const handle = async (message) => {
     state.sent.push(message);
+    const tts = ttsAnswer(message);
+    if (tts) return tts;
     switch (message.type) {
       case "home_dashboard/editor/dashboards":
         return { dashboards };

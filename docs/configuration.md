@@ -696,7 +696,10 @@ shortcuts:
 | `heading` | entity id | none | its state heads the window, its `date` (or `data`) attribute in `YYYY-MM-DD` under it |
 | `label_entity` | entity id | none | its state is the small line of the badge (a fixed `label` wins) |
 | `speaker` | `media_player` | none | reads aloud through `tts.speak`; the stop button stops it |
-| `tts` | `tts` entity | the first | the text-to-speech for `speaker` |
+| `tts` | `tts` entity | the first | the text-to-speech for `speaker` and for the *Listen* buttons |
+| `voice` | voice id | the engine's own | a voice of `tts` for every button; the editor lists the voices of the engine in your language |
+| `script_voice_field` | text | none | the field of `script` that gets `voice` (a script that does not know a voice ignores it) |
+| `hide_read_here` | boolean | `false` | hides the *Listen* buttons, which read it on the device the window is open on |
 | `script`, `script_field`, `script_data` | script, text, mapping | none, `message`, none | reads aloud through a script instead: the text in `script_field`, `script_data` beside it |
 
 The text of a section comes from its attributes `paragraphs` (a list) or `text`, with `title`, `intro`, `refrain`,

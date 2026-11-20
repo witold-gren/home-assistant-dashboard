@@ -24,6 +24,7 @@ BLOCKS = [
     {"kind": "page", "name": "Media", "page": "media"},
     {"kind": "tv", "name": "Telewizor", "entity": "media_player.tv"},
     {"kind": "scale", "name": "Waga", "people": ["sensor.weight_ola"]},
+    {"kind": "text", "name": "Słowo", "tts": "tts.piper", "sections": [{"entity": "sensor.gospel"}]},
 ]
 STRATEGY = {
     "type": "custom:home-dashboard",
@@ -246,3 +247,16 @@ def test_the_kind_stays_whatever_the_form_sends(editor) -> None:
     select(editor, "shortcuts/2")
     change(editor, ".icon", "mdi:newspaper")
     assert block(editor, 2)["kind"] == "news" and block(editor, 2)["icon"] == "mdi:newspaper"
+
+
+def test_a_block_of_text_chooses_a_voice_of_its_engine_in_the_language_of_the_user(editor) -> None:
+    select(editor, f"shortcuts/{len(BLOCKS) - 1}")
+    voice = field(editor, ".voice").locator("select")
+    editor.wait_for_function("() => window.voicesAsked?.language === 'pl_PL'")
+    voice.locator("option[value='pl_PL-jan_wg_glos-medium']").wait_for(state="attached")
+    names = voice.locator("option").all_inner_texts()
+    assert names == ["Domyślny silnika", "gosia (medium)", "jan wg glos (medium)"]
+    voice.select_option("pl_PL-jan_wg_glos-medium")
+    assert block(editor, len(BLOCKS) - 1)["voice"] == "pl_PL-jan_wg_glos-medium"
+    voice.select_option("")
+    assert "voice" not in block(editor, len(BLOCKS) - 1)
