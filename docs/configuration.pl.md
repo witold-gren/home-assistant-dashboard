@@ -692,13 +692,14 @@ shortcuts:
 
 | Klucz | Typ | Domyślnie | Znaczenie |
 |---|---|---|---|
-| `sections` | lista `{entity, name, read}` | brak | każda to encja: jej stan to mała linia nad tekstem, atrybuty to tekst; `read: true` daje sekcji własny przycisk czytania na głos |
+| `sections` | lista `{entity, name, read, speech_entity}` | brak | każda to encja: jej stan to mała linia nad tekstem, atrybuty to tekst; `read: true` daje sekcji własny przycisk czytania na głos; `speech_entity` — encja, której tekst czytają jej przyciski |
 | `heading` | id encji | brak | jej stan jest nagłówkiem okna, a atrybut `date` (albo `data`) w formacie `RRRR-MM-DD` stoi pod nim |
 | `label_entity` | id encji | brak | jej stan to mała linia odznaki (stały `label` ma pierwszeństwo) |
 | `speaker` | `media_player` | brak | czyta na głos przez `tts.speak`; przycisk zatrzymania go zatrzymuje |
 | `tts` | encja `tts` | pierwsza | zamiana tekstu na mowę dla `speaker` i dla przycisków *Słuchaj* |
 | `voice` | id głosu | domyślny silnika | głos `tts` dla wszystkich przycisków; edytor podaje listę głosów silnika w Twoim języku |
 | `script_voice_field` | tekst | brak | pole skryptu `script`, które dostaje `voice` (skrypt bez głosu je pomija) |
+| `speech_entity` | id encji | brak | tekst, który czytają *Przeczytaj wszystko* i *Słuchaj wszystko*: jej atrybut `text` (`tekst`), inaczej stan; bez niej (albo gdy nie ma tekstu) czytane są sekcje; sekcja też może mieć swoją `speech_entity` dla własnych przycisków |
 | `hide_read_here` | logiczny | `false` | ukrywa przyciski *Słuchaj*, które czytają na urządzeniu z otwartym oknem |
 | `script`, `script_field`, `script_data` | skrypt, tekst, mapa | brak, `message`, brak | czyta na głos przez skrypt: tekst w polu `script_field`, obok pola z `script_data` |
 

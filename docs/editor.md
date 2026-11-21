@@ -183,6 +183,13 @@ entity that no longer exists. *Fold all* and *Unfold all* fold the tree; the arr
 and the icon on its right folds or unfolds everything in it. The **search** finds a room, a tile or an entity by its
 name or id.
 
+**The eye** at the right of a node (it shows when the pointer is over it) hides that thing without removing it: a
+room, a section, a tile, a block, or a number, a button, a group or a row of a block. The preview and the dashboard
+show the page as it would be without it, while it stays in the configuration (`hidden: true`) with all its settings;
+the same eye, now crossed out, brings it back. A hidden node and everything inside it are greyed in the tree. So you
+can look at a window with and without something before deciding. Favourites, being only entities, have no eye: take
+one out of the list instead. Editing a room on the tablet shows the hidden tiles, so that saving there keeps them.
+
 **The form** on the right edits what you chose. Above it are the buttons for that thing (*Duplicate*, *Up*, *Down*,
 *Remove*, and for a room *Add a section*). Beside every field is the name of its key in YAML, in grey, so you can
 always find it in the configuration. The <b class="ui">YAML</b> tab shows the same thing as text and takes changes typed there

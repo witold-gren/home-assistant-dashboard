@@ -964,6 +964,12 @@ silnika (`tts`, inaczej pierwszego) w Twoim języku. Skrypt czyta tym głosem, g
 `script_voice_field` — `script.announce` z przykładu dostałby `voice` obok `text`. Asystent głosowy zostaje przy
 swoim głosie.
 
+**Tekst przygotowany dla głosu** (`speech_entity`). To, co dobrze wygląda na ekranie, nie zawsze dobrze brzmi: psalm
+pokazuje refren raz, a na Mszy powtarza się go po każdej zwrotce. Integracja może podać tekst gotowy do przeczytania
+w encji (atrybut `text` albo `tekst`); wpisz ją w `speech_entity` bloku dla *Przeczytaj wszystko* i *Słuchaj
+wszystko*, a w `speech_entity` sekcji dla jej własnych przycisków. Okno dalej pokazuje sekcje. Na przykład
+`sensor.readings_for_speech` dla bloku i `sensor.gospel_for_speech` dla sekcji Ewangelia.
+
 ### Aplikacje w oknie
 
 Dodatek z interfejsem WWW, np. Frigate, otworzy się w oknie dashboardu. W menu wpisz w polu <b class="ui">Aplikacja</b> jego identyfikator,
@@ -1054,7 +1060,7 @@ variants:
     days:
       - {name: Monday, meals: [{meal: Lunch, items: [{name: Soup}, {name: Pasta}]}]}
 
-# duties: atrybuty week_start, week_end i children, opcjonalnie previous_week i next_week o tym samym kształcie
+# duties: atrybuty week_start, week_end i children, opcjonalnie saturday + children[].saturday_tasks (praca w sobotę) oraz previous_week i next_week o tym samym kształcie
 children:
   - {child: Lena, child_color: "#f5ec00", avatar: "https://...", set: Kitchen, color: "#77bb41", tasks: [Dishes], free_week: false}
 
@@ -1559,6 +1565,8 @@ szybkie spojrzenie z drugiego końca pokoju. Strony (Dom, Muzyka, Energia, Mapa)
   za nią na każde urządzenie. Tablet zalogowany jako osobny użytkownik widzi kalendarze domu.
 - **Przytrzymanie tego przycisku** otwiera menu: pierścień wokół przycisku wypełnia się przez pół sekundy. Pierwsze
   trzy razy podpowiada to dymek. Strzałka w menu wraca do paska. Pod przyciskiem jest mikrofon asystenta.
+- **Trybik** na samym dole zwiniętego paska, pod menu i mikrofonem, otwiera ustawienia Home Assistant (`/config`). Widzi go tylko
+  administrator.
 
 Części:
 

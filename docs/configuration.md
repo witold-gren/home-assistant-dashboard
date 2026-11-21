@@ -692,7 +692,8 @@ shortcuts:
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `sections` | list of `{entity, name, read}` | none | each an entity: its state is the small line above the text, its attributes the text; `read: true` gives it its own button to read it aloud |
+| `sections` | list of `{entity, name, read, speech_entity}` | none | each an entity: its state is the small line above the text, its attributes the text; `read: true` gives it its own button to read it aloud; `speech_entity` — an entity whose text (attribute `text`/`tekst`, else its state) its buttons read instead |
+| `speech_entity` | entity id | none | the text *Read everything* and *Listen to everything* read: its attribute `text` (`tekst`), else its state; without it (or while it has none) the sections are read |
 | `heading` | entity id | none | its state heads the window, its `date` (or `data`) attribute in `YYYY-MM-DD` under it |
 | `label_entity` | entity id | none | its state is the small line of the badge (a fixed `label` wins) |
 | `speaker` | `media_player` | none | reads aloud through `tts.speak`; the stop button stops it |

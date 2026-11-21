@@ -183,6 +183,13 @@ Liczba obok węzła mówi, ile rzeczy jest w środku. Żółty ⚠ oznacza pokó
 której już nie ma. *Zwiń wszystko* i *Rozwiń wszystko* zwijają drzewo; strzałka obok grupy zwija tę grupę, a ikona po
 jej prawej zwija albo rozwija wszystko w niej. **Wyszukiwarka** znajduje pokój, kafelek albo encję po nazwie lub id.
 
+**Oko** po prawej stronie węzła (widać je po najechaniu wskaźnikiem) ukrywa daną rzecz bez kasowania: pokój, sekcję,
+kafelek, blok albo liczbę, przycisk, grupę lub wiersz bloku. Podgląd i dashboard pokazują stronę tak, jakby jej nie
+było, a ona zostaje w konfiguracji (`hidden: true`) ze wszystkimi ustawieniami; to samo oko, teraz przekreślone,
+przywraca ją. Ukryty węzeł i wszystko w nim jest w drzewie wyszarzone. Można więc obejrzeć okno z danym elementem
+i bez niego, zanim się zdecydujesz. Ulubione to same encje, więc nie mają oka — wystarczy je zdjąć z listy. Edycja
+pokoju na tablecie pokazuje ukryte kafelki, żeby zapis tam ich nie zgubił.
+
 **Formularz** po prawej edytuje to, co wybrałeś. Nad nim są przyciski dla tej rzeczy (*Duplikuj*, *W górę*, *W dół*,
 *Usuń*, a dla pokoju *Dodaj sekcję*). Obok każdego pola szarym tekstem jest nazwa jego klucza w YAML, więc zawsze
 łatwo go znaleźć w konfiguracji. Zakładka <b class="ui">YAML</b> pokazuje to samo jako tekst i przyjmuje wpisane tam zmiany.

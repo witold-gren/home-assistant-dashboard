@@ -135,11 +135,12 @@ def test_a_tap_folds_it_to_the_narrow_bar_and_the_tablet_remembers(tablet):
     tablet.locator("[data-status-fold]").click()
     folded = nav(tablet)
     assert not folded["open"] and not folded["panel"] and folded["width"] == 88
-    # Folded: the button on top, the menu and the assistant at the bottom, as in the narrow bar.
+    # Folded: the button on top; at the bottom the assistant, the menu and (an administrator) the settings.
     assert folded["first"] == "fold"
     order = tablet.evaluate(f"""() => [...{CHROME}.shadowRoot.querySelector('nav').children]
-        .map((c) => c.matches('[data-menu]') ? 'menu' : c.matches('[data-assist]') ? 'assist' : c.localName).slice(-2)""")
-    assert order == ["menu", "assist"]
+        .map((c) => c.matches('[data-menu]') ? 'menu' : c.matches('[data-assist]') ? 'assist'
+          : c.matches('[data-rail-settings]') ? 'settings' : c.localName).slice(-3)""")
+    assert order == ["assist", "menu", "settings"]
     assert tablet.evaluate("localStorage.getItem('home-dashboard-status-open')") == "0"
     tablet.locator("[data-status-fold]").click()
     assert nav(tablet)["open"]
@@ -867,3 +868,12 @@ def test_a_page_with_its_room_in_place_reports_nothing(tablet):
     tablet.wait_for_timeout(200)
     assert tablet.evaluate("window.reports") == []
     assert tablet.evaluate("window.view.style.getPropertyValue('padding-left')") == ""
+
+
+def test_the_folded_bar_ends_with_the_voice_the_menu_and_the_settings_from_the_top(tablet):
+    mount(tablet, folded=True)
+    nav = "home-dashboard-chrome nav"
+    voice = tablet.locator(f"{nav} [data-assist]").bounding_box()
+    menu = tablet.locator(f"{nav} [data-menu]").bounding_box()
+    gear = tablet.locator(f"{nav} [data-rail-settings]").bounding_box()
+    assert voice["y"] < menu["y"] < gear["y"]

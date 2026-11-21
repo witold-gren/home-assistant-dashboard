@@ -213,3 +213,31 @@ def test_a_new_group_with_an_entry_is_saved(phone):
         "title": "System",
         "items": [{"name": "Ustawienia", "path": "/config", "admin": True}],
     }
+
+
+def test_the_rail_has_the_settings_of_home_assistant_at_the_very_bottom_for_an_administrator(tablet):
+    mount_admin(tablet, {"menu": MENU})
+    gear = tablet.locator("home-dashboard-chrome nav [data-rail-settings]")
+    assert gear.is_visible()
+    # The last at the bottom of the rail, below the voice and the pages (the folded status bar: test_status_panel)
+    pages = tablet.locator("home-dashboard-chrome nav [data-page]").last.bounding_box()
+    voice = tablet.locator("home-dashboard-chrome nav [data-assist]").bounding_box()
+    box = gear.bounding_box()
+    assert pages["y"] < voice["y"] < box["y"]
+    assert gear.get_attribute("aria-label") == "Ustawienia Home Assistant"
+    gear.click()
+    # The settings of Home Assistant, not the window of the dashboard's own
+    tablet.wait_for_function("window.location.pathname === '/config'")
+    assert tablet.locator("home-dashboard-settings").count() == 0
+
+
+def test_others_have_no_settings_in_the_rail(tablet):
+    mount_admin(tablet, {"menu": MENU}, admin=False)
+    tablet.wait_for_selector("home-dashboard-chrome nav [data-assist]")
+    assert tablet.locator("home-dashboard-chrome nav [data-rail-settings]").count() == 0
+
+
+def test_a_phone_has_no_rail_and_no_gear_in_its_bar(phone):
+    mount_admin(phone, {"menu": MENU})
+    phone.wait_for_selector("home-dashboard-chrome nav [data-page]")
+    assert not phone.locator("home-dashboard-chrome nav [data-rail-settings]").is_visible()

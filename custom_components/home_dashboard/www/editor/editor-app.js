@@ -656,6 +656,20 @@ export class HomeDashboardEditorApp extends LitElement {
     this._selectPath([...node.path.slice(0, -1), index]);
   }
 
+  /** An entry of a list (a room, a section, a tile, a block, a number, a button, a group, a row) can be hidden. */
+  _hideable(node) {
+    if (!node?.path?.length || node.kind === "variants") return false;
+    const value = getAt(this._strategy, node.path);
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value) && Array.isArray(getAt(this._strategy, node.path.slice(0, -1)));
+  }
+
+  /** Hides an entry without removing it (`hidden: true`): the preview and the dashboard show the page without it. */
+  _toggleHidden(node) {
+    const value = getAt(this._strategy, node.path);
+    const { hidden, ...shown } = value;
+    this._change(setAt(this._strategy, node.path, hidden === true ? shown : { ...value, hidden: true }));
+  }
+
   _remove(node) {
     const value = getAt(this._strategy, node.path);
     const inside = node.kind === "room" ? (value?.sections ?? []).length : (value?.tiles ?? []).length;
@@ -1567,7 +1581,7 @@ export class HomeDashboardEditorApp extends LitElement {
   _renderTree() {
     const tree = filterTree(buildTree(this._strategy, this.hass, this.hass.language), this._search, this._strategy);
     const searching = Boolean(this._search.trim());
-    const node = (item, depth) => {
+    const node = (item, depth, hiddenAbove = false) => {
       const open = searching || !this._collapsed.has(item.key);
       const selected = this._selected?.key === item.key;
       if (item.kind === "group") {
@@ -1630,6 +1644,8 @@ export class HomeDashboardEditorApp extends LitElement {
         `;
       }
       const draggable = ["tile", "favorite", "room", "stat", "action", "panel-group", "row"].includes(item.kind) || isRoomSection(item);
+      const hideable = this._hideable(item);
+      const hidden = hideable && getAt(this._strategy, item.path).hidden === true;
       const drop = this._dropKey === item.key ? `drop-${this._dropMode}` : "";
       // A setting whose part Home Assistant lacks: shown greyed with what to install, not opened.
       if (item.unavailable) {
@@ -1645,7 +1661,7 @@ export class HomeDashboardEditorApp extends LitElement {
       }
       return html`
         <div
-          class="node ${selected ? "sel" : ""} ${item.problems?.length ? "warn" : ""} ${drop}"
+          class="node ${selected ? "sel" : ""} ${item.problems?.length ? "warn" : ""} ${hidden || hiddenAbove ? "hidden" : ""} ${drop}"
           style="padding-left: ${8 + depth * 16}px"
           data-node=${item.key}
           draggable=${draggable ? "true" : "false"}
@@ -1666,8 +1682,19 @@ export class HomeDashboardEditorApp extends LitElement {
           <ha-icon class="icon" .icon=${item.problems?.length ? "mdi:alert" : item.icon}></ha-icon>
           <span class="label">${item.label}</span>
           ${item.count !== undefined ? html`<span class="count">${item.count}</span>` : nothing}
+          ${hideable
+            ? html`<button
+                class="eye ${hidden ? "on" : ""}"
+                data-hide=${item.key}
+                aria-pressed=${hidden ? "true" : "false"}
+                title=${this._t(hidden ? "editor_show_entry" : "editor_hide_entry")}
+                @click=${(event) => (event.stopPropagation(), this._toggleHidden(item))}
+              >
+                <ha-icon .icon=${hidden ? "mdi:eye-off-outline" : "mdi:eye-outline"}></ha-icon>
+              </button>`
+            : nothing}
         </div>
-        ${open ? (item.children ?? []).map((child) => node(child, depth + 1)) : nothing}
+        ${open ? (item.children ?? []).map((child) => node(child, depth + 1, hidden || hiddenAbove)) : nothing}
       `;
     };
     return html`
@@ -2551,6 +2578,41 @@ entity: ${entity}`}
     .node .count {
       font-size: 12px;
       color: var(--muted);
+    }
+    /* Hidden in the editor: still in the configuration, greyed here, not on the page. */
+    .node.hidden .icon,
+    .node.hidden .label,
+    .node.hidden .count {
+      opacity: 0.45;
+    }
+    .node .eye {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      /* As high as the fold arrow: the rows of the tree keep their height. */
+      width: 20px;
+      height: 18px;
+      padding: 0;
+      border-radius: 6px;
+      background: none;
+      color: var(--muted);
+      opacity: 0;
+      --mdc-icon-size: 16px;
+    }
+    .node:hover .eye,
+    .node.sel .eye,
+    .node .eye.on,
+    .node .eye:focus-visible {
+      opacity: 1;
+    }
+    .node .eye.on {
+      color: var(--amber);
+    }
+    @media (hover: none) {
+      .node .eye {
+        opacity: 1;
+      }
     }
     .fold {
       flex: none;

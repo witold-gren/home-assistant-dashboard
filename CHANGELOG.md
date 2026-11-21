@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.6.0 (2026-11-21)
+
+Saturday work on the duties, nodes of the editor hidden without removing them, text made for the voice in a block of
+text and the settings of Home Assistant in the folded bar.
+
+- **Saturday work** on the duties of the school year: a row of cards under the cards of the week, in the same columns
+  (a child without it keeps an empty place), each with *Saturday work*, the date, the list and a hint, from
+  `saturday` and `children[].saturday_tasks` of the duties sensor; without Saturday work nothing changes.
+
+- **Settings of Home Assistant in the folded bar**: a gear at the very bottom of the bar at the side (a tablet), below
+  the menu and the voice, opens the settings of Home Assistant (`/config`). Only an administrator sees it.
+
+- **Hide without removing** in the editor: an eye at the right of a node of the tree (a room, a section, a tile, a
+  block, a number, a button, a group, a row of a block) hides it — `hidden: true` stays in the configuration with
+  everything else, the preview and the dashboard leave it out, and the same eye brings it back (one step to undo).
+  A hidden node and what is in it are greyed in the tree; a hidden room does not come back as a room of its area.
+  Editing a room on the tablet still works on the whole configuration, so saving there keeps hidden tiles.
+
+- **Text made for the voice** in a block of text: `speech_entity` of the block is what *Read everything* and *Listen
+  to everything* read, `speech_entity` of a section what its own buttons read — an entity's attribute `text`
+  (`tekst`), else its state; without it the sections are read as before. The window keeps showing the sections, the
+  voice reads the text made for it (the refrain of a psalm after every stanza). Both fields in the forms of the
+  editor (computer and tablet).
+
 ## 1.5.0 (2026-11-20)
 
 A block of text listened to on the device it is open on, in a voice of your choice; entries moved between groups in

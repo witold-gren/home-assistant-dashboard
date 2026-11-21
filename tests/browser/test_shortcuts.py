@@ -156,6 +156,7 @@ def add_school(page) -> None:
     week = {
         "week_start": "2026-11-02",
         "week_end": "2026-11-08",
+        "saturday": "2026-11-07",
         "children": [
             {
                 "child": "Ola",
@@ -164,9 +165,16 @@ def add_school(page) -> None:
                 "set": "Salon",
                 "color": "#77bb41",
                 "tasks": ["Kurze", "Zakupy"],
+                "saturday_tasks": ["Odkurzyć salon", "Umyć okna"],
             },
-            {"child": "Kuba", "set": "Zmywarka", "color": "#112233", "tasks": ["Naczynia"]},
-            {"child": "Ewa", "free_week": True},
+            {
+                "child": "Kuba",
+                "set": "Zmywarka",
+                "color": "#112233",
+                "tasks": ["Naczynia"],
+                "saturday_tasks": [],
+            },
+            {"child": "Ewa", "free_week": True, "saturday_tasks": []},
         ],
     }
     later = {
@@ -518,6 +526,41 @@ def test_a_free_week_is_named(phone):
     open_school(phone)
     tab(phone, "tab", "duties")
     assert "Wolny tydzień" in phone.locator("home-dashboard-school [data-duty='Ewa']").inner_text()
+
+
+def test_saturday_work_is_a_card_under_the_week(phone):
+    open_school(phone)
+    tab(phone, "tab", "duties")
+    saturday = phone.locator("home-dashboard-school [data-saturdays] [data-saturday='Ola']")
+    assert "Praca w sobotę" in saturday.inner_text()
+    assert saturday.locator("[data-saturday-date]").inner_text() == "7.11"
+    assert saturday.locator("li").all_inner_texts() == ["Odkurzyć salon", "Umyć okna"]
+    assert "sobota będzie wolna" in saturday.inner_text()
+    assert "#77bb41" in saturday.get_attribute("style")
+    # Not a block in a block: the week's card has only its own tasks.
+    card = phone.locator("home-dashboard-school [data-duty='Ola']")
+    assert card.locator("[data-saturday]").count() == 0
+    assert card.locator("li").all_inner_texts() == ["Kurze", "Zakupy"]
+    # Below the week's card, in the same column.
+    week_box, saturday_box = card.bounding_box(), saturday.bounding_box()
+    assert saturday_box["y"] >= week_box["y"] + week_box["height"]
+    assert abs(saturday_box["x"] - week_box["x"]) < 1
+
+
+def test_a_child_without_saturday_work_keeps_an_empty_place(phone):
+    open_school(phone)
+    tab(phone, "tab", "duties")
+    row = phone.locator("home-dashboard-school [data-saturdays]")
+    assert row.locator("[data-saturday]").count() == 1
+    assert row.locator(".saturday-empty").count() == 2
+
+
+def test_a_week_without_saturday_work_has_no_row(phone):
+    open_school(phone)
+    tab(phone, "tab", "duties")
+    phone.locator("home-dashboard-school [data-week='next']").click()
+    assert "Kuchnia" in phone.locator("home-dashboard-school [data-duty='Ola']").inner_text()
+    assert phone.locator("home-dashboard-school [data-saturdays]").count() == 0
 
 
 def test_weeks_can_be_changed_only_where_there_is_data(phone):

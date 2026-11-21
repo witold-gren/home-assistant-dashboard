@@ -961,6 +961,12 @@ engine (`tts`, else the first) in your language. A script reads in it when its f
 `script_voice_field` — `script.announce` of the example would take `voice` beside `text`. The voice assistant keeps
 its own voice.
 
+**Text made for the voice** (`speech_entity`). What looks good on the screen is not always right to hear: a psalm
+shows its refrain once, but at Mass it is said after every stanza. An integration can give the text ready to be read
+aloud in an entity (attribute `text` or `tekst`); put it in `speech_entity` of the block for *Read everything* and
+*Listen to everything*, and in `speech_entity` of a section for its own buttons. The window keeps showing the sections.
+For example `sensor.readings_for_speech` for the block and `sensor.gospel_for_speech` for the Gospel section.
+
 ### Apps in a window
 
 An add-on with a web interface, such as Frigate, opens in a window of the dashboard. In the menu put its id in the <b class="ui">App</b>
@@ -1051,7 +1057,7 @@ variants:
     days:
       - {name: Monday, meals: [{meal: Lunch, items: [{name: Soup}, {name: Pasta}]}]}
 
-# duties: the week_start, week_end and children attributes, optionally previous_week and next_week of the same shape
+# duties: the week_start, week_end and children attributes, optionally saturday + children[].saturday_tasks (Saturday work) and previous_week and next_week of the same shape
 children:
   - {child: Lena, child_color: "#f5ec00", avatar: "https://...", set: Kitchen, color: "#77bb41", tasks: [Dishes], free_week: false}
 
@@ -1564,6 +1570,8 @@ what is going on, for a glance from across the room. The pages (Home, Music, Ene
   follow them to every device. A tablet signed in as its own user sees the home's calendars.
 - **Holding this button** opens the menu: a ring round it fills for half a second. A bubble tells about it the first
   three times. The arrow in the menu goes back to the bar. Under the button is the assistant's microphone.
+- **The gear** at the very bottom of the folded bar, below the menu and the voice, opens the settings of Home Assistant (`/config`).
+  Only an administrator sees it.
 
 Parts:
 

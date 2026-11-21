@@ -100,6 +100,12 @@ export function dayLabel(language, value) {
   return `${weekday} ${date.getDate()}.${date.getMonth() + 1}`;
 }
 
+// A date of the family app (YYYY-MM-DD) as "21.11"; nothing for anything else.
+export function dayOfMonth(value) {
+  const match = /^\d{4}-(\d{2})-(\d{2})$/.exec(value ?? "");
+  return match ? `${Number(match[2])}.${match[1]}` : "";
+}
+
 export function formatMoney(language, value, currency) {
   return Number(value ?? 0).toLocaleString(language, { style: "currency", currency });
 }
@@ -377,6 +383,33 @@ export class HomeDashboardSchool extends LitElement {
     `;
   }
 
+  // The Saturday work of the week (sent since the family app has it): a row of cards under the week, in the same
+  // columns; a child without it keeps an empty place, and a week without any has no row.
+  _renderSaturdays(week) {
+    const children = week.children ?? [];
+    if (!children.some((child) => child.saturday_tasks?.length)) return nothing;
+    return html`<div class="duties" data-saturdays>${children.map((child) => this._renderSaturday(child, week.saturday))}</div>`;
+  }
+
+  _renderSaturday(child, saturday) {
+    const tasks = child.saturday_tasks ?? [];
+    if (!tasks.length) return html`<div class="saturday-empty"></div>`;
+    const accent = HEX_COLOUR.test(child.color ?? "") ? `--saturday-accent: ${child.color}` : "";
+    return html`
+      <div class="saturday" style=${accent} data-saturday=${child.child}>
+        <div class="saturday-head">
+          <ha-icon icon="mdi:calendar-month-outline"></ha-icon>
+          <strong>${this._t("school_saturday_work")}</strong>
+          <small data-saturday-date>${dayOfMonth(saturday)}</small>
+        </div>
+        <ul>
+          ${tasks.map((task) => html`<li>${task}</li>`)}
+        </ul>
+        <small class="saturday-hint"><ha-icon icon="mdi:lightbulb-on-outline"></ha-icon>${this._t("school_saturday_hint")}</small>
+      </div>
+    `;
+  }
+
   _renderDuties() {
     const attributes = this.hass.states[this._sources.duties]?.attributes;
     const offset = this._week ?? 0;
@@ -404,6 +437,7 @@ export class HomeDashboardSchool extends LitElement {
         ${step(1, "mdi:chevron-right", "next")}
       </div>
       <div class="duties">${(week.children ?? []).map((child) => this._renderDutyCard(child))}</div>
+      ${this._renderSaturdays(week)}
     `;
   }
 
@@ -838,6 +872,46 @@ export class HomeDashboardSchool extends LitElement {
         text-decoration: line-through;
         opacity: 0.6;
       }
+      [data-saturdays] {
+        margin-top: 8px;
+      }
+      .saturday {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        border-left: 4px solid var(--saturday-accent, var(--hd-outline));
+        border-radius: 14px;
+        background: var(--hd-off);
+      }
+      .saturday-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+      }
+      .saturday-head ha-icon {
+        --mdc-icon-size: 20px;
+        color: var(--saturday-accent, var(--hd-text-muted));
+      }
+      .saturday-head strong {
+        flex: 1;
+        font-weight: 500;
+      }
+      .saturday-head small,
+      .saturday-hint {
+        color: var(--hd-text-muted);
+      }
+      .saturday-hint {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+      }
+      .saturday-hint ha-icon {
+        --mdc-icon-size: 16px;
+      }
+      .saturday ul,
       .duty ul {
         margin: 0;
         padding-left: 18px;

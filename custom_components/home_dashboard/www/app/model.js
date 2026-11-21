@@ -125,6 +125,35 @@ const COVER_ICONS = { garage: "mdi:garage", gate: "mdi:gate", door: "mdi:door", 
 
 export const domainOf = (entityId) => entityId.split(".")[0];
 
+const isEntry = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+function dropHidden(value) {
+  if (Array.isArray(value)) return value.filter((item) => !(isEntry(item) && item.hidden === true)).map(dropHidden);
+  if (!isEntry(value)) return value;
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, dropHidden(inner)]));
+}
+
+const shownCache = new WeakMap();
+
+/**
+ * The configuration as it is shown: without the entries hidden in the editor (`hidden: true` on a tile, a section,
+ * a block, a number, a button, a group, a row…), so the dashboard looks as it would without them while they stay in
+ * the configuration. A hidden room goes into `rooms.hidden`, so that its area does not come back as a room of its own.
+ * Only for showing: editing on the tablet works on the whole configuration, or it would lose them on saving.
+ */
+export function withoutHidden(config) {
+  if (!isEntry(config)) return config;
+  if (shownCache.has(config)) return shownCache.get(config);
+  const rooms = (config.layout ?? []).filter((room) => isEntry(room) && room.hidden === true);
+  const shown = dropHidden(config);
+  if (rooms.length) {
+    const ids = rooms.flatMap((room) => [room.id, ...(room.areas ?? [])]).filter(Boolean);
+    shown.rooms = { ...shown.rooms, hidden: [...(shown.rooms?.hidden ?? []), ...ids] };
+  }
+  shownCache.set(config, shown);
+  return shown;
+}
+
 export function normalizeConfig(config = {}) {
   return {
     schema: config.schema ?? SCHEMA_VERSION,

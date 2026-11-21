@@ -11,6 +11,7 @@ import {
   buildRoomList,
   mediaKey,
   normalizeConfig,
+  withoutHidden,
   nowPlaying,
   MENU_LINKS,
   menuGroups,
@@ -697,7 +698,7 @@ export class HomeDashboardChrome extends LitElement {
   _refreshPlayer() {
     if (!this.hass) return;
     if (this.raw !== this._selectionRaw || REGISTRIES.some((name) => this._registries?.[name] !== this.hass[name])) {
-      this._config = personalize(normalizeConfig(this.raw), previewUserId(this.hass), previewPrefs(personalPrefs()));
+      this._config = personalize(normalizeConfig(withoutHidden(this.raw)), previewUserId(this.hass), previewPrefs(personalPrefs()));
       this._selection = selectEntities(this.hass, this._config);
       this._selectionRaw = this.raw;
       this._registries = this.hass;
@@ -1011,7 +1012,7 @@ export class HomeDashboardChrome extends LitElement {
   get _appearance() {
     return (
       this._config?.appearance ??
-      personalize(normalizeConfig(this.raw ?? {}), previewUserId(this.hass), previewPrefs(personalPrefs())).appearance
+      personalize(normalizeConfig(withoutHidden(this.raw ?? {})), previewUserId(this.hass), previewPrefs(personalPrefs())).appearance
     );
   }
 
@@ -1672,6 +1673,13 @@ export class HomeDashboardChrome extends LitElement {
         <ha-icon icon="mdi:menu"></ha-icon>
       </button>
     `;
+    // The settings of Home Assistant at the bottom of the rail, above the menu: for an administrator only.
+    const settings = this.hass?.user?.is_admin
+      ? html`<button class="rail-only" data-rail-settings aria-label=${translate(language, "ha_settings")} title=${translate(language, "ha_settings")}
+          @click=${() => navigateTo("/config")}>
+          <ha-icon icon="mdi:cog-outline"></ha-icon>
+        </button>`
+      : nothing;
     const items = entries.map(
       (entry) => html`
         <button
@@ -1696,7 +1704,7 @@ export class HomeDashboardChrome extends LitElement {
               <div class="status-pages">${items}</div>`
           : html`${status ? this._renderFold(language, false) : menu} ${items}
               <span class="rail-only spacer"></span>
-              ${status ? menu : nothing} ${this._renderVoice(language, "rail-only")}`}
+              ${this._renderVoice(language, "rail-only")} ${status ? menu : nothing} ${settings}`}
       </nav>
       ${this.hass ? this._renderOverlay(language) : nothing}
       ${this._renderDebug()}

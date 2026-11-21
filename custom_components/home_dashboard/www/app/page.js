@@ -43,6 +43,7 @@ import {
   intercomAreas,
   intercomReady,
   normalizeConfig,
+  withoutHidden,
   personalize,
   tileKey,
   visibilityMark,
@@ -201,7 +202,7 @@ export class HomeDashboardPage extends LitElement {
     this._room ??= new URLSearchParams(window.location.search).get("room");
     // A page with a variant for this device or person shows that variant's part, background included.
     this._raw = pageStrategy(this._published, this._page, this._room);
-    this._config = normalizeConfig(this._raw);
+    this._config = normalizeConfig(withoutHidden(this._raw));
     // Inside a sheet the page is only content: the navigation and the scrolling belong to the view.
     this._embedded = Boolean(config.embedded);
     this.toggleAttribute("embedded", this._embedded);
@@ -327,7 +328,7 @@ export class HomeDashboardPage extends LitElement {
   _onDraft = (strategy) => {
     this._published = strategy;
     this._raw = strategy;
-    this._config = normalizeConfig(strategy);
+    this._config = normalizeConfig(withoutHidden(strategy));
     this._selection = null;
     if (!this._embedded && this._hass) attachChrome(this, this._hass, this._page, this._raw);
     this._reapplyHass();
@@ -363,7 +364,7 @@ export class HomeDashboardPage extends LitElement {
     const raw = pageStrategy(this._published, this._page, room);
     if (raw !== this._raw) {
       this._raw = raw;
-      this._config = normalizeConfig(raw);
+      this._config = normalizeConfig(withoutHidden(raw));
       this._selection = null;
       if (!this._embedded && this._hass) attachChrome(this, this._hass, this._page, this._raw);
       this._reapplyHass();
@@ -440,7 +441,7 @@ export class HomeDashboardPage extends LitElement {
     if (REGISTRIES.some((name) => previous?.[name] !== hass[name])) this._selection = null;
     const stale = !this._selection;
     if (stale) {
-      this._config = personalize(normalizeConfig(this._raw), previewUserId(hass), previewPrefs(personalPrefs()));
+      this._config = personalize(normalizeConfig(withoutHidden(this._raw)), previewUserId(hass), previewPrefs(personalPrefs()));
       this._selection = selectEntities(hass, this._config);
       this._watchEntities();
     }

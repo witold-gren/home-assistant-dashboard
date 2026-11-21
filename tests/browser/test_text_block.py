@@ -299,3 +299,49 @@ def test_listen_to_one_section_plays_only_its_text_and_another_button_takes_over
     # The same button stops it
     phone.locator(f"{SCREEN} [data-text-read-here]").click()
     phone.wait_for_selector(f"{SCREEN} [data-text-stop]", state="detached")
+
+
+SPOKEN_ALL = "Czytanie z Apokalipsy.\nTyś nas uczynił kapłanami Boga.\nŚpiewajcie Panu.\nTyś nas uczynił kapłanami Boga."
+SPOKEN_GOSPEL = "Słowa Ewangelii według Świętego Łukasza.\nGdy Jezus był już blisko.\nOto słowo Pańskie."
+
+
+def test_entities_with_the_text_made_to_be_read_aloud_are_read_instead_of_the_sections(phone):
+    """The screen shows the readings laid out; the voice reads the text made for it (the refrain after every stanza)."""
+    block = {
+        **BLOCK,
+        "speaker": "media_player.kitchen",
+        "tts": "tts.piper",
+        "speech_entity": f"{P}_spoken_all",
+        "sections": [
+            *BLOCK["sections"][:3],
+            {**BLOCK["sections"][3], "speech_entity": f"{P}_spoken_gospel"},
+        ],
+    }
+    add_entity(phone, f"{P}_spoken_all", "2026-11-19", {"tekst": SPOKEN_ALL})
+    add_entity(phone, f"{P}_spoken_gospel", "2026-11-19", {"tekst": SPOKEN_GOSPEL})
+    open_block(phone, block)
+    phone.evaluate(FAKE_AUDIO)
+    tts = "window.hass.calls.filter((call) => call.domain === 'tts').map((call) => call.data.message)"
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_function(f"{tts}.length === 1")
+    phone.locator(f"{SCREEN} [data-text-read='{P}_gospel']").click()
+    phone.wait_for_function(f"{tts}.length === 2")
+    assert phone.evaluate(tts) == [SPOKEN_ALL, SPOKEN_GOSPEL]
+    # On this device too
+    here = "window.hass.calls.filter((call) => call.path === 'tts_get_url').map((call) => call.data.message)"
+    phone.locator(f"{SCREEN} [data-text-listen='{P}_gospel']").click()
+    phone.wait_for_function(f"{here}.length === 1")
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_function(f"{here}.length === 2")
+    assert phone.evaluate(here) == [SPOKEN_GOSPEL, SPOKEN_ALL]
+    # The window still shows the sections, not the text for the voice
+    assert sections(phone) == [f"{P}_first", f"{P}_psalm", f"{P}_gospel"]
+
+
+def test_an_entity_for_the_voice_without_text_leaves_the_sections_to_be_read(phone):
+    add_entity(phone, f"{P}_spoken_all", "unavailable", {})
+    open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "speech_entity": f"{P}_spoken_all"})
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'tts')")
+    message = phone.evaluate("window.hass.calls.find((call) => call.domain === 'tts').data.message")
+    assert message.startswith("Czytanie z Apokalipsy") and "Słowa Ewangelii" in message

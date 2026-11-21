@@ -10,6 +10,9 @@
 // with its own button) plays it on the device it was tapped on (a phone, a tablet, a Mac): a recording of the same
 // text-to-speech in the browser, or the browser's own voice without one; `hide_read_here` hides them. `voice` chooses a voice of the text-to-speech for all of them; a script gets it in
 // `script_voice_field`.
+// What is read can come ready from an entity: `speech_entity` of the block for „Read everything” and „Listen to
+// everything”, `speech_entity` of a section for its own buttons — its attribute `text` (`tekst`), else its state. The
+// screen shows the sections laid out, the voice reads the text made for it (the refrain after every stanza of a psalm).
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
@@ -42,6 +45,7 @@ export function textSection(hass, section) {
     entity: section.entity,
     name: section.name || attributes.friendly_name || section.entity,
     read: Boolean(section.read),
+    speech: section.speech_entity || "",
     reference,
     title: pick(attributes, "title", "tytul") ?? "",
     intro: pick(attributes, "intro", "wstep") ?? "",
@@ -84,6 +88,24 @@ export function speechOf(sections) {
     .join("\n\n");
 }
 
+/** The text an entity has ready to be read aloud: its attribute `text` (`tekst`), else its state; "" without any. */
+export function speechText(hass, entity) {
+  const state = entity ? hass?.states?.[entity] : null;
+  if (!state) return "";
+  const text = pick(state.attributes, "text", "tekst");
+  if (typeof text === "string" && text.trim()) return text.trim();
+  return EMPTY.has(String(state.state).trim().toLowerCase()) ? "" : String(state.state).trim();
+}
+
+/**
+ * What a button reads: everything (`all`) — the text of the block's `speech_entity`; one section — the text of its own
+ * `speech_entity`; without them (or while they have nothing) the sections themselves.
+ */
+export function messageOf(hass, item, sections, all) {
+  const entity = all ? item?.speech_entity : sections.length === 1 ? sections[0].speech : "";
+  return speechText(hass, entity) || speechOf(sections);
+}
+
 // The lines of a paragraph keep their breaks (the verses of a psalm); the „*” of the caesura is not shown.
 const lines = (paragraph) => paragraph.split("\n").map((line) => line.replace(/\s*\*\s*$/, "").replace(/\s\*\s/g, " "));
 
@@ -110,7 +132,7 @@ export class HomeDashboardTextBlock extends LitElement {
   async _read(key, sections) {
     this._stopHere();
     const { speaker, script, script_field: field, script_data: data } = this.item;
-    const message = speechOf(sections);
+    const message = messageOf(this.hass, this.item, sections, key === "all");
     this._error = null;
     if (!message) {
       this._error = this._t("text_nothing");
@@ -156,7 +178,7 @@ export class HomeDashboardTextBlock extends LitElement {
    * `key` is the button that started it: "here:all" or "here:<entity>" of one section.
    */
   async _readHere(sections, key = "here:all") {
-    const message = speechOf(sections);
+    const message = messageOf(this.hass, this.item, sections, key === "here:all");
     this._stopHere();
     this._error = null;
     if (!message) {
