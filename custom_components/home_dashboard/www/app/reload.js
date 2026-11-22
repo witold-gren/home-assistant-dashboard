@@ -29,6 +29,7 @@ export const APP_FILES = [
   "i18n.js",
   "icon-picker.js",
   "media.js",
+  "message.js",
   "intercom.js",
   "main.js",
   "model.js",

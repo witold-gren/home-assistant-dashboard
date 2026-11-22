@@ -261,6 +261,32 @@ def test_a_variant_is_chosen_for_this_device(phone):
     assert assign["devices"] == {"token-1": "v"}
 
 
+def test_a_failed_change_is_said_in_the_dashboards_own_window(phone):
+    mount_admin(phone, with_variants({}, choices=choices_of(phone)))
+    phone.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("a browser dialog")))
+    phone.evaluate(
+        """() => {
+            const call = window.hass.callWS;
+            window.hass.callWS = async (message) => {
+                if (message.type === 'home_dashboard/variants/assign') throw new Error('The server said no');
+                return call(message);
+            };
+        }"""
+    )
+    open_variants(phone)
+    phone.locator(f"{SHEET} [data-variant-option='v']").click()
+    phone.locator(f"{SHEET} [data-variant-device]").click()
+    message = f"{SHEET} home-dashboard-message"
+    phone.wait_for_selector(f"{message} [data-message]")
+    assert phone.locator(f"{message} [role='alertdialog'][aria-modal='true']").count() == 1
+    assert phone.locator(f"{message} [data-message-text]").inner_text() == "The server said no"
+    assert phone.locator(f"{message} [data-message-title]").inner_text() == "Wariant nie został zmieniony"
+    phone.locator(f"{message} [data-message-ok]").click()
+    phone.wait_for_selector(message, state="detached")
+    # The sheet stays open, ready to try again.
+    assert phone.locator(f"{SHEET} [data-variant-device]").is_enabled()
+
+
 def test_a_look_needs_no_server(phone):
     mount_admin(phone, with_variants({}, choices=choices_of(phone)))
     open_variants(phone)

@@ -34,6 +34,7 @@ import { addressWithoutCamera, browserModId, cameraFromAddress, cameraTileFor, m
 import { createUsageReporter, windowName } from "./usage.js";
 import { splitSave, writePeek } from "./variants.js";
 import { reloadApp } from "./reload.js";
+import { showMessage } from "./message.js";
 
 // The same key as main.js: chrome.js must not import main.js, which defines every element.
 const SKIP_REVIEW_KEY = "home-dashboard-skip-review";
@@ -1392,7 +1393,11 @@ export class HomeDashboardChrome extends LitElement {
   async _saveSettings(event) {
     // A version being checked is not the published one: saving it from here would publish it without the editor.
     if (this.raw?._review) {
-      window.alert(translate(this.hass?.language, "review_no_save"));
+      await showMessage(this.renderRoot, {
+        language: this.hass?.language,
+        icon: "mdi:account-eye",
+        text: translate(this.hass?.language, "review_no_save"),
+      });
       return;
     }
     const urlPath = dashboardPath(window.location.pathname).slice(1);

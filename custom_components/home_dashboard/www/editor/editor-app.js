@@ -42,7 +42,7 @@ import { RAIL, foldShortcut, readFolded, writeFolded } from "./columns.js";
 import { DOCS_ANCHORS, docsAnchorFor, editorDocsUrl } from "./docs-anchors.js";
 import { callWS } from "./ws.js";
 import "./variants-panel.js";
-import { ASK_EVENT } from "./ask-dialog.js";
+import { ASK_EVENT, askInEditor } from "./ask-dialog.js";
 import { sliceOf, withSlice } from "../app/variants.js";
 
 // How long the window of a block gets to open and settle in a frame before it is measured.
@@ -670,10 +670,19 @@ export class HomeDashboardEditorApp extends LitElement {
     this._change(setAt(this._strategy, node.path, hidden === true ? shown : { ...value, hidden: true }));
   }
 
-  _remove(node) {
+  async _remove(node) {
     const value = getAt(this._strategy, node.path);
     const inside = node.kind === "room" ? (value?.sections ?? []).length : (value?.tiles ?? []).length;
-    if (inside && !window.confirm(this._t("editor_remove_ask", { name: node.label }))) return;
+    if (inside) {
+      const asked = await askInEditor(this, {
+        icon: "mdi:delete-outline",
+        title: this._t("editor_remove_ask", { name: node.label }),
+        confirm: this._t("remove"),
+        danger: true,
+      });
+      // The strategy may have changed meanwhile (undo, another tab): the same node must still be there.
+      if (!asked || getAt(this._strategy, node.path) !== value) return;
+    }
     this._change(removeAt(this._strategy, node.path));
     this._select(null);
   }
@@ -991,7 +1000,13 @@ export class HomeDashboardEditorApp extends LitElement {
   }
 
   async _discard() {
-    if (!window.confirm(this._t("editor_discard_ask"))) return;
+    const asked = await askInEditor(this, {
+      icon: "mdi:delete-sweep-outline",
+      title: this._t("editor_discard_ask"),
+      confirm: this._t("editor_discard"),
+      danger: true,
+    });
+    if (!asked) return;
     clearTimeout(this._saveTimer);
     await callWS(this.hass, { type: `${DOMAIN}/editor/discard`, url_path: this._urlPath });
     await this._load(this._urlPath);

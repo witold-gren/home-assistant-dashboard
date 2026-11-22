@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.2 (2026-11-22)
+
+- **No browser dialogs any more.** Removing a room or a section with something in it and throwing the draft away ask
+  in the editor's own window instead of the browser's confirm: a red button named after the action (*Delete*,
+  *Throw away*) with the focus starting on *Cancel*, so Enter alone never does it. Every question of the editor is
+  an `alertdialog`: Esc and a click beside it cancel (Esc no longer also closes a dialog of Home Assistant
+  underneath), Tab stays inside, and the focus goes back to the button that asked. A part of the editor used
+  outside it shows the same window by itself instead of falling back to the browser's prompt or confirm.
+- On the dashboard, a variant that could not be changed and a settings change on a version to check are said in a
+  card of the dashboard's own look with a *Close* button, instead of the browser's alert.
+- A test fails on any `confirm(`, `alert(` or `prompt(` in the frontend code.
+
 ## 1.6.1 (2026-11-22)
 
 - **A window with a control card keeps its rows behind the gear.** A block with a `card` (a robot) and `groups` no

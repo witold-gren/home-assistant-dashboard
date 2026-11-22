@@ -17,6 +17,7 @@ import { BACKGROUNDS, EVERYONE_ELSE } from "./sheet-shared.js";
 import { roomActions } from "./status.js";
 import { deviceLabel } from "./usage.js";
 import { pageChoices, writePeek } from "./variants.js";
+import { showMessage } from "./message.js";
 import { backgroundStyle, currentColorMode, isDark, screenShape } from "./styles.js";
 
 export const SettingsSheets = (Base) =>
@@ -203,7 +204,12 @@ export const SettingsSheets = (Base) =>
       } catch (error) {
         this._variantBusy = false;
         this.requestUpdate();
-        window.alert(error?.message ?? String(error));
+        // Said in the dashboard's own look; the sheet stays open to try again.
+        await showMessage(this.renderRoot, {
+          language: this.hass?.language,
+          title: this._t("variant_failed"),
+          text: error?.message ?? String(error),
+        });
       }
     }
 

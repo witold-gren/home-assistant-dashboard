@@ -296,13 +296,20 @@ def test_the_banner_of_a_version_to_check_and_no_saving_from_the_app(phone):
     mount(phone, {"_review": {"published_at": "2026-11-13T10:00:00Z"}, "layout": []})
     banner = phone.locator("home-dashboard-chrome [data-review-banner]")
     assert "Wersja do sprawdzenia" in banner.inner_text()
+    phone.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("a browser dialog")))
+    phone.evaluate("() => { window.hass.calls.length = 0; }")
+    # Not awaited: the save waits until the message is closed.
     phone.evaluate(
-        "() => { window.alerts = []; window.alert = (text) => window.alerts.push(text); window.hass.calls.length = 0; }"
+        "() => { document.querySelector('home-dashboard-chrome')._saveSettings({ detail: { dashboard: {} } }); }"
     )
-    phone.evaluate(
-        "() => document.querySelector('home-dashboard-chrome')._saveSettings({ detail: { dashboard: {} } })"
-    )
-    assert phone.evaluate("window.alerts.length") == 1
+    message = "home-dashboard-chrome home-dashboard-message"
+    phone.wait_for_selector(f"{message} [data-message]")
+    assert phone.locator(f"{message} [role='alertdialog'][aria-modal='true']").count() == 1
+    assert "wersja do sprawdzenia" in phone.locator(f"{message} [data-message-text]").inner_text()
+    assert phone.locator(f"{message} [data-message-ok]").inner_text() == "Zamknij"
+    # Esc closes it, and only it.
+    phone.keyboard.press("Escape")
+    phone.wait_for_selector(message, state="detached")
     assert (
         phone.evaluate("window.hass.calls.filter((call) => call.message?.type === 'lovelace/config/save')")
         == []

@@ -1,6 +1,8 @@
-// A question of the editor in its own look, instead of the browser's prompt and confirm: a title, a text, an optional
-// field, and the buttons. A part of the editor asks with `askInEditor(element, question)`; the editor shows the dialog
-// and the promise answers the typed text (or true) when confirmed, null when cancelled.
+// A question of the editor in its own look, never the browser's prompt or confirm: a title, a text, an optional field,
+// and the buttons (Cancel and one named after the action). A part of the editor asks with
+// `askInEditor(element, question)`; the editor shows the dialog and the promise answers the typed text (or true) when
+// confirmed, null when cancelled. Esc, a click on the scrim and Cancel cancel; Tab stays in the window; the focus goes
+// back to the opener. A dangerous action (`danger`) has a red button and starts with the focus on Cancel.
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "../app/i18n.js";
@@ -16,12 +18,26 @@ export function askInEditor(element, question) {
   return new Promise((resolve) => {
     const event = new CustomEvent(ASK_EVENT, { detail: { ...question, resolve }, bubbles: true, composed: true, cancelable: true });
     element.dispatchEvent(event);
-    // Nothing to show it (a part used on its own): the browser's own dialogs.
-    if (!event.defaultPrevented) {
-      if (question.input !== undefined) resolve(window.prompt(question.title, question.input));
-      else resolve(window.confirm(`${question.title}\n\n${question.text ?? ""}`) || null);
-    }
+    // Nothing took it: the part is not inside the editor (used on its own, or already taken off the page). The same
+    // window is shown by itself then, never the browser's prompt or confirm.
+    if (!event.defaultPrevented) askOnItsOwn(element, question, resolve);
   });
+}
+
+function askOnItsOwn(element, question, resolve) {
+  const root = element?.isConnected ? element.getRootNode() : null;
+  const host = root instanceof ShadowRoot ? root : document.body;
+  const box = document.createElement("home-dashboard-editor-ask");
+  box.hass = element?.hass;
+  box.question = {
+    ...question,
+    resolve: (value) => {
+      box.remove();
+      resolve(value);
+    },
+  };
+  box.addEventListener("dialog-close", () => box.remove(), { once: true });
+  host.appendChild(box);
 }
 
 export class HomeDashboardEditorAsk extends LitElement {
@@ -39,12 +55,49 @@ export class HomeDashboardEditorAsk extends LitElement {
     if (changed.has("question")) this._value = this.question?.input ?? "";
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    // The button that opened it, through the shadow roots: the focus goes back there on close.
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    this._before = active;
+    this._keys = (event) => this._key(event);
+    window.addEventListener("keydown", this._keys, true);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("keydown", this._keys, true);
+    this._before?.focus?.();
+    super.disconnectedCallback();
+  }
+
   firstUpdated() {
     const field = this.renderRoot.querySelector("input");
     if (field) {
       field.focus();
       field.select();
-    } else this.renderRoot.querySelector("[data-ask-ok]")?.focus();
+    } else {
+      // A dangerous action starts on Cancel, so Enter alone never does it.
+      this.renderRoot.querySelector(this.question?.danger ? "[data-ask-cancel]" : "[data-ask-ok]")?.focus();
+    }
+  }
+
+  _key(event) {
+    if (!this.question) return;
+    if (event.key === "Escape") {
+      // Captured on the window first, so a dialog of Home Assistant underneath does not close too.
+      event.preventDefault();
+      event.stopPropagation();
+      this._answer(false);
+    } else if (event.key === "Tab") {
+      // The focus stays in the window.
+      const stops = [...this.renderRoot.querySelectorAll("input, button:not([disabled])")];
+      if (!stops.length) return;
+      const at = stops.indexOf(this.renderRoot.activeElement);
+      event.preventDefault();
+      const next = at < 0 ? 0 : (at + (event.shiftKey ? -1 : 1) + stops.length) % stops.length;
+      stops[next].focus();
+    }
   }
 
   _answer(ok) {
@@ -64,13 +117,20 @@ export class HomeDashboardEditorAsk extends LitElement {
     const empty = withField && !this._value.trim() && question.required !== false;
     return html`
       <div class="scrim" @click=${() => this._answer(false)}></div>
-      <section class="dialog ask" role="dialog" aria-modal="true" aria-label=${question.title} data-ask>
+      <section
+        class="dialog ask"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="ask-title"
+        aria-describedby=${question.text ? "ask-text" : nothing}
+        data-ask
+      >
         <header>
           ${question.icon ? html`<ha-icon .icon=${question.icon}></ha-icon>` : nothing}
-          <h2 data-ask-title>${question.title}</h2>
+          <h2 id="ask-title" data-ask-title>${question.title}</h2>
         </header>
         <div class="text">
-          ${question.text ? html`<p data-ask-text>${question.text}</p>` : nothing}
+          ${question.text ? html`<p id="ask-text" data-ask-text>${question.text}</p>` : nothing}
           ${withField
             ? html`<input
                 data-ask-input
@@ -78,17 +138,14 @@ export class HomeDashboardEditorAsk extends LitElement {
                 maxlength="80"
                 placeholder=${question.placeholder ?? ""}
                 @input=${(event) => (this._value = event.target.value)}
-                @keydown=${(event) => {
-                  if (event.key === "Enter") this._answer(true);
-                  if (event.key === "Escape") this._answer(false);
-                }}
+                @keydown=${(event) => event.key === "Enter" && this._answer(true)}
               />`
             : nothing}
         </div>
-        <footer @keydown=${(event) => event.key === "Escape" && this._answer(false)}>
+        <footer>
           <span class="grow"></span>
-          <button data-ask-cancel @click=${() => this._answer(false)}>${this._t("cancel")}</button>
-          <button class="primary ${question.danger ? "danger" : ""}" data-ask-ok ?disabled=${empty} @click=${() => this._answer(true)}>
+          <button type="button" data-ask-cancel @click=${() => this._answer(false)}>${this._t("cancel")}</button>
+          <button type="button" class="primary ${question.danger ? "danger" : ""}" data-ask-ok ?disabled=${empty} @click=${() => this._answer(true)}>
             ${question.confirm ?? this._t("save")}
           </button>
         </footer>
@@ -99,7 +156,15 @@ export class HomeDashboardEditorAsk extends LitElement {
   static styles = [
     dialogStyles,
     css`
+      /* The editor's colours, or Home Assistant's when the window is shown on its own outside the editor. */
+      :host {
+        color: var(--text, var(--primary-text-color, #1c1c1e));
+      }
+      .scrim {
+        background: var(--scrim, rgba(0, 0, 0, 0.45));
+      }
       .dialog.ask {
+        background: var(--panel, var(--card-background-color, #ffffff));
         top: 22vh;
         width: min(460px, calc(100vw - 48px));
       }
@@ -112,6 +177,7 @@ export class HomeDashboardEditorAsk extends LitElement {
         margin: 0;
         color: var(--muted);
         line-height: 1.5;
+        white-space: pre-line;
       }
       input {
         width: 100%;

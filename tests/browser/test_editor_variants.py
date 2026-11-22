@@ -370,3 +370,34 @@ def test_a_change_outside_the_page_goes_to_the_draft_while_a_variant_is_edited(d
     # The variant is shown with the draft's other changes; the published page is untouched.
     assert desktop.evaluate("window.editor.app._strategy.layout[1].name") == "Kuchnia nowa"
     assert server(desktop)["live"]["strategy"] == STRATEGY
+
+
+def test_a_question_outside_the_editor_is_still_the_editors_window(desktop):
+    open_editor(desktop)
+    desktop.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("a browser dialog")))
+    # A part on its own, not inside the editor: nothing takes the question, the window shows by itself.
+    desktop.evaluate(
+        """async () => {
+            const { askInEditor } = await import('/custom_components/home_dashboard/www/editor/ask-dialog.js');
+            const part = document.createElement('div');
+            document.body.appendChild(part);
+            window.asked = 'waiting';
+            askInEditor(part, { title: 'Sure?', confirm: 'Go' }).then((answer) => (window.asked = answer));
+        }"""
+    )
+    alone = "body > home-dashboard-editor-ask"
+    desktop.wait_for_selector(f"{alone} [data-ask]")
+    assert desktop.locator(f"{alone} [data-ask-ok]").inner_text() == "Go"
+    desktop.keyboard.press("Escape")
+    desktop.wait_for_selector(alone, state="detached")
+    assert desktop.evaluate("window.asked") is None
+    desktop.evaluate(
+        """async () => {
+            const { askInEditor } = await import('/custom_components/home_dashboard/www/editor/ask-dialog.js');
+            askInEditor(document.body.lastElementChild, { title: 'Name', input: 'A' }).then((answer) => (window.asked = answer));
+        }"""
+    )
+    desktop.locator(f"{alone} [data-ask-input]").fill("B")
+    desktop.locator(f"{alone} [data-ask-ok]").click()
+    desktop.wait_for_selector(alone, state="detached")
+    assert desktop.evaluate("window.asked") == "B"

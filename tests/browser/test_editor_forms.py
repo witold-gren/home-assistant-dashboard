@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from .test_editor_app import APP, desktop, open_editor, select, type_yaml, yaml_tab  # noqa: F401
+from .test_editor_app import APP, ASK, desktop, focused_in_ask, open_editor, select, type_yaml, yaml_tab  # noqa: F401
 
 FORM = "home-dashboard-editor-props"
 STRATEGY = {
@@ -310,11 +310,50 @@ def test_up_and_down_move_within_the_list_and_stop_at_its_ends(desktop):  # noqa
 def test_removing_what_is_not_empty_asks_first(desktop):  # noqa: F811
     open_forms(desktop)
     select(desktop, "layout/0")
-    desktop.once("dialog", lambda dialog: dialog.dismiss())
-    desktop.locator(f"{APP} [data-action='remove']").click()
+    desktop.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("a browser dialog")))
+    remove = desktop.locator(f"{APP} [data-action='remove']")
+    remove.click()
+    desktop.wait_for_selector(f"{ASK} [data-ask]")
+    assert desktop.locator(f"{ASK} [role='alertdialog'][aria-modal='true']").count() == 1
+    assert "Salon" in desktop.locator(f"{ASK} [data-ask-title]").inner_text()
+    # A dangerous action: a red button named after it, the focus starts on Cancel, so Enter alone does not remove.
+    assert desktop.locator(f"{ASK} [data-ask-ok]").inner_text() == "Usuń"
+    assert "danger" in desktop.locator(f"{ASK} [data-ask-ok]").get_attribute("class")
+    assert focused_in_ask(desktop) == "cancel"
+    # Tab stays in the window.
+    desktop.keyboard.press("Tab")
+    assert focused_in_ask(desktop) == "ok"
+    desktop.keyboard.press("Tab")
+    assert focused_in_ask(desktop) == "cancel"
+    desktop.keyboard.press("Shift+Tab")
+    assert focused_in_ask(desktop) == "ok"
+    desktop.keyboard.press("Shift+Tab")
+    # Enter on Cancel cancels.
+    desktop.keyboard.press("Enter")
+    desktop.wait_for_selector(ASK, state="detached")
     assert len(draft(desktop)["layout"]) == 2
-    desktop.once("dialog", lambda dialog: dialog.accept())
-    desktop.locator(f"{APP} [data-action='remove']").click()
+    # Esc cancels, and the focus goes back to the button that asked.
+    remove.click()
+    desktop.wait_for_selector(f"{ASK} [data-ask]")
+    desktop.keyboard.press("Escape")
+    desktop.wait_for_selector(ASK, state="detached")
+    assert len(draft(desktop)["layout"]) == 2
+    assert (
+        desktop.evaluate(
+            "() => document.querySelector('home-dashboard-editor-app').shadowRoot.activeElement?.dataset.action"
+        )
+        == "remove"
+    )
+    # A click beside the window cancels too.
+    remove.click()
+    desktop.wait_for_selector(f"{ASK} [data-ask]")
+    desktop.mouse.click(5, 5)
+    desktop.wait_for_selector(ASK, state="detached")
+    assert len(draft(desktop)["layout"]) == 2
+    # The action button removes.
+    remove.click()
+    desktop.locator(f"{ASK} [data-ask-ok]").click()
+    desktop.wait_for_selector(ASK, state="detached")
     assert [room["id"] for room in draft(desktop)["layout"]] == ["kitchen"]
 
 
@@ -323,6 +362,7 @@ def test_an_empty_section_and_a_tile_go_without_asking(desktop):  # noqa: F811
     desktop.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("asked")))
     select(desktop, "layout/1/sections/0")
     desktop.locator(f"{APP} [data-action='remove']").click()
+    assert desktop.locator(ASK).count() == 0
     select(desktop, "layout/0/sections/1/tiles/0")
     desktop.locator(f"{APP} [data-action='remove']").click()
     assert draft(desktop)["layout"][1]["sections"] == []

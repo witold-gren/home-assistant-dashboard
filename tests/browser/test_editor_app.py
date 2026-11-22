@@ -9,6 +9,7 @@ from playwright.sync_api import Page
 import pytest
 
 APP = "home-dashboard-editor-app"
+ASK = f"{APP} home-dashboard-editor-ask"
 DESKTOP = {"width": 1600, "height": 900}
 STRATEGY = {
     "type": "custom:home-dashboard",
@@ -216,13 +217,37 @@ def test_a_draft_comes_back_after_a_reload(desktop):
     assert desktop.locator(f"{APP} [data-draft-state]").get_attribute("data-draft-state") == "draft"
 
 
+def focused_in_ask(page) -> str | None:
+    """Which button of the editor's question has the focus: "ok", "cancel", "input" or None."""
+    return page.evaluate(
+        """() => {
+            const ask = document.querySelector('home-dashboard-editor-app').shadowRoot.querySelector('home-dashboard-editor-ask');
+            const active = ask?.shadowRoot.activeElement;
+            if (!active) return null;
+            if (active.hasAttribute('data-ask-ok')) return 'ok';
+            if (active.hasAttribute('data-ask-cancel')) return 'cancel';
+            return active.hasAttribute('data-ask-input') ? 'input' : active.localName;
+        }"""
+    )
+
+
 def test_throwing_the_draft_away_brings_the_live_version_back(desktop):
     open_editor(desktop)
     select(desktop, "layout/1")
     type_yaml(desktop, "id: kitchen\nname: Inna\n")
     wait_saved(desktop)
-    desktop.once("dialog", lambda dialog: dialog.accept())
+    desktop.on("dialog", lambda dialog: (_ for _ in ()).throw(AssertionError("a browser dialog")))
     desktop.locator(f"{APP} [data-discard]").click()
+    desktop.wait_for_selector(f"{ASK} [data-ask]")
+    # Throwing away is dangerous: a red button named after it, the focus starts on Cancel.
+    assert desktop.locator(f"{ASK} [data-ask-ok]").inner_text() == "Wyrzuć"
+    assert "danger" in desktop.locator(f"{ASK} [data-ask-ok]").get_attribute("class")
+    assert focused_in_ask(desktop) == "cancel"
+    desktop.locator(f"{ASK} [data-ask-cancel]").click()
+    desktop.wait_for_selector(ASK, state="detached")
+    assert server(desktop)["draft"] is not None
+    desktop.locator(f"{APP} [data-discard]").click()
+    desktop.locator(f"{ASK} [data-ask-ok]").click()
     desktop.wait_for_function(
         "document.querySelector('home-dashboard-editor-app').shadowRoot.querySelector('[data-draft-state]').dataset.draftState === 'live'"
     )
