@@ -466,11 +466,11 @@ needs `name`; `entity` is optional.
 | `compact` | `true` | `false` | a plain tile without the numbers, one tile wide |
 | `stats` | list | `[]` | numbers on the tile and at the top of the window |
 | `actions` | list | `[]` | buttons |
-| `groups` | list | `[]` | rows of entities |
-| `details` | entity id | none | the gear in the header opens this entity's window |
+| `groups` | list | `[]` | rows of entities; in a window with a `card` they open from the gear in the header (tabs, like a device's settings) |
+| `details` | entity id | none | the gear in the header opens this entity's window (with a `card` and `groups`: from the gear of the groups' window) |
 | `card` | Home Assistant card | none | a card in the window, started on a button |
 | `card_open` | `true` | `false` | the card shows at once, without the button |
-| `card_last` | `true` | `false` | with `card_open`: the card below the groups |
+| `card_last` | `true` | `false` | with `card_open` and `fullscreen`: the card below the groups |
 | `card_label`, `card_icon` | text, `mdi:…` | "Control" | the button that starts the card |
 | `admin_card` | `true` | `false` | with `auto_card`: the card for administrators only, others get `frame` or the rows |
 | `auto_card` | `true` | `false` | the window is only the card |

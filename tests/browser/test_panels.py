@@ -1134,3 +1134,37 @@ def test_a_tap_steps_a_little_and_a_held_button_by_round_steps(phone):
     # 64 → 65 (tap) and then 70, 75 held: round numbers of five
     value = int(stepper.locator("[data-step-value]").inner_text().split()[0])
     assert value % 5 == 0 and value >= 70
+
+
+def test_a_panel_with_a_card_keeps_its_groups_behind_the_gear(phone):
+    """A robot's window (2026-11-22): the card alone, its states and settings behind the gear of the header,
+    as tabs like a device's settings; the arrow of that window goes back to the card."""
+    add_entity(phone, "sensor.machine", "ready")
+    add_entity(phone, "switch.listen", "on", {"friendly_name": "Machine Listening"})
+    add_entity(phone, "binary_sensor.person", "on", {"friendly_name": "Machine Person"})
+    groups = [
+        {"title": "Sound", "layout": "controls", "rows": [{"entity": "switch.listen"}]},
+        {"title": "Sees", "rows": [{"entity": "binary_sensor.person"}]},
+    ]
+    open_block(phone, room_with(block(card={"type": "custom:robot-card"}, card_open=True, groups=groups)))
+    phone.wait_for_selector("[data-card='custom:robot-card']", state="attached")
+    assert phone.locator("[data-panel-group]").count() == 0
+    phone.locator("home-dashboard-sheet header [data-details]").click()
+    phone.wait_for_selector("[data-settings-tabs]")
+    assert phone.locator("[data-settings-tabs] [data-tab]").all_inner_texts()[:2] == ["Sound", "Sees"]
+    phone.locator("[data-toggle='switch.listen']").click()
+    assert ("homeassistant", "toggle", {"entity_id": "switch.listen"}) in [
+        (call["domain"], call["service"], call["data"]) for call in calls(phone)
+    ]
+    phone.locator("[data-settings-tabs] [data-tab='group-1']").click()
+    phone.wait_for_selector("[data-field='binary_sensor.person']")
+    phone.locator("home-dashboard-sheet header [data-back]").click()
+    phone.wait_for_selector("[data-card='custom:robot-card']", state="attached")
+    assert phone.locator("[data-settings-tabs]").count() == 0
+
+
+def test_a_panel_without_a_card_still_shows_its_groups(phone):
+    add_entity(phone, "sensor.machine", "ready")
+    add_entity(phone, "switch.listen", "on")
+    open_block(phone, room_with(block(groups=[{"title": "Sound", "rows": [{"entity": "switch.listen"}]}])))
+    assert phone.locator("[data-panel-group]").count() == 1

@@ -467,11 +467,11 @@ Blok kilku encji. Na kafelku pokazuje stan i liczby, a dotknięcie otwiera jego 
 | `compact` | `true` | `false` | zwykły kafelek bez liczb, o szerokości jednego |
 | `stats` | lista | `[]` | liczby na kafelku i u góry okna |
 | `actions` | lista | `[]` | przyciski |
-| `groups` | lista | `[]` | wiersze encji |
-| `details` | id encji | brak | trybik w nagłówku otwiera okno tej encji |
+| `groups` | lista | `[]` | wiersze encji; w oknie z `card` otwierają się z trybika w nagłówku (zakładki, jak ustawienia urządzenia) |
+| `details` | id encji | brak | trybik w nagłówku otwiera okno tej encji (z `card` i `groups`: z trybika okna grup) |
 | `card` | karta Home Assistant | brak | karta w oknie, uruchamiana przyciskiem |
 | `card_open` | `true` | `false` | karta od razu, bez przycisku |
-| `card_last` | `true` | `false` | z `card_open`: karta pod grupami |
+| `card_last` | `true` | `false` | z `card_open` i `fullscreen`: karta pod grupami |
 | `card_label`, `card_icon` | tekst, `mdi:…` | „Steruj" | przycisk uruchamiający kartę |
 | `admin_card` | `true` | `false` | z `auto_card`: karta tylko dla administratorów, inni dostają `frame` lub wiersze |
 | `auto_card` | `true` | `false` | okno jest samą kartą |

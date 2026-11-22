@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 (2026-11-22)
+
+- **A window with a control card keeps its rows behind the gear.** A block with a `card` (a robot) and `groups` no
+  longer lists the groups under the card: the gear in the header next to the name opens them as tabs, like a
+  device's settings (rows, switches, sliders, states and what it did); the arrow of that window goes back to the
+  card. Blocks without a card show their groups as before.
+
 ## 1.6.0 (2026-11-21)
 
 Saturday work on the duties, nodes of the editor hidden without removing them, text made for the voice in a block of

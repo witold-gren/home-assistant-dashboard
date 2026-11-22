@@ -501,6 +501,10 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 
 ## FAQ
 
+**The rows under a robot's card are gone** (a block with `card` and `groups`, 1.6.1) — they moved behind the gear in
+the header next to the robot's name: it opens them as tabs, like a device's settings, and the arrow goes back to the
+card. Blocks without a card keep their rows in the window.
+
 **A notification shows `###` and a lone `!here`, without the QR code** (e.g. HomeKit Pairing) — the message is
 Markdown, and the window of notifications knew only bold text and links. From this version it reads headings, pictures
 (from Home Assistant itself or https only, the QR code on a white card), lists, italic and code; a message still cannot

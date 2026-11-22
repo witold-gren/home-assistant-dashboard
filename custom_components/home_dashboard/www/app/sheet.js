@@ -425,7 +425,8 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
 
   /** Whether the corner of the header steps back to the window this one came from, instead of closing. */
   get _headerGoesBack() {
-    return ["camera", "sd", "disk"].includes(this.sheet?.kind) && Boolean(this.sheet.back);
+    return (["camera", "sd", "disk"].includes(this.sheet?.kind) || Boolean(this.sheet?.item?.back_to_card)) &&
+      Boolean(this.sheet.back);
   }
 
   /** Esc on the window itself does what the corner of its header does. */

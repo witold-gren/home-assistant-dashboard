@@ -547,6 +547,31 @@ export const BlockSheets = (Base) =>
       `;
     }
 
+    // The gear of a panel with a card: its groups as the tabs of a settings window (rows the plain way, plus what it
+    // did); the arrow of that window goes back to the card.
+    _openPanelSettings(item) {
+      const rows = item.groups.flatMap((group) => group.rows ?? []);
+      this._change({
+        kind: "panel",
+        entityId: this.sheet.entityId,
+        back: this.sheet,
+        item: {
+          kind: "panel",
+          name: item.name,
+          entity: item.entity,
+          details: item.details ?? item.entity,
+          tabs: true,
+          back_to_card: true,
+          activity: [...new Set(rows.map((row) => row.entity).filter(Boolean))],
+          groups: item.groups.map((group, index) => ({
+            key: `group-${index}`,
+            title: group.title ?? item.name,
+            rows: group.rows ?? [],
+          })),
+        },
+      });
+    }
+
     // A card that needs an administrator falls back to the plain page for everyone else.
     get _usesCard() {
       const { item } = this.sheet;
@@ -708,8 +733,14 @@ export const BlockSheets = (Base) =>
       if (item.tabs) return this._renderSettingsTabs(item);
       const stats = panelStats(this.hass, item);
       if (item.fullscreen && item.card && item.card_open && !item.card_last) return this._renderSplitPanel(item, stats);
+      // A panel with its own card (a robot): the card is the window, its groups wait behind the gear of the header,
+      // like a device's settings - nothing long to scroll under the card.
+      const behindGear = Boolean(item.card) && this._usesCard && Boolean(item.groups?.length);
+      const header = behindGear
+        ? this._renderHeader(item.name, false, true, () => this._openPanelSettings(item))
+        : this._renderHeader(item.name, false, Boolean(item.details), () => this._showDetails(item.details));
       return html`
-        ${this._renderHeader(item.name, false, Boolean(item.details), () => this._showDetails(item.details))}
+        ${header}
         <div class="rows">
           ${stats.length
             ? html`<div class="stats" data-panel-stats>
@@ -728,7 +759,7 @@ export const BlockSheets = (Base) =>
             : nothing}
           ${item.card_open ? nothing : this._renderActions(item.actions)}
           <div class="panel-groups" data-panel-groups>
-            ${(item.groups ?? []).map(
+            ${(behindGear ? [] : item.groups ?? []).map(
               (group, index) => html`<div class="panel-group" data-panel-group=${index}>
                 ${group.title && group.layout !== "summary" ? html`<h3>${group.title}</h3>` : nothing}
                 ${group.layout === "summary" ? this._renderSummary(group) : nothing}

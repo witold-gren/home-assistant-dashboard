@@ -506,6 +506,10 @@ skryptem `scripts/make_fixture.py`.
 
 ## FAQ
 
+**Zniknęły wiersze pod kartą robota** (blok z `card` i `groups`, 1.6.1) — są teraz pod trybikiem w nagłówku obok nazwy
+robota: otwiera je jako zakładki, jak ustawienia urządzenia, a strzałka wraca do karty. Bloki bez karty mają wiersze w
+oknie jak dotąd.
+
 **Powiadomienie pokazuje `###` i samotne `!here`, bez kodu QR** (np. HomeKit Pairing) — treść jest w Markdown, a okno
 powiadomień znało tylko pogrubienie i linki. Od tej wersji czyta nagłówki, obrazki (tylko z samego Home Assistant
 albo po https, kod QR na białej karcie), listy, kursywę i kod; powiadomienie nadal nie może wnieść własnego HTML.
