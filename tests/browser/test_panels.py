@@ -176,11 +176,12 @@ def test_watched_entities_include_everything_a_block_reads(phone):
         const config = model.normalizeConfig({ layout: [{ id: "x", name: "X", home: [{
             kind: "panel", name: "M", entity: "sensor.a", status: "sensor.b", active: "sensor.c",
             stats: [{ name: "s", entity: "sensor.d" }], groups: [{ rows: [{ entity: "sensor.e" }] }],
+            quick: { name: "q", service: "x.y", active: "binary_sensor.f" },
         }], sections: [] }] });
         const instance = hass();
         return [...model.watchedEntityIds(instance, config, model.selectEntities(instance, config))];
     }""")
-    assert {"sensor.a", "sensor.b", "sensor.c", "sensor.d", "sensor.e"} <= set(ids)
+    assert {"sensor.a", "sensor.b", "sensor.c", "sensor.d", "sensor.e", "binary_sensor.f"} <= set(ids)
 
 
 # Sheet -------------------------------------------------------------------------------------------
@@ -952,6 +953,80 @@ def test_a_console_off_by_its_active_sensor_has_no_button_though_its_cloud_says_
     tile.wait_for()
     assert status in tile.inner_text()
     assert tile.locator("[data-tile-quick]").count() == buttons
+
+
+# A robot: its STOP only while a child's program runs, whatever its connection says; vector.stop takes a device_id.
+VECTOR = {
+    "kind": "panel",
+    "name": "Vector",
+    "entity": "binary_sensor.vector_connectivity",
+    "status": "sensor.vector_activity",
+    "labels": {"ChildProgram": "Program dziecka"},
+    "quick": {
+        "name": "STOP",
+        "icon": "mdi:stop-circle-outline",
+        "service": "vector.stop",
+        "data": {"device_id": "dev_vector"},
+        "active": "binary_sensor.vector_program",
+    },
+}
+
+
+def add_vector(page, program: str, connectivity: str = "on") -> None:
+    add_entity(page, "binary_sensor.vector_connectivity", connectivity, {})
+    add_entity(page, "sensor.vector_activity", "ChildProgram" if program == "on" else "Exploring", {})
+    add_entity(page, "binary_sensor.vector_program", program, {})
+
+
+@pytest.mark.parametrize("program", ["off", "unavailable", "unknown"])
+def test_a_robot_without_a_program_has_no_stop_though_it_is_connected(phone, program):
+    add_vector(phone, program)
+    mount(phone, room_with(VECTOR))
+    phone.locator("home-dashboard-page [data-tile='Vector']").wait_for()
+    assert phone.locator("home-dashboard-page [data-tile-quick]").count() == 0
+
+
+def test_a_robot_running_a_program_has_its_stop_which_sends_only_its_data(phone):
+    add_vector(phone, "on")
+    mount(phone, room_with(VECTOR))
+    tile = phone.locator("home-dashboard-page [data-tile='Vector']")
+    assert "Program dziecka" in tile.inner_text()
+    quick = tile.locator("[data-tile-quick]")
+    assert quick.inner_text().strip() == "STOP"
+    quick.click()
+    assert calls(phone) == [
+        {"type": "service", "domain": "vector", "service": "stop", "data": {"device_id": "dev_vector"}}
+    ]
+    # no question: the window does not open
+    assert phone.locator("home-dashboard-sheet section.panel").count() == 0
+
+
+def test_quick_active_shows_the_button_even_when_the_block_entity_is_off(phone):
+    add_vector(phone, "on", connectivity="off")
+    mount(phone, room_with(VECTOR))
+    phone.locator("home-dashboard-page [data-tile='Vector']").wait_for()
+    assert phone.locator("home-dashboard-page [data-tile-quick]").count() == 1
+
+
+def test_quick_active_wins_over_the_active_of_the_block(phone):
+    add_vector(phone, "off")
+    add_entity(phone, "binary_sensor.vector_lit", "on", {})
+    mount(phone, room_with({**VECTOR, "active": "binary_sensor.vector_lit"}))
+    phone.locator("home-dashboard-page [data-tile='Vector']").wait_for()
+    assert phone.locator("home-dashboard-page [data-tile-quick]").count() == 0
+
+
+def test_a_quick_with_a_question_sends_its_data_after_the_answer(phone):
+    add_vector(phone, "on")
+    mount(phone, room_with({**VECTOR, "quick": {**VECTOR["quick"], "confirm": "Zatrzymać program?"}}))
+    phone.locator("home-dashboard-page [data-tile='Vector'] [data-tile-quick]").click()
+    confirm = phone.locator("home-dashboard-sheet [data-confirm]")
+    confirm.wait_for()
+    assert calls(phone) == []
+    confirm.locator("[data-confirm-yes]").click()
+    assert calls(phone) == [
+        {"type": "service", "domain": "vector", "service": "stop", "data": {"device_id": "dev_vector"}}
+    ]
 
 
 def test_a_script_gets_its_fields_only(phone):

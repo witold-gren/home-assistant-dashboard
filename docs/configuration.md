@@ -495,6 +495,29 @@ instead of the state, e.g. `media_title` of a console) and `labels`
 its entity is on (not `off` or unavailable), e.g. **Turn off** on a console; with `confirm` the window opens asking first.
 With `active` the button follows that entity instead, for a console whose cloud state stays `on` after it went off
 (`active: binary_sensor.xbox_playing`, a sensor that also pings it; `status` and `labels` show the same on the tile).
+`quick.active` (an entity id) shows the button only while **that** entity is on (not `off`, unavailable or unknown),
+whatever the block's entity and its `active` say. The service gets `entity_id` of the block's entity, unless `data`
+names its own target (`device_id`, `entity_id` or `area_id`): then only `data` goes.
+
+A robot's **STOP** only while a child's program runs (Vector integration 0.3.1+, whose activity is `ChildProgram`
+then). `vector.stop` takes a `device_id`, not an entity, so it is in `data` (the robot's device id: *Settings →
+Devices*, the robot, its address ends with it):
+
+```yaml
+- kind: panel
+  name: Vector
+  entity: binary_sensor.vector_connectivity
+  status: sensor.vector_activity
+  labels:
+    ChildProgram: "Child's program"
+  quick:
+    name: STOP
+    icon: mdi:stop-circle-outline
+    service: vector.stop
+    data: {device_id: 0123456789abcdef0123456789abcdef}
+    active: binary_sensor.vector_program
+```
+
 A time left below zero (`format: hours`) reads as **over by 10 min**.
 
 `groups` entries:

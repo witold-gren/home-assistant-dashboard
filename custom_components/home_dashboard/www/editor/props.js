@@ -53,6 +53,7 @@ export function blockFields(block) {
     { key: "details", type: "entity" },
     { key: "compact", type: "toggle" },
     { key: "fullscreen", type: "toggle" },
+    { key: "quick", type: "quick" },
     block.card && { key: "card_open", type: "toggle" },
     block.card && block.card_open && { key: "card_last", type: "toggle" },
   ].filter(Boolean);
@@ -209,7 +210,7 @@ export class HomeDashboardEditorProps extends LitElement {
     if (!fields.length) return list ? nothing : html`<p class="hint" data-no-form>${this._t("editor_no_form")}</p>`;
     return html`<div class="form" data-form=${this.node.kind}>
       ${fields.map((field) => this._renderField(field))}
-      ${fields.some((field) => field.type === "entity")
+      ${fields.some((field) => field.type === "entity" || field.type === "quick")
         ? html`<datalist id="hd-entities">
             ${Object.keys(this.hass.states)
               .sort()
@@ -244,6 +245,7 @@ export class HomeDashboardEditorProps extends LitElement {
       number: () => this._number(field, value),
       mapping: () => this._mapping(field, value),
       options: () => this._options(field),
+      quick: () => this._quick(field, value),
     };
     return renderers[field.type]();
   }
@@ -448,6 +450,47 @@ export class HomeDashboardEditorProps extends LitElement {
     </div>`;
   }
 
+  /**
+   * The button on the block's tile (`quick`): its name, icon, service, a question asked first and the entity that
+   * shows it (`quick.active`). Its `data` stays as written in YAML; an empty form removes `quick`.
+   */
+  _quick(field, value) {
+    const quick = value ?? {};
+    const set = (key, text) => this._set(field.key, withField(quick, key, typeof text === "string" ? text.trim() : text));
+    const shown = quick.active && this.hass.states[quick.active];
+    const input = (key, placeholder, extra = {}) => html`<label class="sub" data-quick=${key}>
+      <span>${this._t(`editor_field_quick_${key}`)}</span>
+      <input
+        list=${extra.list ?? nothing}
+        .value=${quick[key] ?? ""}
+        placeholder=${placeholder}
+        @change=${(event) => set(key, event.target.value)}
+      />
+    </label>`;
+    return html`<div class="field" data-field=${field.key}>
+      ${this._label(field)}
+      <div class="quick">
+        ${input("name", this._t("editor_quick_name_example"))}
+        <div class="sub" data-quick="icon">
+          <span>${this._t("editor_field_quick_icon")}</span>
+          <home-dashboard-icon-picker .value=${quick.icon ?? ""} placeholder="mdi:power"
+            @icon-change=${(event) => set("icon", event.detail.value)}></home-dashboard-icon-picker>
+        </div>
+        ${input("service", "vector.stop")}
+        ${input("confirm", this._t("editor_quick_confirm_example"))}
+        ${input("active", "binary_sensor.vector_program", { list: "hd-entities" })}
+        ${quick.active && !shown
+          ? html`<small class="problem" data-entity-missing>${this._t("editor_problem_no_entity")}</small>`
+          : shown
+            ? html`<small class="help">${shown.attributes?.friendly_name ?? quick.active} · ${shown.state}</small>`
+            : nothing}
+        <small class="help" data-quick-help="active">${this._t("editor_help_quick_active")}</small>
+        ${quick.data ? html`<small class="help" data-quick-data><code>data: ${JSON.stringify(quick.data)}</code></small>` : nothing}
+      </div>
+      ${this._help(field)}
+    </div>`;
+  }
+
   _pin(field, value) {
     const set = (key, text) => this._set(field.key, withField(value ?? {}, key, text.trim()));
     return html`<div class="field" data-field=${field.key}>
@@ -603,6 +646,21 @@ export class HomeDashboardEditorProps extends LitElement {
     .mini:disabled {
       opacity: 0.3;
       cursor: default;
+    }
+    .quick {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--line, #2f343c);
+      border-radius: 9px;
+    }
+    .sub {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 12px;
+      color: var(--muted, #9aa0a6);
     }
     .pair {
       display: grid;

@@ -360,7 +360,10 @@ Blok kilku encji (`kind: panel`) rozwija się w drzewie na części, każda z fo
   jedną jako wiersz.
 - W formularzu samego bloku: nazwa, ikona, encja i stan jego kafelka, własne nazwy stanów, kiedy kafelek jest
   „włączony” (`active`, `active_state`), karta Home Assistanta na końcu, cały ekran.
-- Przycisk na kafelku, gdy urządzenie działa (`quick`, np. *Wyłącz* przy konsoli), ustawia się w YAML. Z `active`
+- <b class="ui">Przycisk na kafelku</b> (`quick`, np. *Wyłącz* przy konsoli): nazwa, ikona, usługa, pytanie przed
+  i <b class="ui">Widoczny, gdy włączona</b> (`quick.active`): encja, która sama pokazuje przycisk, gdy jest włączona,
+  np. *STOP* robota z `binary_sensor.vector_program` w czasie programu dziecka. Pola usługi (`data`, np. `device_id`
+  robota) ustawia się w YAML. Z `active` bloku
   przycisk patrzy na tę encję, a nie na encję kafelka: konsola Xbox ma `active: binary_sensor.xbox_playing` (chmura
   i ping razem), bo jej stan z chmury potrafi zostać „włączony” po wyłączeniu. Czas poniżej zera w formacie *Czas
   (h min)* brzmi „przekroczono o 10 min”.

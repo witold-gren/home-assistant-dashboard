@@ -506,6 +506,11 @@ skryptem `scripts/make_fixture.py`.
 
 ## FAQ
 
+**STOP robota nic nie robi, w logu `extra keys not allowed @ data['entity_id']`** (`quick` albo akcja z `service:
+vector.stop`) — `vector.stop` przyjmuje `device_id` robota, a nie encję, a przed 1.6.3 przycisk wysyłał też encję
+bloku. Wpisz w `quick` `data: {device_id: <id urządzenia robota>}` (od 1.6.3 `data` z własnym `device_id` idzie samo)
+i `active: binary_sensor.<robot>_program`, aby przycisk był widoczny tylko w czasie programu dziecka.
+
 **Zniknęły wiersze pod kartą robota** (blok z `card` i `groups`, 1.6.1) — są teraz pod trybikiem w nagłówku obok nazwy
 robota: otwiera je jako zakładki, jak ustawienia urządzenia, a strzałka wraca do karty. Bloki bez karty mają wiersze w
 oknie jak dotąd.

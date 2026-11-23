@@ -113,11 +113,26 @@ export function panelTile(hass, item) {
     available: !waiting && stateObj?.state !== "unavailable",
     iconAction: null,
     tapAction: "panel",
-    // A button on the tile while its device is on (a console: Turn off), asked first in the block's window.
-    // With `active`, that entity says so (a console whose cloud state is stuck on "on").
-    quick: item.quick && stateObj && (item.active ? isActive(hass, item) : !["off", "unavailable", "unknown"].includes(stateObj.state)) ? item.quick : null,
+    quick: quickShown(hass, item, stateObj) ? item.quick : null,
     stats: item.compact ? [] : panelStats(hass, item),
   };
+}
+
+const QUICK_OFF_STATES = ["off", "unavailable", "unknown"];
+
+/**
+ * A button on the tile while its device is on (a console: Turn off), asked first in the block's window. With the
+ * block's `active`, that entity says so (a console whose cloud state is stuck on "on"); with `quick.active` only that
+ * entity does, whatever the block's own (a robot's STOP while a child's program runs).
+ */
+function quickShown(hass, item, stateObj) {
+  if (!item.quick) return false;
+  if (item.quick.active) {
+    const state = hass.states[item.quick.active]?.state;
+    return Boolean(state) && !QUICK_OFF_STATES.includes(state);
+  }
+  if (!stateObj) return false;
+  return item.active ? isActive(hass, item) : !QUICK_OFF_STATES.includes(stateObj.state);
 }
 
 export function panelStats(hass, item) {
@@ -130,6 +145,7 @@ export function panelEntityIds(item) {
     item.entity,
     item.status,
     item.active,
+    item.quick?.active,
     item.hidden_when,
     ...(item.stats ?? []).map((stat) => stat.entity),
     ...rows.map((row) => row.entity),
@@ -201,11 +217,15 @@ export function matchSource(sources, name) {
   );
 }
 
+const OWN_TARGET_KEYS = ["entity_id", "device_id", "area_id"];
+
 export function runAction(hass, action) {
   if (!action?.service) return;
   const [domain, service] = action.service.split(".");
-  // A script called by its own name takes only its fields (`data`, e.g. minutes); anything else its entity too.
-  const target = action.target && !(domain === "script" && service !== "turn_on") ? { entity_id: action.target } : {};
+  // A script called by its own name takes only its fields (`data`, e.g. minutes); anything else its entity too, unless
+  // `data` names its own target (`device_id` of a robot: vector.stop takes no entity).
+  const ownTarget = OWN_TARGET_KEYS.some((key) => action.data?.[key] !== undefined);
+  const target = action.target && !ownTarget && !(domain === "script" && service !== "turn_on") ? { entity_id: action.target } : {};
   hass.callService(domain, service, { ...target, ...(action.data ?? {}) });
 }
 

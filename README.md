@@ -501,6 +501,12 @@ The frontend has no build step: plain ES modules, with Lit in `www/vendor`.
 
 ## FAQ
 
+**STOP of a robot does nothing, the log says `extra keys not allowed @ data['entity_id']`** (a `quick` or an action
+with `service: vector.stop`) — `vector.stop` takes the robot's `device_id`, not an entity, and before 1.6.3 the button
+sent the block's entity too. Put `data: {device_id: <the robot's device id>}` in the `quick` (from 1.6.3 a `data` with
+its own `device_id` goes alone) and `active: binary_sensor.<robot>_program` to show it only while a child's program
+runs.
+
 **The rows under a robot's card are gone** (a block with `card` and `groups`, 1.6.1) — they moved behind the gear in
 the header next to the robot's name: it opens them as tabs, like a device's settings, and the arrow goes back to the
 card. Blocks without a card keep their rows in the window.

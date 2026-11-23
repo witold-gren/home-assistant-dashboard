@@ -361,9 +361,12 @@ A block of several entities (`kind: panel`) opens in the tree into its parts, ea
   one as a row.
 - In the form of the block itself: name, icon, the entity of its tile and its state, own names of states, when the
   tile is "on" (`active`, `active_state`), a card of Home Assistant at the end, the whole screen.
-- A button on the tile while the device is on (`quick`, e.g. *Turn off* on a console) is set in YAML. With `active`
-  the button follows that entity, not the tile's: an Xbox has `active: binary_sensor.xbox_playing` (the cloud and a
-  ping together), as its cloud state can stay "on" after it went off. A time below zero in *Time (h min)* reads as
+- <b class="ui">Button on the tile</b> (`quick`, e.g. *Turn off* on a console): name, icon, service, a question asked
+  first and <b class="ui">Shown while on</b> (`quick.active`): an entity that alone shows the button while it is on, e.g.
+  a robot's *STOP* with `binary_sensor.vector_program` while a child's program runs. Fields of the service (`data`,
+  e.g. a robot's `device_id`) are set in YAML. With the block's `active` the button follows that entity, not the
+  tile's: an Xbox has `active: binary_sensor.xbox_playing` (the cloud and a ping together), as its cloud state can
+  stay "on" after it went off. A time below zero in *Time (h min)* reads as
   "over by 10 min".
 
 Choosing a block opens its window in the preview, and under the tablet the editor says whether it fits without

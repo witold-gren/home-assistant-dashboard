@@ -496,6 +496,29 @@ Pozycje `actions`:
 jest włączona (nie `off` ani niedostępna), np. **Wyłącz** przy konsoli; z `confirm` okno otwiera się od pytania.
 Z `active` przycisk patrzy na tę encję, np. przy konsoli, której stan z chmury zostaje `on` po wyłączeniu
 (`active: binary_sensor.xbox_playing`, czujnik, który ją też pinguje; `status` i `labels` pokazują to samo na kafelku).
+`quick.active` (id encji) pokazuje przycisk tylko, gdy **ta** encja jest włączona (nie `off`, niedostępna ani nieznana),
+niezależnie od encji bloku i jego `active`. Usługa dostaje `entity_id` encji bloku, chyba że `data` podaje własny cel
+(`device_id`, `entity_id` albo `area_id`): wtedy idzie tylko `data`.
+
+**STOP** robota tylko w czasie programu dziecka (integracja Vector 0.3.1+, której aktywność to wtedy `ChildProgram`).
+`vector.stop` przyjmuje `device_id`, a nie encję, więc jest w `data` (id urządzenia robota: *Ustawienia → Urządzenia*,
+robot, adres strony kończy się tym id):
+
+```yaml
+- kind: panel
+  name: Vector
+  entity: binary_sensor.vector_connectivity
+  status: sensor.vector_activity
+  labels:
+    ChildProgram: "Program dziecka"
+  quick:
+    name: STOP
+    icon: mdi:stop-circle-outline
+    service: vector.stop
+    data: {device_id: 0123456789abcdef0123456789abcdef}
+    active: binary_sensor.vector_program
+```
+
 Czas pozostały poniżej zera (`format: hours`) brzmi **przekroczono o 10 min**.
 
 Pozycje `groups`:

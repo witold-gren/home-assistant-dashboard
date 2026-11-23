@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.3 (2026-11-23)
+
+- **A button on a block's tile shown by its own entity.** `quick.active` (an entity id) shows the button only while
+  that entity is on (not `off`, unavailable or unknown), whatever the block's entity and its `active` say: a robot's
+  **STOP** only while a child's program runs (`active: binary_sensor.vector_program`; Vector integration 0.3.1+ shows
+  the activity `ChildProgram` then, `labels: {ChildProgram: "Program dziecka"}`). The tile watches that entity too.
+- A button or an action whose `data` names its own target (`device_id`, `entity_id` or `area_id`) no longer gets the
+  block's entity as well: `vector.stop` takes a robot's `device_id` and refuses an `entity_id`.
+- **Editor:** the block's form has **Button on the tile** (`quick`): name, icon, service, question before and
+  **Shown while on** (`quick.active`) with a hint; its `data` stays as written in YAML and is shown under the fields.
+
 ## 1.6.2 (2026-11-22)
 
 - **No browser dialogs any more.** Removing a room or a section with something in it and throwing the draft away ask

@@ -134,10 +134,45 @@ def test_a_block_has_a_form_of_its_tile_and_window(desktop):  # noqa: F811
         "details",
         "compact",
         "fullscreen",
+        "quick",
     ]
     field(desktop, "compact").locator("button").click()
     fill(desktop, field(desktop, "name").locator("input"), "Kawa")
     assert coffee(desktop)["compact"] is True and coffee(desktop)["name"] == "Kawa"
+
+
+def test_a_block_button_on_its_tile_is_set_in_its_form_and_keeps_its_data(desktop):  # noqa: F811
+    with_data = {
+        **COFFEE,
+        "quick": {"name": "STOP", "service": "vector.stop", "data": {"device_id": "dev_coffee"}},
+    }
+    open_editor(desktop, {**STRATEGY, "shortcuts": [with_data, *STRATEGY["shortcuts"][1:]]})
+    select(desktop, "shortcuts/0")
+    quick = field(desktop, "quick")
+    assert quick.locator("[data-quick-help='active']").count() == 1
+    assert "device_id" in quick.locator("[data-quick-data]").inner_text()
+    fill(desktop, quick.locator("[data-quick='active'] input"), "switch.test_cup_light")
+    fill(desktop, quick.locator("[data-quick='confirm'] input"), "Zatrzymać?")
+    assert coffee(desktop)["quick"] == {
+        "name": "STOP",
+        "service": "vector.stop",
+        "data": {"device_id": "dev_coffee"},
+        "active": "switch.test_cup_light",
+        "confirm": "Zatrzymać?",
+    }
+    assert "Podświetlenie" in quick.inner_text()
+    fill(desktop, quick.locator("[data-quick='active'] input"), "")
+    assert "active" not in coffee(desktop)["quick"]
+
+
+def test_an_empty_button_form_removes_quick(desktop):  # noqa: F811
+    open_editor(desktop, STRATEGY)
+    select(desktop, "shortcuts/0")
+    quick = field(desktop, "quick")
+    fill(desktop, quick.locator("[data-quick='name'] input"), "Wyłącz")
+    assert coffee(desktop)["quick"] == {"name": "Wyłącz"}
+    fill(desktop, quick.locator("[data-quick='name'] input"), "")
+    assert "quick" not in coffee(desktop)
 
 
 def test_a_block_tile_of_a_room_has_the_same_form(desktop):  # noqa: F811
