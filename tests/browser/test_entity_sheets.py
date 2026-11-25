@@ -391,6 +391,31 @@ def test_a_guest_mode_needing_a_pin_cannot_be_switched_off_in_the_group(phone):
     assert phone.locator(f"{SHEET} .panel").count() == 0
 
 
+def test_more_groups_stand_under_the_first(phone):
+    add_entity(phone, "input_boolean.home", "on", {})
+    add_entity(phone, "input_boolean.cabin", "off", {})
+    add_entity(phone, "alarm_control_panel.a", "armed_away", ALARM)
+    groups = [
+        {"name": "Dzieci", "entities": ["input_boolean.cabin"]},
+        {"name": "Pusta", "entities": ["input_boolean.missing"]},
+        {"name": "Nowa"},
+    ]
+    first = {"name": "Gość", "entities": ["input_boolean.home"]}
+    mount(phone, {**guests_dashboard(), "security": {"group": first, "groups": groups}})
+    phone.locator("[data-chip='security']").click()
+    phone.wait_for_selector("home-dashboard-page section[data-room='__security_group_2']")
+    heads = phone.locator("home-dashboard-page section[data-room^='__security_group'] h2").all_text_contents()
+    assert [head.strip() for head in heads] == ["Gość", "Dzieci"]
+
+
+def test_more_groups_need_no_first_one(phone):
+    add_entity(phone, "input_boolean.home", "on", {})
+    groups = [{"name": "Dzieci", "entities": ["input_boolean.home"]}]
+    mount(phone, {**guests_dashboard(), "security": {"groups": groups}})
+    phone.locator("[data-chip='security']").click()
+    phone.wait_for_selector("home-dashboard-page section[data-room='__security_group_2']")
+
+
 def test_other_filters_have_no_group(phone):
     add_entity(phone, "input_boolean.home", "on", {})
     mount(phone, {"security": {"group": GUESTS}})
@@ -834,6 +859,45 @@ def test_the_keypad_closes_when_the_mode_goes_off(phone):
         const chrome = document.querySelector("home-dashboard-chrome");
         const states = { ...chrome.hass.states };
         states["input_boolean.guest"] = { ...states["input_boolean.guest"], state: "off" };
+        chrome.hass = { ...chrome.hass, states };
+    }""")
+    phone.wait_for_selector(f"{SHEET} section.panel", state="detached")
+
+
+def open_on_pin(page) -> None:
+    add_entity(page, "input_boolean.guest", "off", {})
+    on_pin = {**OFF_PIN, "data": {"value": "on"}}
+    item = {
+        "entity": "input_boolean.guest",
+        "name": "Tel",
+        "turn_on_only": True,
+        "off_pin": OFF_PIN,
+        "on_pin": on_pin,
+    }
+    mount(page, room_with(item))
+    page.locator("home-dashboard-page [data-entity='input_boolean.guest'] .text").click()
+    page.wait_for_selector(f"{SHEET} section.panel[data-kind='pin']")
+
+
+def test_switching_on_with_a_pin_asks_first(phone):
+    open_on_pin(phone)
+    assert service_calls(phone) == []
+    type_pin(phone, "1234")
+    phone.locator(f"{SHEET} [data-pin-ok]").click()
+    call = last_call(phone)
+    assert (call["domain"], call["service"], call["data"]) == (
+        "script",
+        "unlock",
+        {"value": "on", "pin": "1234"},
+    )
+
+
+def test_the_keypad_closes_when_the_mode_goes_on(phone):
+    open_on_pin(phone)
+    phone.evaluate("""() => {
+        const chrome = document.querySelector("home-dashboard-chrome");
+        const states = { ...chrome.hass.states };
+        states["input_boolean.guest"] = { ...states["input_boolean.guest"], state: "on" };
         chrome.hass = { ...chrome.hass, states };
     }""")
     phone.wait_for_selector(f"{SHEET} section.panel", state="detached")

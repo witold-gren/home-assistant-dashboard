@@ -602,9 +602,10 @@ export function layoutTile(hass, given, roomName, config, layout) {
     return {
       ...shown,
       iconAction: null,
-      tapAction: off ? "call" : item.off_pin ? "pin" : "none",
-      offPin: item.off_pin ?? null,
-      call: off ? serviceCall(["homeassistant", "turn_on"], item.entity) : null,
+      tapAction: off ? (item.on_pin ? "pin" : "call") : item.off_pin ? "pin" : "none",
+      offPin: (off ? item.on_pin : null) ?? item.off_pin ?? null,
+      expect: off ? "on" : "off",
+      call: off && !item.on_pin ? serviceCall(["homeassistant", "turn_on"], item.entity) : null,
     };
   }
   if (item.tap_toggle && tile.available) {
@@ -1415,12 +1416,18 @@ const FILTERS = {
   media: (tile) => tile.domain === "media_player" || tile.media,
 };
 
-// Tiles the user keeps together at the top of the security filter, wherever their rooms are.
-function securityGroup(model) {
-  const { name, entities = [] } = model.securityGroup ?? {};
+// Tiles the user keeps together at the top of the security filter, wherever their rooms are:
+// `security.group` and, under it, `security.groups`.
+function securityGroups(model) {
   const known = [...model.rooms, ...(model.filterRooms ?? [])].flatMap((room) => room.tiles);
-  const tiles = entities.map((id) => known.find((tile) => tile.entityId === id)).filter(Boolean);
-  return tiles.length ? [{ id: "__security_group", name, tiles, plain: true }] : [];
+  return (model.securityGroups ?? [])
+    .map(({ name, entities }, index) => ({
+      id: index ? `__security_group_${index + 1}` : "__security_group",
+      name,
+      tiles: (entities ?? []).map((id) => known.find((tile) => tile.entityId === id)).filter(Boolean),
+      plain: true,
+    }))
+    .filter((group) => group.tiles.length);
 }
 
 export function applyFilter(model, key, language) {
@@ -1437,7 +1444,7 @@ export function applyFilter(model, key, language) {
     scenes: [],
     cameras: [],
     cameraList: key === "security" ? model.cameras : [],
-    rooms: key === "security" ? [...securityGroup(model), ...rooms] : rooms,
+    rooms: key === "security" ? [...securityGroups(model), ...rooms] : rooms,
   };
 }
 
@@ -1503,6 +1510,15 @@ function weatherEntities(hass) {
 
 // A home station measures the present and a weather service knows the future, so the chip and the
 // forecast can come from two entities. Nothing configured: the first one, and the first that forecasts.
+// The home's own sensors behind the days that were; one hidden from a person is left out for them.
+function weatherHistory(hass, config) {
+  const { temperature, rain, limit } = config.weather.history ?? {};
+  const shown = (id) => (id && hass.states[id] && !config.denied?.includes(id) ? id : null);
+  if (!shown(temperature)) return null;
+  const degrees = limit === null || limit === undefined || limit === "" ? NaN : Number(limit);
+  return { temperature, rain: shown(rain), limit: Number.isFinite(degrees) ? degrees : null };
+}
+
 export function buildWeather(hass, config) {
   if (!config.weather) return null;
   const found = weatherEntities(hass);
@@ -1516,6 +1532,7 @@ export function buildWeather(hass, config) {
     forecast: config.weather.forecast ?? [entity, ...found].find(forecasts) ?? null,
     icon: weatherIcon(stateObj.state),
     tone: stateObj.state === "sunny" ? "light" : "media",
+    history: weatherHistory(hass, config),
     label: translate(hass.language, "chip_weather"),
     value: typeof temperature === "number" ? `${temperature.toFixed(1)}°` : translate(hass.language, "no_data"),
   };
@@ -1597,7 +1614,7 @@ export function buildHomeModel(hass, config, selection, layout = "phone", now = 
     rooms: shownRooms(hass, config, selection, layout).filter((room) => room.tiles.length),
     // A layout lists what the user wants at a glance; a filter answers for the whole house.
     filterRooms: filterRooms(hass, config, selection, layout),
-    securityGroup: config.security.group,
+    securityGroups: [config.security.group ?? {}, ...(config.security.groups ?? [])],
     intercom: intercomReady(hass, config) ? intercomAreas(hass, config) : [],
   };
 }

@@ -33,6 +33,7 @@ export function tileFields(tile, strategy) {
     { key: "active_only", type: "toggle" },
     { key: "turn_on_only", type: "toggle" },
     tile.turn_on_only && { key: "off_pin", type: "pin" },
+    tile.turn_on_only && { key: "on_pin", type: "pin" },
     { key: "action", type: "text", placeholder: "script.example" },
     list && { key: "confirm", type: "toggle" },
     list && { key: "labels", type: "labels" },

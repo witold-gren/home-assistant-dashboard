@@ -669,7 +669,7 @@ export class HomeDashboardPage extends LitElement {
     // A block with a window of its own, as the scale.
     if (tile.tapAction === "block") openSheet(this, { kind: tile.item.kind, entityId: tile.entityId, item: tile.item });
     if (tile.tapAction === "pin") {
-      openSheet(this, { kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin });
+      openSheet(this, { kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin, expect: tile.expect });
     }
     if (tile.tapAction === "sheet") {
       openSheet(this, { kind: SHEET_KINDS[tile.domain] ?? tile.domain, entityId: tile.entityId, name: tile.name, ...tile.sheetOptions });

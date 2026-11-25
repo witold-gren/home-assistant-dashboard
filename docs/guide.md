@@ -173,6 +173,28 @@ with the precipitation of each hour under it in mm (blue rain, white snow, purpl
 next days as columns on one scale of temperature with their precipitation. The forecast gives the amount of
 precipitation, not its chance. A phone and an upright tablet keep the list.
 
+**A chosen day.** A tap on one of the next days (or the right arrow, or dragging the chart to the left) opens its
+forecast: temperature and precipitation by the hour, the low and high, precipitation, wind and humidity and, with
+`weather.history.limit`, the limit and the hours below it. <b class="ui">Next 24 hours</b> or the column
+<b class="ui">Today</b> goes back. On a phone the hours open under the row of the day.
+
+> **"The hourly forecast does not reach this day yet: these are the values of whole days."** A weather service gives
+> hours for a part of the days only (Met.no: 48 hours). A farther day is marked on a chart of the days; its hours come
+> when it gets closer. Another weather service in `weather.forecast` may give more hours.
+
+**The days that were.** With `weather.history` (Settings → Home page and tablet → Weather → The days that were) the
+arrows over the chart, or dragging it to the right, go back day by day: today so far and the 7 days before it, as your
+own sensors measured them. The line is the mean of each hour, the band its lowest and highest reading, the bars the
+rain. Under it: the day (6–18), the night after it (18–6 of the next morning), the rain and, with `limit`, the hours
+from 6:00 to 6:00 whose lowest reading was below it. The next days give way to the week as columns; a tap opens a day.
+Hours without a reading are counted and left as a gap. A phone and an upright tablet have it under the forecast. The
+last hour comes a while after its end (hourly statistics).
+
+```yaml
+weather:
+  history: {temperature: sensor.balcony_temperature, rain: sensor.rain_today, limit: 3}
+```
+
 `weather: false` removes the chip. <b class="ui">User access</b> hides it from one person, under <b class="ui">Chips</b>.
 
 ![Weather](screenshots/en/weather.png)
@@ -946,15 +968,19 @@ shortcuts:
     speaker: media_player.hall_homepod    # stops it
 ```
 
-With a speaker or a script the window has <b class="ui">Read everything</b> and a button for each section with `read: true`;
-the text read is the intro, the refrain, the text and the ending, without the marks of a psalm.
+**Reading aloud.** First choose where: <b class="ui">Listen on the phone</b> (a tablet and a computer have their own
+name on it) or <b class="ui">Listen on the player</b>, when the block has a speaker or a script. Then what:
+<b class="ui">Read: {name}</b> for each section with `read: true` (e.g. *Read: Gospel*) or
+<b class="ui">Read everything</b>. With one place only these buttons are there at once. The text read is the intro, the
+refrain, the text and the ending, without the marks of a psalm. The lit button reads; another tap on it stops it.
 
-<b class="ui">Listen to everything</b> reads everything on the device the window is open on — a phone, a tablet, a
-Mac — not on a speaker; each section with `read: true` also has its own <b class="ui">Listen: {name}</b> (e.g.
-*Listen: Gospel*). The button reading is lit and stops it; another one starts its own text instead. Home Assistant makes a recording with the same text-to-speech (`tts`, else the first) and the browser plays
-it, with <b class="ui">Pause</b> and <b class="ui">Stop</b>. A long text takes a few seconds to prepare. Without any
-text-to-speech, or when it fails, the browser reads it in its own voice. Closing the window stops it;
-`hide_read_here: true` hides the "Listen" buttons.
+Until the voice is heard a circle turns on the button and a line under it says that the voice is loading; a text takes
+about 10 seconds, everything longer. On the player the circle goes when the player starts, after a minute at the latest.
+Under the buttons is the volume of the player (`speaker`), when it can be set.
+
+On the phone the browser plays a recording of the same text-to-speech (`tts`, else the first), with
+<b class="ui">Pause</b> and <b class="ui">Stop</b>. Without any text-to-speech, or when it fails, the browser reads in its
+own voice. Closing the window stops reading on the device; `hide_read_here: true` hides this choice.
 
 **Voice** (`voice`) chooses a voice of the text-to-speech for every button: the editor lists the voices of the chosen
 engine (`tts`, else the first) in your language. A script reads in it when its field for a voice is named in
@@ -963,8 +989,8 @@ its own voice.
 
 **Text made for the voice** (`speech_entity`). What looks good on the screen is not always right to hear: a psalm
 shows its refrain once, but at Mass it is said after every stanza. An integration can give the text ready to be read
-aloud in an entity (attribute `text` or `tekst`); put it in `speech_entity` of the block for *Read everything* and
-*Listen to everything*, and in `speech_entity` of a section for its own buttons. The window keeps showing the sections.
+aloud in an entity (attribute `text` or `tekst`); put it in `speech_entity` of the block for *Read everything*,
+and in `speech_entity` of a section for its own buttons. The window keeps showing the sections.
 For example `sensor.readings_for_speech` for the block and `sensor.gospel_for_speech` for the Gospel section.
 
 ### Apps in a window

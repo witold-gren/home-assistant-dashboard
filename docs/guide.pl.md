@@ -174,6 +174,28 @@ a pod nim opady każdej godziny w mm: niebieskie to deszcz, białe śnieg, fiole
 dobę. Pod spodem najbliższe dni jako kolumny ze wspólną skalą temperatury i sumą opadów. Prognoza podaje ilość
 opadów, ale nie ich prawdopodobieństwo. Telefon i tablet w pionie zostają przy układzie listy.
 
+**Wybrany dzień.** Dotknięcie jednego z najbliższych dni (albo strzałka w prawo lub przeciągnięcie wykresu w lewo)
+otwiera jego prognozę: temperaturę i opady godzina po godzinie, minimum i maksimum, opady, wiatr i wilgotność, a z
+`weather.history.limit` także próg i liczbę godzin poniżej niego. Wracasz przyciskiem
+<b class="ui">Najbliższe 24 godziny</b> albo kolumną <b class="ui">Dziś</b>. Na telefonie godziny rozwijają się pod wierszem dnia.
+
+> **„Prognoza godzinowa nie sięga jeszcze tego dnia, dlatego widać wartości dobowe.”** Usługa pogody podaje godziny
+> tylko na część dni (Met.no: 48 godzin). Dalsze dni pokazuje wykres dni z zaznaczonym wybranym, a godziny pojawią się,
+> gdy dzień się zbliży. Więcej godzin da inna usługa pogody ustawiona w `weather.forecast`.
+
+**Minione dni.** Z `weather.history` (Ustawienia → Strona główna i tablet → Pogoda → Minione dni) strzałki nad wykresem
+albo przeciągnięcie go w prawo cofają dzień po dniu: dziś do tej pory i 7 poprzednich dni, tak jak zmierzyły je Twoje
+czujniki. Linia to średnia z godziny, pasmo to jej najniższy i najwyższy odczyt, słupki to opady. Pod wykresem: dzień
+(6–18), noc po nim (18–6 następnego ranka), suma opadów i, z `limit`, liczba godzin od 6:00 do 6:00, których najniższy
+odczyt był poniżej progu. Zamiast najbliższych dni jest tydzień w kolumnach, dotknięcie otwiera dzień. Godziny bez
+odczytu są policzone i zostają jako przerwa. Telefon i tablet w pionie mają to pod prognozą. Ostatnia godzina pojawia
+się chwilę po jej zakończeniu (statystyki godzinowe).
+
+```yaml
+weather:
+  history: {temperature: sensor.balcony_temperature, rain: sensor.rain_today, limit: 3}
+```
+
 ![Pogoda](screenshots/pl/weather.png)
 
 ## 5. Kamery
@@ -948,16 +970,19 @@ shortcuts:
     speaker: media_player.hall_homepod    # zatrzymuje czytanie
 ```
 
-Z głośnikiem albo skryptem okno ma przycisk <b class="ui">Przeczytaj wszystko</b> i przycisk dla każdej sekcji z `read: true`;
-czytany jest wstęp, refren, tekst i zakończenie, bez znaków psalmu.
+**Czytanie na głos.** Najpierw wybierasz, gdzie: <b class="ui">Słuchaj na telefonie</b> (na tablecie i komputerze
+przycisk nazywa się odpowiednio) albo <b class="ui">Słuchaj na odtwarzaczu</b>, gdy blok ma głośnik lub skrypt. Potem
+co: <b class="ui">Czytaj: {name}</b> dla każdej sekcji z `read: true` (np. *Czytaj: Ewangelia*) albo
+<b class="ui">Czytaj całość</b>. Gdy możliwe jest tylko jedno miejsce, od razu widać te przyciski. Czytany jest wstęp,
+refren, tekst i zakończenie, bez znaków psalmu. Podświetlony przycisk czyta i dotknięty jeszcze raz zatrzymuje.
 
-<b class="ui">Słuchaj wszystko</b> czyta wszystko na urządzeniu, na którym otwarte jest okno — telefonie, tablecie,
-Macu — a nie na głośniku; każda sekcja z `read: true` ma też własny przycisk <b class="ui">Słuchaj: {name}</b>
-(np. *Słuchaj: Ewangelia*). Przycisk, który czyta, jest podświetlony i zatrzymuje czytanie, a inny zaczyna swój tekst.
-Home Assistant robi nagranie tą samą zamianą tekstu na mowę (`tts`, inaczej pierwszą), a przeglądarka
-je odtwarza, z przyciskami <b class="ui">Wstrzymaj</b> i <b class="ui">Zatrzymaj</b>. Przygotowanie długiego tekstu trwa
-kilka sekund. Bez zamiany tekstu na mowę albo gdy zawiedzie, czyta przeglądarka własnym głosem. Zamknięcie okna kończy
-czytanie; `hide_read_here: true` ukrywa przyciski „Słuchaj”.
+Zanim głos się odezwie, na przycisku kręci się kółko, a pod nim jest informacja, że głos się ładuje; przygotowanie
+tekstu trwa około 10 sekund, całości dłużej. Na odtwarzaczu kółko znika, gdy odtwarzacz zacznie grać, a najpóźniej po
+minucie. Pod przyciskami jest suwak głośności odtwarzacza (`speaker`), jeśli obsługuje on ustawianie głośności.
+
+Na telefonie nagranie tą samą zamianą tekstu na mowę (`tts`, inaczej pierwszą) odtwarza przeglądarka, z przyciskami
+<b class="ui">Wstrzymaj</b> i <b class="ui">Zatrzymaj</b>. Bez zamiany tekstu na mowę albo gdy zawiedzie, czyta własnym
+głosem. Zamknięcie okna kończy czytanie na urządzeniu; `hide_read_here: true` ukrywa ten wybór.
 
 **Głos** (`voice`) wybiera głos zamiany tekstu na mowę dla wszystkich przycisków: edytor podaje listę głosów wybranego
 silnika (`tts`, inaczej pierwszego) w Twoim języku. Skrypt czyta tym głosem, gdy jego pole na głos jest wpisane w
@@ -966,8 +991,8 @@ swoim głosie.
 
 **Tekst przygotowany dla głosu** (`speech_entity`). To, co dobrze wygląda na ekranie, nie zawsze dobrze brzmi: psalm
 pokazuje refren raz, a na Mszy powtarza się go po każdej zwrotce. Integracja może podać tekst gotowy do przeczytania
-w encji (atrybut `text` albo `tekst`); wpisz ją w `speech_entity` bloku dla *Przeczytaj wszystko* i *Słuchaj
-wszystko*, a w `speech_entity` sekcji dla jej własnych przycisków. Okno dalej pokazuje sekcje. Na przykład
+w encji (atrybut `text` albo `tekst`); wpisz ją w `speech_entity` bloku dla *Czytaj całość*,
+a w `speech_entity` sekcji dla jej własnych przycisków. Okno dalej pokazuje sekcje. Na przykład
 `sensor.readings_for_speech` dla bloku i `sensor.gospel_for_speech` dla sekcji Ewangelia.
 
 ### Aplikacje w oknie

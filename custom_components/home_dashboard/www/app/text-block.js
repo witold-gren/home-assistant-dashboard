@@ -4,24 +4,39 @@
 // `title`, `intro`, `refrain`, `refrain_alt`, `ending` (the Polish names of an integration in Polish work too:
 // `akapity`, `tekst`, `tytul`, `wstep`, `refren`, `refren_zamienny`, `zakonczenie`). An entity without any of them shows
 // its state as the text. A section with nothing to say is left out, and a block with nothing at all is not shown.
-// With a speaker or a script chosen, the window reads everything or one section aloud: `tts.speak` on the speaker, or
-// the script with the text in `script_field` and `script_data` beside it — for a speaker that needs a whole file first
-// (a HomePod), where a script of announcements does that. „Listen to everything” (and „Listen: <section>” for a section
-// with its own button) plays it on the device it was tapped on (a phone, a tablet, a Mac): a recording of the same
-// text-to-speech in the browser, or the browser's own voice without one; `hide_read_here` hides them. `voice` chooses a voice of the text-to-speech for all of them; a script gets it in
-// `script_voice_field`.
-// What is read can come ready from an entity: `speech_entity` of the block for „Read everything” and „Listen to
-// everything”, `speech_entity` of a section for its own buttons — its attribute `text` (`tekst`), else its state. The
+// The window first asks where to read: on the device it was opened on (a phone, a tablet, a Mac) or on the player, when
+// the block has one; then what: one section (`read` of the section) or everything. The player reads by `tts.speak` on
+// `speaker`, or by the script with the text in `script_field` and `script_data` beside it — for a speaker that needs a
+// whole file first (a HomePod); under it is its volume. The device plays a recording of the same text-to-speech in the
+// browser, or reads in the browser's own voice; `hide_read_here` hides it. Until the voice starts the window says that
+// it is loading. `voice` chooses a voice of the text-to-speech; a script gets it in `script_voice_field`.
+// What is read can come ready from an entity: `speech_entity` of the block for reading everything, `speech_entity` of a section for its own buttons — its attribute `text` (`tekst`), else its state. The
 // screen shows the sections laid out, the voice reads the text made for it (the refrain after every stanza of a psalm).
 
 import { LitElement, css, html, nothing } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
+import { followRanges, rangeStyles, syncRanges } from "./range.js";
 import { tokens } from "./styles.js";
 
 const EMPTY = new Set(["", "unavailable", "unknown", "none", "brak"]);
 const QUOTES = /[«»„”“"]/g;
 // A wav of no length: Safari on iOS plays sound only from a tap, so the tap starts this and the voice follows on it.
 const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+// A player that never says it plays (a script may use another speaker) does not load for ever.
+const WAIT_MS = 60_000;
+const VOLUME_SET = 4;
+// The player reports its level a moment after it is set; the slider must not jump back meanwhile.
+const VOLUME_HOLD_MS = 3000;
+
+/** What kind of device this is: "phone", "tablet" or "computer". */
+export function deviceKind(view = window) {
+  if (!view.matchMedia("(pointer: coarse)").matches) return "computer";
+  return Math.min(view.screen.width, view.screen.height) < 600 ? "phone" : "tablet";
+}
+
+/** What a player plays, to tell the voice from the music that was on before it. */
+const playing = (state) => [state?.state, state?.attributes?.media_content_id, state?.attributes?.media_title].join("|");
 
 const pick = (attributes, ...names) => names.map((name) => attributes?.[name]).find((value) => value !== undefined && value !== null && value !== "");
 
@@ -117,12 +132,25 @@ export class HomeDashboardTextBlock extends LitElement {
     _preparing: { state: true },
     _paused: { state: true },
     _error: { state: true },
+    _mode: { state: true },
+    _volume: { state: true },
   };
+
+  firstUpdated() {
+    followRanges(this.renderRoot);
+  }
+
+  updated(changed) {
+    if (changed.has("hass")) this._followSpeaker();
+    syncRanges(this.renderRoot);
+  }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     // A closed window does not go on talking with nothing left to stop it.
     this._stopHere();
+    this._endWait();
+    clearTimeout(this._volumeHold);
   }
 
   _t(key, values) {
@@ -139,6 +167,7 @@ export class HomeDashboardTextBlock extends LitElement {
       return;
     }
     this._reading = key;
+    this._waitForSpeaker();
     try {
       if (script) {
         const variables = { ...(data ?? {}), [field || "message"]: message };
@@ -154,7 +183,39 @@ export class HomeDashboardTextBlock extends LitElement {
         ...this._options(),
       });
     } catch (error) {
+      this._endWait();
       this._error = error?.message ?? String(error);
+      this._reading = null;
+    }
+  }
+
+  // Loading until the player plays something else than before the tap.
+  _waitForSpeaker() {
+    this._endWait();
+    this._preparing = true;
+    this._started = false;
+    this._before = playing(this.hass.states[this.item.speaker]);
+    this._waitTimer = setTimeout(() => this._endWait(), this.item.speaker ? WAIT_MS : 10_000);
+  }
+
+  _endWait() {
+    clearTimeout(this._waitTimer);
+    this._waitTimer = null;
+    this._preparing = false;
+  }
+
+  _followSpeaker() {
+    if (!this._reading || this._hereOn || !this.item.speaker) return;
+    const state = this.hass.states[this.item.speaker];
+    if (!this._started && this._waitTimer && playing(state) !== this._before) {
+      // The music before it stops first: only what plays after that is the voice.
+      this._before = null;
+      if (state?.state === "playing") {
+        this._started = true;
+        this._endWait();
+      }
+    } else if (this._started && state?.state !== "playing" && state?.state !== "buffering") {
+      this._started = false;
       this._reading = null;
     }
   }
@@ -247,7 +308,7 @@ export class HomeDashboardTextBlock extends LitElement {
     const was = this._hereOn;
     this._audio = null;
     this._utterance = null;
-    this._preparing = false;
+    if (was) this._preparing = false;
     this._paused = false;
     if (was) this._reading = null;
   }
@@ -261,50 +322,133 @@ export class HomeDashboardTextBlock extends LitElement {
       this._stopHere();
       return;
     }
+    // The script may still be making the recording: without this it would start after the stop.
+    const waiting = this._preparing;
     this._reading = null;
+    this._endWait();
+    if (waiting && this.item.script && this.item.speaker) this.hass.callService("script", "turn_off", { entity_id: this.item.script });
     if (this.item.speaker) this.hass.callService("media_player", "media_stop", { entity_id: this.item.speaker });
     else if (this.item.script) this.hass.callService("script", "turn_off", { entity_id: this.item.script });
   }
 
+  get _modes() {
+    const modes = this._canReadHere ? ["here"] : [];
+    if (this.item.speaker || this.item.script) modes.push("speaker");
+    return modes;
+  }
+
+  // One reading at a time: the other place ends what this one reads.
+  _choose(mode) {
+    if (mode === this._mode) return;
+    if (this._reading) this._stop();
+    this._error = null;
+    this._mode = mode;
+  }
+
   _renderActions(sections) {
-    const speaker = Boolean(this.item.speaker || this.item.script);
-    const here = this._canReadHere;
-    if (!speaker && !here) return nothing;
-    const button = (key, icon, label, chosen) => html`<button class=${this._reading === key ? "on" : ""} data-text-read=${key}
-      @click=${() => this._read(key, chosen)}><ha-icon .icon=${icon}></ha-icon>${label}</button>`;
-    const hereOn = this._hereOn;
-    const own = sections.filter((section) => section.read);
-    // On this device: the same button stops what it started; another one starts its own text instead.
-    const listen = (key, icon, label, chosen, attributes) => {
-      const on = this._reading === key;
-      return html`<button
-        class=${on ? "on" : ""}
-        data-text-read-here=${attributes.all ? "" : nothing}
-        data-text-listen=${key.slice("here:".length)}
-        @click=${() => (on ? this._stopHere() : this._readHere(chosen, key))}
-      >
-        <ha-icon .icon=${icon}></ha-icon>${on && this._preparing ? this._t("text_here_preparing") : label}
-      </button>`;
+    const modes = this._modes;
+    if (!modes.length) return nothing;
+    const mode = modes.length === 1 ? modes[0] : modes.includes(this._mode) ? this._mode : null;
+    const places = {
+      here: ["mdi:cellphone-sound", this._t(`text_on_${deviceKind()}`)],
+      speaker: ["mdi:speaker", this._t("text_on_speaker")],
     };
     return html`<div class="actions" data-text-actions>
-      ${speaker
-        ? own.map((section) => button(section.entity, "mdi:account-voice", this._t("text_read_one", { name: section.name }), [section]))
+        ${modes.length > 1
+          ? html`<div class="pair" role="group">
+              ${modes.map(
+                (key) => html`<button
+                  class="place ${key === mode ? "on" : ""}"
+                  data-text-mode=${key}
+                  aria-pressed=${key === mode}
+                  @click=${() => this._choose(key)}
+                >
+                  <ha-icon .icon=${places[key][0]}></ha-icon><span>${places[key][1]}</span>
+                </button>`,
+              )}
+            </div>`
+          : nothing}
+        ${mode ? this._renderWhat(sections, mode) : nothing}
+      </div>
+      ${this._error ? html`<p class="error" data-text-error>${this._error}</p>` : nothing}`;
+  }
+
+  // What to read there, and under it what it does now.
+  _renderWhat(sections, mode) {
+    const here = mode === "here";
+    const button = (id, icon, label, chosen) => {
+      const key = here ? `here:${id}` : id;
+      const on = this._reading === key;
+      const tap = () => (on ? this._stop() : here ? this._readHere(chosen, key) : this._read(key, chosen));
+      const loading = on && this._preparing;
+      return html`<button
+        class="what ${on ? "on" : ""}"
+        data-text-read=${here ? nothing : id}
+        data-text-listen=${here ? id : nothing}
+        data-text-read-here=${here && id === "all" ? "" : nothing}
+        aria-busy=${loading}
+        @click=${tap}
+      >
+        ${loading ? html`<i class="spinner" data-text-spinner></i>` : html`<ha-icon .icon=${icon}></ha-icon>`}<span>${label}</span>
+      </button>`;
+    };
+    return html`
+      <div class="pair">
+        ${sections
+          .filter((section) => section.read)
+          .map((section) => button(section.entity, "mdi:account-voice", this._t("text_read_one", { name: section.name }), [section]))}
+        ${button("all", "mdi:book-open-variant", this._t("text_read_all"), sections)}
+      </div>
+      ${this._reading && this._preparing
+        ? html`<p class="loading" role="status" data-text-loading>${this._t("text_loading")}</p>`
         : nothing}
-      ${speaker ? button("all", "mdi:book-open-variant", this._t("text_read_all"), sections) : nothing}
-      ${here
-        ? own.map((section) =>
-            listen(`here:${section.entity}`, "mdi:headphones", this._t("text_listen_one", { name: section.name }), [section], {}),
-          )
+      ${here ? nothing : this._renderVolume()}
+      ${this._reading
+        ? html`<div class="pair">
+            ${here && !this._preparing
+              ? html`<button data-text-pause @click=${this._pauseHere}>
+                  <ha-icon .icon=${this._paused ? "mdi:play" : "mdi:pause"}></ha-icon>${this._t(this._paused ? "text_resume" : "text_pause")}
+                </button>`
+              : nothing}
+            <button data-text-stop @click=${this._stop}><ha-icon icon="mdi:stop"></ha-icon>${this._t("text_stop")}</button>
+          </div>`
         : nothing}
-      ${here ? listen("here:all", "mdi:headphones-box", this._t("text_read_here"), sections, { all: true }) : nothing}
-      ${hereOn && !this._preparing
-        ? html`<button data-text-pause @click=${this._pauseHere}>
-            <ha-icon .icon=${this._paused ? "mdi:play" : "mdi:pause"}></ha-icon>${this._t(this._paused ? "text_resume" : "text_pause")}
-          </button>`
-        : nothing}
-      ${this._reading ? html`<button data-text-stop @click=${this._stop}><ha-icon icon="mdi:stop"></ha-icon>${this._t("text_stop")}</button>` : nothing}
-    </div>
-    ${this._error ? html`<p class="error" data-text-error>${this._error}</p>` : nothing}`;
+    `;
+  }
+
+  _renderVolume() {
+    const state = this.hass.states[this.item.speaker];
+    if (!state || state.state === "unavailable" || !((state.attributes.supported_features ?? 0) & VOLUME_SET)) return nothing;
+    const level = this._volume ?? Math.round((state.attributes.volume_level ?? 0) * 100);
+    return html`<label class="volume" data-text-volume>
+      <span><ha-icon icon="mdi:volume-high"></ha-icon>${state.attributes.friendly_name ?? this.item.speaker}<b>${level}%</b></span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        aria-label=${this._t("text_volume")}
+        .value=${String(level)}
+        @input=${(event) => {
+          clearTimeout(this._volumeHold);
+          this._volume = Number(event.target.value);
+        }}
+        @change=${this._setVolume}
+      />
+    </label>`;
+  }
+
+  // Set when the finger lets go, so that the speaker gets one level.
+  async _setVolume(event) {
+    this._volume = Number(event.target.value);
+    this._volumeHold = setTimeout(() => (this._volume = undefined), VOLUME_HOLD_MS);
+    try {
+      await this.hass.callService("media_player", "volume_set", {
+        entity_id: this.item.speaker,
+        volume_level: this._volume / 100,
+      });
+    } catch (error) {
+      this._error = error?.message ?? String(error);
+    }
   }
 
   _renderSection(section) {
@@ -354,6 +498,7 @@ export class HomeDashboardTextBlock extends LitElement {
 
   static styles = [
     tokens,
+    rangeStyles,
     css`
       .content {
         display: flex;
@@ -385,24 +530,98 @@ export class HomeDashboardTextBlock extends LitElement {
       }
       .actions {
         display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .pair {
+        display: flex;
         flex-wrap: wrap;
-        justify-content: center;
         gap: 8px;
       }
       .actions button {
         all: unset;
-        display: inline-flex;
+        display: flex;
+        flex: 1 1 40%;
         align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        border-radius: 999px;
+        justify-content: center;
+        gap: 8px;
+        box-sizing: border-box;
+        min-width: 0;
+        min-height: 44px;
+        padding: 8px 12px;
+        border-radius: 22px;
         background: var(--hd-off);
+        text-align: center;
         cursor: pointer;
-        --mdc-icon-size: 18px;
+        --mdc-icon-size: 20px;
       }
-      .actions button.on {
+      .actions button ha-icon,
+      .spinner {
+        flex: none;
+      }
+      .actions button span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .actions button.place {
+        min-height: 52px;
+      }
+      .actions button.place.on {
+        box-shadow: inset 0 0 0 2px var(--hd-media-accent);
+      }
+      .actions button.what.on {
         color: #fff;
         background: var(--hd-media-accent);
+      }
+      .actions button:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+      }
+      .spinner {
+        box-sizing: border-box;
+        width: 20px;
+        height: 20px;
+        border: 3px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation-duration: 3s;
+        }
+      }
+      .loading {
+        color: var(--hd-text-muted);
+        font-size: 14px;
+        line-height: 20px;
+        text-align: center;
+      }
+      .volume {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 14px;
+        border-radius: 22px;
+        background: var(--hd-off);
+      }
+      .volume span {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        --mdc-icon-size: 20px;
+      }
+      .volume b {
+        margin-left: auto;
+        font-weight: 500;
+      }
+      .volume input {
+        width: 100%;
       }
       .error {
         margin: 0;

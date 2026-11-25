@@ -181,6 +181,10 @@ def test_only_switching_on_asks_for_the_pin_service(desktop):  # noqa: F811
     pin.locator("[data-pin='field']").fill("pin")
     pin.locator("[data-pin='field']").dispatch_event("change")
     assert tile(desktop, section=1)["off_pin"] == {"service": "script.guest_off", "field": "pin"}
+    on_pin = field(desktop, "on_pin").locator("[data-pin='service']")
+    on_pin.fill("script.guest_on")
+    on_pin.dispatch_event("change")
+    assert tile(desktop, section=1)["on_pin"]["service"] == "script.guest_on"
 
 
 def test_a_tile_of_a_machine_block_chooses_its_machine(desktop):  # noqa: F811

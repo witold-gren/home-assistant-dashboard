@@ -75,6 +75,8 @@ export const APP_FILES = [
   "theme.js",
   "usage.js",
   "variants.js",
+  "weather-days.js",
+  "weather-history.js",
   "weather.js",
   "zoom.js",
 ];

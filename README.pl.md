@@ -230,7 +230,7 @@ wygląd dla ustawień, które prawie zawsze są włączone, np. automatyzacji.
 
 `security.group` pokazuje wybrane kafelki razem na górze filtra Ochrona, niezależnie od ich pokoi:
 `{name: Gość, entities: [input_boolean.guest, input_boolean.guest_cabin]}`. Encje muszą być kafelkami
-w `layout`.
+w `layout`. `security.groups` to lista kolejnych takich grup, pokazywanych pod nią.
 
 ### Tła
 

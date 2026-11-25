@@ -151,6 +151,7 @@ encję, [skrót](#6-skróty-i-bloki) albo sam jest całym blokiem (`kind: panel`
 | `active_only` | `true` | `false` | widoczny tylko, gdy encja działa (nie off, idle, paused, standby…) |
 | `turn_on_only` | `true` | `false` | dotknięcie tylko włącza; potem nic się nie dzieje, chyba że jest `off_pin` |
 | `off_pin` | `{service, field}` | brak | z `turn_on_only`: klawiatura, PIN trafia do usługi w polu `field` |
+| `on_pin` | `{service, field, data}` | brak | z `turn_on_only`: klawiatura także przy włączaniu; `data` idzie razem z PIN-em |
 | `confirm` | `true` | `false` | `select` lub `input_select`: okno zaznacza opcję, a uruchamia ją dopiero przycisk |
 | `labels` | mapa opcja → tekst | brak | `select` lub `input_select`: własne nazwy opcji |
 | `shortcut` | nazwa skrótu | brak | kafelek zastępuje ten blok; pozostałe klucze kafelka mają pierwszeństwo |
@@ -323,6 +324,9 @@ layout:
 |---|---|---|---|
 | `entity` | encja pogody | pierwsza | chip i bieżące odczyty |
 | `forecast` | encja pogody | pierwsza z prognozą | prognoza godzinowa i dzienna |
+| `history.temperature` | czujnik | brak | własny czujnik temperatury: ostatnie 7 dni w oknie pogody |
+| `history.rain` | czujnik | brak | czujnik opadów w mm, który sumuje (`total_increasing`, np. deszcz dzisiaj), a nie natężenie |
+| `history.limit` | liczba | brak | linia na wykresie i liczba godzin poniżej |
 
 `weather: false` usuwa chip. Więcej w przewodniku: [Pogoda](guide.pl.md#pogoda).
 
@@ -330,6 +334,10 @@ layout:
 weather:
   entity: weather.home_station
   forecast: weather.forecast_home
+  history:
+    temperature: sensor.balcony_temperature
+    rain: sensor.rain_today
+    limit: 3
 ```
 
 ### `security`
@@ -338,11 +346,14 @@ weather:
 |---|---|---|---|
 | `unlock_on_tablet` | logiczny | `false` | pozwala otworzyć zamek na tablecie; zamek z kodem otwiera wtedy okno HA |
 | `group` | `{name, entities}` | brak | te kafelki razem na górze filtra Ochrona; muszą być kafelkami pokoi |
+| `groups` | lista `{name, entities}` | brak | kolejne grupy pod `group`, każda z własną nazwą |
 
 ```yaml
 security:
   unlock_on_tablet: false
   group: {name: Gość, entities: [input_boolean.guest_mode]}
+  groups:
+    - {name: Urządzenia dzieci, entities: [input_boolean.child_phone]}
 ```
 
 ### `idle`
@@ -722,8 +733,8 @@ shortcuts:
 | `tts` | encja `tts` | pierwsza | zamiana tekstu na mowę dla `speaker` i dla przycisków *Słuchaj* |
 | `voice` | id głosu | domyślny silnika | głos `tts` dla wszystkich przycisków; edytor podaje listę głosów silnika w Twoim języku |
 | `script_voice_field` | tekst | brak | pole skryptu `script`, które dostaje `voice` (skrypt bez głosu je pomija) |
-| `speech_entity` | id encji | brak | tekst, który czytają *Przeczytaj wszystko* i *Słuchaj wszystko*: jej atrybut `text` (`tekst`), inaczej stan; bez niej (albo gdy nie ma tekstu) czytane są sekcje; sekcja też może mieć swoją `speech_entity` dla własnych przycisków |
-| `hide_read_here` | logiczny | `false` | ukrywa przyciski *Słuchaj*, które czytają na urządzeniu z otwartym oknem |
+| `speech_entity` | id encji | brak | tekst, który czyta *Czytaj całość*: jej atrybut `text` (`tekst`), inaczej stan; bez niej (albo gdy nie ma tekstu) czytane są sekcje; sekcja też może mieć swoją `speech_entity` dla własnych przycisków |
+| `hide_read_here` | logiczny | `false` | ukrywa *Słuchaj na telefonie*, czyli czytanie na urządzeniu z otwartym oknem |
 | `script`, `script_field`, `script_data` | skrypt, tekst, mapa | brak, `message`, brak | czyta na głos przez skrypt: tekst w polu `script_field`, obok pola z `script_data` |
 
 Tekst sekcji pochodzi z atrybutów `paragraphs` (lista) albo `text`, z `title`, `intro`, `refrain`, `refrain_alt` i

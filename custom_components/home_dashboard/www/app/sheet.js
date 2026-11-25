@@ -611,7 +611,7 @@ export class HomeDashboardSheet extends SheetParts.reduceRight((base, part) => p
     if (tile.tapAction === "panel") this._change({ kind: "panel", entityId: tile.entityId, item: tile.item });
     if (tile.tapAction === "block") this._change({ kind: tile.item.kind, entityId: tile.entityId, item: tile.item });
     if (tile.tapAction === "pin") {
-      this._change({ kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin });
+      this._change({ kind: "pin", entityId: tile.entityId, name: tile.name, offPin: tile.offPin, expect: tile.expect });
     }
   }
 

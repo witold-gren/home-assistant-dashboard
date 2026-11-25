@@ -3,6 +3,8 @@ its badge, its window and reading it aloud on a speaker or through a script."""
 
 from __future__ import annotations
 
+import os
+
 from .test_page import mount
 from .test_panels import add_entity
 
@@ -73,6 +75,20 @@ def open_block(page, block: dict | None = None, sunday: bool = False) -> None:
     page.wait_for_selector(f"home-dashboard-sheet {SCREEN} [data-text-section]")
 
 
+def choose(page, mode: str) -> None:
+    page.locator(f"{SCREEN} [data-text-mode='{mode}']").click()
+
+
+def set_state(page, entity: str, state: str, attributes: dict | None = None) -> None:
+    page.locator(SCREEN).evaluate(
+        """(screen, [id, state, attributes]) => {
+            const states = { ...screen.hass.states, [id]: { entity_id: id, state, attributes } };
+            screen.hass = Object.assign(Object.create(screen.hass), { states });
+        }""",
+        [entity, state, attributes or {}],
+    )
+
+
 def sections(page) -> list:
     return page.locator(f"{SCREEN} [data-text-section]").evaluate_all(
         "(all) => all.map((s) => s.dataset.textSection)"
@@ -111,7 +127,7 @@ def test_the_window_shows_the_heading_and_each_section_with_its_text(phone):
     assert phone.locator(f"{SCREEN} [data-text-read-here]").count() == 1
     listen = phone.locator(f"{SCREEN} [data-text-listen]")
     assert listen.evaluate_all("(all) => all.map((b) => b.dataset.textListen)") == [f"{P}_gospel", "all"]
-    assert [text.strip() for text in listen.all_inner_texts()] == ["Słuchaj: Ewangelia", "Słuchaj wszystko"]
+    assert [text.strip() for text in listen.all_inner_texts()] == ["Czytaj: Ewangelia", "Czytaj całość"]
 
 
 def test_listen_here_can_be_hidden(phone):
@@ -151,6 +167,7 @@ def test_any_entity_shows_its_state_as_the_text(phone):
 
 def test_a_speaker_reads_one_section_or_everything(phone):
     open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper"})
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='{P}_gospel']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'tts')")
     call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'tts')")
@@ -183,6 +200,7 @@ def test_a_script_reads_it_for_a_speaker_that_needs_a_whole_file(phone):
         "script_data": {"areas": "hall"},
     }
     open_block(phone, block)
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='{P}_gospel']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'script')")
     call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'script')")
@@ -209,7 +227,8 @@ window.speechSynthesis.cancel = () => window.spoken.push("cancel");
 def test_listen_here_plays_a_recording_on_this_device(phone):
     open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper"})
     phone.evaluate(FAKE_AUDIO)
-    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    choose(phone, "here")
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 0
     phone.locator(f"{SCREEN} [data-text-read-here]").click()
     phone.wait_for_function("window.played.some((src) => src.endsWith('/api/tts_proxy/test.mp3'))")
     call = phone.evaluate("window.hass.calls.find((call) => call.path === 'tts_get_url')")
@@ -244,10 +263,12 @@ def test_a_chosen_voice_reads_on_the_speaker_here_and_through_a_script(phone):
     voice = "pl_PL-gosia-medium"
     open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper", "voice": voice})
     phone.evaluate(FAKE_AUDIO)
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='all']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'tts')")
     speak = phone.evaluate("window.hass.calls.find((call) => call.domain === 'tts')")
     assert speak["data"]["options"] == {"voice": voice}
+    choose(phone, "here")
     phone.locator(f"{SCREEN} [data-text-read-here]").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.path === 'tts_get_url')")
     url = phone.evaluate("window.hass.calls.find((call) => call.path === 'tts_get_url')")
@@ -257,6 +278,7 @@ def test_a_chosen_voice_reads_on_the_speaker_here_and_through_a_script(phone):
 def test_a_script_gets_the_voice_in_its_field(phone):
     block = {**BLOCK, "script": "script.announce", "script_field": "text", "voice": "pl_PL-gosia-medium"}
     open_block(phone, {**block, "script_voice_field": "voice"})
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='all']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'script')")
     call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'script')")
@@ -265,6 +287,7 @@ def test_a_script_gets_the_voice_in_its_field(phone):
 
 def test_without_a_voice_nothing_is_said_about_it(phone):
     open_block(phone, {**BLOCK, "script": "script.announce", "script_field": "text"})
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='all']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'script')")
     call = phone.evaluate("window.hass.calls.find((call) => call.domain === 'script')")
@@ -274,8 +297,7 @@ def test_without_a_voice_nothing_is_said_about_it(phone):
 def test_listen_to_one_section_plays_only_its_text_and_another_button_takes_over(phone):
     open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "tts": "tts.piper"})
     phone.evaluate(FAKE_AUDIO)
-    # Four buttons: read on the speaker (the Gospel, everything) and listen here (the Gospel, everything)
-    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    choose(phone, "here")
     assert phone.locator(f"{SCREEN} [data-text-listen]").count() == 2
     gospel = phone.locator(f"{SCREEN} [data-text-listen='{P}_gospel']")
     gospel.click()
@@ -322,6 +344,7 @@ def test_entities_with_the_text_made_to_be_read_aloud_are_read_instead_of_the_se
     open_block(phone, block)
     phone.evaluate(FAKE_AUDIO)
     tts = "window.hass.calls.filter((call) => call.domain === 'tts').map((call) => call.data.message)"
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='all']").click()
     phone.wait_for_function(f"{tts}.length === 1")
     phone.locator(f"{SCREEN} [data-text-read='{P}_gospel']").click()
@@ -329,6 +352,7 @@ def test_entities_with_the_text_made_to_be_read_aloud_are_read_instead_of_the_se
     assert phone.evaluate(tts) == [SPOKEN_ALL, SPOKEN_GOSPEL]
     # On this device too
     here = "window.hass.calls.filter((call) => call.path === 'tts_get_url').map((call) => call.data.message)"
+    choose(phone, "here")
     phone.locator(f"{SCREEN} [data-text-listen='{P}_gospel']").click()
     phone.wait_for_function(f"{here}.length === 1")
     phone.locator(f"{SCREEN} [data-text-read-here]").click()
@@ -341,7 +365,151 @@ def test_entities_with_the_text_made_to_be_read_aloud_are_read_instead_of_the_se
 def test_an_entity_for_the_voice_without_text_leaves_the_sections_to_be_read(phone):
     add_entity(phone, f"{P}_spoken_all", "unavailable", {})
     open_block(phone, {**BLOCK, "speaker": "media_player.kitchen", "speech_entity": f"{P}_spoken_all"})
+    choose(phone, "speaker")
     phone.locator(f"{SCREEN} [data-text-read='all']").click()
     phone.wait_for_function("window.hass.calls.some((call) => call.domain === 'tts')")
     message = phone.evaluate("window.hass.calls.find((call) => call.domain === 'tts').data.message")
     assert message.startswith("Czytanie z Apokalipsy") and "Słowa Ewangelii" in message
+
+
+HALL = "media_player.hall_homepod"
+PLAYER = {"volume_level": 0.3, "supported_features": 4, "friendly_name": "Korytarz HomePod"}
+SCRIPT_BLOCK = {
+    **BLOCK,
+    "speaker": HALL,
+    "script": "script.announce",
+    "script_field": "text",
+    "tts": "tts.piper",
+}
+
+
+def open_player(page, block: dict | None = None, state: str = "idle", **attributes) -> None:
+    add_entity(page, HALL, state, {**PLAYER, **attributes})
+    open_block(page, block or SCRIPT_BLOCK)
+
+
+def test_first_where_then_what(phone):
+    open_player(phone)
+    modes = phone.locator(f"{SCREEN} [data-text-mode]")
+    assert [text.strip() for text in modes.all_inner_texts()] == [
+        "Słuchaj na telefonie",
+        "Słuchaj na odtwarzaczu",
+    ] or "Słuchaj na komputerze" in modes.first.inner_text()
+    assert phone.locator(f"{SCREEN} .what").count() == 0
+    choose(phone, "here")
+    assert phone.locator(f"{SCREEN} .what").count() == 2
+    assert phone.locator(f"{SCREEN} [data-text-volume]").count() == 0
+    choose(phone, "speaker")
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    assert phone.locator(f"{SCREEN} [data-text-listen]").count() == 0
+    assert "Korytarz HomePod" in phone.locator(f"{SCREEN} [data-text-volume]").inner_text()
+    assert "30%" in phone.locator(f"{SCREEN} [data-text-volume]").inner_text()
+    # All of it fits the width of a phone, each pair in one row.
+    for pair in phone.locator(f"{SCREEN} .pair").all():
+        boxes = [button.bounding_box() for button in pair.locator("button").all()]
+        assert boxes[0]["y"] == boxes[1]["y"] and boxes[1]["x"] + boxes[1]["width"] <= 390
+    if os.environ.get("TEXT_SHOTS"):
+        phone.locator(f"{SCREEN} [data-text-read='all']").click()
+        phone.wait_for_selector(f"{SCREEN} [data-text-spinner]")
+        phone.screenshot(path=f"{os.environ['TEXT_SHOTS']}/listen.png")
+
+
+def test_the_name_of_the_device(phone):
+    kinds = phone.evaluate(
+        """async () => {
+            const m = await import("/custom_components/home_dashboard/www/app/text-block.js");
+            const view = (coarse, width, height) => ({ matchMedia: () => ({ matches: coarse }), screen: { width, height } });
+            return [view(true, 390, 844), view(true, 820, 1180), view(false, 390, 844)].map((v) => m.deviceKind(v));
+        }"""
+    )
+    assert kinds == ["phone", "tablet", "computer"]
+
+
+def test_with_one_place_there_is_nothing_to_choose(phone):
+    open_player(phone, {**SCRIPT_BLOCK, "hide_read_here": True})
+    assert phone.locator(f"{SCREEN} [data-text-mode]").count() == 0
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+
+
+def test_the_slider_sets_the_volume_of_the_player(phone):
+    open_player(phone)
+    choose(phone, "speaker")
+    phone.locator(f"{SCREEN} [data-text-volume] input").evaluate(
+        """(input) => { input.value = 45; input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true })); }"""
+    )
+    phone.wait_for_function("window.hass.calls.some((call) => call.service === 'volume_set')")
+    call = phone.evaluate("window.hass.calls.find((call) => call.service === 'volume_set')")
+    assert call["data"] == {"entity_id": HALL, "volume_level": 0.45}
+    assert "45%" in phone.locator(f"{SCREEN} [data-text-volume]").inner_text()
+
+
+def test_a_player_without_volume_has_no_slider(phone):
+    open_player(phone, supported_features=0)
+    choose(phone, "speaker")
+    assert phone.locator(f"{SCREEN} [data-text-read]").count() == 2
+    assert phone.locator(f"{SCREEN} [data-text-volume]").count() == 0
+
+
+def test_loading_lasts_until_the_player_plays_and_the_button_goes_out_at_its_end(phone):
+    open_player(phone)
+    choose(phone, "speaker")
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-spinner]")
+    assert "10 sekund" in phone.locator(f"{SCREEN} [data-text-loading]").inner_text()
+    set_state(phone, "sensor.other", "1")
+    assert phone.locator(f"{SCREEN} [data-text-loading]").count() == 1
+    set_state(phone, HALL, "playing", PLAYER)
+    phone.wait_for_selector(f"{SCREEN} [data-text-loading]", state="detached")
+    assert phone.locator(f"{SCREEN} [data-text-read='all'].on").count() == 1
+    set_state(phone, HALL, "idle", PLAYER)
+    phone.wait_for_selector(f"{SCREEN} [data-text-stop]", state="detached")
+
+
+def test_music_that_was_on_is_not_taken_for_the_voice(phone):
+    open_player(phone, state="playing", media_title="Song")
+    choose(phone, "speaker")
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-loading]")
+    set_state(phone, HALL, "playing", {**PLAYER, "media_title": "Song", "volume_level": 0.5})
+    assert phone.locator(f"{SCREEN} [data-text-loading]").count() == 1
+    set_state(phone, HALL, "idle", PLAYER)
+    assert phone.locator(f"{SCREEN} [data-text-loading]").count() == 1
+    set_state(phone, HALL, "playing", {**PLAYER, "media_title": "homepod.wav"})
+    phone.wait_for_selector(f"{SCREEN} [data-text-loading]", state="detached")
+
+
+def test_stop_while_loading_also_ends_the_script(phone):
+    open_player(phone)
+    choose(phone, "speaker")
+    phone.locator(f"{SCREEN} [data-text-read='all']").click()
+    phone.locator(f"{SCREEN} [data-text-stop]").click()
+    phone.wait_for_function("window.hass.calls.some((call) => call.service === 'turn_off')")
+    assert phone.locator(f"{SCREEN} [data-text-loading]").count() == 0
+
+
+def test_the_other_place_ends_what_this_one_reads(phone):
+    open_player(phone)
+    phone.evaluate(FAKE_AUDIO)
+    choose(phone, "here")
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-pause]")
+    choose(phone, "speaker")
+    assert phone.locator(f"{SCREEN} [data-text-stop]").count() == 0
+    assert "pause" in phone.evaluate("window.played")
+
+
+def test_loading_on_this_device_shows_until_it_plays(phone):
+    open_player(phone)
+    phone.evaluate(FAKE_AUDIO)
+    choose(phone, "here")
+    phone.locator(SCREEN).evaluate(
+        """(screen) => { screen.hass = Object.assign(Object.create(screen.hass), {
+            callApi: () => new Promise((resolve) => { window.ready = () => resolve({ path: "/api/tts_proxy/x.mp3" }); }) }); }"""
+    )
+    phone.locator(f"{SCREEN} [data-text-read-here]").click()
+    phone.wait_for_selector(f"{SCREEN} [data-text-spinner]")
+    assert phone.locator(f"{SCREEN} [data-text-pause]").count() == 0
+    phone.evaluate("window.ready()")
+    phone.wait_for_selector(f"{SCREEN} [data-text-pause]")
+    assert phone.locator(f"{SCREEN} [data-text-loading]").count() == 0

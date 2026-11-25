@@ -230,7 +230,7 @@ settings that are nearly always on, such as automations.
 
 `security.group` shows chosen tiles together at the top of the security filter, whatever their rooms:
 `{name: Guest, entities: [input_boolean.guest, input_boolean.guest_cabin]}`. The entities must be tiles
-in `layout`.
+in `layout`. `security.groups` is a list of more such groups, shown under it.
 
 ### Backgrounds
 

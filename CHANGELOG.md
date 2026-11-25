@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.7.0 (2026-11-25)
+
+- **Switching on with a PIN**: `on_pin` on a `turn_on_only` tile, like `off_pin`; both also pass `data` of their own.
+  A field in the editor.
+- **More groups in the Security filter**: `security.groups`, a list of `{name, entities}` under `security.group`; a list
+  in the editor (Home page and tablet).
+
+- **The days that were** in the weather window (`weather.history`: `temperature`, `rain`, `limit`): arrows over the
+  chart or dragging it go back through today and the last 7 days as the home's own sensors measured them — the mean,
+  lowest and highest of each hour, the rain, the day (6–18), the night after it (18–6), the hours below the limit and
+  the hours without a reading; the week as columns. On a phone under the forecast. Fields in the editor.
+
+- **A day of the forecast** in the weather window: a tap on one of the next days opens it by the hour, with its low and
+  high, precipitation, wind, humidity and the hours below the limit; a day the hourly forecast does not reach is marked
+  on a chart of the days. The arrows go there too; on a phone the hours open under the row.
+- Weather: a temperature just below zero is written `0°`, not `-0°`.
+
+- **Reading a block of text aloud in two steps**: where (*Listen on the phone* / *on the player*), then what (one section
+  or everything), in place of one row of buttons that did not fit a phone. The volume of the player under them, a circle
+  and a line while the voice loads, and the button goes out when the player ends. Stop while it loads also stops the script.
+
+- A home without a Security group no longer breaks the Security filter.
+
 ## 1.6.3 (2026-11-23)
 
 - **A button on a block's tile shown by its own entity.** `quick.active` (an entity id) shows the button only while

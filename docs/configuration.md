@@ -150,6 +150,7 @@ an entity, a [shortcut](#6-shortcuts-and-blocks) or is a whole block (`kind: pan
 | `active_only` | `true` | `false` | shown only while the entity is active (not off, idle, paused, standby…) |
 | `turn_on_only` | `true` | `false` | a tap only turns it on; once on, nothing happens unless `off_pin` is set |
 | `off_pin` | `{service, field}` | none | with `turn_on_only`: a keypad, the PIN goes to the service in `field` |
+| `on_pin` | `{service, field, data}` | none | with `turn_on_only`: a keypad for switching on too; `data` goes along with the PIN |
 | `confirm` | `true` | `false` | a `select` or `input_select`: the window marks an option and runs it only on a button |
 | `labels` | mapping option → text | none | a `select` or `input_select`: own names of its options |
 | `shortcut` | name of a shortcut | none | the tile stands for that block; its other keys override the block's |
@@ -322,6 +323,9 @@ layout:
 |---|---|---|---|
 | `entity` | weather entity | the first one | the chip and the readings now |
 | `forecast` | weather entity | the first that forecasts | the hourly and daily forecast |
+| `history.temperature` | sensor | none | your own temperature sensor: the last 7 days in the weather window |
+| `history.rain` | sensor | none | a rain sensor in mm that adds up (`total_increasing`, e.g. today's rain), not the intensity |
+| `history.limit` | number | none | a line on the chart and the hours below it |
 
 `weather: false` removes the chip. See the guide: [Weather](guide.md#weather).
 
@@ -329,6 +333,10 @@ layout:
 weather:
   entity: weather.home_station
   forecast: weather.forecast_home
+  history:
+    temperature: sensor.balcony_temperature
+    rain: sensor.rain_today
+    limit: 3
 ```
 
 ### `security`
@@ -337,11 +345,14 @@ weather:
 |---|---|---|---|
 | `unlock_on_tablet` | boolean | `false` | allow unlocking on a tablet; a lock with a code then opens HA's window |
 | `group` | `{name, entities}` | none | these tiles at the top of the Security filter; they must be tiles of rooms |
+| `groups` | list of `{name, entities}` | none | more groups under `group`, each with its own name |
 
 ```yaml
 security:
   unlock_on_tablet: false
   group: {name: Guest, entities: [input_boolean.guest_mode]}
+  groups:
+    - {name: Children's devices, entities: [input_boolean.child_phone]}
 ```
 
 ### `idle`
@@ -716,14 +727,14 @@ shortcuts:
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `sections` | list of `{entity, name, read, speech_entity}` | none | each an entity: its state is the small line above the text, its attributes the text; `read: true` gives it its own button to read it aloud; `speech_entity` — an entity whose text (attribute `text`/`tekst`, else its state) its buttons read instead |
-| `speech_entity` | entity id | none | the text *Read everything* and *Listen to everything* read: its attribute `text` (`tekst`), else its state; without it (or while it has none) the sections are read |
+| `speech_entity` | entity id | none | the text *Read everything* reads: its attribute `text` (`tekst`), else its state; without it (or while it has none) the sections are read |
 | `heading` | entity id | none | its state heads the window, its `date` (or `data`) attribute in `YYYY-MM-DD` under it |
 | `label_entity` | entity id | none | its state is the small line of the badge (a fixed `label` wins) |
 | `speaker` | `media_player` | none | reads aloud through `tts.speak`; the stop button stops it |
-| `tts` | `tts` entity | the first | the text-to-speech for `speaker` and for the *Listen* buttons |
+| `tts` | `tts` entity | the first | the text-to-speech for `speaker` and for reading on the device |
 | `voice` | voice id | the engine's own | a voice of `tts` for every button; the editor lists the voices of the engine in your language |
 | `script_voice_field` | text | none | the field of `script` that gets `voice` (a script that does not know a voice ignores it) |
-| `hide_read_here` | boolean | `false` | hides the *Listen* buttons, which read it on the device the window is open on |
+| `hide_read_here` | boolean | `false` | hides *Listen on the phone*, which reads on the device the window is open on |
 | `script`, `script_field`, `script_data` | script, text, mapping | none, `message`, none | reads aloud through a script instead: the text in `script_field`, `script_data` beside it |
 
 The text of a section comes from its attributes `paragraphs` (a list) or `text`, with `title`, `intro`, `refrain`,

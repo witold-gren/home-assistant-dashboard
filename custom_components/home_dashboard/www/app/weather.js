@@ -6,6 +6,8 @@ import { translate } from "./i18n.js";
 import { FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
 import { mediaQuery } from "./media.js";
+import { WEATHER_CHART, WeatherDays, daysAhead, daysStyles, lowOf, precipitationKind } from "./weather-days.js";
+import { WeatherHistory, historyStyles } from "./weather-history.js";
 
 const HOURS_SHOWN = 24;
 const DAYS_SHOWN = 7;
@@ -25,14 +27,6 @@ const isSameDay = (first, second) => first.toDateString() === second.toDateStrin
 // A tablet on its side shows the weather on the whole screen: now and its facts on the left, the next day as a chart
 // of temperature over the precipitation of each hour, and the next days as columns with a shared scale.
 export const WIDE_WEATHER = "(orientation: landscape) and (min-width: 900px) and (min-height: 501px)";
-const CHART = { width: 760, height: 320, top: 44, bottom: 168, rainTop: 200, rainBottom: 290 };
-
-/** What falls in a forecast step, by its condition: snow, rain and snow, or rain. */
-export function precipitationKind(condition) {
-  if (condition === "snowy") return "snow";
-  if (condition === "snowy-rainy") return "mix";
-  return "rain";
-}
 
 // A station often measures only part of this, so the rest comes from the forecast entity.
 export function weatherFacts(current, forecast) {
@@ -43,7 +37,9 @@ export function weatherFacts(current, forecast) {
   });
 }
 
-export class HomeDashboardWeather extends LitElement {
+export { precipitationKind };
+
+export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)) {
   static properties = {
     hass: { attribute: false },
     item: { attribute: false },
@@ -67,7 +63,8 @@ export class HomeDashboardWeather extends LitElement {
     this._watches = null;
   }
 
-  updated() {
+  updated(changed) {
+    super.updated(changed);
     if (this._watches || !this.hass || !this.item) return;
     this._watches = [];
     const features = this.hass.states[this.item.forecast]?.attributes.supported_features ?? 0;
@@ -90,7 +87,15 @@ export class HomeDashboardWeather extends LitElement {
   }
 
   _number(value, digits = 1) {
-    return new Intl.NumberFormat(this.hass.language, { maximumFractionDigits: digits }).format(value);
+    // "|| 0": a small number under zero rounds to -0, which is written as 0.
+    return new Intl.NumberFormat(this.hass.language, { maximumFractionDigits: digits }).format(
+      Number(Number(value).toFixed(digits)) || 0,
+    );
+  }
+
+  // The days the window shows: a tablet on its side has one column less.
+  get _shownDays() {
+    return (this._daily ?? []).slice(0, this._wide.matches ? DAYS_SHOWN - 1 : DAYS_SHOWN);
   }
 
   _renderNow() {
@@ -133,31 +138,34 @@ export class HomeDashboardWeather extends LitElement {
   _renderHourly() {
     const hours = (this._hourly ?? []).slice(0, HOURS_SHOWN);
     if (!hours.length) return nothing;
+    return html`<section>
+      <h3>${this._t("weather_hourly")}</h3>
+      ${this._renderHourStrip(hours)}
+    </section>`;
+  }
+
+  _renderHourStrip(hours) {
     const format = new Intl.DateTimeFormat(this.hass.language, { hour: "2-digit", minute: "2-digit" });
     return html`
-      <section>
-        <h3>${this._t("weather_hourly")}</h3>
-        <div class="hours">
-          ${hours.map(
-            (hour) => html`
-              <div class="hour" data-weather-hour>
-                <small>${format.format(new Date(hour.datetime))}</small>
-                <ha-icon .icon=${weatherIcon(hour.condition)}></ha-icon>
-                <strong>${this._number(hour.temperature, 0)}°</strong>
-                <small class="rain">${hour.precipitation ? `${this._number(hour.precipitation)} mm` : ""}</small>
-              </div>
-            `,
-          )}
-        </div>
-      </section>
+      <div class="hours">
+        ${hours.map(
+          (hour) => html`
+            <div class="hour" data-weather-hour>
+              <small>${format.format(new Date(hour.datetime))}</small>
+              <ha-icon .icon=${weatherIcon(hour.condition)}></ha-icon>
+              <strong>${this._number(hour.temperature, 0)}°</strong>
+              <small class="rain">${hour.precipitation ? `${this._number(hour.precipitation)} mm` : ""}</small>
+            </div>
+          `,
+        )}
+      </div>
     `;
   }
 
   // The bars share one scale, so a warm day stands out from the whole week at a glance.
   _renderDaily() {
-    const days = (this._daily ?? []).slice(0, DAYS_SHOWN);
+    const days = this._shownDays;
     if (!days.length) return nothing;
-    const lowOf = (day) => day.templow ?? day.temperature;
     const lowest = Math.min(...days.map(lowOf));
     const range = Math.max(...days.map((day) => day.temperature)) - lowest || 1;
     const format = new Intl.DateTimeFormat(this.hass.language, { weekday: "short" });
@@ -168,17 +176,26 @@ export class HomeDashboardWeather extends LitElement {
         <div class="days">
           ${days.map((day) => {
             const date = new Date(day.datetime);
+            const ahead = daysAhead(day.datetime);
+            const open = ahead === this._ahead;
             const start = ((lowOf(day) - lowest) / range) * 100;
             const width = ((day.temperature - lowOf(day)) / range) * 100;
             return html`
-              <div class="day" data-weather-day>
+              <button
+                class="day"
+                data-weather-day
+                aria-expanded=${open}
+                ?disabled=${ahead < 0}
+                @click=${() => (this._ahead = open ? null : ahead)}
+              >
                 <span class="name">${isSameDay(date, today) ? this._t("weather_today") : format.format(date)}</span>
                 <ha-icon .icon=${weatherIcon(day.condition)}></ha-icon>
                 <small class="rain">${day.precipitation ? `${this._number(day.precipitation)} mm` : ""}</small>
                 <span class="low">${this._number(lowOf(day), 0)}°</span>
                 <span class="bar"><i style="left: ${start}%; width: ${Math.max(width, 4)}%"></i></span>
                 <strong>${this._number(day.temperature, 0)}°</strong>
-              </div>
+              </button>
+              ${open ? this._renderDayDetails(ahead) : nothing}
             `;
           })}
         </div>
@@ -189,14 +206,24 @@ export class HomeDashboardWeather extends LitElement {
   // The next day: temperature as a line over a shaded area, every third hour labelled with its icon, and under it
   // the precipitation of each hour as bars coloured by what falls, on a scale that fits the wettest hour.
   _renderChart() {
+    if (this._back > 0) return this._renderPastChart();
+    if (this._ahead > 0 && this._chosen(this._ahead)) return this._renderChosenDay(this._ahead);
     const hours = (this._hourly ?? []).slice(0, HOURS_SHOWN);
     if (hours.length < 2) return nothing;
-    const { width, height, top, bottom, rainTop, rainBottom } = CHART;
+    return this._renderHoursChart(hours, { label: this._t("weather_next_day") });
+  }
+
+  // `day`: the hours of a chosen day, with the limit of the measured days and `extra` under the chart.
+  _renderHoursChart(hours, { label, day = false, extra = nothing }) {
+    const { width, height, top, bottom, rainTop, rainBottom } = WEATHER_CHART;
     const temps = hours.map((hour) => hour.temperature);
-    const low = Math.min(...temps) - 1;
-    const high = Math.max(...temps) + 1;
+    const limit = day ? this.item.history?.limit : undefined;
+    const bounds = Number.isFinite(limit) ? [...temps, limit] : temps;
+    const low = Math.min(...bounds) - 1;
+    const high = Math.max(...bounds) + 1;
+    const y = (value) => bottom - ((value - low) / (high - low)) * (bottom - top);
     const xs = hours.map((_, index) => 20 + (index * (width - 40)) / (hours.length - 1));
-    const ys = temps.map((t) => bottom - ((t - low) / (high - low)) * (bottom - top));
+    const ys = temps.map(y);
     const line = xs.map((x, index) => `${index ? "L" : "M"}${x.toFixed(1)},${ys[index].toFixed(1)}`).join(" ");
     const area = `${line} L${xs.at(-1).toFixed(1)},${bottom + 8} L${xs[0].toFixed(1)},${bottom + 8} Z`;
     const rains = hours.map((hour) => hour.precipitation ?? 0);
@@ -205,8 +232,13 @@ export class HomeDashboardWeather extends LitElement {
     const clock = new Intl.DateTimeFormat(this.hass.language, { hour: "2-digit", minute: "2-digit" });
     const total = rains.reduce((sum, rain) => sum + rain, 0);
     return html`
-      <section class="card chart-card" data-weather-chart>
-        <h3>${this._t("weather_next_day")}</h3>
+      <section
+        class="card chart-card ${this._hasPages ? "paged" : ""}"
+        data-weather-chart
+        @pointerdown=${this._swipeStart}
+        @pointerup=${this._swipeEnd}
+      >
+        ${this._renderPager(label)}
         <svg class="chart" viewBox="0 0 ${width} ${height}">
           <defs>
             <linearGradient id="warm" x1="0" x2="0" y1="0" y2="1">
@@ -215,6 +247,7 @@ export class HomeDashboardWeather extends LitElement {
             </linearGradient>
           </defs>
           <path d=${area} fill="url(#warm)"></path>
+          ${this._renderLimit(limit, y)}
           <path d=${line} class="line"></path>
           <line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
           <text x="10" y=${rainTop - 8} class="axis">${this._t("weather_precipitation")}</text>
@@ -248,16 +281,19 @@ export class HomeDashboardWeather extends LitElement {
           <span><i class="rain"></i>${this._t("weather_rain")}</span>
           <span><i class="snow"></i>${this._t("weather_snow")}</span>
           <span><i class="mix"></i>${this._t("weather_mix")}</span>
-          <b data-weather-total>${translate(this.hass.language, "weather_total", { value: this._number(total) })}</b>
+          ${day
+            ? nothing
+            : html`<b data-weather-total>${translate(this.hass.language, "weather_total", { value: this._number(total) })}</b>`}
         </div>
+        ${extra}
       </section>
     `;
   }
 
   _renderColumns() {
-    const days = (this._daily ?? []).slice(0, DAYS_SHOWN - 1);
+    if (this._back > 0) return this._renderPastWeek();
+    const days = this._shownDays;
     if (!days.length) return nothing;
-    const lowOf = (day) => day.templow ?? day.temperature;
     const lowest = Math.min(...days.map(lowOf));
     const highest = Math.max(...days.map((day) => day.temperature));
     const range = highest - lowest || 1;
@@ -271,9 +307,17 @@ export class HomeDashboardWeather extends LitElement {
           ${days.map((day) => {
             const at = new Date(day.datetime);
             const isToday = isSameDay(at, today);
+            const ahead = daysAhead(day.datetime);
+            const shown = ahead === (this._ahead ?? 0);
             const kind = precipitationKind(day.condition);
             return html`
-              <div class="column ${isToday ? "today" : ""}" data-weather-column>
+              <button
+                class="column ${shown ? "today" : ""}"
+                data-weather-column=${ahead}
+                aria-pressed=${shown}
+                ?disabled=${ahead < 0}
+                @click=${() => this._goTo(-ahead)}
+              >
                 <strong>${isToday ? this._t("weather_today") : name.format(at)}</strong>
                 <small>${date.format(at)}</small>
                 <ha-icon .icon=${weatherIcon(day.condition)}></ha-icon>
@@ -294,7 +338,7 @@ export class HomeDashboardWeather extends LitElement {
                         )} mm`
                     : html`&nbsp;`}
                 </small>
-              </div>
+              </button>
             `;
           })}
         </div>
@@ -356,7 +400,7 @@ export class HomeDashboardWeather extends LitElement {
     }
     return html`
       <div class="content">
-        ${this._renderNow()} ${this._renderFacts()} ${this._renderHourly()} ${this._renderDaily()}
+        ${this._renderNow()} ${this._renderFacts()} ${this._renderHourly()} ${this._renderDaily()} ${this._renderPastList()}
         ${this.item.forecast ? nothing : html`<p data-weather-empty>${this._t("weather_no_forecast")}</p>`}
       </div>
     `;
@@ -653,6 +697,9 @@ export class HomeDashboardWeather extends LitElement {
         height: 24px;
         pointer-events: none;
       }
+      .paged .chart-icons {
+        top: 68px;
+      }
       .chart-icons ha-icon {
         position: absolute;
         transform: translateX(-50%);
@@ -733,5 +780,7 @@ export class HomeDashboardWeather extends LitElement {
         color: var(--hd-text);
       }
     `,
+    historyStyles,
+    daysStyles,
   ];
 }
