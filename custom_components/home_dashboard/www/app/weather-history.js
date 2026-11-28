@@ -4,9 +4,8 @@
 
 import { css, html, nothing, svg } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
-import { WEATHER_CHART } from "./weather-days.js";
 
-export const PAST_DAYS = 7;
+export const PAST_DAYS = 14;
 // A day is 6:00–18:00 and its night 18:00–6:00 of the next morning: the night that follows the day's work.
 export const DAY_START = 6;
 export const NIGHT_START = 18;
@@ -130,6 +129,8 @@ export const WeatherHistory = (Base) =>
     updated(changed) {
       super.updated?.(changed);
       if (this.hass && this._hasHistory && !((this._back ?? 0) >= this._nearest)) this._goBack(this._nearest);
+      // The strip of days under the chart shows the measured days from the start.
+      if (this.hass && this._hasHistory && !this._past && !this._pastAt) this._loadPast();
     }
 
     _goBack(back) {
@@ -239,31 +240,36 @@ export const WeatherHistory = (Base) =>
     _renderPastChart() {
       const days = this._days;
       const day = days?.[(this._back ?? 1) - 1];
-      return html`
-        <section
-          class="card chart-card past"
-          data-weather-past
-          @pointerdown=${this._swipeStart}
-          @pointerup=${this._swipeEnd}
-        >
-          ${this._renderPager(day ? this._pastName(day) : this._t("weather_past"))}
-          ${!day
-            ? html`<p>${this._t(this._pastError ? "weather_past_error" : "weather_past_loading")}</p>`
-            : day.hours.length
-              ? this._renderPastDay(day)
-              : html`<p data-weather-no-readings>${this._t("weather_no_readings")}</p>`}
-        </section>
-      `;
+      const ready = day && day.hours.length;
+      const message = !day
+        ? this._t(this._pastError ? "weather_past_error" : "weather_past_loading")
+        : this._t("weather_no_readings");
+      return this._renderFrame({
+        kind: "past",
+        label: day ? this._pastName(day) : this._t("weather_past"),
+        plot: ready
+          ? this._renderPastDay(day)
+          : html`<p data-weather-no-readings=${day ? "" : nothing}>${message}</p>`,
+        legend: html`<span><i class="mean"></i>${this._t("weather_mean")}</span>
+          <span><i class="band"></i>${this._t("weather_band")}</span>
+          ${this.item.history.rain ? html`<span><i class="rain"></i>${this._t("weather_gauge")}</span>` : nothing}`,
+        facts: day ? this._renderPastParts(day) : nothing,
+        note: day?.missing
+          ? html`<span data-weather-missing>${translate(this.hass.language, "weather_missing", { count: day.missing })}</span>`
+          : nothing,
+      });
     }
 
     _renderPastDay(day) {
       const { limit } = this.item.history;
-      const { width, height, top, bottom, rainTop, rainBottom } = WEATHER_CHART;
+      const { width, height, top, bottom, rainTop, rainBottom } = this._dims;
       const { hours } = day;
+      // A narrow chart (a phone) has a label every 6 hours: the text keeps its size.
+      const every = width < 520 ? 6 : 3;
       const bounds = [day.all.min, day.all.max, ...(Number.isFinite(limit) ? [limit] : [])];
       const low = Math.min(...bounds) - 1;
       const high = Math.max(...bounds) + 1;
-      const x = (time) => 20 + ((time - day.start) / (day.end - day.start)) * (width - 40);
+      const x = (time) => 24 + ((time - day.start) / (day.end - day.start)) * (width - 48);
       const y = (value) => bottom - ((value - low) / (high - low)) * (bottom - top);
       const middle = (hour) => x(hour.time + HOUR_MS / 2);
       const path = (piece, key) =>
@@ -272,14 +278,13 @@ export const WeatherHistory = (Base) =>
         `${path(piece, "max")} ${path([...piece].reverse(), "min").replace("M", "L")} Z`;
       const pieces = unbroken(hours);
       const scale = Math.max(1, ...day.rain.map((drop) => drop.amount));
-      const bar = ((width - 40) / 24) * 0.62;
+      const bar = Math.min(28, ((width - 48) / 24) * 0.62);
       const clock = new Intl.DateTimeFormat(this.hass.language, { hour: "2-digit", minute: "2-digit" });
       const lowest = hours.reduce((found, hour) => (hour.min < found.min ? hour : found));
       // Under its point, or over it where the line of the limit would run through the number.
       const underLimit = Number.isFinite(limit) && y(limit) > y(lowest.min) && y(limit) < y(lowest.min) + 26;
       const lowestY = y(lowest.min) + (underLimit ? -10 : 18);
-      return html`
-        <svg class="chart" viewBox="0 0 ${width} ${height}">
+      return html`<svg class="chart" viewBox="0 0 ${width} ${height}">
           ${pieces.map((piece) => svg`
             <path d=${band(piece)} class="band"></path>
             <path d=${path(piece, "mean")} class="line"></path>
@@ -290,27 +295,31 @@ export const WeatherHistory = (Base) =>
                 <text x="10" y=${y(limit) + 14} class="limit-label">${this._degrees(limit)}</text>`
             : nothing}
           ${hours.map((hour) =>
-            new Date(hour.time).getHours() % 3 || Math.abs(hour.time - lowest.time) <= HOUR_MS
+            new Date(hour.time).getHours() % every || Math.abs(hour.time - lowest.time) <= HOUR_MS
               ? nothing
               : svg`<text x=${middle(hour)} y=${y(hour.max) - 8} class="temperature">${this._degrees(hour.mean)}</text>`,
           )}
           <circle cx=${middle(lowest)} cy=${y(lowest.min)} r="4" class="lowest"></circle>
           <text x=${Math.min(width - 24, Math.max(24, middle(lowest)))} y=${lowestY} class="temperature" data-weather-lowest>${this._degrees(lowest.min)}</text>
-          ${Array.from({ length: 9 }, (_, index) => {
-            const time = day.start + ((day.end - day.start) * index) / 8;
-            return svg`<text x=${x(time)} y=${height - 4} class="hour">${index === 8 ? "24:00" : clock.format(new Date(atHour(new Date(day.start), 0, index * 3)))}</text>`;
+          ${Array.from({ length: 24 / every + 1 }, (_, index) => {
+            const time = day.start + ((day.end - day.start) * index * every) / 24;
+            return svg`<text x=${x(time)} y=${height - 6} class="hour">${index * every === 24 ? "24:00" : clock.format(new Date(atHour(new Date(day.start), 0, index * every)))}</text>`;
           })}
           ${this.item.history.rain
             ? svg`<line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
                 <text x="10" y=${rainTop - 8} class="axis">${this._t("weather_precipitation")}</text>
                 ${day.rain.filter((drop) => drop.amount >= 0.05).map((drop) => {
-                  const tall = Math.max(4, (drop.amount / scale) * (rainBottom - rainTop));
+                  const tall = Math.max(4, (drop.amount / scale) * (rainBottom - rainTop - 16));
                   return svg`<rect x=${middle(drop) - bar / 2} y=${rainBottom - tall} width=${bar} height=${tall} rx="3"
                       class="rain" data-weather-measured-rain></rect>
                     <text x=${middle(drop)} y=${rainBottom - tall - 5} class="amount">${this._number(drop.amount)}</text>`;
                 })}`
             : nothing}
-        </svg>
+      </svg>`;
+    }
+
+    _renderPastParts(day) {
+      return html`
         <div class="parts">
           ${this._renderPart("day", day.day, day.dayOpen)} ${this._renderPart("night", day.night, day.nightOpen)}
           ${day.cold === null
@@ -326,18 +335,21 @@ export const WeatherHistory = (Base) =>
                 <ha-icon icon="mdi:water"></ha-icon><small>${this._t("weather_rain")}</small><b>${this._number(day.total)} mm</b>
               </span>`}
         </div>
-        ${day.missing
-          ? html`<p class="missing" data-weather-missing>
-              ${translate(this.hass.language, "weather_missing", { count: day.missing })}
-            </p>`
-          : nothing}
       `;
     }
 
-    // The week as columns, the oldest first: the day's range, the night's and the rain. A column opens its day.
-    _renderPastWeek() {
+    /** The lowest and the highest of the measured days, for one scale with the next days. */
+    get _pastScale() {
+      const known = (this._days ?? []).filter((day) => day.all);
+      return known.length
+        ? { lowest: Math.min(...known.map((day) => day.all.min)), highest: Math.max(...known.map((day) => day.all.max)) }
+        : null;
+    }
+
+    // The measured days as columns, the oldest first: the day's range, the night's and the rain. A column opens its day.
+    _renderPastColumns(scale) {
       const days = this._days;
-      if (!days) return nothing;
+      if (!days) return [];
       const range = (key, part) => html`
         <span class="part" data-weather-week=${key}>
           <ha-icon icon=${key === "day" ? "mdi:weather-sunny" : "mdi:weather-night"}></ha-icon>
@@ -346,27 +358,43 @@ export const WeatherHistory = (Base) =>
             : html`<b>–</b>`}
         </span>
       `;
+      const date = new Intl.DateTimeFormat(this.hass.language, { day: "2-digit", month: "2-digit" });
+      return [...days].reverse().map((day) => {
+        const chosen = this._position === day.back + 1;
+        return html`
+          <button
+            class="column past ${chosen ? "today" : ""} ${day.back === 0 ? "current" : ""}"
+            data-weather-past-day=${day.back}
+            aria-pressed=${chosen}
+            @click=${() => this._goTo(day.back + 1)}
+          >
+            <strong>${this._pastName(day, false)}</strong>
+            <small>${date.format(new Date(day.start))}</small>
+            ${range("day", day.day)} ${this._renderBar(day.all && day.all.max, day.all && day.all.min, scale)}
+            ${range("night", day.night)}
+            <small class="amount rain">
+              ${day.total ? html`<ha-icon icon="mdi:water"></ha-icon>${this._number(day.total)} mm` : html`&nbsp;`}
+            </small>
+          </button>
+        `;
+      });
+    }
+
+    /** The bar of a day between its low and high on a scale shared by all the columns. */
+    _renderBar(high, low, scale) {
+      if (!scale || !Number.isFinite(high) || !Number.isFinite(low)) return html`<span class="range"></span>`;
+      const span = scale.highest - scale.lowest || 1;
+      return html`<span class="range">
+        <i style="top: ${((scale.highest - high) / span) * 100}%; height: ${Math.max(((high - low) / span) * 100, 4)}%"></i>
+      </span>`;
+    }
+
+    // A phone and an upright tablet: the measured days as a strip of their own.
+    _renderPastWeek() {
       return html`
         <section class="card days-card" data-weather-past-week>
           <h3>${this._t("weather_past_week")}</h3>
-          <div class="columns past-columns">
-            ${[...days].reverse().map(
-              (day) => html`
-                <button
-                  class="column ${day.back + 1 === (this._back ?? 1) ? "today" : ""}"
-                  data-weather-past-day=${day.back}
-                  @click=${() => this._goBack(day.back + 1)}
-                >
-                  <strong>${this._pastName(day, false)}</strong>
-                  <small>${new Intl.DateTimeFormat(this.hass.language, { day: "2-digit", month: "2-digit" }).format(new Date(day.start))}</small>
-                  ${range("day", day.day)} ${range("night", day.night)}
-                  <small class="amount rain">
-                    ${day.total ? html`<ha-icon icon="mdi:water"></ha-icon>${this._number(day.total)} mm` : html`&nbsp;`}
-                  </small>
-                </button>
-              `,
-            )}
-          </div>
+          <div class="strip">${this._renderPastColumns(this._pastScale)}</div>
         </section>
       `;
     }
@@ -449,34 +477,26 @@ export const historyStyles = css`
     align-items: center;
     --mdc-icon-size: 18px;
   }
-  .parts small,
-  .missing {
+  .parts small {
     color: var(--hd-text-muted);
   }
-  .missing {
-    margin: 8px 0 0;
-    font-size: 13px;
-    text-align: start;
-  }
+
   b.cold {
     color: color-mix(in srgb, #3d9df2 65%, var(--hd-text));
   }
   .parts b,
-  .past-columns b {
+  .column.past b {
     font-weight: 500;
   }
-  .columns.past-columns {
-    gap: 6px;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-  }
-  .past-columns button.column {
+
+  button.column.past {
     padding: 8px 2px;
     border: 0;
     color: inherit;
     font: inherit;
     cursor: pointer;
   }
-  .past-columns .part {
+  .column.past .part {
     display: flex;
     gap: 3px;
     align-items: center;
@@ -485,7 +505,7 @@ export const historyStyles = css`
     white-space: nowrap;
     --mdc-icon-size: 13px;
   }
-  .past-columns .part .low {
+  .column.past .part .low {
     color: var(--hd-text-muted);
   }
   .past-list {
@@ -493,17 +513,18 @@ export const historyStyles = css`
     flex-direction: column;
     gap: 16px;
   }
-  .past-list .past-columns {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
   .past-list .card {
     padding: 14px 12px;
     border-radius: 14px;
   }
-  .past-list .chart text {
-    font-size: 22px;
+  .past-list .plot {
+    flex: none;
+    height: 240px;
+    min-height: 0;
   }
-  .past-list .chart text.amount {
-    font-size: 15px;
+  .past-list .chart-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 `;

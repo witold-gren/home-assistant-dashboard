@@ -1417,9 +1417,10 @@ const FILTERS = {
 };
 
 // Tiles the user keeps together at the top of the security filter, wherever their rooms are:
-// `security.group` and, under it, `security.groups`.
+// `security.group` and, under it, `security.groups`. A switch that is only a scene (no room) comes as the scene has it:
+// its name and its PIN.
 function securityGroups(model) {
-  const known = [...model.rooms, ...(model.filterRooms ?? [])].flatMap((room) => room.tiles);
+  const known = [...model.rooms, ...(model.filterRooms ?? [])].flatMap((room) => room.tiles).concat(model.scenes ?? []);
   return (model.securityGroups ?? [])
     .map(({ name, entities }, index) => ({
       id: index ? `__security_group_${index + 1}` : "__security_group",

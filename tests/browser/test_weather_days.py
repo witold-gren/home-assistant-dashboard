@@ -157,7 +157,7 @@ def test_a_small_number_under_zero_is_not_minus_zero(tablet):
     prepare(tablet)
     texts = tablet.locator(f"{WEATHER} svg.chart text.temperature").all_text_contents()
     assert texts[0] == "0°"
-    assert "-0°" not in tablet.locator(f"{WEATHER} .columns").inner_text()
+    assert "-0°" not in tablet.locator(f"{WEATHER} .strip").inner_text()
 
 
 def test_a_phone_opens_the_hours_under_the_row(phone):
@@ -184,3 +184,104 @@ def test_the_clock_change_does_not_move_a_day(phone):
             .map((d) => m.daysAhead(d.toISOString(), now)); }"""
     )
     assert ahead == [0, 1, 2, -1]
+
+
+def test_every_view_has_the_same_frame(tablet):
+    """The chart and the days under it keep their size; only the drawing inside changes."""
+    prepare(tablet, history=True)
+    chart = f"{WEATHER} .chart-card"
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-chart]")
+
+    def sizes() -> tuple:
+        tablet.wait_for_timeout(100)
+        card = tablet.locator(chart).bounding_box()
+        days = tablet.locator(f"{WEATHER} .days-card").bounding_box()
+        plot = tablet.locator(f"{WEATHER} .plot").bounding_box()
+        # The measured days have no readings here: a line in place of the drawing.
+        if tablet.locator(f"{WEATHER} .plot svg").count():
+            svg = tablet.locator(f"{WEATHER} .plot svg").bounding_box()
+            assert abs(svg["height"] - plot["height"]) < 1
+        return round(card["y"]), round(card["height"]), round(days["y"]), round(days["height"])
+
+    first = sizes()
+    views = {"next 24 hours": first}
+    choose(tablet, 1)
+    views["tomorrow"] = sizes()
+    choose(tablet, 2)
+    views["part of a day"] = sizes()
+    choose(tablet, 4)
+    views["days"] = sizes()
+    tablet.locator(f"{WEATHER} [data-weather-go='forecast']").click()
+    tablet.locator(f"{WEATHER} [data-weather-go='earlier']").click()
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-past]")
+    views["measured"] = sizes()
+    # The 14 days that were and today, in the strip with the next days.
+    assert tablet.locator(f"{WEATHER} [data-weather-past-day]").count() == 15
+    assert all(size == first for size in views.values()), views
+    # The columns stay inside their card, with the margin of its sides under them.
+    margins = tablet.locator(f"{WEATHER} .days-card").evaluate(
+        """(card) => { const box = card.getBoundingClientRect(); const columns = [...card.querySelectorAll(".column")];
+            const bottom = Math.max(...columns.map((c) => c.getBoundingClientRect().bottom));
+            const left = parseFloat(getComputedStyle(card).paddingLeft);
+            return { below: box.bottom - bottom, left,
+                     inside: columns.every((c) => c.scrollHeight <= c.clientHeight + 1) }; }"""
+    )
+    assert margins["inside"] and abs(margins["below"] - margins["left"]) <= 1, margins
+    # A legend in every view, and the whole window on the screen.
+    assert tablet.locator(f"{WEATHER} .legend span").count() >= 2
+    assert first[2] + first[3] <= 820
+
+
+def strip_state(page) -> dict:
+    return page.locator(f"{WEATHER} .strip").evaluate(
+        """(strip) => { const box = strip.getBoundingClientRect(); const pad = parseFloat(getComputedStyle(strip).paddingLeft);
+            const seen = [...strip.querySelectorAll(".column")].filter((c) => { const r = c.getBoundingClientRect();
+                return r.left >= box.left + pad - 1 && r.right <= box.right - pad + 1; });
+            return { left: strip.scrollLeft, seen: seen.map((c) => c.dataset.weatherColumn ?? `past${c.dataset.weatherPastDay}`) }; }"""
+    )
+
+
+def test_the_strip_scrolls_without_the_chart_and_a_tap_chooses_the_day(tablet):
+    prepare(tablet, history=True)
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-past-day='14']", state="attached")
+    tablet.wait_for_timeout(100)
+    # It opens at the next days: six columns in sight, the days that were to the left.
+    assert strip_state(tablet)["seen"] == ["0", "1", "2", "3", "4", "5"]
+    tablet.locator(f"{WEATHER} .strip").evaluate("(strip) => strip.scrollTo({ left: 0 })")
+    tablet.wait_for_timeout(100)
+    assert strip_state(tablet)["seen"][0] == "past14"
+    assert shown(tablet) == "Najbliższe 24 godziny"
+    tablet.locator(f"{WEATHER} [data-weather-past-day='13']").click()
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-past]")
+    assert tablet.locator(f"{WEATHER} [data-weather-past-day='13']").get_attribute("aria-pressed") == "true"
+    # The arrows move the chart; the strip follows when the day is out of sight.
+    left = strip_state(tablet)["left"]
+    for _ in range(12):
+        tablet.locator(f"{WEATHER} [data-weather-go='later']").click()
+    tablet.wait_for_timeout(600)
+    assert shown(tablet) == "Wczoraj"
+    assert "past1" in strip_state(tablet)["seen"] and strip_state(tablet)["left"] > left
+
+
+def test_a_phone_has_the_measured_days_as_a_strip_from_today(phone):
+    prepare(phone, history=True)
+    phone.wait_for_selector(f"{WEATHER} [data-weather-past-day='14']", state="attached")
+    phone.wait_for_timeout(100)
+    seen = strip_state(phone)["seen"]
+    assert len(seen) == 4 and seen[-1] == "past0"
+    assert phone.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+
+
+def test_today_is_a_shade_lighter(tablet):
+    prepare(tablet, history=True)
+    tablet.wait_for_selector(f"{WEATHER} [data-weather-past-day='14']", state="attached")
+    current = tablet.locator(f"{WEATHER} .strip .column.current")
+    assert current.evaluate_all(
+        "(c) => c.map((b) => b.dataset.weatherColumn ?? `past${b.dataset.weatherPastDay}`)"
+    ) == [
+        "past0",
+        "0",
+    ]
+    shade = "(b) => getComputedStyle(b).backgroundImage"
+    assert "gradient" in current.first.evaluate(shade)
+    assert tablet.locator(f"{WEATHER} [data-weather-column='1']").evaluate(shade) == "none"

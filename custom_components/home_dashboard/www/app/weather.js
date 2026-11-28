@@ -6,7 +6,7 @@ import { translate } from "./i18n.js";
 import { FORECAST_DAILY, FORECAST_HOURLY, weatherIcon } from "./model.js";
 import { tokens } from "./styles.js";
 import { mediaQuery } from "./media.js";
-import { WEATHER_CHART, WeatherDays, daysAhead, daysStyles, lowOf, precipitationKind } from "./weather-days.js";
+import { WeatherDays, daysAhead, daysStyles, lowOf, precipitationKind } from "./weather-days.js";
 import { WeatherHistory, historyStyles } from "./weather-history.js";
 
 const HOURS_SHOWN = 24;
@@ -45,6 +45,7 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
     item: { attribute: false },
     _hourly: { state: true },
     _daily: { state: true },
+    _size: { state: true },
   };
 
   _wide = mediaQuery(WIDE_WEATHER);
@@ -61,15 +62,86 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
     this._wide.removeEventListener("change", this._redraw);
     this._watches?.forEach((watch) => watch.then((unsubscribe) => unsubscribe?.()).catch(() => {}));
     this._watches = null;
+    this._sizer?.disconnect();
+    this._plot = null;
   }
 
   updated(changed) {
     super.updated(changed);
+    this._measure();
+    this._placeStrip();
     if (this._watches || !this.hass || !this.item) return;
     this._watches = [];
     const features = this.hass.states[this.item.forecast]?.attributes.supported_features ?? 0;
     if (features & FORECAST_HOURLY) this._watch("hourly");
     if (features & FORECAST_DAILY) this._watch("daily");
+  }
+
+  // The chart is drawn in the pixels of its box, so the box keeps its size whatever it shows and only the drawing
+  // inside it changes.
+  _measure() {
+    const plot = this.renderRoot.querySelector(".plot");
+    if (plot === this._plot) return;
+    this._plot = plot;
+    this._sizer ??= new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      const height = Math.round(entry.contentRect.height);
+      if (width > 0 && height > 0 && (width !== this._size?.width || height !== this._size?.height)) {
+        this._size = { width, height };
+      }
+    });
+    this._sizer.disconnect();
+    if (plot) this._sizer.observe(plot);
+  }
+
+  /** Where things go in the chart: the temperature over the precipitation, the hours at the bottom. */
+  get _dims() {
+    const { width = 760, height = 300 } = this._size ?? {};
+    return {
+      width,
+      height,
+      top: 28,
+      bottom: Math.round(height * 0.56),
+      rainTop: Math.round(height * 0.68),
+      rainBottom: height - 26,
+    };
+  }
+
+  /**
+   * The one frame of every chart: the header with its arrows, a row of icons, the chart in a box of its own size, the
+   * legend, a row of numbers and a note. Each row is there even when empty, so no view is taller than another.
+   */
+  _renderFrame({ kind, label, icons = [], plot, legend = nothing, facts = nothing, note = nothing }) {
+    const { width } = this._dims;
+    return html`
+      <section
+        class="card chart-card ${this._hasPages ? "paged" : ""}"
+        data-weather-chart=${kind === "chart" ? "" : nothing}
+        data-weather-past=${kind === "past" ? "" : nothing}
+        data-weather-days-chart=${kind === "days" ? "" : nothing}
+        @pointerdown=${this._swipeStart}
+        @pointerup=${this._swipeEnd}
+      >
+        ${this._renderPager(label)}
+        <div class="chart-icons">
+          ${icons.map(
+            (icon) => html`<ha-icon style="left: ${(icon.x / width) * 100}%" .icon=${weatherIcon(icon.condition)}></ha-icon>`,
+          )}
+        </div>
+        <div class="plot">${plot}</div>
+        <div class="foot">
+          <div class="legend">${legend}</div>
+          <div class="facts-row">${facts}</div>
+          <div class="note">${note}</div>
+        </div>
+      </section>
+    `;
+  }
+
+  _forecastLegend() {
+    return html`<span><i class="rain"></i>${this._t("weather_rain")}</span>
+      <span><i class="snow"></i>${this._t("weather_snow")}</span>
+      <span><i class="mix"></i>${this._t("weather_mix")}</span>`;
   }
 
   _watch(type) {
@@ -95,7 +167,7 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
 
   // The days the window shows: a tablet on its side has one column less.
   get _shownDays() {
-    return (this._daily ?? []).slice(0, this._wide.matches ? DAYS_SHOWN - 1 : DAYS_SHOWN);
+    return (this._daily ?? []).slice(0, DAYS_SHOWN);
   }
 
   _renderNow() {
@@ -213,123 +285,122 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
     return this._renderHoursChart(hours, { label: this._t("weather_next_day") });
   }
 
-  // `day`: the hours of a chosen day, with the limit of the measured days and `extra` under the chart.
-  _renderHoursChart(hours, { label, day = false, extra = nothing }) {
-    const { width, height, top, bottom, rainTop, rainBottom } = WEATHER_CHART;
+  // The hours of the next 24 hours or of a chosen day (`day`: with the limit, its own numbers and note).
+  _renderHoursChart(hours, { label, day = false, facts, note = nothing }) {
+    const { width, height, top, bottom, rainTop, rainBottom } = this._dims;
     const temps = hours.map((hour) => hour.temperature);
-    const limit = day ? this.item.history?.limit : undefined;
+    const limit = this.item.history?.limit;
     const bounds = Number.isFinite(limit) ? [...temps, limit] : temps;
     const low = Math.min(...bounds) - 1;
     const high = Math.max(...bounds) + 1;
     const y = (value) => bottom - ((value - low) / (high - low)) * (bottom - top);
-    const xs = hours.map((_, index) => 20 + (index * (width - 40)) / (hours.length - 1));
+    const xs = hours.map((_, index) => 24 + (index * (width - 48)) / (hours.length - 1));
     const ys = temps.map(y);
     const line = xs.map((x, index) => `${index ? "L" : "M"}${x.toFixed(1)},${ys[index].toFixed(1)}`).join(" ");
     const area = `${line} L${xs.at(-1).toFixed(1)},${bottom + 8} L${xs[0].toFixed(1)},${bottom + 8} Z`;
     const rains = hours.map((hour) => hour.precipitation ?? 0);
     const scale = Math.max(1, ...rains);
-    const bar = ((width - 40) / hours.length) * 0.62;
+    const bar = Math.min(28, ((width - 48) / hours.length) * 0.62);
     const clock = new Intl.DateTimeFormat(this.hass.language, { hour: "2-digit", minute: "2-digit" });
     const total = rains.reduce((sum, rain) => sum + rain, 0);
-    return html`
-      <section
-        class="card chart-card ${this._hasPages ? "paged" : ""}"
-        data-weather-chart
-        @pointerdown=${this._swipeStart}
-        @pointerup=${this._swipeEnd}
-      >
-        ${this._renderPager(label)}
-        <svg class="chart" viewBox="0 0 ${width} ${height}">
-          <defs>
-            <linearGradient id="warm" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stop-color="#ffd166" stop-opacity="0.45"></stop>
-              <stop offset="1" stop-color="#ffd166" stop-opacity="0"></stop>
-            </linearGradient>
-          </defs>
-          <path d=${area} fill="url(#warm)"></path>
-          ${this._renderLimit(limit, y)}
-          <path d=${line} class="line"></path>
-          <line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
-          <text x="10" y=${rainTop - 8} class="axis">${this._t("weather_precipitation")}</text>
-          ${hours.map((hour, index) => {
-            const rain = rains[index];
-            const tall = rain ? Math.max(4, (rain / scale) * (rainBottom - rainTop)) : 0;
-            return svg`
-              ${rain
-                ? svg`<rect x=${xs[index] - bar / 2} y=${rainBottom - tall} width=${bar} height=${tall} rx="3"
-                    class=${precipitationKind(hour.condition)} data-weather-rain=${precipitationKind(hour.condition)}></rect>
-                  <text x=${xs[index]} y=${rainBottom - tall - 5} class="amount">${this._number(rain)}</text>`
-                : nothing}
-              ${index % 3
-                ? nothing
-                : svg`<text x=${xs[index]} y=${ys[index] - 12} class="temperature">${this._number(hour.temperature, 0)}°</text>
-                  <text x=${xs[index]} y=${height - 4} class="hour">${clock.format(new Date(hour.datetime))}</text>`}
-            `;
-          })}
-        </svg>
-        <div class="chart-icons">
-          ${hours.map((hour, index) =>
-            index % 3
-              ? nothing
-              : html`<ha-icon
-                  style="left: ${(xs[index] / width) * 100}%"
-                  .icon=${weatherIcon(hour.condition)}
-                ></ha-icon>`,
-          )}
-        </div>
-        <div class="legend">
-          <span><i class="rain"></i>${this._t("weather_rain")}</span>
-          <span><i class="snow"></i>${this._t("weather_snow")}</span>
-          <span><i class="mix"></i>${this._t("weather_mix")}</span>
-          ${day
+    const every = width < 520 ? 6 : 3;
+    const plot = html`<svg class="chart" viewBox="0 0 ${width} ${height}">
+      <defs>
+        <linearGradient id="warm" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#ffd166" stop-opacity="0.45"></stop>
+          <stop offset="1" stop-color="#ffd166" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <path d=${area} fill="url(#warm)"></path>
+      ${this._renderLimit(limit, y)}
+      <path d=${line} class="line"></path>
+      <line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
+      <text x="10" y=${rainTop - 8} class="axis">${this._t("weather_precipitation")}</text>
+      ${hours.map((hour, index) => {
+        const rain = rains[index];
+        const tall = rain ? Math.max(4, (rain / scale) * (rainBottom - rainTop - 16)) : 0;
+        return svg`
+          ${rain
+            ? svg`<rect x=${xs[index] - bar / 2} y=${rainBottom - tall} width=${bar} height=${tall} rx="3"
+                class=${precipitationKind(hour.condition)} data-weather-rain=${precipitationKind(hour.condition)}></rect>
+              <text x=${xs[index]} y=${rainBottom - tall - 5} class="amount">${this._number(rain)}</text>`
+            : nothing}
+          ${index % every
             ? nothing
-            : html`<b data-weather-total>${translate(this.hass.language, "weather_total", { value: this._number(total) })}</b>`}
-        </div>
-        ${extra}
-      </section>
-    `;
+            : svg`<text x=${xs[index]} y=${ys[index] - 10} class="temperature">${this._number(hour.temperature, 0)}°</text>
+              <text x=${xs[index]} y=${height - 6} class="hour">${clock.format(new Date(hour.datetime))}</text>`}
+        `;
+      })}
+    </svg>`;
+    const cold = Number.isFinite(limit) ? temps.filter((value) => value < limit).length : null;
+    return this._renderFrame({
+      kind: "chart",
+      label,
+      icons: hours.flatMap((hour, index) => (index % every ? [] : [{ x: xs[index], condition: hour.condition }])),
+      plot,
+      legend: this._forecastLegend(),
+      facts:
+        facts ??
+        html`<div class="parts">
+          <span data-weather-next-range>
+            <ha-icon icon="mdi:thermometer"></ha-icon><small>${this._t("weather_low_high")}</small>
+            <b>${this._degrees(Math.min(...temps))} – ${this._degrees(Math.max(...temps))}</b>
+          </span>
+          <span data-weather-total>
+            <ha-icon icon="mdi:water"></ha-icon><small>${this._t("weather_total_24")}</small><b>${this._number(total)} mm</b>
+          </span>
+          ${cold === null
+            ? nothing
+            : html`<span data-weather-next-cold>
+                <ha-icon icon="mdi:snowflake-thermometer"></ha-icon>
+                <small>${translate(this.hass.language, "weather_forecast_below", { value: this._number(limit) })}</small>
+                <b class=${cold ? "cold" : ""}>${cold} h</b>
+              </span>`}
+        </div>`,
+      note,
+    });
   }
 
+  // One strip of days under the chart: the measured days (scrolled away to the left), a line, and the next days. It
+  // scrolls by the finger without touching the chart; a tap on a day shows it in the chart.
   _renderColumns() {
-    if (this._back > 0) return this._renderPastWeek();
-    const days = this._shownDays;
-    if (!days.length) return nothing;
-    const lowest = Math.min(...days.map(lowOf));
-    const highest = Math.max(...days.map((day) => day.temperature));
-    const range = highest - lowest || 1;
+    const days = this._daily ?? [];
+    const past = this._hasHistory ? this._pastScale : null;
+    if (!days.length && !this._hasHistory) return nothing;
+    const lows = [...days.map(lowOf), ...(past ? [past.lowest] : [])];
+    const highs = [...days.map((day) => day.temperature), ...(past ? [past.highest] : [])];
+    const scale = { lowest: Math.min(...lows), highest: Math.max(...highs) };
     const name = new Intl.DateTimeFormat(this.hass.language, { weekday: "short" });
     const date = new Intl.DateTimeFormat(this.hass.language, { day: "2-digit", month: "2-digit" });
-    const today = new Date();
+    const position = this._position;
     return html`
-      <section class="card days-card">
-        <h3>${this._t("weather_daily")}</h3>
-        <div class="columns" style="--days: ${days.length}">
-          ${days.map((day) => {
+      <section class="card days-card" data-weather-days>
+        <div class="days-head">
+          <h3>${this._t(this._hasHistory ? "weather_days_both" : "weather_daily")}</h3>
+          ${this._hasHistory
+            ? html`<small class="days-legend"><i class="past"></i>${this._t("weather_past")}<i></i>${this._t("weather_forecast")}</small>`
+            : nothing}
+        </div>
+        <div class="strip" data-weather-strip>
+          ${this._hasHistory ? this._renderPastColumns(scale) : nothing}
+          ${days.map((day, index) => {
             const at = new Date(day.datetime);
-            const isToday = isSameDay(at, today);
             const ahead = daysAhead(day.datetime);
-            const shown = ahead === (this._ahead ?? 0);
+            const shown = position <= 0 && ahead === -position;
             const kind = precipitationKind(day.condition);
             return html`
               <button
-                class="column ${shown ? "today" : ""}"
+                class="column ${shown ? "today" : ""} ${ahead === 0 ? "current" : ""} ${index === 0 ? "first-forecast" : ""}"
                 data-weather-column=${ahead}
                 aria-pressed=${shown}
                 ?disabled=${ahead < 0}
                 @click=${() => this._goTo(-ahead)}
               >
-                <strong>${isToday ? this._t("weather_today") : name.format(at)}</strong>
+                <strong>${ahead === 0 ? this._t("weather_today") : name.format(at)}</strong>
                 <small>${date.format(at)}</small>
                 <ha-icon .icon=${weatherIcon(day.condition)}></ha-icon>
                 <span class="high">${this._number(day.temperature, 0)}°</span>
-                <span class="range">
-                  <i
-                    style="top: ${((highest - day.temperature) / range) * 100}%; height: ${Math.max(
-                      ((day.temperature - lowOf(day)) / range) * 100,
-                      4,
-                    )}%"
-                  ></i>
-                </span>
+                ${this._renderBar(day.temperature, lowOf(day), scale)}
                 <span class="low">${this._number(lowOf(day), 0)}°</span>
                 <small class="amount ${kind}">
                   ${day.precipitation
@@ -344,6 +415,29 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
         </div>
       </section>
     `;
+  }
+
+  // The strip starts at the next days; later it only follows the chosen day when it is out of sight.
+  _placeStrip() {
+    const strip = this.renderRoot.querySelector(".strip");
+    if (!strip) return;
+    const columns = strip.querySelectorAll(".column").length;
+    const chosen = strip.querySelector('.column[aria-pressed="true"]');
+    if (strip !== this._strip || columns !== this._stripColumns) {
+      this._strip = strip;
+      this._stripColumns = columns;
+      const start = this._position > 0 ? chosen : strip.querySelector(".first-forecast");
+      // Without the next days (a phone, no forecast) it starts at today, the last column.
+      strip.scrollLeft = start ? start.offsetLeft - parseFloat(getComputedStyle(strip).paddingLeft) : strip.scrollWidth;
+      this._stripAt = this._position;
+      return;
+    }
+    if (this._stripAt === this._position || !chosen) return;
+    this._stripAt = this._position;
+    const left = chosen.offsetLeft - parseFloat(getComputedStyle(strip).paddingLeft);
+    if (left < strip.scrollLeft || left + chosen.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollTo({ left: left < strip.scrollLeft ? left : left + chosen.offsetWidth - strip.clientWidth, behavior: "smooth" });
+    }
   }
 
   _renderWideNow() {
@@ -560,9 +654,12 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
       /* The chart beside now and the readings, ending with them; the days under the chart. */
       .wide {
         display: grid;
+        flex: 1 1 auto;
+        box-sizing: border-box;
+        min-height: 0;
         align-items: start;
         grid-template-columns: 340px minmax(0, 1fr);
-        grid-template-rows: auto auto;
+        grid-template-rows: minmax(0, 1fr) auto;
         gap: 16px;
         padding: 0 20px 20px;
         color: var(--hd-text);
@@ -575,18 +672,24 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
         gap: 16px;
         min-width: 0;
       }
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
       .chart-card {
         display: flex;
         grid-row: 1;
         grid-column: 2;
         flex-direction: column;
-        justify-content: space-between;
+        gap: 4px;
         align-self: stretch;
         min-width: 0;
+        min-height: 0;
       }
-      .days-card {
+      /* The same margin under the columns as at their sides (over the padding of .card). */
+      .card.days-card {
         padding-top: 12px;
-        padding-bottom: 12px;
+        padding-bottom: 18px;
       }
       .days-card,
       .wide > p {
@@ -655,19 +758,19 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
         text-anchor: middle;
       }
       .chart .temperature {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 500;
       }
       .chart .hour,
       .chart .axis {
-        font-size: 12px;
-        opacity: 0.7;
+        font-size: 14px;
+        opacity: 0.75;
       }
       .chart .axis {
         text-anchor: start;
       }
       .chart .amount {
-        font-size: 11px;
+        font-size: 12px;
         opacity: 0.85;
       }
       .chart .base {
@@ -689,25 +792,54 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
         fill: #a693f5;
         background: #a693f5;
       }
+      /* The rows of the frame: the icons and the foot keep their height when empty, the chart takes the rest. */
       .chart-icons {
-        position: absolute;
-        top: 48px;
-        right: 18px;
-        left: 18px;
-        height: 24px;
+        position: relative;
+        flex: none;
+        height: 26px;
         pointer-events: none;
-      }
-      .paged .chart-icons {
-        top: 68px;
       }
       .chart-icons ha-icon {
         position: absolute;
         transform: translateX(-50%);
         --mdc-icon-size: 22px;
       }
+      .plot {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 180px;
+      }
+      .plot > .chart {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .plot > p {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      .foot {
+        display: flex;
+        flex: none;
+        flex-direction: column;
+        gap: 6px;
+        min-height: 82px;
+      }
+      .facts-row {
+        min-height: 24px;
+      }
+      .note {
+        min-height: 18px;
+        color: var(--hd-text-muted);
+        font-size: 13px;
+      }
       .legend {
         display: flex;
-        gap: 16px;
+        flex-wrap: wrap;
+        gap: 4px 16px;
         align-items: center;
         font-size: 13px;
       }
@@ -723,6 +855,88 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
         margin-left: auto;
         font-weight: 500;
       }
+      /* The strip of days: six columns in sight, the rest a swipe away, each stopping at a column. */
+      /* The columns are measured on the card (cqw), so six fill its width whatever the strip holds. */
+      .days-card {
+        container-type: inline-size;
+        overflow: hidden;
+      }
+      .strip {
+        position: relative;
+        display: grid;
+        grid-auto-columns: calc((100cqw - 5 * 10px) / 6);
+        grid-auto-flow: column;
+        grid-template-rows: minmax(224px, auto);
+        gap: 10px;
+        margin: 0 -18px;
+        /* On the right also the room of the line between the two kinds of days, so the next days fit in one view. */
+        padding: 0 30px 0 18px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-padding: 0 18px;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+      .strip::-webkit-scrollbar {
+        display: none;
+      }
+      .strip > .column {
+        scroll-snap-align: start;
+      }
+      .past-list .strip {
+        grid-auto-columns: calc((100cqw - 3 * 10px) / 4);
+        grid-template-rows: auto;
+        margin: 0 -12px;
+        padding: 0 12px;
+        scroll-padding: 0 12px;
+      }
+      /* A line between the days that were and the next ones. */
+      .strip > .first-forecast {
+        position: relative;
+        margin-left: 12px;
+      }
+      .strip > .column.past + .first-forecast::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        bottom: 8px;
+        left: -12px;
+        width: 2px;
+        border-radius: 1px;
+        background: var(--hd-outline);
+      }
+      /* Today, measured and forecast, a shade lighter than the other days: darker would sink into the card. */
+      .strip > .column.current {
+        background-image: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16));
+      }
+      .column.past {
+        background: color-mix(in srgb, var(--hd-surface, rgba(255, 255, 255, 0.08)) 70%, transparent);
+      }
+      .days-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .days-legend {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--hd-text-muted);
+        font-size: 13px;
+      }
+      .days-legend i {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-left: 8px;
+        border-radius: 3px;
+        background: var(--hd-surface, rgba(255, 255, 255, 0.08));
+      }
+      .days-legend i.past {
+        background: color-mix(in srgb, var(--hd-surface, rgba(255, 255, 255, 0.08)) 70%, transparent);
+        outline: 1px dashed var(--hd-outline);
+      }
       .columns {
         display: grid;
         grid-template-columns: repeat(var(--days, 6), minmax(0, 1fr));
@@ -731,14 +945,17 @@ export class HomeDashboardWeather extends WeatherDays(WeatherHistory(LitElement)
       .column {
         display: flex;
         flex-direction: column;
+        justify-content: center;
         gap: 4px;
         align-items: center;
         padding: 8px 6px;
         border-radius: 20px;
         background: var(--hd-surface, rgba(255, 255, 255, 0.08));
       }
+      /* Inside the column, so the frame of the chosen day does not reach past it. */
       .column.today {
         outline: 2px solid var(--hd-media-chip);
+        outline-offset: -2px;
       }
       .column small {
         color: var(--hd-text-muted);

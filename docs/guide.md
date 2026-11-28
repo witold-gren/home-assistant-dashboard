@@ -183,10 +183,10 @@ forecast: temperature and precipitation by the hour, the low and high, precipita
 > when it gets closer. Another weather service in `weather.forecast` may give more hours.
 
 **The days that were.** With `weather.history` (Settings → Home page and tablet → Weather → The days that were) the
-arrows over the chart, or dragging it to the right, go back day by day: today so far and the 7 days before it, as your
+arrows over the chart, or dragging it to the right, go back day by day: today so far and the 14 days before it, as your
 own sensors measured them. The line is the mean of each hour, the band its lowest and highest reading, the bars the
 rain. Under it: the day (6–18), the night after it (18–6 of the next morning), the rain and, with `limit`, the hours
-from 6:00 to 6:00 whose lowest reading was below it. The next days give way to the week as columns; a tap opens a day.
+from 6:00 to 6:00 whose lowest reading was below it. The card under the chart is one strip of days: the measured days on the left, after a line the next days of the forecast. A finger scrolls it smoothly without touching the chart; only a tap on a day shows it in the chart. It opens at the forecast, and when the arrows choose a day out of sight the strip scrolls to it.
 Hours without a reading are counted and left as a gap. A phone and an upright tablet have it under the forecast. The
 last hour comes a while after its end (hourly statistics).
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.1 (2026-11-28)
+
+- **One frame for every view of the weather window** on a tablet on its side: the chart and the days under it keep
+  their size whether they show the next 24 hours, a chosen day, the days of the forecast or a day that was; only the
+  drawing inside changes. The window fills the screen under its header and the chart is drawn in the pixels of its box
+  (no more text growing with a wide screen). Every view has its icons row, a legend (the measured days: mean, lowest –
+  highest of the hour, rain gauge), a row of numbers (the next 24 hours too: low – high, total, hours below the limit)
+  and a place for a note. The days that were have a bar of their range on the scale of the week, as the next days.
+- **One strip of days under the chart**: the days that were (now **14**, from the hourly statistics, which the recorder
+  keeps longer than its `purge_keep_days`) and, after a line, the next days, on one scale of temperature. A finger
+  scrolls it smoothly, six columns in sight (four on a phone, the measured days only), without changing the chart; a tap
+  on a day shows it. It opens at the forecast and follows a day chosen by the arrows. The columns never stick out of
+  their card, with the same margin under them as at their sides. Today, measured and forecast, is a shade lighter.
+- **A scene in a group of the Security filter**: `security.groups` may name a switch that is only in `scenes`; it comes
+  as the scene has it — its name, `turn_on_only`, `on_pin`/`off_pin` and who can see it.
+
 ## 1.7.0 (2026-11-25)
 
 - **Switching on with a PIN**: `on_pin` on a `turn_on_only` tile, like `off_pin`; both also pass `data` of their own.

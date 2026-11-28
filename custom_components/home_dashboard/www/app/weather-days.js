@@ -5,8 +5,6 @@ import { css, html, nothing, svg } from "../vendor/lit-all.min.js";
 import { translate } from "./i18n.js";
 import { weatherIcon } from "./model.js";
 
-export const WEATHER_CHART = { width: 760, height: 320, top: 44, bottom: 168, rainTop: 200, rainBottom: 290 };
-
 /** What falls in a forecast step, by its condition: snow, rain and snow, or rain. */
 export function precipitationKind(condition) {
   if (condition === "snowy") return "snow";
@@ -95,26 +93,27 @@ export const WeatherDays = (Base) =>
       if (hours.length >= 23) return nothing;
       const last = hours.length > 1 ? hours.at(-1) : null;
       const clock = new Intl.DateTimeFormat(this.hass.language, { hour: "2-digit", minute: "2-digit" });
-      return html`<p class="missing" data-weather-hours-note>
+      return html`<span data-weather-hours-note>
         ${last
           ? translate(this.hass.language, "weather_hours_until", { time: clock.format(new Date(last.datetime)) })
           : this._t("weather_no_hours")}
-      </p>`;
+      </span>`;
     }
 
     _renderChosenDay(ahead) {
       const day = this._chosen(ahead);
       if (!day) return nothing;
       const hours = hoursOfDay(this._hourly, ahead);
-      const extra = html`${this._renderDayParts(day, hours)} ${this._renderHoursNote(hours)}`;
-      if (hours.length > 1) return this._renderHoursChart(hours, { label: this._dayName(day), day: true, extra });
-      return this._renderDaysChart(day, extra);
+      const facts = this._renderDayParts(day, hours);
+      const note = this._renderHoursNote(hours);
+      if (hours.length > 1) return this._renderHoursChart(hours, { label: this._dayName(day), day: true, facts, note });
+      return this._renderDaysChart(day, facts, note);
     }
 
     // The highs and lows of the days with the chosen one marked: for a day without hours.
-    _renderDaysChart(chosen, extra) {
+    _renderDaysChart(chosen, facts, note) {
       const days = this._shownDays;
-      const { width, height, top, bottom, rainTop, rainBottom } = WEATHER_CHART;
+      const { width, height, top, bottom, rainTop, rainBottom } = this._dims;
       const { limit } = this.item.history ?? {};
       const bounds = [...days.map((day) => day.temperature), ...days.map(lowOf), ...(Number.isFinite(limit) ? [limit] : [])];
       const low = Math.min(...bounds) - 1;
@@ -127,43 +126,42 @@ export const WeatherDays = (Base) =>
       const scale = Math.max(1, ...days.map((day) => day.precipitation ?? 0));
       const bar = Math.min(40, step * 0.4);
       const name = new Intl.DateTimeFormat(this.hass.language, { weekday: "short" });
-      return html`
-        <section
-          class="card chart-card paged"
-          data-weather-days-chart
-          @pointerdown=${this._swipeStart}
-          @pointerup=${this._swipeEnd}
-        >
-          ${this._renderPager(this._dayName(chosen))}
-          <svg class="chart" viewBox="0 0 ${width} ${height}">
-            <rect x=${x(days.indexOf(chosen)) - step / 2} y="0" width=${step} height=${height} rx="14" class="chosen"></rect>
-            ${this._renderLimit(limit, y)}
-            <path d=${path((day) => day.temperature)} class="line"></path>
-            <path d=${path(lowOf)} class="line cool"></path>
-            <line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
-            <text x="10" y=${rainTop - 4} class="axis">${this._t("weather_precipitation_day")}</text>
-            ${days.map((day, index) => {
-              const rain = day.precipitation ?? 0;
-              const tall = rain ? Math.max(4, (rain / scale) * (rainBottom - rainTop - 14)) : 0;
-              return svg`
-                ${rain
-                  ? svg`<rect x=${x(index) - bar / 2} y=${rainBottom - tall} width=${bar} height=${tall} rx="3" class=${precipitationKind(day.condition)}></rect>
-                    <text x=${x(index)} y=${rainBottom - tall - 5} class="amount">${this._number(rain)}</text>`
-                  : nothing}
-                <text x=${x(index)} y=${y(day.temperature) - 10} class="temperature">${this._number(day.temperature, 0)}°</text>
-                <text x=${x(index)} y=${y(lowOf(day)) + 18} class="temperature">${this._number(lowOf(day), 0)}°</text>
-                <text x=${x(index)} y=${height - 8} class="hour">${daysAhead(day.datetime) === 0 ? this._t("weather_today") : name.format(new Date(day.datetime))}</text>
-              `;
-            })}
-          </svg>
-          ${extra}
-        </section>
-      `;
+      const plot = html`<svg class="chart" viewBox="0 0 ${width} ${height}">
+        <rect x=${x(days.indexOf(chosen)) - step / 2} y="0" width=${step} height=${height} rx="14" class="chosen"></rect>
+        ${this._renderLimit(limit, y)}
+        <path d=${path((day) => day.temperature)} class="line"></path>
+        <path d=${path(lowOf)} class="line cool"></path>
+        <line x1="10" x2=${width - 10} y1=${rainBottom} y2=${rainBottom} class="base"></line>
+        <text x="10" y=${rainTop - 8} class="axis">${this._t("weather_precipitation_day")}</text>
+        ${days.map((day, index) => {
+          const rain = day.precipitation ?? 0;
+          const tall = rain ? Math.max(4, (rain / scale) * (rainBottom - rainTop - 16)) : 0;
+          return svg`
+            ${rain
+              ? svg`<rect x=${x(index) - bar / 2} y=${rainBottom - tall} width=${bar} height=${tall} rx="3" class=${precipitationKind(day.condition)}></rect>
+                <text x=${x(index)} y=${rainBottom - tall - 5} class="amount">${this._number(rain)}</text>`
+              : nothing}
+            <text x=${x(index)} y=${y(day.temperature) - 10} class="temperature">${this._number(day.temperature, 0)}°</text>
+            <text x=${x(index)} y=${y(lowOf(day)) + 20} class="temperature">${this._number(lowOf(day), 0)}°</text>
+            <text x=${x(index)} y=${height - 6} class="hour">${daysAhead(day.datetime) === 0 ? this._t("weather_today") : name.format(new Date(day.datetime))}</text>
+          `;
+        })}
+      </svg>`;
+      return this._renderFrame({
+        kind: "days",
+        label: this._dayName(chosen),
+        icons: days.map((day, index) => ({ x: x(index), condition: day.condition })),
+        plot,
+        legend: html`<span><i class="high"></i>${this._t("weather_day_high")}</span>
+          <span><i class="low"></i>${this._t("weather_day_low")}</span> ${this._forecastLegend()}`,
+        facts,
+        note,
+      });
     }
 
     _renderLimit(limit, y) {
       if (!Number.isFinite(limit)) return nothing;
-      return svg`<line x1="10" x2=${WEATHER_CHART.width - 10} y1=${y(limit)} y2=${y(limit)} class="limit" data-weather-limit></line>
+      return svg`<line x1="10" x2=${this._dims.width - 10} y1=${y(limit)} y2=${y(limit)} class="limit" data-weather-limit></line>
         <text x="10" y=${y(limit) - 5} class="limit-label">${this._degrees(limit)}</text>`;
     }
 
@@ -197,6 +195,25 @@ export const daysStyles = css`
     width: 100%;
     font-size: 15px;
     text-align: start;
+  }
+  .legend i.high,
+  .legend i.low,
+  .legend i.mean,
+  .legend i.band {
+    height: 4px;
+    vertical-align: 3px;
+  }
+  .legend i.high,
+  .legend i.mean {
+    background: #ffb703;
+  }
+  .legend i.low {
+    background: #5ab0ff;
+  }
+  .legend i.band {
+    height: 12px;
+    vertical-align: -1px;
+    background: color-mix(in srgb, #ffb703 35%, transparent);
   }
   .chart .line.cool {
     stroke: #5ab0ff;

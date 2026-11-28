@@ -354,7 +354,12 @@ security:
   group: {name: Gość, entities: [input_boolean.guest_mode]}
   groups:
     - {name: Urządzenia dzieci, entities: [input_boolean.child_phone]}
+    - {name: Kamery, entities: [input_boolean.private_mode]}   # przełącznik tylko ze `scenes`
 ```
+
+Grupa bierze kafelki z pokoi, a przełącznik, który jest tylko w `scenes`, tak jak go opisuje scena: z nazwą,
+`turn_on_only`, `on_pin` i `off_pin` oraz widocznością (`visibility`). Kafelek ukryty przed kimś nie pojawi się też
+w jego grupie.
 
 ### `idle`
 

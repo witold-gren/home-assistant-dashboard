@@ -76,6 +76,11 @@ export const baseStyles = css`
     background: transparent;
     animation: rise 320ms cubic-bezier(0.2, 0.9, 0.25, 1);
   }
+  /* The weather of a tablet on its side fills the window under its header, so its chart keeps one size. */
+  .panel.whole[data-kind="weather"] home-dashboard-weather {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
   .grip {
     position: sticky;
     top: 0;

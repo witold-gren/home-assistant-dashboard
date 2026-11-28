@@ -72,7 +72,7 @@ def test_days_have_their_day_the_night_after_it_and_the_rain(phone):
         const now = new Date(2026, 10, 24, 15); const rows = ({ROWS})(now.getTime());
         return m.pastDays(rows.temperatures, rows.rains, {{ now, limit: 3 }}); }}"""
     )
-    assert len(days) == 8
+    assert len(days) == 15
     today, yesterday, before, gap = days[0], days[1], days[2], days[3]
     assert yesterday["day"] == {"min": 5, "max": 8}
     # The night of yesterday is 18:00 to 6:00 of today; the limit counts the day and that night.
@@ -104,7 +104,8 @@ def test_the_arrows_go_back_seven_days_and_return_to_the_forecast(tablet):
     prepare(tablet)
     tablet.wait_for_selector(f"{WEATHER} [data-weather-chart]")
     assert tablet.locator(f"{WEATHER} [data-weather-go='later']").is_disabled()
-    assert tablet.evaluate("window.asked.length") == 0
+    # The strip of days asks at once, one question per sensor.
+    tablet.wait_for_function("window.asked.length === 2")
     go(tablet, "earlier")
     tablet.wait_for_selector(f"{WEATHER} [data-weather-past] svg")
     assert shown(tablet) == "Dziś"
@@ -113,7 +114,7 @@ def test_the_arrows_go_back_seven_days_and_return_to_the_forecast(tablet):
     assert "1,5" in tablet.locator(f"{WEATHER} [data-weather-part='night']").inner_text()
     assert "2 h" in tablet.locator(f"{WEATHER} [data-weather-cold]").inner_text()
     assert tablet.locator(f"{WEATHER} [data-weather-limit]").count() == 1
-    for _ in range(6):
+    for _ in range(13):
         go(tablet, "earlier")
     assert tablet.locator(f"{WEATHER} [data-weather-go='earlier']").is_disabled()
     # One question per sensor for all the days.
@@ -127,20 +128,20 @@ def test_the_arrows_go_back_seven_days_and_return_to_the_forecast(tablet):
     assert tablet.locator(f"{WEATHER} [data-weather-past]").count() == 0
 
 
-def test_the_week_takes_the_place_of_the_next_days_and_a_column_opens_its_day(tablet):
+def test_a_column_of_the_strip_opens_its_day(tablet):
     prepare(tablet)
-    go(tablet, "earlier")
     columns = tablet.locator(f"{WEATHER} [data-weather-past-day]")
-    columns.first.wait_for()
-    assert columns.evaluate_all("(c) => c.map((b) => b.dataset.weatherPastDay)") == list("76543210")
-    assert tablet.locator(f"{WEATHER} [data-weather-column]").count() == 0
-    tablet.locator(f"{WEATHER} [data-weather-past-day='2']").click()
+    columns.first.wait_for(state="attached")
+    assert columns.evaluate_all("(c) => c.map((b) => b.dataset.weatherPastDay)") == [
+        str(n) for n in range(14, -1, -1)
+    ]
+    tablet.locator(f"{WEATHER} [data-weather-past-day='2']").evaluate("(b) => b.click()")
     assert "1,4 mm" in tablet.locator(f"{WEATHER} [data-weather-past-total]").inner_text()
     assert tablet.locator(f"{WEATHER} [data-weather-measured-rain]").count() == 1
-    tablet.locator(f"{WEATHER} [data-weather-past-day='3']").click()
+    tablet.locator(f"{WEATHER} [data-weather-past-day='3']").evaluate("(b) => b.click()")
     assert "2" in tablet.locator(f"{WEATHER} [data-weather-missing]").inner_text()
     # The whole window still fits the screen.
-    last = columns.last.bounding_box()
+    last = tablet.locator(f"{WEATHER} .days-card").bounding_box()
     assert last["y"] + last["height"] <= 820
 
 

@@ -184,10 +184,10 @@ otwiera jego prognozę: temperaturę i opady godzina po godzinie, minimum i maks
 > gdy dzień się zbliży. Więcej godzin da inna usługa pogody ustawiona w `weather.forecast`.
 
 **Minione dni.** Z `weather.history` (Ustawienia → Strona główna i tablet → Pogoda → Minione dni) strzałki nad wykresem
-albo przeciągnięcie go w prawo cofają dzień po dniu: dziś do tej pory i 7 poprzednich dni, tak jak zmierzyły je Twoje
+albo przeciągnięcie go w prawo cofają dzień po dniu: dziś do tej pory i 14 poprzednich dni, tak jak zmierzyły je Twoje
 czujniki. Linia to średnia z godziny, pasmo to jej najniższy i najwyższy odczyt, słupki to opady. Pod wykresem: dzień
 (6–18), noc po nim (18–6 następnego ranka), suma opadów i, z `limit`, liczba godzin od 6:00 do 6:00, których najniższy
-odczyt był poniżej progu. Zamiast najbliższych dni jest tydzień w kolumnach, dotknięcie otwiera dzień. Godziny bez
+odczyt był poniżej progu. Dolna karta to jeden pasek dni: po lewej dni zmierzone, za kreską najbliższe dni prognozy. Przewija się palcem płynnie, bez zmiany wykresu, a dopiero dotknięcie dnia pokazuje go na wykresie. Na początku widać prognozę, a gdy strzałki wybiorą dzień poza widokiem, pasek sam do niego przewinie. Godziny bez
 odczytu są policzone i zostają jako przerwa. Telefon i tablet w pionie mają to pod prognozą. Ostatnia godzina pojawia
 się chwilę po jej zakończeniu (statystyki godzinowe).
 

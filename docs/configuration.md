@@ -353,7 +353,12 @@ security:
   group: {name: Guest, entities: [input_boolean.guest_mode]}
   groups:
     - {name: Children's devices, entities: [input_boolean.child_phone]}
+    - {name: Cameras, entities: [input_boolean.private_mode]}   # a switch only in `scenes`
 ```
+
+A group takes its tiles from the rooms, and a switch that is only in `scenes` as the scene has it: with its name,
+`turn_on_only`, `on_pin` and `off_pin` and its visibility (`visibility`). A tile hidden from someone is not in their
+group either.
 
 ### `idle`
 

@@ -1802,3 +1802,45 @@ def test_an_apple_tv_asleep_wakes_for_an_app(phone):
     open_apple_tv(phone, "off")
     phone.locator(f"{SHEET} [data-shortcut='YouTube']").click()
     assert (calls(phone)[-1]["domain"], calls(phone)[-1]["service"]) == ("media_player", "turn_on")
+
+
+CAMERAS_OFF = "input_boolean.cameras_off"
+
+
+def scene_in_security(page, only: list | None = None) -> None:
+    add_entity(page, CAMERAS_OFF, "off", {"friendly_name": "Private mode"})
+    scene = {
+        "entity": CAMERAS_OFF,
+        "name": "Wyłącz kamery",
+        "turn_on_only": True,
+        "on_pin": {**OFF_PIN, "data": {"value": "on"}},
+        "off_pin": {**OFF_PIN, "data": {"value": "off"}},
+    }
+    config = {"scenes": [scene], "security": {"groups": [{"name": "Kamery", "entities": [CAMERAS_OFF]}]}}
+    if only is not None:
+        config["visibility"] = {CAMERAS_OFF: {"only": only, "except": []}}
+    mount(page, config)
+    page.locator("[data-chip='security']").click()
+
+
+def test_a_scene_in_a_security_group_keeps_its_name_and_its_pin(phone):
+    scene_in_security(phone)
+    group = phone.locator("home-dashboard-page section[data-room='__security_group_2']")
+    group.wait_for()
+    assert "Wyłącz kamery" in group.inner_text()
+    group.locator(f"[data-entity='{CAMERAS_OFF}'] .text").click()
+    phone.wait_for_selector(f"{SHEET} section.panel[data-kind='pin']")
+    assert service_calls(phone) == []
+    type_pin(phone, "1234")
+    phone.locator(f"{SHEET} [data-pin-ok]").click()
+    assert last_call(phone)["data"] == {"value": "on", "pin": "1234"}
+
+
+def test_a_scene_hidden_from_a_person_is_not_in_the_security_group(phone):
+    scene_in_security(phone, only=["somebody else"])
+    phone.wait_for_selector(
+        "home-dashboard-page [data-chip='security'][aria-pressed='true'], home-dashboard-page section",
+        state="attached",
+    )
+    phone.wait_for_timeout(200)
+    assert phone.locator("home-dashboard-page section[data-room='__security_group_2']").count() == 0
